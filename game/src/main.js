@@ -17,6 +17,7 @@ import { initAudio, sfx, buzz, gateS, startCrowd, stopCrowd } from './ui/audio.j
 import { showMsg, allyNames } from './ui/messages.js';
 import { buildHud, showHud, updateHud, banner, fmt } from './ui/hud.js';
 import { bindInput, readMove, trayOpen, upOpen, releaseAll, inp } from './ui/input.js';
+import { startTutorial, stopTutorial, tutorialTick, bindTutorial } from './ui/tutorial.js';
 import { session, isClient, isHost, prefs } from './net/session.js';
 import { allyFor, describeTeams, assignFactions } from './core/teams.js';
 import { actions, netHostReadInputs, netHostTick, netHostSend, clientTick, clientHorses, setNetHooks, C } from './net/netgame.js';
@@ -56,7 +57,7 @@ bus.on('respawnMe', L => { cam.yaw = L.face; });
 bus.on('hud', () => { if (G.state === 'play') updateHud(C.lastSnapAt); });
 bus.on('hostEnd', res => endMatch(res[0], res[1]));
 bus.on('end', ({ w, why }) => {
-  releaseAll(); trayOpen(false); upOpen(false);
+  releaseAll(); trayOpen(false); upOpen(false); stopTutorial();
   updateHud(C.lastSnapAt);
   stopCrowd();
   const mine = G.ALLY[colorOf(G.myTi)];
@@ -97,10 +98,11 @@ function beginMatch(humans, active) {
   cam.yaw = G.player.face; cam.pitch = CAM_PITCH;
   viewForMatch();
   sfx.horn();
+  startTutorial();
 }
 setNetHooks({ onMatchStart: viewForMatch, onAbort: msg => netLeave(msg), onLobby: () => showLobby() });
 bindLobby({ startMatch: beginMatch, seedDemo, preset: () => preset, resetSolo: () => resetSolo() });
-bindInput(actions);
+bindInput(actions); bindTutorial();
 
 // ---------- title scene ----------
 let demoT = 0, demoRider = null;
@@ -246,7 +248,7 @@ function loop(now) {
         else if (isHost() && now - (session.NET.lastLobby || 0) > 700) { session.NET.lastLobby = now; hostLobbyTick(); }
       }
     }
-    if (G.state === 'play') { hudT -= dt; if (hudT <= 0) { hudT = .1; updateHud(C.lastSnapAt); } }
+    if (G.state === 'play') { hudT -= dt; if (hudT <= 0) { hudT = .1; updateHud(C.lastSnapAt); tutorialTick(.1); } }
   } catch (err) { console.error(err); }
   requestAnimationFrame(loop);
 }

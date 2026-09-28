@@ -560,6 +560,7 @@ function throwCaptainJav(p) {
   return true;
 }
 function leapSlam(p) {
+  p.leaps = (p.leaps || 0) + 1;
   p.swing = .38; p.cd = CC.leap.cd; p.pending = { t: .1, leap: true }; p.swingKind = 2;
   p.jvy = Math.min(p.jvy, -9);
   p.vx += Math.sin(p.face) * 3; p.vz += Math.cos(p.face) * 3;

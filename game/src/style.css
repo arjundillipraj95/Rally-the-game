@@ -92,6 +92,18 @@
   .tray .lv::before{content:attr(data-pips);letter-spacing:2px;color:var(--gold);font-size:12px;}
   #upBtn.open{background:rgba(255,207,58,.25);}
   .tray button:focus-visible{outline:3px solid var(--gold);}
+  /* first-battle coach card, and a pulsing ring on the button it's teaching */
+  .coach{position:absolute;left:50%;top:52px;transform:translateX(-50%);display:grid;grid-template-columns:auto 1fr auto;column-gap:10px;align-items:center;
+    background:rgba(12,14,18,.62);border:1.5px solid rgba(255,207,58,.6);border-radius:12px;padding:8px 10px 8px 14px;max-width:min(520px,70vw);pointer-events:auto;
+    -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);}
+  .coach .n{grid-row:1 / 3;font:800 11px var(--body);letter-spacing:.08em;color:var(--gold);text-transform:uppercase;white-space:nowrap;}
+  .coach b{font:400 22px var(--display);font-style:italic;letter-spacing:.03em;line-height:1.1;}
+  .coach .s{grid-column:2;font:700 13px var(--body);color:var(--dim);}
+  #coachSkip{grid-row:1 / 3;grid-column:3;background:none;border:1.5px solid rgba(255,255,255,.35);border-radius:8px;color:#fff;font:800 11px var(--body);letter-spacing:.08em;text-transform:uppercase;padding:6px 10px;cursor:pointer;}
+.linkbtn{background:none;border:0;padding:0;color:var(--gold);font:inherit;text-decoration:underline;cursor:pointer;}
+  .coach-hi{box-shadow:0 0 0 3px rgba(255,207,58,.9),0 0 18px 4px rgba(255,207,58,.55)!important;animation:coachPulse 1s ease-in-out infinite;}
+  @keyframes coachPulse{50%{box-shadow:0 0 0 5px rgba(255,207,58,.5),0 0 26px 8px rgba(255,207,58,.35)!important;}}
+  @media (max-height:430px){ .coach{top:40px;padding:5px 8px 5px 10px;} .coach b{font-size:17px;} .coach .s{font-size:11px;} }
   .joyzone{position:absolute;left:max(18px, env(safe-area-inset-left,0px));bottom:max(18px, env(safe-area-inset-bottom,0px));width:120px;height:120px;border-radius:50%;
     border:2px solid rgba(255,255,255,.3);background:rgba(12,14,18,.14);display:grid;place-items:center;pointer-events:none;transition:opacity .3s;}
   .joyzone svg{width:34%;height:34%;opacity:.6;}
