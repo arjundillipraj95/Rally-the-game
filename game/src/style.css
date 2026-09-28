@@ -170,7 +170,40 @@
   .keys{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:8px 0 0;}
   .keys dt{font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);font-size:12px;padding-top:2px;}
   .keys dd{margin:0;}
-  .rotate{font-weight:800;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);}
+  .rotate{font-weight:800;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin-top:10px;}
+  /* home menu: brand on the left; tabs on the right with the play buttons pinned under them */
+  .menu.home{max-width:900px;grid-template-columns:minmax(0,.75fr) minmax(0,1.25fr);align-items:stretch;}
+  .home .brand{display:flex;flex-direction:column;justify-content:center;}
+  .home .side{display:flex;flex-direction:column;gap:10px;height:min(calc(100dvh - 28px),600px);min-height:0;background:rgba(20,19,18,.62);border:1.5px solid rgba(255,255,255,.08);border-radius:14px;padding:4px 14px 12px;
+    -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);}
+  .tabs{display:flex;gap:2px;border-bottom:1.5px solid rgba(255,255,255,.15);flex:0 0 auto;}
+  .tabs button{flex:1;background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-1.5px;color:var(--dim);font:800 12px var(--body);letter-spacing:.1em;text-transform:uppercase;padding:9px 4px;cursor:pointer;white-space:nowrap;}
+  .tabs button[aria-selected="true"]{color:var(--paper);border-bottom-color:var(--gold);}
+  .tabs button:focus-visible{outline:2px solid var(--gold);outline-offset:-2px;}
+  .panel{display:flex;flex-direction:column;gap:12px;overflow-y:auto;min-height:0;flex:1 1 auto;padding:2px 4px 14px 0;overscroll-behavior:contain;
+    -webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 16px),transparent);mask-image:linear-gradient(to bottom,#000 calc(100% - 16px),transparent);}
+  .panel > *{flex-shrink:0;}
+  .panel .desc{font-size:13px;min-height:0;}
+  .panel[hidden]{display:none;}
+  .actions{flex:0 0 auto;padding-top:2px;}
+  .actions .go{font-size:26px;padding:12px 18px;}
+  .rankchip{display:flex;gap:10px;align-items:baseline;margin-top:14px;font:800 12px var(--body);letter-spacing:.08em;text-transform:uppercase;}
+  .rankchip #rankLine{color:var(--gold);} .rankchip #rankNext{color:var(--dim);}
+  .grp > label .hint{text-transform:none;letter-spacing:0;font-weight:700;color:var(--dim);font-size:12px;margin-left:6px;}
+  .panel .keys{margin:0;font-size:14px;color:var(--dim);}
+  @media (max-width:620px){
+    .menu.home{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr);height:calc(100dvh - 28px);}
+    .home .side{height:auto;min-height:0;}
+    .home .brand{flex-direction:row;flex-wrap:wrap;align-items:center;gap:4px 14px;}
+    .home .brand .logo{font-size:52px;} .home .brand .flags{margin:0;} .home .tagline{flex-basis:100%;} .home .rankchip{margin-top:0;}
+    .home .rotate{margin-top:0;font-size:11px;} #segMode button{flex:1 1 40%;} .tabs button{font-size:11px;letter-spacing:.06em;}
+  }
+  @media (max-height:430px){
+    .home .side{padding:2px 10px 8px;}
+    .home .tagline{display:none;} .home .brand .logo{font-size:52px;}
+    .tabs button{padding:6px 3px;font-size:11px;} .panel{gap:8px;}
+    .actions .go{font-size:20px;padding:8px 14px;}
+  }
   @media (orientation:landscape){ .rotate{display:none;} }
   .stats{display:flex;gap:20px;font-variant-numeric:tabular-nums;flex-wrap:wrap;}
   .stats div{display:grid;}

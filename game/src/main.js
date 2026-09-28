@@ -109,6 +109,19 @@ $('segCrest').addEventListener('click', e => {
   if (setCrest(+b.dataset.v)) buildCrests();
 });
 buildCrests();
+// Home menu tabs: one panel at a time, the play buttons always in reach.
+const tabs = [...document.querySelectorAll('#ovTitle .tabs button')];
+function showTab(id) {
+  tabs.forEach(t => { const on = t.dataset.tab === id; t.setAttribute('aria-selected', String(on)); t.tabIndex = on ? 0 : -1; $(t.dataset.tab).hidden = !on; });
+}
+tabs.forEach((t, i) => {
+  t.addEventListener('click', () => showTab(t.dataset.tab));
+  t.addEventListener('keydown', e => { // arrow keys move between tabs
+    const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0; if (!d) return;
+    const n = tabs[(i + d + tabs.length) % tabs.length]; showTab(n.dataset.tab); n.focus(); e.preventDefault();
+  });
+});
+showTab('tabBattle');
 function endText(w, why) {
   if (w < 0) return 'Time ran out with no clear winner.';
   const names = allyNames(w), one = names.indexOf('&') < 0;

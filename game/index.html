@@ -69,23 +69,31 @@
 
   <!-- solo setup -->
   <div class="overlay" id="ovTitle">
-    <div class="menu">
-      <div>
+    <div class="menu home">
+      <div class="brand">
         <h1 class="logo"><span>Rally!</span></h1>
         <div class="flags"><i style="background:var(--blue)"></i><i style="background:var(--red)"></i><i style="background:var(--green)"></i><i style="background:var(--yellow)"></i></div>
-        <p>Lead your army against three rival teams, alone or with friends on their own phones. Recruit footmen and archers, call your horse, and fight at the front of your squad.</p>
-        <div class="rotate" style="margin-top:10px">Turn your phone sideways for the best view</div>
+        <p class="tagline">Lead your army against three rival teams, alone or with friends on their own phones.</p>
+        <div class="rankchip"><span id="rankLine">Recruit</span><span id="rankNext"></span></div>
+        <div class="rotate">Turn your phone sideways for the best view</div>
       </div>
       <div class="side">
-        <div class="grp"><label>Mode</label>
+        <div class="tabs" role="tablist" aria-label="Menu">
+          <button type="button" role="tab" data-tab="tabBattle" aria-selected="true">Battle</button>
+          <button type="button" role="tab" data-tab="tabArmy" aria-selected="false">Army</button>
+          <button type="button" role="tab" data-tab="tabSettings" aria-selected="false">Settings</button>
+          <button type="button" role="tab" data-tab="tabHelp" aria-selected="false">How to play</button>
+        </div>
+        <div class="panel" id="tabBattle" role="tabpanel">
+          <div class="grp"><label>Mode</label>
           <div class="seg" id="segMode">
             <button type="button" data-v="conquest" aria-pressed="true">Conquest</button>
             <button type="button" data-v="dm" aria-pressed="false">Deathmatch</button>
             <button type="button" data-v="ctf" aria-pressed="false">Capture the Fort</button>
             <button type="button" data-v="ctrl" aria-pressed="false">Control</button>
           </div>
-        </div>
-        <div class="grp"><label>Map</label>
+          </div>
+          <div class="grp"><label>Map</label>
           <div class="seg" id="segMap">
             <button type="button" data-v="forum" aria-pressed="true">Forum</button>
             <button type="button" data-v="colosseum" aria-pressed="false">Colosseum</button>
@@ -97,76 +105,85 @@
             <button type="button" data-v="forest" aria-pressed="false">Pine Forest</button>
             <button type="button" data-v="frost" aria-pressed="false">Frost Hill</button>
           </div>
-        </div>
-        <div class="grp"><label>Teams</label>
+          </div>
+          <div class="grp"><label>Teams</label>
           <div class="seg" id="segTeams">
             <button type="button" data-v="ffa" aria-pressed="true">Free for all</button>
             <button type="button" data-v="2v2" aria-pressed="false">2 v 2</button>
             <button type="button" data-v="2v1v1" aria-pressed="false">2 v 1 v 1</button>
             <button type="button" data-v="3v1" aria-pressed="false">3 v 1</button>
           </div>
+          </div>
+          <div class="grp"><label>Difficulty</label>
+          <div class="seg" id="segDiff">
+            <button type="button" data-v="0" aria-pressed="false">Recruit</button>
+            <button type="button" data-v="1" aria-pressed="true">Soldier</button>
+            <button type="button" data-v="2" aria-pressed="false">Warlord</button>
+          </div>
+          </div>
+          <div class="desc" id="desc"></div>
         </div>
-        <div class="grp"><label>Your army</label>
+        <div class="panel" id="tabArmy" role="tabpanel" hidden>
+          <div class="grp"><label>Faction</label>
           <div class="seg" id="segFaction">
             <button type="button" data-v="roman" aria-pressed="true">Romans</button>
             <button type="button" data-v="greek" aria-pressed="false">Greeks</button>
             <button type="button" data-v="barbarian" aria-pressed="false">Barbarians</button>
           </div>
-          <div class="rankline"><span id="rankLine">Recruit</span><span class="note" id="rankNext"></span></div>
-          <div class="crests" id="segCrest" aria-label="Captain's crest"></div><div class="note" id="crestNote"></div>
+          </div>
+          <div class="grp"><label>Colour</label>
           <div class="seg swatches" id="segColor">
             <button type="button" data-v="0" aria-pressed="true" style="background:var(--blue)">Blue</button>
             <button type="button" data-v="1" aria-pressed="false" style="background:var(--red)">Red</button>
             <button type="button" data-v="2" aria-pressed="false" style="background:var(--green)">Green</button>
             <button type="button" data-v="3" aria-pressed="false" style="background:var(--yellow)">Yellow</button>
           </div>
-        </div>
-        <div class="grp"><label>Duo &mdash; give a castle a computer co-captain (double squad, one shared castle)</label>
+          </div>
+          <div class="grp"><label>Captain's crest</label>
+            <div class="crests" id="segCrest" aria-label="Captain's crest"></div><div class="note" id="crestNote"></div>
+          </div>
+          <div class="grp"><label>Duo castles <span class="hint">a computer co-captain shares the castle (double squad)</span></label>
           <div class="seg swatches" id="segDuo">
             <button type="button" data-v="0" aria-pressed="false" style="background:var(--blue)">Blue Duo</button>
             <button type="button" data-v="1" aria-pressed="false" style="background:var(--red)">Red Duo</button>
             <button type="button" data-v="2" aria-pressed="false" style="background:var(--green)">Green Duo</button>
             <button type="button" data-v="3" aria-pressed="false" style="background:var(--yellow)">Yellow Duo</button>
           </div>
-        </div>
-        <div class="desc" id="desc"></div>
-        <div class="grp"><label>Difficulty</label>
-          <div class="seg" id="segDiff">
-            <button type="button" data-v="0" aria-pressed="false">Recruit</button>
-            <button type="button" data-v="1" aria-pressed="true">Soldier</button>
-            <button type="button" data-v="2" aria-pressed="false">Warlord</button>
           </div>
         </div>
-        <div class="grp"><label>Graphics</label>
+        <div class="panel" id="tabSettings" role="tabpanel" hidden>
+          <div class="grp"><label>Graphics</label>
           <div class="seg" id="segQuality">
             <button type="button" data-v="auto" aria-pressed="true">Auto</button>
             <button type="button" data-v="low" aria-pressed="false">Low</button>
             <button type="button" data-v="medium" aria-pressed="false">Medium</button>
             <button type="button" data-v="high" aria-pressed="false">High</button>
           </div>
-          <div class="note" id="qualityNote"></div>
+            <div class="note" id="qualityNote"></div>
+          </div>
+          <div class="grp"><label>Tutorial</label>
+            <div><button type="button" class="linkbtn" id="tutAgain">Show the tutorial in my next battle</button></div>
+          </div>
         </div>
-        <div class="brow">
-          <button class="go" id="goBtn" type="button">To battle!</button>
-          <button class="go alt" id="mpBtn" type="button">Play with friends</button>
-        </div>
-        <details>
-          <summary>How to play</summary>
+        <div class="panel" id="tabHelp" role="tabpanel" hidden>
           <dl class="keys">
             <dt>Move</dt><dd>Left thumb. Drag the right side to turn the camera.</dd>
-            <dt>Fight</dt><dd>Red attacks (hold to keep swinging). Blue blocks hits from the front. Chain three sword swings: the third hits harder and catches the men beside your target.</dd>
+            <dt>Fight</dt><dd>The big button bottom-right attacks (hold to keep swinging); the shield button beside it blocks hits from the front. Chain three sword swings: the third hits harder and catches the men beside your target.</dd>
             <dt>Weapons</dt><dd>The weapon button switches Sword (fast combo) → Spear (long reach, runs through two men, brings down horses) → Javelins (a few throws that come back over time).</dd>
             <dt>Jump</dt><dd>Jump, then attack in mid-air to slam down on everyone in front of you. It can't be blocked and knocks them off balance.</dd>
             <dt>Horse</dt><dd>Ride to cross the map and trample men on foot. No blocking, no castle damage, no banner. Spearmen are deadly to horses.</dd>
             <dt>Units</dt><dd>Footmen upgrade into spear &amp; javelin fighters who dismount riders. Archers deal more damage on a headshot, less on the legs; shields block body shots but not headshots.</dd>
             <dt>Teams</dt><dd>Allies share victory and never hurt each other. In Capture the Fort, allies pool their captures.</dd>
-            <dt>Orders</dt><dd>Follow me, Hold here, Charge, and Shieldwall: your squad locks into a tight line ahead of you and marches slowly while arrows from the front bounce off.</dd>
+            <dt>Orders</dt><dd>The flag button cycles Follow me, Hold here, Charge, and Shieldwall: your squad locks into a tight line ahead of you and marches slowly while arrows from the front bounce off.</dd>
             <dt>Volley</dt><dd>Call it and every archer and javelin-armed footman in your squad fires at once at whatever's in range. Shared cooldown, so time it for a wall of enemies, not one straggler.</dd>
             <dt>Aura</dt><dd>Soldiers inside the ring around your captain hit harder, block more and move faster. Upgrades make it bigger.</dd>
-            <dt>Tutorial</dt><dd><button type="button" class="linkbtn" id="tutAgain">Show the tutorial in my next battle</button></dd>
             <dt>Keys</dt><dd>WASD, arrows turn, Space attack, Shift block, C jump, R switch weapon, H ride, V volley, Q follow, F hold, E charge, T shieldwall, 1/2 recruit, 3–8 upgrades.</dd>
           </dl>
-        </details>
+        </div>
+        <div class="brow actions">
+          <button class="go" id="goBtn" type="button">To battle!</button>
+          <button class="go alt" id="mpBtn" type="button">Play with friends</button>
+        </div>
       </div>
     </div>
   </div>
