@@ -1,7 +1,7 @@
 // Online battles. The host runs the rules; every other phone sends its captain and button
 // presses and draws the host's snapshots (a compact text string, about 1KB, 12 times a second).
 import { TEAMS, MAPS, KINDS, STATS, RECRUITS, FACTIONS, factionFromCode, ORDERS, ORDER_NAMES, UPGRADES } from '../config.js';
-import { G, bus } from '../core/state.js';
+import { G, bus, colorOf } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn } from '../core/world.js';
 import { buildNav, syncGates } from '../core/nav.js';
 import { newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax } from '../core/sim.js';
@@ -37,7 +37,7 @@ function encodeSnap() {
   const us = [];
   for (const u of G.units) {
     if (u.dead) continue;
-    const kt = KINDS.indexOf(u.kind) * 4 + u.ti;
+    const kt = KINDS.indexOf(u.kind) * 8 + u.ti;
     const fl = (u.swing > 0 ? 1 : 0) | (u.mounted ? 2 : 0) | ((u.blockT > 0 || (u.human && u.blocking)) ? 4 : 0) | (u.carrying ? 8 : 0) | (u.stun > 0 ? 16 : 0) | (u.aim ? 32 : 0) | (u.testudo ? 64 : 0);
     us.push([b36(u.id), kt.toString(16), encX(u.x), encX(u.z), encF(u.face), b36(clamp(u.hp / u.max, 0, 1) * 35), b36(fl)].join(','));
   }
@@ -59,7 +59,7 @@ export function netHostTick() {
 export function netHostSend() {
   const NET = session.NET; if (!NET) return;
   NET.lastSend = performance.now();
-  const pres = { role: 'host', ph: G.state === 'end' ? 'end' : 'play', seed: G.seed, mode: G.mode, map: G.map.id, diff: G.diff, al: G.ALLY.join(''), seats: NET.seats, nick: session.myNick || 'Host', fa: G.factions.map(f => (FACTIONS[f] || FACTIONS.roman).code).join(''), n: ++NET.snapN, s: encodeSnap(), m: NET.msgs };
+  const pres = { role: 'host', ph: G.state === 'end' ? 'end' : 'play', seed: G.seed, mode: G.mode, map: G.map.id, diff: G.diff, al: G.ALLY.join(''), duo: G.duo.map(d => d ? 1 : 0).join(''), seats: NET.seats, nick: session.myNick || 'Host', fa: G.factions.map(f => (FACTIONS[f] || FACTIONS.roman).code).join(''), n: ++NET.snapN, s: encodeSnap(), m: NET.msgs };
   if (G.state === 'end' && G.endInfo) pres.res = [G.endInfo.w, G.endInfo.why];
   let json = JSON.stringify(pres);
   while (json.length > 3900) { // trim arrows first, then messages
@@ -108,16 +108,18 @@ export function clientStart(hp) {
   G.role = 'client';
   G.mode = hp.mode; G.map = MAPS[hp.map]; G.diff = hp.diff; G.ALLY = hp.al.split('').map(Number); G.seed = hp.seed;
   G.factions = String(hp.fa || 'rrrr').split('').map(factionFromCode);
+  G.duo = String(hp.duo || '0000').split('').map(c => c === '1');
   G.layout = makeLayout(G.map.id, G.mode === 'ctf', G.seed); buildNav(G.layout);
   G.units = []; G.horses = []; G.arrows = [];
   G.T = 0; G.kills = 0; G.recruited = 0; G.bounty = -1; G.endInfo = null;
-  const humans = [0, 0, 0, 0]; Object.values(hp.seats || {}).forEach(ti => humans[ti] = 1);
-  G.teams = newTeams(humans);
+  const humans = [0, 0, 0, 0, 0, 0, 0, 0]; Object.values(hp.seats || {}).forEach(ti => humans[ti] = 1);
+  const active = [1, 1, 1, 1, ...G.duo.map(d => d ? 1 : 0)];
+  G.teams = newTeams(humans, active);
   G.flag = G.mode === 'ctf' ? { state: 'home', x: 0, z: 0, carrier: null, dropT: 0 } : null;
   Object.assign(C, { byId: new Map(), lastN: -1, lastMsgN: (hp.m && hp.m.length) ? hp.m[hp.m.length - 1][0] : 0, meId: null, meInit: false, kickN: 0, localCd: 0, lastSnapAt: performance.now(),
     inp: { atk: 0, ride: 0, rec: [0, 0, 0], up: [0, 0, 0, 0, 0], ord: 'follow', hold: null, face: 0 }, sendAt: 0, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
   G.player = null;
-  cam.yaw = Math.atan2(-TEAMS[G.myTi].pos[0], -TEAMS[G.myTi].pos[1]); cam.pitch = .32;
+  cam.yaw = Math.atan2(-TEAMS[colorOf(G.myTi)].pos[0], -TEAMS[colorOf(G.myTi)].pos[1]); cam.pitch = .32;
   G.state = 'play';
   hooks.onMatchStart();
   sfx.horn(); showMsg('start', []);
@@ -156,7 +158,7 @@ function clientApply(hp) {
   const seen = new Set();
   if (secs[2]) for (const row of secs[2].split(';')) {
     const f = row.split(','), id = p36(f[0]), kt = parseInt(f[1], 16);
-    const kind = KINDS[kt >> 2], ti = kt & 3;
+    const kind = KINDS[kt >> 3], ti = kt & 7;
     const x = decX(f[2]), z = decX(f[3]), face = decF(f[4]), hpq = p36(f[5]), fl = p36(f[6]);
     seen.add(id);
     let u = C.byId.get(id);
@@ -164,7 +166,7 @@ function clientApply(hp) {
     const oldHp = u.hp;
     u.hp = hpq / 35 * u.max;
     if (u.hp < oldHp - .5 && id !== myId) {
-      bus.emit('spark', { x: u.x, y: u.y + 1.2, z: u.z, c: (fl & 4) ? '#fff3b0' : TEAMS[u.ti].css, n: 5 });
+      bus.emit('spark', { x: u.x, y: u.y + 1.2, z: u.z, c: (fl & 4) ? '#fff3b0' : TEAMS[colorOf(u.ti)].css, n: 5 });
       if (fl & 4) sfx.clang(u.x, u.z);
       else { sfx.hit(u.x, u.z); if (Math.random() < .35) bus.emit('splat', { x: u.x + rnd(-.4, .4), z: u.z + rnd(-.4, .4), s: rnd(.6, 1.1), ti: u.ti }); }
     }
@@ -185,7 +187,7 @@ function clientApply(hp) {
     me.horseHp = C.meInfo.horseHp; me.horseCd = C.meInfo.horseCd; me.summon = !!C.meInfo.summon; me.hp = C.meInfo.hp;
     if (C.meInfo.kn !== C.kickN) {
       C.kickN = C.meInfo.kn; me.vx += C.meInfo.kvx; me.vz += C.meInfo.kvz; me.stun = Math.max(me.stun, C.meInfo.kst);
-      if (C.meInfo.kvx || C.meInfo.kvz) { cam.shake = .35; buzz(30); bus.emit('spark', { x: me.x, y: me.y + 1.2, z: me.z, c: TEAMS[me.ti].css, n: 5 }); sfx.hit(me.x, me.z); }
+      if (C.meInfo.kvx || C.meInfo.kvz) { cam.shake = .35; buzz(30); bus.emit('spark', { x: me.x, y: me.y + 1.2, z: me.z, c: TEAMS[colorOf(me.ti)].css, n: 5 }); sfx.hit(me.x, me.z); }
     }
   }
   if (G.player && G.player.dead) G.player = null;

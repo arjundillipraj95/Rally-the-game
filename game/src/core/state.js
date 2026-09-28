@@ -29,10 +29,18 @@ export const G = {
   horseN: 0,
   endInfo: null,
   squadCap: 20,
+  duo: [false, false, false, false], // per castle color: does it field a second, independent army?
 };
 
-export const isEnemyTi = (a, b) => G.ALLY[a] !== G.ALLY[b];
-export const isEnemy = (a, b) => G.ALLY[a.ti] !== G.ALLY[b.ti];
+// Armies 0-3 are the four castles' own army; 4-7 are each castle's Duo teammate army
+// (only real when G.duo[color] is true). colorOf maps either back to its castle/color/alliance.
+export const colorOf = ti => ti % 4;
+export const slotOf = ti => ti < 4 ? 0 : 1;
+export const armyOf = (color, slot) => slot ? color + 4 : color;
+export const activeArmies = () => { const out = [0, 1, 2, 3]; for (let c = 0; c < 4; c++) if (G.duo[c]) out.push(c + 4); return out; };
+
+export const isEnemyTi = (a, b) => G.ALLY[colorOf(a)] !== G.ALLY[colorOf(b)];
+export const isEnemy = (a, b) => G.ALLY[colorOf(a.ti)] !== G.ALLY[colorOf(b.ti)];
 export const isFfa = () => new Set(G.ALLY).size === 4;
 
 // Small event bus: rules announce what happened, presentation decides how it looks and sounds.

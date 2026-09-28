@@ -5,7 +5,7 @@
 // round hoplon), barbarians (hair and beards, bare chests, round wooden shields, axes).
 import * as THREE from 'three';
 import { TEAMS } from '../config.js';
-import { G, isEnemyTi, isFfa } from '../core/state.js';
+import { G, isEnemyTi, isFfa, colorOf } from '../core/state.js';
 import { braced } from '../core/sim.js';
 import { scene, shadowsOn } from './scene.js';
 
@@ -88,7 +88,7 @@ const C = {
 };
 const hash = u => (Math.imul(u.id | 0, 2654435761) >>> 0);
 const skinOf = u => C.skin[hash(u) % 3], hairOf = u => C.hair[(hash(u) >>> 4) % 4];
-export const factionOf = u => (G.factions && G.factions[u.ti]) || 'roman';
+export const factionOf = u => (G.factions && G.factions[colorOf(u.ti)]) || 'roman';
 
 // ---------- part list ----------
 const e = (x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1) =>
@@ -96,7 +96,7 @@ const e = (x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1) =>
 // filters: k = kinds, f = factions
 const K = (...ks) => new Set(ks), F = (...fs) => new Set(fs);
 const MELEE = K('foot', 'captain'), HELMED = K('foot', 'captain', 'spear');
-const team = u => C.team[u.ti], dark = u => C.dark[u.ti];
+const team = u => C.team[colorOf(u.ti)], dark = u => C.dark[colorOf(u.ti)];
 const PARTS = [
   { bone: 'root', geo: 'shadow', mat: 'shadow', m: e(0, .03, 0, -Math.PI / 2), when: 'blob' },
   { bone: 'root', geo: 'ring', mat: 'ring', m: e(0, .05, 0, -Math.PI / 2), when: 'me' },

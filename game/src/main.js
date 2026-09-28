@@ -1,7 +1,7 @@
 // Rally! Boots the game, runs the frame loop and wires the rules to the screen.
 import './style.css';
 import { TEAMS, MODES, MAPS, PRESETS } from './config.js';
-import { G, bus } from './core/state.js';
+import { G, bus, colorOf } from './core/state.js';
 import { startMatch, mkUnit, newTeams, update, fallStep, endMatch, auraRange } from './core/sim.js';
 import { makeLayout, gatePos, groundY } from './core/world.js';
 import { buildNav } from './core/nav.js';
@@ -50,7 +50,7 @@ bus.on('hostEnd', res => endMatch(res[0], res[1]));
 bus.on('end', ({ w, why }) => {
   releaseAll(); trayOpen(false); upOpen(false);
   updateHud(C.lastSnapAt);
-  const mine = G.ALLY[G.myTi];
+  const mine = G.ALLY[colorOf(G.myTi)];
   const result = w < 0 ? 'draw' : w === mine ? 'win' : 'lose';
   const title = result === 'win' ? 'Victory' : result === 'draw' ? 'Draw' : 'Defeat';
   if (result === 'win') { sfx.horn(); banner('Victory!', '', '#ffcf3a'); } else banner(title, '', result === 'draw' ? '#fff' : '#e0352b');
@@ -81,9 +81,9 @@ function viewForMatch() {
   buildHud(); showHud(); trayOpen(false); upOpen(false);
   watchdog.reset();
 }
-function beginMatch(humans) {
+function beginMatch(humans, active) {
   if (!session.NET) G.role = 'solo';
-  startMatch(humans);
+  startMatch(humans, active);
   cam.yaw = G.player.face; cam.pitch = .32;
   viewForMatch();
   sfx.horn();
@@ -236,7 +236,7 @@ function loop(now) {
 // read-only hook for automated play-testing
 const r1 = v => Math.round(v * 10) / 10;
 window.__fb = {
-  end() { endMatch(G.ALLY[G.myTi], 'time'); },
+  end() { endMatch(G.ALLY[colorOf(G.myTi)], 'time'); },
   get info() {
     const NET = session.NET, p = G.player;
     return { state: G.state, T: Math.round(G.T), MODE: G.mode, map: G.map.id, myTi: G.myTi, al: G.ALLY.join(''), units: G.units.length, horses: G.horses.length, arrows: G.arrows.length,

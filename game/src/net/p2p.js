@@ -48,7 +48,7 @@ export function makeP2PRoom(code, host) {
     });
     peer.on('connection', c => {
       if (!host) { c.close(); return; }
-      if (conns.size >= 3) { c.on('open', () => { try { c.send({ t: 'full' }); } catch (e) {} setTimeout(() => c.close(), 400); }); return; }
+      if (conns.size >= 7) { c.on('open', () => { try { c.send({ t: 'full' }); } catch (e) {} setTimeout(() => c.close(), 400); }); return; }
       conns.set(c.peer, c); seen.set(c.peer, performance.now());
       c.on('open', () => { relayRoster(); try { c.send({ t: 'h', id: myId, pr: mine }); } catch (e) {} });
       c.on('data', d => {

@@ -1,7 +1,7 @@
 // Scoreboard, clock, health, gold, squad count and button labels.
 import { TEAMS, MODES, STATS, DM_TICKETS, CAPS_TO_WIN, AL_LETTER, ORDER_NAMES, UPGRADE_MAX } from '../config.js';
-import { G, isFfa } from '../core/state.js';
-import { teamOut, teamScore, squadOf, canRecruit, horseMax, upgradeCost } from '../core/sim.js';
+import { G, isFfa, colorOf } from '../core/state.js';
+import { colorOut, colorScore, colorHuman, squadOf, canRecruit, horseMax, upgradeCost } from '../core/sim.js';
 import { session, isClient } from '../net/session.js';
 
 const $ = id => document.getElementById(id);
@@ -9,7 +9,7 @@ export const fmt = s => { s = Math.max(0, Math.floor(s)); return Math.floor(s / 
 
 export function buildHud() {
   $('ptsTitle').textContent = MODES[G.mode].title;
-  $('tpRows').innerHTML = TEAMS.map((t, i) => `<div class="tp${i === G.myTi ? ' me' : ''}" id="tp${i}"><span class="al">${isFfa() ? '' : AL_LETTER[G.ALLY[i]]}</span><div class="bar"><i style="background:${t.css}"></i></div><b>0</b></div>`).join('');
+  $('tpRows').innerHTML = TEAMS.map((t, i) => `<div class="tp${i === colorOf(G.myTi) ? ' me' : ''}" id="tp${i}"><span class="al">${isFfa() ? '' : AL_LETTER[G.ALLY[i]]}</span><div class="bar"><i style="background:${t.css}"></i></div><b>0</b></div>`).join('');
   $('pips').innerHTML = TEAMS.map((t, i) => `<span class="pip" id="pip${i}" style="background:${t.css}">${t.name[0]}</span>`).join('');
   $('clockMax').textContent = fmt(MODES[G.mode].time);
 }
@@ -20,13 +20,13 @@ export function showHud() {
 
 // lastSnapAt: when a client last heard from the host
 export function updateHud(lastSnapAt) {
-  G.teams.forEach((s, i) => {
+  TEAMS.forEach((t, i) => {
     const row = $('tp' + i); if (!row) return;
-    const v = teamScore(i), max = G.mode === 'conquest' ? 100 : G.mode === 'dm' ? DM_TICKETS : CAPS_TO_WIN;
+    const v = colorScore(i), max = G.mode === 'conquest' ? 100 : G.mode === 'dm' ? DM_TICKETS : CAPS_TO_WIN;
     row.querySelector('i').style.transform = `scaleX(${Math.max(0, v) / max})`;
     row.querySelector('b').textContent = G.mode === 'ctf' ? `${v}/${CAPS_TO_WIN}` : Math.max(0, Math.ceil(v));
-    const out = teamOut(i); row.classList.toggle('out', out);
-    const pip = $('pip' + i); pip.classList.toggle('out', out); pip.classList.toggle('hum', !!s.human); pip.textContent = out ? '✕' : TEAMS[i].name[0];
+    const out = colorOut(i); row.classList.toggle('out', out);
+    const pip = $('pip' + i); pip.classList.toggle('out', out); pip.classList.toggle('hum', colorHuman(i)); pip.textContent = out ? '✕' : t.name[0];
   });
   $('clockT').textContent = fmt(G.T);
   const p = G.player, me = G.teams[G.myTi];
@@ -61,7 +61,7 @@ export function updateHud(lastSnapAt) {
   const NET = session.NET, tag = $('netTag');
   if (NET) {
     tag.hidden = false;
-    const others = TEAMS.map((t, i) => i).filter(i => G.teams[i].human && i !== G.myTi).map(i => TEAMS[i].name);
+    const others = G.teams.map((s, i) => i).filter(i => G.teams[i].active && G.teams[i].human && i !== G.myTi).map(i => TEAMS[colorOf(i)].name + (i >= 4 ? ' (co-captain)' : ''));
     if (isClient()) {
       const stale = performance.now() - (lastSnapAt || 0) > 2500;
       tag.textContent = stale ? 'Waiting for the host…' : `Online · ${others.length ? 'with ' + others.join(', ') : 'host'}`;

@@ -2,7 +2,7 @@
 // Splats and arrows are batched (one draw call each); sparks and text are drawn on the 2D layer.
 import * as THREE from 'three';
 import { TEAMS } from '../config.js';
-import { G } from '../core/state.js';
+import { G, colorOf } from '../core/state.js';
 import { groundY, inRiver, rnd } from '../core/world.js';
 import { scene } from './scene.js';
 import { quality } from './quality.js';
@@ -58,7 +58,7 @@ export function splat(x, z, s, ti) {
   if (inRiver(x, z)) return;
   const cap = quality.cfg.splats;
   if (decals.length >= cap) decals.shift();
-  decals.push({ x, z, s, rot: rnd(0, 6), t: 0, c: splatCols[ti == null ? 1 : ti], lift: (slot++ % MAX_SPLATS) * .0004 });
+  decals.push({ x, z, s, rot: rnd(0, 6), t: 0, c: splatCols[ti == null ? 1 : colorOf(ti)], lift: (slot++ % MAX_SPLATS) * .0004 });
 }
 
 // ---------- arrows ----------
@@ -112,6 +112,6 @@ export function drawAura(p, radius, t) {
   if (!auraRing.visible) return;
   auraRing.position.set(p.x, groundY(p.x, p.z) + .07, p.z);
   auraRing.scale.setScalar(radius);
-  auraMat.color.set(TEAMS[p.ti].hex);
+  auraMat.color.set(TEAMS[colorOf(p.ti)].hex);
   auraMat.opacity = .16 + .08 * Math.sin(t * 2.4);
 }

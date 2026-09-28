@@ -2,7 +2,7 @@
 // the banner pointer, the joystick and the red tint while you are down. Also the minimap.
 import * as THREE from 'three';
 import { TEAMS } from '../config.js';
-import { G, isEnemyTi, isFfa } from '../core/state.js';
+import { G, isEnemyTi, isFfa, colorOf } from '../core/state.js';
 import { groundY, clamp } from '../core/world.js';
 import { camera, view } from './scene.js';
 import { cam } from './camera.js';
@@ -41,7 +41,7 @@ export function drawOverlay(opts) {
       const [sx, sy, ok] = proj(u.x, u.y + (u.leader ? 3.2 : 2.8) + (u.mounted ? 1.2 : 0), u.z); if (!ok) continue;
       const w = u.leader ? 40 : 26;
       ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, sy, w, 4);
-      ctx.fillStyle = TEAMS[u.ti].css; ctx.fillRect(sx - w / 2, sy, w * Math.max(0, u.hp / u.max), 4);
+      ctx.fillStyle = TEAMS[colorOf(u.ti)].css; ctx.fillRect(sx - w / 2, sy, w * Math.max(0, u.hp / u.max), 4);
       if (u.leader && G.teams[u.ti] && G.teams[u.ti].human && opts.nickFor) {
         const nick = opts.nickFor(u.ti);
         if (nick) { ctx.font = '800 12px "Barlow Semi Condensed", sans-serif'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.strokeText(nick, sx, sy - 6); ctx.fillStyle = '#fff'; ctx.fillText(nick, sx, sy - 6); }
@@ -70,7 +70,7 @@ function drawFlagPointer() {
   const c = flag.state === 'carried' ? flag.carrier : null;
   if (c && c === G.player) return;
   const x = c ? c.x : flag.x, z = c ? c.z : flag.z, y = (c ? c.y : groundY(x, z)) + 3.4;
-  const col = c ? TEAMS[c.ti].css : '#ffffff';
+  const col = c ? TEAMS[colorOf(c.ti)].css : '#ffffff';
   v3.set(x, y, z).project(camera);
   let sx = (v3.x + 1) / 2 * W, sy = (1 - v3.y) / 2 * H;
   const behind = v3.z > 1;
@@ -78,7 +78,7 @@ function drawFlagPointer() {
   const m = 60, onScreen = !behind && sx > m && sx < W - m && sy > m && sy < H - m;
   ctx.font = 'italic 15px Bangers, Impact, sans-serif'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.6)';
   if (onScreen) {
-    const label = c ? `${TEAMS[c.ti].name.toUpperCase()} CARRIER` : 'BANNER';
+    const label = c ? `${TEAMS[colorOf(c.ti)].name.toUpperCase()} CARRIER` : 'BANNER';
     ctx.strokeText(label, sx, sy); ctx.fillStyle = col; ctx.fillText(label, sx, sy);
     return;
   }
@@ -117,7 +117,7 @@ function drawMini() {
     mctx.fillStyle = (G.mode !== 'conquest' || G.teams[i].alive) ? t.css : '#555'; mctx.fillRect(t.pos[0] * k - 9, t.pos[1] * k - 9, 18, 18);
     if (!isFfa() && !isEnemyTi(i, G.myTi)) { mctx.strokeStyle = '#fff'; mctx.lineWidth = 2; mctx.strokeRect(t.pos[0] * k - 9, t.pos[1] * k - 9, 18, 18); }
   });
-  for (const u of G.units) { if (u.dead) continue; mctx.fillStyle = TEAMS[u.ti].css; const s = u.leader ? 6 : 3.5; mctx.fillRect(u.x * k - s / 2, u.z * k - s / 2, s, s); }
+  for (const u of G.units) { if (u.dead) continue; mctx.fillStyle = TEAMS[colorOf(u.ti)].css; const s = u.leader ? 6 : 3.5; mctx.fillRect(u.x * k - s / 2, u.z * k - s / 2, s, s); }
   if (G.flag) {
     const fc = G.flag.state === 'carried' && G.flag.carrier ? G.flag.carrier : G.flag;
     mctx.fillStyle = '#fff'; mctx.strokeStyle = '#000'; mctx.lineWidth = 1.5; mctx.beginPath(); mctx.arc(fc.x * k, fc.z * k, 5, 0, Math.PI * 2); mctx.fill(); mctx.stroke();

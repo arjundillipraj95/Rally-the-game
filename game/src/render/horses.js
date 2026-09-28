@@ -2,6 +2,7 @@
 // The renderer takes a list of horse poses and keeps one model per key.
 import * as THREE from 'three';
 import { TEAMS } from '../config.js';
+import { colorOf } from '../core/state.js';
 import { groundY } from '../core/world.js';
 import { scene, shadowsOn } from './scene.js';
 
@@ -31,7 +32,7 @@ function build(ti, coatI) {
   mk(GEO.head, coat, body, 0, 2.25, 1.35).rotation.x = .55;
   mk(GEO.mane, maneMat, body, 0, 2.05, .8).rotation.x = .65;
   mk(GEO.tail, maneMat, body, 0, 1.35, -1.2).rotation.x = -.7;
-  mk(GEO.cloth, clothMats[ti], body, 0, 1.95, -.05);
+  mk(GEO.cloth, clothMats[colorOf(ti)], body, 0, 1.95, -.05);
   const legs = [];
   for (const [x, z] of [[-.28, .72], [.28, .72], [-.28, -.72], [.28, -.72]]) {
     const p = new THREE.Group(); p.position.set(x, 1.05, z); body.add(p);

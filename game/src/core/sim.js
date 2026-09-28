@@ -1,7 +1,7 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
 import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, UPGRADE_COST, UPGRADE_MAX, AURA } from '../config.js';
-import { G, bus, isEnemy, isEnemyTi } from './state.js';
+import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies } from './state.js';
 import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable } from './nav.js';
 
@@ -12,9 +12,12 @@ const spark = (x, y, z, c, n) => fx('spark', { x, y, z, c, n });
 const sound = (name, x, z) => fx('sfx', { name, x, z });
 
 // ---------- setup ----------
-export function newTeams(humans) {
-  return TEAMS.map((_, i) => ({ points: 100, tickets: DM_TICKETS, caps: 0, gold: ECON.startGold, alive: true, plan: null, leaderDeadT: 0, recruitT: rnd(2, 6), thinkT: 0,
-    human: !!humans[i], order: 'follow', holdPt: null, towerT: rnd(0, 1.4), leader: null,
+// Armies 0-3 are each castle's own army; 4-7 are its Duo teammate's, real only when active[i].
+// Castle strength (points/alive, conquest only) is only ever read/written on the color's own
+// army (0-3): a Duo teammate's army shares its castle rather than owning one.
+export function newTeams(humans, active = [1, 1, 1, 1, 0, 0, 0, 0]) {
+  return Array.from({ length: 8 }, (_, i) => ({ points: 100, tickets: DM_TICKETS, caps: 0, gold: ECON.startGold, alive: true, plan: null, leaderDeadT: 0, recruitT: rnd(2, 6), thinkT: 0,
+    human: !!humans[i], active: !!active[i], order: 'follow', holdPt: null, towerT: rnd(0, 1.4), leader: null,
     up: { dmg: 0, armor: 0, speed: 0, aura: 0, horse: 0 }, arrowHits: 0, testudoT: 0, upT: rnd(20, 40) }));
 }
 export function mkUnit(ti, x, z, kind, human = false) {
@@ -30,18 +33,21 @@ export function mkUnit(ti, x, z, kind, human = false) {
 }
 export const squadOf = ti => G.units.filter(u => !u.dead && u.ti === ti && !u.leader);
 
-export function startMatch(humans) {
+export function startMatch(humans, active = [1, 1, 1, 1, 0, 0, 0, 0]) {
   G.layout = makeLayout(G.map.id, G.mode === 'ctf', G.seed); buildNav(G.layout);
   G.units = []; G.horses = []; G.arrows = [];
   G.T = 0; G.kills = 0; G.recruited = 0; G.bounty = -1; G.uid = 0; G.arrowN = 0; G.endInfo = null;
-  G.teams = newTeams(humans);
+  G.teams = newTeams(humans, active);
+  G.duo = [0, 1, 2, 3].map(c => !!active[c + 4]);
   G.flag = G.mode === 'ctf' ? { state: 'home', x: 0, z: 0, carrier: null, dropT: 0 } : null;
-  TEAMS.forEach((t, i) => {
-    const [gx, gz] = gatePos(t, 0, 7);
+  for (let i = 0; i < 8; i++) {
+    if (!G.teams[i].active) continue;
+    const t = TEAMS[colorOf(i)], duo = i >= 4; // a Duo army musters a little further back so it doesn't spawn on top of its teammate
+    const [gx, gz] = gatePos(t, duo ? 9 : 0, 7);
     G.teams[i].leader = mkUnit(i, gx, gz, 'captain', G.teams[i].human);
     const start = (G.fullSquads ? FULL_SQUAD : START_SQUAD).slice(0, G.squadCap);
-    start.forEach((n0, n) => { const [sx, sz] = gatePos(t, ((n % 7) - 3) * 1.4, 1.5 + Math.floor(n / 7) * 1.4); mkUnit(i, sx, sz, n0); });
-  });
+    start.forEach((n0, n) => { const [sx, sz] = gatePos(t, ((n % 7) - 3) * 1.4 + (duo ? 9 : 0), 1.5 + Math.floor(n / 7) * 1.4); mkUnit(i, sx, sz, n0); });
+  }
   G.player = G.teams[G.myTi].leader;
   G.state = 'play';
   say('start');
@@ -52,12 +58,12 @@ export function setOrder(ti, o) {
   const cap = s.leader;
   if (o === 'hold' && cap) s.holdPt = { x: cap.x, z: cap.z, face: cap.face, isFront: true };
 }
-export function canRecruit(ti) { const s = G.teams[ti]; return G.mode === 'conquest' ? s.alive : G.mode === 'dm' ? s.tickets > 0 : true; }
+export function canRecruit(ti) { const s = G.teams[ti]; return G.mode === 'conquest' ? G.teams[colorOf(ti)].alive : G.mode === 'dm' ? s.tickets > 0 : true; }
 export function recruit(ti, kind) {
   const s = G.teams[ti], cost = STATS[kind].cost;
   if (!canRecruit(ti) || s.gold < cost || squadOf(ti).length >= G.squadCap) return false;
   s.gold -= cost;
-  const [gx, gz] = gatePos(TEAMS[ti], rnd(-2, 2)); mkUnit(ti, gx, gz, kind);
+  const [gx, gz] = gatePos(TEAMS[colorOf(ti)], rnd(-2, 2) + (ti >= 4 ? 9 : 0)); mkUnit(ti, gx, gz, kind);
   if (ti === G.myTi) { G.recruited++; sound('coin'); }
   return true;
 }
@@ -79,7 +85,7 @@ export function buyUpgrade(ti, id) {
 }
 // What a team's soldiers are doing: the human's order, or the computer's choice.
 export const orderOf = ti => { const s = G.teams[ti], L = s.leader, up = L && !L.dead; return s.human ? (s.order || 'follow') : s.testudoT > 0 && up ? 'testudo' : up ? 'follow' : 'charge'; };
-export function canRespawn(ti) { const s = G.teams[ti]; return G.mode === 'conquest' ? s.alive : G.mode === 'dm' ? s.tickets > 0 : true; }
+export function canRespawn(ti) { const s = G.teams[ti]; return G.mode === 'conquest' ? G.teams[colorOf(ti)].alive : G.mode === 'dm' ? s.tickets > 0 : true; }
 function push(u, vx, vz, stun) {
   if (u.remote) { u.kick.vx += vx; u.kick.vz += vz; u.kick.st = Math.max(u.kick.st, stun || 0); u.kick.dirty = true; }
   else { u.vx += vx; u.vz += vz; }
@@ -146,7 +152,7 @@ export function nearestFoe(u, maxD, filter) {
 export function nearestEnemyCastle(u) {
   if (G.mode !== 'conquest') return [-1, 1e9];
   let best = -1, bd = 1e9;
-  G.teams.forEach((s, i) => { if (!isEnemyTi(i, u.ti) || !s.alive) return; const d = Math.hypot(TEAMS[i].pos[0] - u.x, TEAMS[i].pos[1] - u.z); if (d < bd) { bd = d; best = i; } });
+  for (let c = 0; c < 4; c++) { if (!isEnemyTi(c, u.ti) || !G.teams[c].alive) continue; const d = Math.hypot(TEAMS[c].pos[0] - u.x, TEAMS[c].pos[1] - u.z); if (d < bd) { bd = d; best = c; } }
   return [best, bd];
 }
 const aiDmg = ti => G.teams[ti] && G.teams[ti].human ? 1 : DIFF[G.diff].dmg;
@@ -210,7 +216,7 @@ function hit(a, b, mult = 1) {
     spark(hx, hy, hz, '#fff3b0', 7); sound('clang', hx, hz); b.blockT = Math.max(b.blockT, .2);
     if (b.isMe) fx('buzz', 15);
   } else {
-    spark(hx, hy, hz, TEAMS[b.ti].css, 6); sound('hit', hx, hz);
+    spark(hx, hy, hz, TEAMS[colorOf(b.ti)].css, 6); sound('hit', hx, hz);
     if (Math.random() < .4) fx('splat', { x: b.x + rnd(-.4, .4), z: b.z + rnd(-.4, .4), s: rnd(.6, 1.1), ti: b.ti });
     if (b.isMe) { fx('shake', .35); fx('buzz', 35); }
   }
@@ -245,7 +251,7 @@ function arrowHit(a, b) {
     if (b.leader && (b.human ? b.blocking : Math.random() < .35)) blocked = true;
   }
   if (blocked) { spark(b.x, b.y + 1.3, b.z, '#e8d9b0', 4); sound('thud', b.x, b.z); b.blockT = Math.max(b.blockT, .2); return; }
-  b.hp -= dmg; spark(b.x, b.y + 1.3, b.z, TEAMS[b.ti].css, 4); sound('hit', b.x, b.z);
+  b.hp -= dmg; spark(b.x, b.y + 1.3, b.z, TEAMS[colorOf(b.ti)].css, 4); sound('hit', b.x, b.z);
   push(b, 0, 0, .12);
   if (b.isMe) { fx('shake', .25); fx('buzz', 20); }
   const sh = a.shooter;
@@ -289,13 +295,22 @@ function destroyCastle(i, by) {
 // ---------- win conditions (by alliance) ----------
 export function teamOut(i) {
   const s = G.teams[i];
-  if (G.mode === 'conquest') return !s.alive;
+  if (G.mode === 'conquest') return !G.teams[colorOf(i)].alive;
   if (G.mode === 'dm') return !s.alive && !G.units.some(u => !u.dead && u.ti === i);
   return false;
 }
-export const teamScore = i => { const s = G.teams[i]; return G.mode === 'conquest' ? s.points : G.mode === 'dm' ? s.tickets : s.caps; };
-export const allianceCaps = a => G.teams.reduce((s, t, i) => s + (G.ALLY[i] === a ? t.caps : 0), 0);
-const alliancesIn = () => [...new Set(TEAMS.map((_, i) => i).filter(i => !teamOut(i)).map(i => G.ALLY[i]))];
+// One color's shown score: castle strength is shared (conquest), tickets and captures are each
+// army's own and add up across a Duo pair.
+export const armiesOfColor = c => G.duo[c] ? [c, c + 4] : [c];
+export function colorScore(c) {
+  if (G.mode === 'conquest') return G.teams[c].points;
+  return armiesOfColor(c).reduce((s, i) => s + (G.mode === 'dm' ? G.teams[i].tickets : G.teams[i].caps), 0);
+}
+export const colorOut = c => armiesOfColor(c).every(i => teamOut(i));
+export const colorHuman = c => armiesOfColor(c).some(i => G.teams[i].human);
+export const teamScore = i => { const s = G.teams[i]; return G.mode === 'conquest' ? G.teams[colorOf(i)].points : G.mode === 'dm' ? s.tickets : s.caps; };
+export const allianceCaps = a => G.teams.reduce((s, t, i) => s + (G.ALLY[colorOf(i)] === a ? t.caps : 0), 0);
+const alliancesIn = () => [...new Set(activeArmies().filter(i => !teamOut(i)).map(i => G.ALLY[colorOf(i)]))];
 export function checkEnd() {
   if (G.state !== 'play' || G.role === 'client') return;
   if (G.mode === 'conquest' || G.mode === 'dm') {
@@ -308,7 +323,11 @@ export function checkEnd() {
 function checkTime() {
   if (G.state !== 'play' || G.T < MODES[G.mode].time) return;
   const scores = {};
-  TEAMS.forEach((_, i) => { if (G.mode === 'conquest' && !G.teams[i].alive) return; scores[G.ALLY[i]] = (scores[G.ALLY[i]] || 0) + teamScore(i); });
+  if (G.mode === 'conquest') { // the castle's score counts once per color, however many armies defend it
+    for (let c = 0; c < 4; c++) { if (!G.teams[c].alive) continue; scores[G.ALLY[c]] = (scores[G.ALLY[c]] || 0) + G.teams[c].points; }
+  } else {
+    for (const i of activeArmies()) scores[G.ALLY[colorOf(i)]] = (scores[G.ALLY[colorOf(i)]] || 0) + teamScore(i);
+  }
   const e = Object.entries(scores).map(([a, v]) => [+a, v]).sort((x, y) => y[1] - x[1]);
   if (!e.length || (e.length > 1 && e[0][1] === e[1][1])) return endMatch(-1, 'time');
   endMatch(e[0][0], 'time');
@@ -327,7 +346,7 @@ function dropFlag(u) {
 function updateFlag(dt) {
   const f = G.flag; if (!f) return;
   if (f.state === 'carried') {
-    const c = f.carrier, t = TEAMS[c.ti];
+    const c = f.carrier, t = TEAMS[colorOf(c.ti)];
     if (Math.hypot(c.x - t.pos[0], c.z - t.pos[1]) < CASTLE_R + 3.5) {
       G.teams[c.ti].caps++; G.teams[c.ti].gold += 50;
       c.carrying = false; f.state = 'home'; f.carrier = null; f.x = 0; f.z = 0;
@@ -411,15 +430,15 @@ function go(u, gx, gz, spd, dt, stopAt = .3) {
 
 // ---------- AI ----------
 function planLeader(u, s) {
-  const t = TEAMS[u.ti], squadN = squadOf(u.ti).length;
+  const t = TEAMS[colorOf(u.ti)], squadN = squadOf(u.ti).length;
   if (G.mode === 'conquest') {
     const threat = G.units.some(o => !o.dead && isEnemy(o, u) && Math.hypot(o.x - t.pos[0], o.z - t.pos[1]) < 22);
     // gather a real army at home before marching out (keeps the big clashes big)
     const gather = s.plan && s.plan.kind === 'castle' ? 4 : 11;
-    if (s.alive && (threat || squadN < gather)) { s.plan = { kind: 'defend' }; return; }
+    if (G.teams[colorOf(u.ti)].alive && (threat || squadN < gather)) { s.plan = { kind: 'defend' }; return; }
     let target = s.plan && s.plan.kind === 'castle' && G.teams[s.plan.ti].alive && Math.random() > .08 ? s.plan.ti : null;
     if (target == null) {
-      const opts = G.teams.map((x, i) => i).filter(i => isEnemyTi(i, u.ti) && G.teams[i].alive)
+      const opts = [0, 1, 2, 3].filter(c => isEnemyTi(c, u.ti) && G.teams[c].alive)
         .sort((a, b) => Math.hypot(TEAMS[a].pos[0] - u.x, TEAMS[a].pos[1] - u.z) - Math.hypot(TEAMS[b].pos[0] - u.x, TEAMS[b].pos[1] - u.z));
       if (opts.length) target = opts[Math.random() < .7 ? 0 : Math.min(1, opts.length - 1)];
     }
@@ -439,9 +458,9 @@ function planLeader(u, s) {
 }
 function planGoal(u, s) {
   const p = s.plan; if (!p) return null;
-  const t = TEAMS[u.ti];
+  const t = TEAMS[colorOf(u.ti)], duo = u.ti >= 4;
   switch (p.kind) {
-    case 'defend': { const [gx, gz] = gatePos(t, 0, 1); return { x: gx, z: gz, stop: 1.5 }; }
+    case 'defend': { const [gx, gz] = gatePos(t, duo ? 9 : 0, 1); return { x: gx, z: gz, stop: 1.5 }; }
     case 'castle': return { x: TEAMS[p.ti].pos[0], z: TEAMS[p.ti].pos[1], stop: CASTLE_REACH - .8, castle: p.ti };
     case 'hunt': case 'escort': return p.target && !p.target.dead ? { x: p.target.x, z: p.target.z, stop: p.kind === 'escort' ? 3 : 1.5 } : null;
     case 'home': { const [gx, gz] = gatePos(t); return { x: gx, z: gz, stop: .5 }; }
@@ -545,12 +564,12 @@ function thinkSoldier(u, dt) {
     const [gx, gz] = slotPos(anchor, anchor.isFront || !!anchor.human, u.slot || 0, u.kind === 'arch', u.meleeN || 0);
     const d = go(u, gx, gz, speedOf(u) * (Math.hypot(gx - u.x, gz - u.z) > 6 ? 1.15 : 1), dt);
     if (d < 1) u.face = turn(u.face, anchor.face, dt * 6);
-  } else { const [gx, gz] = gatePos(TEAMS[u.ti], 0, 2); go(u, gx, gz, u.spd, dt, 3); }
+  } else { const [gx, gz] = gatePos(TEAMS[colorOf(u.ti)], u.ti >= 4 ? 9 : 0, 2); go(u, gx, gz, u.spd, dt, 3); }
 }
 function aiPick(ti) {
   const r = Math.random();
   if (G.diff === 2) {
-    const foes = TEAMS.map((_, i) => i).filter(i => G.teams[i].human && isEnemyTi(i, ti));
+    const foes = activeArmies().filter(i => G.teams[i].human && isEnemyTi(i, ti));
     const sq = foes.flatMap(i => squadOf(i)), c = k => sq.filter(u => u.kind === k).length;
     const f = c('foot'), s = c('spear'), a = c('arch');
     if (foes.some(i => G.teams[i].leader && G.teams[i].leader.mounted) && r < .5) return 'spear';
@@ -600,8 +619,12 @@ export function driveCaptain(p, input, dt) {
 // ---------- the main step (solo and host) ----------
 export function update(dt, input) {
   G.T += dt;
-  syncGates(); pathBudget = 4;
+  syncGates();
+  // Duo battles can field twice the soldiers of a solo one; searching fewer new paths per frame
+  // as the field gets crowded keeps worst-case frame cost bounded instead of growing with it.
+  pathBudget = Math.max(2, Math.round(4 * 80 / Math.max(80, G.units.length)));
   G.teams.forEach((s, i) => {
+    if (!s.active) return;
     if (canRecruit(i)) s.gold += dt * (s.human ? ECON.humanIncome : DIFF[G.diff].income);
     if (!s.human && canRecruit(i)) { s.recruitT -= dt; if (s.recruitT <= 0) { s.recruitT = rnd(...ECON.aiRecruitEvery); recruit(i, aiPick(i)); } }
     if (!s.human) {
@@ -625,7 +648,7 @@ export function update(dt, input) {
     if (s.leader.dead && canRespawn(i)) {
       s.leaderDeadT -= dt;
       if (s.leaderDeadT <= 0) {
-        const [gx, gz] = gatePos(TEAMS[i], 0, 7);
+        const [gx, gz] = gatePos(TEAMS[colorOf(i)], i >= 4 ? 9 : 0, 7);
         const L = mkUnit(i, gx, gz, 'captain', s.human); s.leader = L; s.plan = null;
         if (i === G.myTi) { G.player = L; bus.emit('respawnMe', L); }
         if (s.human) say('respawn', i);
@@ -633,7 +656,7 @@ export function update(dt, input) {
     }
   });
   if (G.mode === 'dm') {
-    const sorted = G.teams.map((s, i) => [s.tickets, i]).filter(x => G.teams[x[1]].alive).sort((a, b) => b[0] - a[0]);
+    const sorted = G.teams.map((s, i) => [s.tickets, i]).filter(x => G.teams[x[1]].active && G.teams[x[1]].alive).sort((a, b) => b[0] - a[0]);
     const nb = sorted.length > 1 && sorted[0][0] - sorted[1][0] >= 10 ? sorted[0][1] : -1;
     if (nb !== G.bounty) { G.bounty = nb; if (nb >= 0) say('bounty', nb); }
   }
@@ -641,7 +664,7 @@ export function update(dt, input) {
   if (p && !p.dead && input) { driveCaptain(p, input, dt); if (input.attackHeld && p.cd <= 0) captainAttack(p); }
   for (const s of G.teams) { const L = s.leader; if (L && L.human && !L.dead) { const [f] = nearestFoe(L, 12); if (!f && L.hp < L.max) L.hp = Math.min(L.max, L.hp + dt * 6); } }
 
-  const slotIdx = [0, 0, 0, 0], archIdx = [0, 0, 0, 0], meleeN = [0, 0, 0, 0], tIdx = [0, 0, 0, 0];
+  const slotIdx = [0, 0, 0, 0, 0, 0, 0, 0], archIdx = [0, 0, 0, 0, 0, 0, 0, 0], meleeN = [0, 0, 0, 0, 0, 0, 0, 0], tIdx = [0, 0, 0, 0, 0, 0, 0, 0];
   const ords = G.teams.map((_, i) => orderOf(i)), rng = G.teams.map((_, i) => auraRange(i) ** 2);
   for (const u of G.units) {
     if (u.dead || u.leader) continue;
@@ -693,7 +716,7 @@ export function update(dt, input) {
       if (o.kind === 'spear' && d < o.r + r.r + 1.6 && braced(o) && sp > 4 && Math.abs(angDiff(o.face, Math.atan2(r.x - o.x, r.z - o.z))) < 1.0) {
         horseDamage(r, 55); if (r.mounted) dismount(r, true);
         spark(o.x, o.y + 1.5, o.z, '#fff3b0', 8); sound('clang', o.x, o.z);
-        fx('float', { x: o.x, y: o.y + 2.8, z: o.z, text: 'Spear wall!', color: TEAMS[o.ti].css });
+        fx('float', { x: o.x, y: o.y + 2.8, z: o.z, text: 'Spear wall!', color: TEAMS[colorOf(o.ti)].css });
         break;
       }
       if (sp > 6 && d < o.r + r.r + .3 && o.trampleT <= 0) {
