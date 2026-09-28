@@ -30,9 +30,10 @@
     <div class="hud brush" id="goldTag">Gold: <b id="gold">0</b></div>
     <div class="hud brush" id="hp"><span id="hpT">150/150</span><div class="bar"><i id="hpBar"></i></div><div class="bar horse" id="horseBarWrap" hidden><i id="horseBar"></i></div></div>
     <div class="banner" id="banner"></div>
-    <div class="joyzone" id="joyhint">Drag to<br>move</div>
+    <div class="joyzone" id="joyhint"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg></div>
     <div class="ctl" id="ctl">
-      <div class="pillrow" style="position:relative">
+      <!-- squad & army: small, icon-only, used between fights -->
+      <div class="srow" style="position:relative">
         <div class="tray" id="tray" hidden>
           <button type="button" data-kind="foot"><b>Footman</b><em>40g</em><span>Sword &amp; shield, upgrades to spear + javelin</span></button>
           <button type="button" data-kind="arch"><b>Archer</b><em>50g</em><span>Ranged, damage by hit location</span></button>
@@ -45,24 +46,19 @@
           <button type="button" data-up="aura"><b>Aura</b><i class="lv"></i><em></em></button>
           <button type="button" data-up="horse"><b>Horse</b><i class="lv"></i><em></em></button>
         </div>
-        <button class="rbtn pill" id="recBtn" type="button"><small>Recruit</small><span>+</span></button>
-        <button class="rbtn pill" id="upBtn" type="button"><small>Upgrade</small><span>&#9650;</span></button>
-        <button class="rbtn pill" id="cmdBtn" type="button"><span class="ic"></span><span id="cmdT">Follow me!</span></button>
-        <div id="squadBox"><span id="squadN">6</span><small id="squadMix">F5 A1</small></div>
+        <div id="squadBox" aria-label="Squad"><span id="squadN">6</span><small id="squadMix">F5 A1</small></div>
+        <button class="sbtn" id="recBtn" type="button" aria-label="Recruit"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7.5" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6M19 8v6M16 11h6"/></svg></button>
+        <button class="sbtn" id="upBtn" type="button" aria-label="Upgrades"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V6M6 12l6-6 6 6M5 3h14"/></svg></button>
+        <button class="sbtn" id="cmdBtn" type="button" aria-label="Squad order: Follow me"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" id="cmdIc"><path d="M6 21V4h11l-2.5 4 2.5 4H6"/></svg></button>
+        <button class="sbtn" id="vly" type="button" aria-label="Squad volley"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20 15 9M9 21l10-10M15 9h-4M15 9v4M19 11h-4M19 11v4"/></svg><b class="badge" id="vlyB"></b></button>
+        <button class="sbtn" id="mnt" type="button" aria-label="Ride or walk"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v8a6 6 0 0 0 12 0V3M6 6.5h2M16 6.5h2M6 10h2M16 10h2"/></svg><b class="badge" id="mntB"></b></button>
       </div>
-      <div class="round">
-        <button class="rbtn" id="vly" type="button" aria-label="Squad volley"><span id="vlyT">Volley</span><small>fire!</small></button>
-        <button class="rbtn" id="mnt" type="button" aria-label="Ride or walk"><span id="mntT">Ride</span><small id="mntS">horse</small></button>
-        <button class="rbtn" id="wpn" type="button" aria-label="Switch weapon"><span id="wpnT">Sword</span><small id="wpnS">combo</small></button>
-        <button class="rbtn" id="blk" type="button" aria-label="Block">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"><path d="M12 2 20 5v7c0 5-3.6 8.4-8 10-4.4-1.6-8-5-8-10V5z"/></svg>
-        </button>
-        <button class="rbtn" id="jmp" type="button" aria-label="Jump">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 14l7-7 7 7M5 20l7-7 7 7"/></svg>
-        </button>
-        <button class="rbtn" id="atk" type="button" aria-label="Attack">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" id="atkIc"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2"/></svg>
-        </button>
+      <!-- the captain: a controller-style thumb pad around Attack -->
+      <div class="pad">
+        <button class="rbtn" id="wpn" type="button" aria-label="Switch weapon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h14l-3-3M20 16H6l3 3"/></svg><small id="wpnS">Sword</small></button>
+        <button class="rbtn" id="jmp" type="button" aria-label="Jump"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 14l7-7 7 7M5 20l7-7 7 7"/></svg></button>
+        <button class="rbtn" id="blk" type="button" aria-label="Block"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 20 5v7c0 5-3.6 8.4-8 10-4.4-1.6-8-5-8-10V5z"/></svg></button>
+        <button class="rbtn" id="atk" type="button" aria-label="Attack"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" id="atkIc"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2"/></svg></button>
       </div>
     </div>
   </div>

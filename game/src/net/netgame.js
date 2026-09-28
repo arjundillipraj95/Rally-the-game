@@ -40,7 +40,7 @@ function encodeSnap() {
   for (const u of G.units) {
     if (u.dead) continue;
     const kt = KINDS.indexOf(u.kind) * 8 + u.ti;
-    const fl = (u.swing > 0 ? 1 : 0) | (u.mounted ? 2 : 0) | ((u.blockT > 0 || (u.human && u.blocking)) ? 4 : 0) | (u.carrying ? 8 : 0) | (u.stun > 0 ? 16 : 0) | (u.aim ? 32 : 0) | (u.shieldwall ? 64 : 0) | (u.weapon === 'spear' ? 128 : u.weapon === 'jav' ? 256 : 0);
+    const fl = (u.swing > 0 ? 1 : 0) | (u.mounted ? 2 : 0) | ((u.blockT > 0 || (u.human && u.blocking)) ? 4 : 0) | (u.carrying ? 8 : 0) | (u.stun > 0 ? 16 : 0) | (u.aim ? 32 : 0) | (u.shieldwall ? 64 : 0) | (u.weapon === 'spear' ? 128 : u.weapon === 'jav' ? 256 : u.weapon === 'sword' ? 512 : 0);
     const row = [b36(u.id), kt.toString(16), encX(u.x), encX(u.z), encF(u.face), b36(clamp(u.hp / u.max, 0, 1) * 35), b36(fl)];
     if (u.jy > .05) row.push(b36(u.jy * 10));
     us.push(row.join(','));
@@ -183,7 +183,7 @@ function clientApply(hp) {
     u.shieldwall = !!(fl & 64);
     if (id !== myId) {
       u.blockT = (fl & 4) ? .2 : 0; u.stun = (fl & 16) ? .1 : 0; u.aim = !!(fl & 32);
-      if (kind === 'captain') u.weapon = (fl & 128) ? 'spear' : (fl & 256) ? 'jav' : G.teams[ti] && G.teams[ti].human ? 'sword' : undefined;
+      if (kind === 'captain') u.weapon = (fl & 128) ? 'spear' : (fl & 256) ? 'jav' : (fl & 512) ? 'sword' : undefined;
       u.jyT = f[7] ? p36(f[7]) / 10 : 0;
     }
     if (id !== myId) {

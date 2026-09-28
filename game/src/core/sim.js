@@ -720,6 +720,38 @@ function aiHorse(u, dist) {
   const pk = G.teams[u.ti].plan && G.teams[u.ti].plan.kind;
   if (u.mounted && (dist < (pk === 'hunt' ? 6 : 12) || spearNear(u, G.diff === 2 ? 11 : 7))) dismount(u, false);
 }
+// Computer captains fight with the player's moveset, more of it the higher the difficulty:
+// Recruit keeps the plain swing; Soldier switches weapons and throws javelins, with a slower
+// rhythm and the odd leap; Warlord chains full-speed combos and leaps into any cluster of men.
+function aiCaptainFight(u, foe, fd, dt) {
+  const war = G.diff >= 2;
+  if (!u.weapon) u.weapon = 'sword';
+  u.wpnT = (u.wpnT || 0) - dt; u.leapT = (u.leapT || 0) - dt;
+  if (u.wpnT <= 0) { // re-think the weapon now and then, like a person would
+    u.wpnT = war ? rnd(.8, 1.4) : rnd(1.6, 2.6);
+    const riders = foe.mounted || G.units.some(o => !o.dead && o.mounted && isEnemy(o, u) && Math.hypot(o.x - u.x, o.z - u.z) < 12);
+    const w = riders ? 'spear' : fd > 4.5 && u.javAmmo >= 1 ? 'jav' : war || Math.random() < .5 ? 'sword' : 'spear';
+    if (w !== u.weapon) { u.weapon = w; u.combo = 0; u.cd = Math.max(u.cd, .25); }
+  }
+  if (u.weapon === 'jav') {
+    if (u.javAmmo < 1 || fd < 3) { u.weapon = 'sword'; u.wpnT = rnd(.6, 1.2); }
+    else {
+      moveToward(u, u.x, u.z, 0, dt); faceTo(u, foe.x, foe.z, dt, 10);
+      if (u.cd <= 0 && Math.abs(angDiff(u.face, Math.atan2(foe.x - u.x, foe.z - u.z))) < .3) { captainAttack(u); if (!war) u.cd += .5; }
+      return;
+    }
+  }
+  const reach = u.r + foe.r + u.reach + (u.weapon === 'spear' ? CAPTAIN_COMBAT.spear.reachB : 0);
+  go(u, foe.x, foe.z, speedOf(u), dt, reach * .7); faceTo(u, foe.x, foe.z, dt);
+  // leap slam: into a group of men in front of him
+  if (u.jy > 0) { if (u.jvy < 2 && u.cd <= 0) captainAttack(u); return; }
+  if (u.leapT <= 0 && fd < 3.4 && u.jumpCd <= 0 && u.stun <= 0) {
+    u.leapT = war ? rnd(2.5, 4) : rnd(7, 11);
+    const n = G.units.filter(o => !o.dead && isEnemy(o, u) && Math.hypot(o.x - u.x, o.z - u.z) < 3.6 && Math.abs(angDiff(u.face, Math.atan2(o.x - u.x, o.z - u.z))) < 1.2).length;
+    if (n >= 2 && (war || Math.random() < .5) && captainJump(u)) return;
+  }
+  if (fd < reach && u.cd <= 0 && u.stun <= 0) { captainAttack(u); if (!war) u.cd += .2; }
+}
 function thinkLeader(u, s, dt) {
   s.thinkT -= dt;
   if (s.thinkT <= 0 || !s.plan) { s.thinkT = rnd(1.2, 2.4); planLeader(u, s); }
@@ -730,7 +762,8 @@ function thinkLeader(u, s, dt) {
       const inv = 1 / Math.max(fd, .1);
       go(u, foe.x + (foe.x - u.x) * inv * 4, foe.z + (foe.z - u.z) * inv * 4, speedOf(u), dt, .1);
       if (fd < 3) startSweep(u);
-    } else {
+    } else if (G.diff >= 1) aiCaptainFight(u, foe, fd, dt);
+    else {
       go(u, foe.x, foe.z, speedOf(u), dt, u.r + foe.r + u.reach * .6); faceTo(u, foe.x, foe.z, dt);
       if (fd < u.r + foe.r + u.reach) startSwing(u, foe);
     }
@@ -950,7 +983,7 @@ export function update(dt, input) {
     if (u.foe && u.foe.dead) { u.foe = null; u.fd = 1e9; }
     if (u.foe) u.fd = Math.hypot(u.foe.x - u.x, u.foe.z - u.z);
     if (u.human || u.dead) continue;
-    if (u.leader) thinkLeader(u, G.teams[u.ti], dt);
+    if (u.leader) { stepJump(u, dt); regenJavs(u, dt); thinkLeader(u, G.teams[u.ti], dt); }
     else { u.slot = u.kind === 'arch' ? archIdx[u.ti]++ : slotIdx[u.ti]++; u.meleeN = meleeN[u.ti]; thinkSoldier(u, dt); }
   }
 

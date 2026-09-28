@@ -24,7 +24,14 @@ const ICONS = {
   spear: '<path d="M4 20 16.5 7.5"/><path d="M14 4.5 20.5 3.5 19.5 10z" fill="#fff"/><path d="M6.5 15.5l2 2"/>',
   jav: '<path d="M3 18 16 8"/><path d="M14 5.5 21 4 18.5 10.5z" fill="#fff"/><path d="M3 12h5M5 21.5h5"/>',
 };
-let atkIcon = null;
+let atkIcon = null, cmdIcon = null;
+// the squad order button shows the order in force as an icon (tap cycles; the name pops up in the world)
+const ORDER_ICONS = {
+  follow: '<path d="M6 21V4h11l-2.5 4 2.5 4H6"/>',
+  hold: '<path d="M12 5v16M7 9h10M5 14a7 7 0 0 0 14 0"/><circle cx="12" cy="4" r="1.6"/>',
+  charge: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
+  shieldwall: '<path d="M2.5 7h5.5v5c0 3-2.75 5-2.75 5S2.5 15 2.5 12zM9.25 7h5.5v5c0 3-2.75 5-2.75 5s-2.75-2-2.75-5zM16 7h5.5v5c0 3-2.75 5-2.75 5S16 15 16 12z"/>',
+};
 // lastSnapAt: when a client last heard from the host
 export function updateHud(lastSnapAt) {
   TEAMS.forEach((t, i) => {
@@ -57,23 +64,23 @@ export function updateHud(lastSnapAt) {
     b.querySelector('em').textContent = cost == null ? 'Max' : (locked ? 'Locked' : cost + 'g');
     b.setAttribute('aria-disabled', (cost == null || gold < cost || locked) ? 'true' : 'false');
   });
-  let t1 = 'Ride', t2 = 'horse';
-  if (p && p.mounted) { t1 = 'Walk'; t2 = 'get off'; } else if (p && p.summon) { t1 = '…'; t2 = 'coming'; } else if (p && p.horseCd > 0) { t1 = Math.ceil(p.horseCd) + 's'; t2 = 'resting'; }
-  $('mntT').textContent = t1; $('mntS').textContent = t2;
+  // Ride: lit while mounted, a countdown badge while the horse rests
+  $('mnt').classList.toggle('on', !!(p && p.mounted));
+  $('mntB').textContent = p && !p.mounted && !p.summon && p.horseCd > 0 ? Math.ceil(p.horseCd) : p && p.summon ? '…' : '';
+  $('mnt').setAttribute('aria-label', p && p.mounted ? 'Get off your horse' : 'Call your horse');
   $('mnt').classList.toggle('dim', !p || (!p.mounted && (p.horseCd > 0 || p.carrying || p.dead)));
   $('blk').classList.toggle('dim', !p || p.mounted);
   $('atk').classList.toggle('dim', !p || p.carrying);
   const w = (p && p.weapon) || 'sword';
-  if (atkIcon !== w) { atkIcon = w; $('atkIc').innerHTML = ICONS[w]; $('wpnT').textContent = w === 'jav' ? 'Javelin' : WEAPON_NAMES[w]; }
+  if (atkIcon !== w) { atkIcon = w; $('atkIc').innerHTML = ICONS[w]; }
   const mx = javMax(G.myTi), am = p ? Math.min(mx, p.javAmmo | 0) : 0;
-  $('wpnS').textContent = w === 'jav' ? `${am}/${mx}` : w === 'spear' ? 'reach' : 'combo';
+  $('wpnS').textContent = w === 'jav' ? `Jav ${am}` : WEAPON_NAMES[w];
   $('jmp').classList.toggle('dim', !p || p.mounted || p.carrying);
-  $('vlyT').textContent = me.volleyCd > 0 ? Math.ceil(me.volleyCd) + 's' : 'Volley';
+  $('vlyB').textContent = me.volleyCd > 0 ? Math.ceil(me.volleyCd) : '';
   $('vly').classList.toggle('dim', !p || p.dead || me.volleyCd > 0);
   const o = me.order || 'follow';
-  $('cmdT').textContent = ORDER_NAMES[o] || ORDER_NAMES.follow;
-  const cc = o === 'follow' ? 'var(--green)' : o === 'hold' ? 'var(--yellow)' : o === 'shieldwall' ? 'var(--blue)' : 'var(--red)';
-  $('cmdBtn').style.borderLeftColor = cc; $('cmdBtn').querySelector('.ic').style.background = cc;
+  if (cmdIcon !== o) { cmdIcon = o; $('cmdIc').innerHTML = ORDER_ICONS[o] || ORDER_ICONS.follow; $('cmdBtn').setAttribute('aria-label', 'Squad order: ' + (ORDER_NAMES[o] || ORDER_NAMES.follow)); }
+  $('cmdBtn').style.borderColor = o === 'follow' ? 'var(--green)' : o === 'hold' ? 'var(--yellow)' : o === 'shieldwall' ? '#7f9bff' : 'var(--red)';
   const NET = session.NET, tag = $('netTag');
   if (NET) {
     tag.hidden = false;
