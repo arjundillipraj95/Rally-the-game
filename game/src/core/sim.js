@@ -3,6 +3,7 @@
 import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, UPGRADE_COST, UPGRADE_MAX, AURA } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi } from './state.js';
 import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn } from './world.js';
+import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable } from './nav.js';
 
 // ---------- announcements & effects (presentation listens) ----------
 export const say = (k, ...a) => bus.emit('msg', { k, a });
@@ -30,7 +31,7 @@ export function mkUnit(ti, x, z, kind, human = false) {
 export const squadOf = ti => G.units.filter(u => !u.dead && u.ti === ti && !u.leader);
 
 export function startMatch(humans) {
-  G.layout = makeLayout(G.map.id, G.mode === 'ctf', G.seed);
+  G.layout = makeLayout(G.map.id, G.mode === 'ctf', G.seed); buildNav(G.layout);
   G.units = []; G.horses = []; G.arrows = [];
   G.T = 0; G.kills = 0; G.recruited = 0; G.bounty = -1; G.uid = 0; G.arrowN = 0; G.endInfo = null;
   G.teams = newTeams(humans);
@@ -193,7 +194,7 @@ function hit(a, b, mult = 1) {
   if (a.kind === 'spear' && b.kind === 'foot') dmg *= 1.3;
   if (a.kind === 'spear' && b.leader) dmg *= 1.4;
   if (a.kind === 'foot' && b.kind === 'arch') dmg *= 1.4;
-  if (G.map.id === 'frost' && a.y - b.y > .8) dmg *= 1.2;
+  if (a.y - b.y > .8) dmg *= 1.2; // fighting downhill
   b.lastHit = G.T;
   if (b.mounted && (a.kind === 'spear' || Math.random() < .5)) { horseDamage(b, dmg * (a.kind === 'spear' ? 3 : 1)); return; }
   let kb = a.leader ? (a.mounted ? 9 : 7) : 4.5;
@@ -370,30 +371,27 @@ export function captainAttack(p) {
 }
 
 // ---------- navigation ----------
-function fortNav(u, gx, gz) {
-  const inside = r => r < 5.2, ru = Math.hypot(u.x, u.z), rg = Math.hypot(gx, gz);
-  if (inside(ru) === inside(rg)) return null;
-  const outer = inside(ru) ? [gx, gz] : [u.x, u.z];
-  const gA = Math.round(Math.atan2(outer[1], outer[0]) / (Math.PI / 2)) * (Math.PI / 2);
-  const gx2 = Math.cos(gA), gz2 = Math.sin(gA);
-  if (inside(ru)) return [gx2 * 8.5, gz2 * 8.5];
-  if (Math.abs(-u.x * gz2 + u.z * gx2) > .9) return [gx2 * 8.5, gz2 * 8.5];
-  return [gx, gz];
-}
+// Where to walk next on the way to (gx,gz): straight there when the way is clear,
+// otherwise along an A* path around walls, rivers and buildings. Paths are cached per unit
+// and the number of new searches per frame is capped so big armies stay cheap.
+let pathBudget = 0;
 function nav(u, gx, gz) {
-  if (G.layout.withFort && Math.hypot(u.x, u.z) < 14) { const f = fortNav(u, gx, gz); if (f) return f; }
-  if (G.map.id !== 'river') return [gx, gz];
-  const side = z => z > 5 ? 1 : z < -5 ? -1 : 0;
-  const su = side(u.z), sg = side(gz);
-  if (su === sg) return [gx, gz];
-  let cx = -32, best = 1e9;
-  for (const c of [-32, 0, 32]) { const cost = Math.abs(u.x - c) + Math.abs(gx - c); if (cost < best) { best = cost; cx = c; } }
-  const lane = cx === 0 ? 9 : 1.4;
-  if (su !== 0) {
-    const lx = cx + clamp(u.x - cx, -lane * .6, lane * .6);
-    return Math.abs(u.x - cx) > lane ? [lx, su * 6.5] : [lx, -su * 6.5];
+  const P = u.nav || (u.nav = { next: 0, direct: true, pts: null, i: 0, gx: 1e9, gz: 1e9, repath: 0, skipT: 0 });
+  if (G.T >= P.next) { P.next = G.T + .25 + Math.random() * .15; const [ox, oz] = openGoal(gx, gz, u.x, u.z); P.direct = los(u.x, u.z, ox, oz); P.ox = ox; P.oz = oz; }
+  if (P.direct) { P.pts = null; return [gx, gz]; }
+  const ox = P.ox, oz = P.oz;
+  if ((G.T > P.repath || Math.hypot(ox - P.gx, oz - P.gz) > 4) && pathBudget > 0) {
+    pathBudget--;
+    // pressed into a wall: step out to the path's first open cell before heading on
+    P.pts = findPath(u.x, u.z, ox, oz); P.i = walkable(u.x, u.z) ? 1 : 0; P.gx = ox; P.gz = oz;
+    P.repath = G.T + (P.pts ? 2 + Math.random() : 1.5 + Math.random()); // a failed search waits before trying again
   }
-  return [clamp(u.x, cx - lane * .8, cx + lane * .8), (sg || 1) * 6.5];
+  if (!P.pts || P.pts.length < 2) return [gx, gz];
+  const pts = P.pts;
+  while (P.i < pts.length - 1 && Math.hypot(pts[P.i][0] - u.x, pts[P.i][1] - u.z) < (P.i ? 1.3 : .5)) P.i++;
+  if (P.i < pts.length - 1 && G.T >= P.skipT) { P.skipT = G.T + .3; if (los(u.x, u.z, pts[P.i + 1][0], pts[P.i + 1][1])) P.i++; }
+  const p = pts[Math.min(P.i, pts.length - 1)];
+  return P.i >= pts.length - 1 ? [gx, gz] : [p[0], p[1]];
 }
 export function moveToward(u, gx, gz, spd, dt, stopAt = .3) {
   const dx = gx - u.x, dz = gz - u.z, d = Math.hypot(dx, dz);
@@ -505,7 +503,7 @@ function thinkSoldier(u, dt) {
     if (d < 1 && !(foe && u.fd < 3)) u.face = turn(u.face, L.face, dt * 6);
     return;
   }
-  const range = u.kind === 'arch' ? st.range * (G.map.id === 'frost' && u.y > 3 ? 1.3 : 1) : 0;
+  const range = u.kind === 'arch' ? st.range * (u.y > 2.2 ? 1.3 : 1) : 0; // archers on high ground shoot farther
   u.aim = false;
   if (u.kind === 'spear' && myOrder !== 'charge') {
     const [rider, rd] = nearestFoe(u, 9, o => o.mounted);
@@ -566,12 +564,23 @@ function aiPick(ti) {
 // ---------- physics ----------
 export function integrate(u, dt, pz) {
   u.x += u.vx * dt; u.z += u.vz * dt;
-  for (const o of G.layout.obstacles) {
-    const dx = u.x - o.x, dz = u.z - o.z, min = o.r + u.r;
+  for (const o of nearObstacles(u.x, u.z)) {
+    if (o.gate && !gateShut(o)) continue;
+    const dx = u.x - o.x, dz = u.z - o.z;
+    if (o.box) {
+      const c = Math.cos(o.rot), s = Math.sin(o.rot), lx = dx * c - dz * s, lz = dx * s + dz * c;
+      const px = o.hw + u.r - Math.abs(lx), pz = o.hd + u.r - Math.abs(lz);
+      if (px <= 0 || pz <= 0) continue;
+      let nx = lx, nz = lz; if (px < pz) nx = Math.sign(lx || 1) * (o.hw + u.r); else nz = Math.sign(lz || 1) * (o.hd + u.r);
+      u.x = o.x + nx * c + nz * s; u.z = o.z - nx * s + nz * c;
+      continue;
+    }
+    const min = o.r + u.r;
     if (Math.abs(dx) > min || Math.abs(dz) > min) continue;
     const d = Math.hypot(dx, dz);
     if (d < min && d > 0) { u.x = o.x + dx / d * min; u.z = o.z + dz / d * min; }
   }
+  if (G.layout.round) { const d = Math.hypot(u.x, u.z), m = G.layout.round - u.r; if (d > m) { u.x *= m / d; u.z *= m / d; } }
   if (G.map.id === 'river') {
     if (inRiver(u.x, u.z) && !onBridge(u.x) && Math.abs(u.x) >= 14) u.z = (pz >= 0 ? 1 : -1) * 5.05;
     if (Math.abs(u.z) < 5 && onBridge(u.x) && Math.abs(u.x) > 20) { const bx = u.x < 0 ? -32 : 32; u.x = clamp(u.x, bx - 2.1, bx + 2.1); }
@@ -591,6 +600,7 @@ export function driveCaptain(p, input, dt) {
 // ---------- the main step (solo and host) ----------
 export function update(dt, input) {
   G.T += dt;
+  syncGates(); pathBudget = 4;
   G.teams.forEach((s, i) => {
     if (canRecruit(i)) s.gold += dt * (s.human ? ECON.humanIncome : DIFF[G.diff].income);
     if (!s.human && canRecruit(i)) { s.recruitT -= dt; if (s.recruitT <= 0) { s.recruitT = rnd(...ECON.aiRecruitEvery); recruit(i, aiPick(i)); } }
@@ -746,8 +756,11 @@ export function arrowsTick(dt, authoritative) {
     const t = Math.min(1, a.t);
     const x = a.x0 + (a.x1 - a.x0) * t, z = a.z0 + (a.z1 - a.z0) * t, y = a.y0 + (a.y1 - a.y0) * t + a.peak * 4 * t * (1 - t);
     a.px = a.x; a.py = a.y; a.pz = a.z; a.x = x; a.y = y; a.z = z;
-    if (G.map.id === 'forest' && y < 7) {
-      for (const tr of G.layout.treeColliders) if (Math.abs(tr.x - x) < tr.r && Math.abs(tr.z - z) < tr.r && Math.hypot(tr.x - x, tr.z - z) < tr.r) { a.stuck = true; a.life = 2; sound('thud', x, z); spark(x, y, z, '#6b4a2e', 3); break; }
+    if (y < 8 && a.t > .12) { // trees, walls and buildings stop arrows
+      for (const tr of nearBlockers(x, z)) {
+        if (y > tr.h + groundY(tr.x, tr.z) || (tr.gate && !gateShut(tr))) continue;
+        if (Math.abs(tr.x - x) < tr.r && Math.abs(tr.z - z) < tr.r && Math.hypot(tr.x - x, tr.z - z) < tr.r) { a.stuck = true; a.life = 2; sound('thud', x, z); spark(x, y, z, '#8a7a62', 3); break; }
+      }
       if (a.stuck) continue;
     }
     if (a.t >= 1) {

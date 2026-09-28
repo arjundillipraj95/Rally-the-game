@@ -4,6 +4,7 @@ import { TEAMS, MODES, MAPS, PRESETS } from './config.js';
 import { G, bus } from './core/state.js';
 import { startMatch, mkUnit, newTeams, update, fallStep, endMatch, auraRange } from './core/sim.js';
 import { makeLayout, gatePos, groundY } from './core/world.js';
+import { buildNav } from './core/nav.js';
 import { renderer, scene, camera, resize, applyPixelRatio, applyShadowQuality, followSun } from './render/scene.js';
 import { quality, saveSetting, stepDown, LEVELS } from './render/quality.js';
 import { buildWorldView, updateWorldView, grassTime } from './render/world.js';
@@ -94,7 +95,7 @@ bindInput(actions);
 // ---------- title scene ----------
 let demoT = 0, demoRider = null;
 function seedDemo() {
-  G.layout = makeLayout(G.map.id, false, 7);
+  G.layout = makeLayout(G.map.id, false, 7); buildNav(G.layout);
   G.units = []; G.horses = []; G.arrows = []; G.flag = null; G.player = null; G.uid = 0;
   G.teams = newTeams([0, 0, 0, 0]);
   G.factions = assignFactions(TEAMS.map((_, i) => i === G.myTi ? prefs.faction : null), 7);

@@ -90,6 +90,20 @@ function drawFlagPointer() {
   ctx.restore();
 }
 
+// Walls, buildings, rocks and trees drawn once per map onto their own layer.
+let miniLayer = null, miniFor = null;
+function buildMiniLayer(S, k) {
+  miniFor = G.layout; miniLayer = miniLayer || document.createElement('canvas'); miniLayer.width = miniLayer.height = S;
+  const c = miniLayer.getContext('2d'); c.clearRect(0, 0, S, S); c.save(); c.translate(S / 2, S / 2);
+  c.fillStyle = G.map.id === 'forest' ? 'rgba(47,90,52,.7)' : 'rgba(20,18,16,.55)';
+  for (const ob of G.layout.obstacles) {
+    if (ob.castle) continue;
+    if (ob.box) { c.save(); c.translate(ob.x * k, ob.z * k); c.rotate(-ob.rot); c.fillRect(-ob.hw * k, -ob.hd * k, ob.hw * 2 * k, ob.hd * 2 * k); c.restore(); }
+    else { const r = Math.max(1.2, ob.r * k); c.fillRect(ob.x * k - r, ob.z * k - r, r * 2, r * 2); }
+  }
+  if (G.layout.round) { c.strokeStyle = 'rgba(20,18,16,.6)'; c.lineWidth = 3; c.beginPath(); c.arc(0, 0, G.layout.round * k, 0, Math.PI * 2); c.stroke(); }
+  c.restore();
+}
 function drawMini() {
   if (G.state !== 'play') return;
   const S = mini.width, k = S / 190, o = S / 2;
@@ -98,7 +112,7 @@ function drawMini() {
   const id = G.map.id;
   if (id === 'river') { mctx.fillStyle = 'rgba(63,127,166,.8)'; mctx.fillRect(-95 * k, -5 * k, 190 * k, 10 * k); mctx.fillStyle = 'rgba(107,74,46,.9)'; mctx.fillRect(-34.5 * k, -7 * k, 5 * k, 14 * k); mctx.fillRect(29.5 * k, -7 * k, 5 * k, 14 * k); }
   if (id === 'frost') { mctx.fillStyle = 'rgba(255,255,255,.2)'; mctx.beginPath(); mctx.arc(0, 0, 24 * k, 0, Math.PI * 2); mctx.fill(); }
-  if (id === 'forest' && G.layout) { mctx.fillStyle = 'rgba(47,90,52,.7)'; for (const t of G.layout.treeColliders) mctx.fillRect(t.x * k - 2, t.z * k - 2, 4, 4); }
+  if (G.layout) { if (miniFor !== G.layout) buildMiniLayer(S, k); mctx.drawImage(miniLayer, -o, -o); }
   TEAMS.forEach((t, i) => {
     mctx.fillStyle = (G.mode !== 'conquest' || G.teams[i].alive) ? t.css : '#555'; mctx.fillRect(t.pos[0] * k - 9, t.pos[1] * k - 9, 18, 18);
     if (!isFfa() && !isEnemyTi(i, G.myTi)) { mctx.strokeStyle = '#fff'; mctx.lineWidth = 2; mctx.strokeRect(t.pos[0] * k - 9, t.pos[1] * k - 9, 18, 18); }

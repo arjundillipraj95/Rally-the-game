@@ -6,6 +6,8 @@ import { groundY, terrainMeshY, mulberry } from '../core/world.js';
 import { scene, setLook } from './scene.js';
 import { quality } from './quality.js';
 import { lookFor, groundTex, stoneTex, woodTex, uvScale } from './look.js';
+import { buildFeatures, updateFeatures } from './features.js';
+import { inside, nearObstacles } from '../core/nav.js';
 
 let world = null;
 export let castleObjs = [];
@@ -32,7 +34,7 @@ export function buildWorldView(L) {
   const M = G.map, LK = lookFor(M.id);
   setLook(M);
   // ground: map colors per vertex, fine detail from a tiling texture
-  const g = new THREE.PlaneGeometry(420, 420, 140, 140); g.rotateX(-Math.PI / 2);
+  const g = new THREE.PlaneGeometry(420, 420, 220, 220); g.rotateX(-Math.PI / 2);
   uvScale(g, 64, 64);
   const pos = g.attributes.position, cols = [];
   const c1 = new THREE.Color(LK.g1 ?? M.g1), c2 = new THREE.Color(LK.g2 ?? M.g2), c3 = new THREE.Color(LK.g3 ?? M.g3), mud = new THREE.Color(0x7a6a4c);
@@ -42,13 +44,15 @@ export function buildWorldView(L) {
     const t = (Math.sin(x * .11 + z * .07) + 1) / 2, t2 = (Math.sin(x * .031 - z * .043) + 1) / 2;
     const c = c1.clone().lerp(c2, t * .7 + t2 * .3); if (r > 92) c.lerp(c3, Math.min(1, (r - 92) / 40));
     if (M.id === 'river' && Math.abs(z) < 6.5 && Math.hypot(x, z) >= 7.5) c.lerp(mud, .6);
+    if (M.id === 'valley' && Math.abs(x - z) < 3.2 && r < 95) c.lerp(mud, .55);                // dirt road through the valley
+    if (M.id === 'wooden' && (Math.abs(x) < 2.6 || Math.abs(z) < 2.6) && r > 8 && r < 80) c.lerp(mud, .45);
     cols.push(c.r, c.g, c.b);
   }
   g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3)); g.computeVertexNormals();
   const ground = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true, map: groundTex(LK.ground) }));
   ground.receiveShadow = true; world.add(ground);
   const hillMat = lam(M.hill);
-  for (const h of L.hills) {
+  if (M.id !== 'colosseum') for (const h of L.hills) {
     const m = new THREE.Mesh(new THREE.SphereGeometry(h.rad, 12, 8), hillMat);
     m.scale.y = h.sy; m.position.set(Math.cos(h.a) * h.d, -3, Math.sin(h.a) * h.d); world.add(m);
   }
@@ -79,19 +83,21 @@ export function buildWorldView(L) {
     const leaf1 = new THREE.InstancedMesh(new THREE.ConeGeometry(2.1, 4.2, 9), lam(0x2c5530), n);
     const leaf2 = new THREE.InstancedMesh(new THREE.ConeGeometry(1.5, 3.2, 9), lam(0x376a3a), n);
     L.trees.forEach((t, i) => {
-      mx.makeScale(t.s, t.s, t.s); mx.setPosition(t.x, 1.2 * t.s, t.z); trunk.setMatrixAt(i, mx);
-      mx.makeScale(t.s, t.s, t.s); mx.setPosition(t.x, 3.6 * t.s, t.z); leaf1.setMatrixAt(i, mx);
-      mx.makeScale(t.s, t.s, t.s); mx.setPosition(t.x, 5.4 * t.s, t.z); leaf2.setMatrixAt(i, mx);
+      const gy = terrainMeshY(t.x, t.z) - .1;
+      mx.makeScale(t.s, t.s, t.s); mx.setPosition(t.x, gy + 1.2 * t.s, t.z); trunk.setMatrixAt(i, mx);
+      mx.makeScale(t.s, t.s, t.s); mx.setPosition(t.x, gy + 3.6 * t.s, t.z); leaf1.setMatrixAt(i, mx);
+      mx.makeScale(t.s, t.s, t.s); mx.setPosition(t.x, gy + 5.4 * t.s, t.z); leaf2.setMatrixAt(i, mx);
     });
     world.add(shadowy(trunk), shadowy(leaf1), shadowy(leaf2));
   }
   const rockMat = lam(M.rock, stoneTex());
   for (const r of L.rocks) {
     const mm = new THREE.Mesh(new THREE.DodecahedronGeometry(r.r), rockMat);
-    mm.position.set(r.x, groundY(r.x, r.z) + r.r * .4, r.z); mm.rotation.set(r.rx, r.ry, 0); world.add(shadowy(mm));
+    mm.position.set(r.x, terrainMeshY(r.x, r.z) + r.r * (r.big ? .55 : .4), r.z); mm.rotation.set(r.rx, r.ry, 0); if (r.big) mm.scale.set(1, 1.35, 1); world.add(shadowy(mm));
   }
   TEAMS.forEach((t, i) => castleObjs.push(buildCastle(t, i)));
   if (L.withFort) buildFort(L);
+  buildFeatures(L, world);
   buildGrass(L, LK);
 }
 
@@ -178,7 +184,7 @@ function buildGrass(L, LK) {
   const c1 = new THREE.Color(LK.grassCol[0]), c2 = new THREE.Color(LK.grassCol[1]), col = new THREE.Color();
   const mx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), s = new THREE.Vector3();
   const blocked = (x, z) => TEAMS.some(t => Math.hypot(t.pos[0] - x, t.pos[1] - z) < CASTLE_R + 1.5) || (L.withFort && Math.hypot(x, z) < 7.5)
-    || (G.map.id === 'river' && Math.abs(z) < 6 && Math.hypot(x, z) >= 7) || L.obstacles.some(o => !o.castle && Math.abs(o.x - x) < o.r && Math.abs(o.z - z) < o.r);
+    || (G.map.id === 'river' && Math.abs(z) < 6 && Math.hypot(x, z) >= 7) || nearObstacles(x, z).some(o => !o.castle && inside(o, x, z, .3)) || (L.round && Math.hypot(x, z) > L.round - 1);
   const patch = (x, z) => Math.sin(x * .09 + 1.3) * Math.cos(z * .08 - .7) + Math.sin(x * .031 - z * .027) * .8;
   let k = 0, tries = 0;
   while (k < n && tries < n * 6) {
@@ -198,6 +204,7 @@ function buildGrass(L, LK) {
 // Castles sink as they weaken; the banner sits in the fort or on its carrier's back; grass sways.
 export function updateWorldView(dt, fxHook) {
   grassU.time.value += dt;
+  updateFeatures(dt, grassU.time.value);
   TEAMS.forEach((t, i) => {
     const s = G.teams[i], co = castleObjs[i]; if (!co || !s) return;
     const want = G.mode !== 'conquest' ? 1 : s.alive ? 1 - (1 - s.points / 100) * .12 : .28;

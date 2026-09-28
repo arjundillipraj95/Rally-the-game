@@ -27,6 +27,11 @@ export const MODES = {
 };
 
 export const MAPS = {
+  forum:     { id: 'forum',     name: 'Forum',        desc: 'A Roman city. Streets between the houses funnel every army, and four temples give the high ground: fighting down their steps deals +20% damage and archers on top shoot 30% farther.', sky: 0xdcd6c6, fog: [70, 200], g1: 0xd9cdb4, g2: 0xc8b99c, g3: 0xb5a584, hill: 0x8a7c66, rock: 0x9b9384 },
+  colosseum: { id: 'colosseum', name: 'Colosseum',    desc: 'An arena ringed by a roaring crowd. The inner pit has four gates that slam shut for 20 seconds every minute.', sky: 0xdcd6c6, fog: [80, 220], g1: 0xdcc08e, g2: 0xcdae78, g3: 0xb89a6a, hill: 0x8a7c66, rock: 0x9b9384 },
+  desert:    { id: 'desert',    name: 'Desert Fort',  desc: 'A walled fortress on a plateau in the middle of the sands. Four ramps lead up through its gates; hold them and you hold the high ground.', sky: 0xe6d6b8, fog: [70, 230], g1: 0xe2bd82, g2: 0xd2a468, g3: 0xb98f5c, hill: 0x9c7a50, rock: 0xa58a68 },
+  wooden:    { id: 'wooden',    name: 'Wooden Fort',  desc: 'Every castle sits inside a log palisade with two gates, in a green valley of huts and watchtowers. Defenders fight at the gates.', sky: 0xcfdde0, fog: [60, 210], g1: 0x7fa04a, g2: 0x6c8a42, g3: 0x5d6f40, hill: 0x5b6a55, rock: 0x8a8d86 },
+  valley:    { id: 'valley',    name: 'Grass Valley', desc: 'Open fields and gentle hills. A ring of rocky outcrops guards the middle with eight passes. Horses shine here; archers need the rocks for cover.', sky: 0xcfdde0, fog: [60, 220], g1: 0x8aad50, g2: 0x76983f, g3: 0x5d6f40, hill: 0x5b6a55, rock: 0x8f8f86 },
   dunes:  { id: 'dunes',  name: 'Dune Field',  desc: 'Open sand and scattered fences. Straight fights.', sky: 0xdcd6c6, fog: [70, 190], g1: 0xc9a978, g2: 0xb8956a, g3: 0xa88a62, hill: 0x6e6258, rock: 0x8d8174 },
   river:  { id: 'river',  name: 'River Ford',  desc: 'A river splits the field. Two bridges and a shallow ford that slows everyone crossing it.', sky: 0xcfdde0, fog: [70, 190], g1: 0x7f9a4c, g2: 0x6c8a42, g3: 0x5d6f40, hill: 0x5b6a55, rock: 0x8a8d86 },
   forest: { id: 'forest', name: 'Pine Forest', desc: 'Dense pine clusters. Trees stop arrows and hide ambushes.', sky: 0xb9c8b0, fog: [34, 120], g1: 0x55733a, g2: 0x62803f, g3: 0x44582f, hill: 0x3e4c34, rock: 0x7a7c70 },

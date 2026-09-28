@@ -7,6 +7,11 @@ export const LOOK = {
   dunes:  { g1: 0xe2bd82, g2: 0xd2a468, g3: 0xb98f5c, zenith: 0x3f7ad0, horizon: 0xe6d6b8, sun: 0xfff0d2, sunI: 3.1, sky: 0xd8e6ff, gnd: 0xb08c5c, hemiI: 1.25, fog: [70, 230], sunDir: [.55, .62, .3],  ground: 'sand',  grass: .22, grassCol: [0xa89048, 0xe8d27e] },
   river:  { g1: 0x86a84c, g2: 0x6f9440, zenith: 0x4a82d0, horizon: 0xd9e6ea, sun: 0xfff3dc, sunI: 3.0, sky: 0xd4e4ff, gnd: 0x5d6f40, hemiI: 1.3,  fog: [60, 210], sunDir: [.5, .66, .35],  ground: 'grass', grass: 1,   grassCol: [0x3f6a2a, 0x9cc062] },
   forest: { g1: 0x5f8038, g2: 0x6d8f3e, zenith: 0x5b86b4, horizon: 0xc6d4c2, sun: 0xffeed0, sunI: 2.7, sky: 0xcfdcea, gnd: 0x44582f, hemiI: 1.35, fog: [30, 140], sunDir: [.45, .7, .4],   ground: 'grass', grass: 1.2, grassCol: [0x355a24, 0x86ad52] },
+  forum:     { zenith: 0x4a84d2, horizon: 0xe6dccb, sun: 0xfff0d6, sunI: 3.0, sky: 0xd8e4ff, gnd: 0xa8987c, hemiI: 1.25, fog: [70, 230], sunDir: [.5, .64, .35], ground: 'paving', grass: .08, grassCol: [0x6f7a3c, 0xa8b060] },
+  colosseum: { zenith: 0x4a80d0, horizon: 0xe8dcc4, sun: 0xfff0d2, sunI: 3.0, sky: 0xd8e4ff, gnd: 0xb08c5c, hemiI: 1.2,  fog: [90, 260], sunDir: [.45, .72, .3], ground: 'sand', grass: 0, grassCol: [0x9a8a4a, 0xd8c47a] },
+  desert:    { g1: 0xe2bd82, g2: 0xd2a468, g3: 0xb98f5c, zenith: 0x3a76d0, horizon: 0xe8d6b4, sun: 0xfff0d0, sunI: 3.2, sky: 0xd8e6ff, gnd: 0xb08c5c, hemiI: 1.2, fog: [80, 240], sunDir: [.55, .6, .3], ground: 'sand', grass: .15, grassCol: [0xa89048, 0xe8d27e] },
+  wooden:    { g1: 0x88a84e, g2: 0x72944a, zenith: 0x4a82d0, horizon: 0xd6e4e8, sun: 0xfff3dc, sunI: 3.0, sky: 0xd4e4ff, gnd: 0x5d6f40, hemiI: 1.3, fog: [60, 210], sunDir: [.5, .66, .35], ground: 'grass', grass: 1, grassCol: [0x3f6a2a, 0x9cc062] },
+  valley:    { g1: 0x92b453, g2: 0x7a9e44, zenith: 0x4380d4, horizon: 0xdbe8ea, sun: 0xfff3dc, sunI: 3.1, sky: 0xd4e4ff, gnd: 0x5d6f40, hemiI: 1.3, fog: [70, 230], sunDir: [.52, .62, .38], ground: 'grass', grass: 1.4, grassCol: [0x4a7a2e, 0xb4d06a] },
   frost:  { g1: 0xd3dde6, g2: 0xbfccd8, g3: 0xa8b6c2, zenith: 0x5f8fcc, horizon: 0xe4ebf1, sun: 0xfff6ea, sunI: 2.3, sky: 0xe6eeff, gnd: 0x9aa6b2, hemiI: 1.1,  fog: [50, 190], sunDir: [.5, .6, .45],   ground: 'snow',  grass: .12, grassCol: [0x7d8a7a, 0xc9d6cf] },
 };
 export const lookFor = mapId => LOOK[mapId] || LOOK.dunes;
@@ -49,6 +54,14 @@ export const groundTex = kind => canvasTex('ground-' + kind, 256, (x, S, R) => {
     x.globalAlpha = .07; x.strokeStyle = '#000'; x.lineWidth = 3;
     for (let k = 0; k < 14; k++) { const y0 = k * S / 14 + R() * 6; x.beginPath(); for (let xx = -10; xx <= S + 10; xx += 8) x.lineTo(xx, y0 + Math.sin(xx / S * Math.PI * 4 + k) * 5); x.stroke(); }
     x.globalAlpha = .25; for (let k = 0; k < 900; k++) { x.fillStyle = R() < .5 ? '#fff' : '#6b5a40'; x.fillRect(R() * S, R() * S, 1, 1); }
+  } else if (kind === 'paving') {
+    paintNoise(x, S, R, .86, .3, [[8, .5], [32, .4]]);
+    const n = 6, w = S / n;
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+      const off = (r % 2) * w / 2;
+      x.globalAlpha = .06 + R() * .1; x.fillStyle = R() < .5 ? '#000' : '#fff'; x.fillRect(c * w + off + 2, r * w + 2, w - 4, w - 4);
+      x.globalAlpha = .35; x.strokeStyle = '#5a5246'; x.lineWidth = 2; x.strokeRect(c * w + off + 1, r * w + 1, w - 2, w - 2); x.strokeRect(c * w + off - S + 1, r * w + 1, w - 2, w - 2);
+    }
   } else if (kind === 'snow') {
     paintNoise(x, S, R, .95, .25, [[4, .6], [16, .4], [64, .2]]);
     x.globalAlpha = .5; for (let k = 0; k < 400; k++) { x.fillStyle = '#fff'; x.fillRect(R() * S, R() * S, 1, 1); }

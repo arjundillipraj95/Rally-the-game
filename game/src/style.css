@@ -186,3 +186,4 @@
     .pill{min-height:30px;font-size:13px;} #squadBox{font-size:20px;}
     #mini{width:60px;height:60px;} #goldTag{top:72px;}
   }
+  #segMap button,#lobbyMap button{flex:1 1 30%;}

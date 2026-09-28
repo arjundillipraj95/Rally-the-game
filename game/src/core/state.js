@@ -6,7 +6,7 @@ export const G = {
   role: 'solo',          // 'solo' | 'host' | 'client'
   state: 'title',        // 'title' | 'lobby' | 'play' | 'end'
   mode: 'conquest',
-  map: MAPS.dunes,
+  map: MAPS.forum,
   diff: 1,
   preset: 'ffa',
   ALLY: [0, 1, 2, 3],

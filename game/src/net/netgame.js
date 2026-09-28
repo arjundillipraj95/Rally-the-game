@@ -3,6 +3,7 @@
 import { TEAMS, MAPS, KINDS, STATS, RECRUITS, FACTIONS, factionFromCode, ORDERS, ORDER_NAMES, UPGRADES } from '../config.js';
 import { G, bus } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn } from '../core/world.js';
+import { buildNav, syncGates } from '../core/nav.js';
 import { newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax } from '../core/sim.js';
 import { session, isClient, isHost } from './session.js';
 import { showMsg } from '../ui/messages.js';
@@ -107,7 +108,7 @@ export function clientStart(hp) {
   G.role = 'client';
   G.mode = hp.mode; G.map = MAPS[hp.map]; G.diff = hp.diff; G.ALLY = hp.al.split('').map(Number); G.seed = hp.seed;
   G.factions = String(hp.fa || 'rrrr').split('').map(factionFromCode);
-  G.layout = makeLayout(G.map.id, G.mode === 'ctf', G.seed);
+  G.layout = makeLayout(G.map.id, G.mode === 'ctf', G.seed); buildNav(G.layout);
   G.units = []; G.horses = []; G.arrows = [];
   G.T = 0; G.kills = 0; G.recruited = 0; G.bounty = -1; G.endInfo = null;
   const humans = [0, 0, 0, 0]; Object.values(hp.seats || {}).forEach(ti => humans[ti] = 1);
@@ -225,7 +226,7 @@ export function clientTick(dt) {
     if (hp.ph === 'end' && G.state === 'play' && Array.isArray(hp.res)) bus.emit('hostEnd', hp.res);
   }
   if (G.state !== 'play' && G.state !== 'end') return false;
-  C.localCd -= dt;
+  C.localCd -= dt; syncGates();
   const me = G.player;
   if (me && !me.dead && G.state === 'play') {
     me.stun -= dt;
