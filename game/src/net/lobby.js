@@ -5,7 +5,7 @@ import { makeP2PRoom, newCode, p2pAvailable } from './p2p.js';
 import { session, prefs } from './session.js';
 import { allyFor, assignFactions } from '../core/teams.js';
 import { myPeer, clientStart, netHostSend } from './netgame.js';
-import { initAudio } from '../ui/audio.js';
+import { initAudio, stopCrowd } from '../ui/audio.js';
 
 const $ = id => document.getElementById(id);
 let hooks = { startMatch() {}, seedDemo() {}, preset: () => 'ffa', resetSolo() {} };
@@ -127,6 +127,7 @@ export function renderLobby() {
 }
 
 export async function netLeave(msg) {
+  stopCrowd();
   const n = session.NET; session.NET = null;
   if (n) { try { n.unsub && n.unsub(); } catch (e) {} try { await n.room.leave(); } catch (e) {} }
   hooks.resetSolo();

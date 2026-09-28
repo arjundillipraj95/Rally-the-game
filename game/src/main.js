@@ -13,7 +13,7 @@ import { drawHorses, clearHorses } from './render/horses.js';
 import { spark, splat, dust, drawAura, floatText, castleFx, effectsTick, drawEffects, clearEffects } from './render/effects.js';
 import { drawOverlay, clearOverlay, resizeOverlay } from './render/overlay.js';
 import { cam, followCamera, orbitCamera, camTarget } from './render/camera.js';
-import { initAudio, sfx, buzz, gateS } from './ui/audio.js';
+import { initAudio, sfx, buzz, gateS, startCrowd, stopCrowd } from './ui/audio.js';
 import { showMsg, allyNames } from './ui/messages.js';
 import { buildHud, showHud, updateHud, banner, fmt } from './ui/hud.js';
 import { bindInput, readMove, trayOpen, upOpen, releaseAll, inp } from './ui/input.js';
@@ -25,6 +25,11 @@ import { CAPS_TO_WIN } from './config.js';
 
 const $ = id => document.getElementById(id);
 { const nj = $('nojs'); if (nj) nj.remove(); }
+// a soft click on any menu/lobby button tap, never the in-battle HUD buttons (those have their own sfx)
+document.addEventListener('pointerdown', e => {
+  const b = e.target.closest && e.target.closest('.overlay button, .overlay .seat, .overlay .duotog, .overlay .alchip');
+  if (b) sfx.uiClick();
+}, true);
 // stop iOS pinch and double-tap zoom
 document.addEventListener('gesturestart', e => e.preventDefault());
 document.addEventListener('gesturechange', e => e.preventDefault());
@@ -50,6 +55,7 @@ bus.on('hostEnd', res => endMatch(res[0], res[1]));
 bus.on('end', ({ w, why }) => {
   releaseAll(); trayOpen(false); upOpen(false);
   updateHud(C.lastSnapAt);
+  stopCrowd();
   const mine = G.ALLY[colorOf(G.myTi)];
   const result = w < 0 ? 'draw' : w === mine ? 'win' : 'lose';
   const title = result === 'win' ? 'Victory' : result === 'draw' ? 'Draw' : 'Defeat';
@@ -80,6 +86,7 @@ function viewForMatch() {
   clearEffects(); clearHorses();
   buildHud(); showHud(); trayOpen(false); upOpen(false);
   watchdog.reset();
+  startCrowd(G.map.id);
 }
 function beginMatch(humans, active) {
   if (!session.NET) G.role = 'solo';

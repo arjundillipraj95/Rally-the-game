@@ -2,7 +2,7 @@
 import { G } from '../core/state.js';
 import { clamp } from '../core/world.js';
 
-let ac = null, nb = null;
+let ac = null, nb = null, cb = null;
 const lastS = {};
 export function initAudio() {
   if (ac) { if (ac.state === 'suspended') ac.resume(); return; }
@@ -24,6 +24,35 @@ function tone(f, dur, g, type = 'sine', to, delay = 0) {
   o.connect(gn).connect(ac.destination); o.start(t); o.stop(t + dur);
 }
 function vol(x, z) { const p = G.player; if (!p || x == null) return 1; const d = Math.hypot(x - p.x, z - p.z); return clamp(1.2 - d / 40, 0, 1); }
+
+// ---------- ambient crowd bed (loops through the match; louder and brighter in the Colosseum) ----------
+function crowdBuffer() {
+  if (cb) return cb;
+  const len = Math.floor(ac.sampleRate * 4);
+  cb = ac.createBuffer(1, len, ac.sampleRate);
+  const d = cb.getChannelData(0);
+  let v = 0;
+  for (let i = 0; i < len; i++) { v += (Math.random() * 2 - 1) * .05; v *= .992; d[i] = v; }
+  return cb;
+}
+let crowdSrc = null, crowdGain = null;
+export function startCrowd(mapId) {
+  if (!ac) return;
+  stopCrowd();
+  const arena = mapId === 'colosseum';
+  const src = ac.createBufferSource(); src.buffer = crowdBuffer(); src.loop = true;
+  const fl = ac.createBiquadFilter(); fl.type = 'bandpass'; fl.frequency.value = arena ? 480 : 260; fl.Q.value = .7;
+  const gn = ac.createGain(); gn.gain.setValueAtTime(0, ac.currentTime);
+  src.connect(fl).connect(gn).connect(ac.destination);
+  try { src.start(); } catch (e) { return; }
+  gn.gain.linearRampToValueAtTime(arena ? .1 : .04, ac.currentTime + 1.4);
+  crowdSrc = src; crowdGain = gn;
+}
+export function stopCrowd() {
+  if (crowdGain) { try { crowdGain.gain.cancelScheduledValues(ac.currentTime); crowdGain.gain.linearRampToValueAtTime(0, ac.currentTime + .6); } catch (e) {} }
+  if (crowdSrc) { const s = crowdSrc; try { s.stop(ac.currentTime + .65); } catch (e) {} }
+  crowdSrc = null; crowdGain = null;
+}
 export const sfx = {
   swing(x, z) { const v = vol(x, z); if (v > .1 && gateS('sw', 60)) noise(.14, 1800, 1, .12, 'bandpass', 600, v); },
   clang(x, z) { const v = vol(x, z); if (v > .1 && gateS('cl', 60)) { noise(.08, 3400, 7, .22, 'bandpass', 0, v); tone(1500 + Math.random() * 600, .14, .07 * v, 'triangle'); } },
@@ -40,5 +69,7 @@ export const sfx = {
   order() { tone(392, .12, .1, 'square'); tone(523, .18, .1, 'square', 0, .1); },
   crumble() { noise(1.2, 300, .7, .6, 'lowpass', 80); },
   capture() { tone(523, .2, .12, 'square'); tone(659, .2, .12, 'square', 0, .18); tone(784, .4, .12, 'square', 0, .36); },
+  cheer() { if (!gateS('ch', 400)) return; noise(1.4, 700, .8, .16, 'bandpass', 1400); noise(1.7, 500, .6, .12, 'bandpass', 900, .8); },
+  uiClick() { if (gateS('ui', 45)) tone(700, .045, .045, 'square', 500); },
 };
 export function buzz(ms) { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) {} }

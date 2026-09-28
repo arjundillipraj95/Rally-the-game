@@ -43,7 +43,7 @@ export function showMsg(k, a) {
   const m = msgText(k, a); if (!m) return;
   banner(m[0], m[1], m[2]);
   if (k === 'horseDown' && a[0] === myTi) { buzz(120); cam.shake = .5; }
-  if (k === 'capture') { sfx.capture(); if (!isEnemyTi(a[0], myTi)) buzz([60, 40, 60]); }
-  if (k === 'castleDown') { sfx.crumble(); cam.shake = .6; if (a[0] === myTi) buzz([100, 60, 100]); }
+  if (k === 'capture') { sfx.capture(); sfx.cheer(); if (!isEnemyTi(a[0], myTi)) buzz([60, 40, 60]); }
+  if (k === 'castleDown') { sfx.crumble(); sfx.cheer(); cam.shake = .6; if (a[0] === myTi) buzz([100, 60, 100]); }
   if (k === 'flagTaken' && a[0] === myTi) { sfx.order(); buzz(50); }
 }

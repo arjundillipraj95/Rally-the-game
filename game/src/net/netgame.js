@@ -1,5 +1,7 @@
 // Online battles. The host runs the rules; every other phone sends its captain and button
-// presses and draws the host's snapshots (a compact text string, about 1KB, 12 times a second).
+// presses and draws the host's snapshots (a compact text string, roughly 1-4KB depending on
+// how many soldiers are alive — capped well under that even at a full 8-army Duo match — sent
+// about 12 times a second).
 import { TEAMS, MAPS, KINDS, STATS, RECRUITS, FACTIONS, factionFromCode, ORDERS, ORDER_NAMES, UPGRADES } from '../config.js';
 import { G, bus, colorOf } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn } from '../core/world.js';
