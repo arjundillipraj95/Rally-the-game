@@ -1,7 +1,7 @@
 // Scoreboard, clock, health, gold, squad count and button labels.
-import { TEAMS, MODES, STATS, DM_TICKETS, CAPS_TO_WIN, CTRL, AL_LETTER, ORDER_NAMES, UPGRADES } from '../config.js';
+import { TEAMS, MODES, STATS, DM_TICKETS, CAPS_TO_WIN, CTRL, AL_LETTER, ORDER_NAMES, UPGRADES, WEAPON_NAMES } from '../config.js';
 import { G, isFfa, colorOf } from '../core/state.js';
-import { colorOut, colorScore, colorHuman, squadOf, canRecruit, horseMax, upgradeCost } from '../core/sim.js';
+import { colorOut, colorScore, colorHuman, squadOf, canRecruit, horseMax, upgradeCost, javMax } from '../core/sim.js';
 import { session, isClient } from '../net/session.js';
 
 const $ = id => document.getElementById(id);
@@ -18,6 +18,13 @@ export function showHud() {
   $('hudWrap').hidden = false; $('joyhint').style.opacity = 1;
 }
 
+// The Attack button's icon follows the weapon in hand.
+const ICONS = {
+  sword: '<path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2"/>',
+  spear: '<path d="M4 20 16.5 7.5"/><path d="M14 4.5 20.5 3.5 19.5 10z" fill="#fff"/><path d="M6.5 15.5l2 2"/>',
+  jav: '<path d="M3 18 16 8"/><path d="M14 5.5 21 4 18.5 10.5z" fill="#fff"/><path d="M3 12h5M5 21.5h5"/>',
+};
+let atkIcon = null;
 // lastSnapAt: when a client last heard from the host
 export function updateHud(lastSnapAt) {
   TEAMS.forEach((t, i) => {
@@ -56,6 +63,11 @@ export function updateHud(lastSnapAt) {
   $('mnt').classList.toggle('dim', !p || (!p.mounted && (p.horseCd > 0 || p.carrying || p.dead)));
   $('blk').classList.toggle('dim', !p || p.mounted);
   $('atk').classList.toggle('dim', !p || p.carrying);
+  const w = (p && p.weapon) || 'sword';
+  if (atkIcon !== w) { atkIcon = w; $('atkIc').innerHTML = ICONS[w]; $('wpnT').textContent = w === 'jav' ? 'Javelin' : WEAPON_NAMES[w]; }
+  const mx = javMax(G.myTi), am = p ? Math.min(mx, p.javAmmo | 0) : 0;
+  $('wpnS').textContent = w === 'jav' ? `${am}/${mx}` : w === 'spear' ? 'reach' : 'combo';
+  $('jmp').classList.toggle('dim', !p || p.mounted || p.carrying);
   $('vlyT').textContent = me.volleyCd > 0 ? Math.ceil(me.volleyCd) + 's' : 'Volley';
   $('vly').classList.toggle('dim', !p || p.dead || me.volleyCd > 0);
   const o = me.order || 'follow';

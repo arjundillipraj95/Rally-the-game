@@ -53,11 +53,15 @@
       <div class="round">
         <button class="rbtn" id="vly" type="button" aria-label="Squad volley"><span id="vlyT">Volley</span><small>fire!</small></button>
         <button class="rbtn" id="mnt" type="button" aria-label="Ride or walk"><span id="mntT">Ride</span><small id="mntS">horse</small></button>
+        <button class="rbtn" id="wpn" type="button" aria-label="Switch weapon"><span id="wpnT">Sword</span><small id="wpnS">combo</small></button>
         <button class="rbtn" id="blk" type="button" aria-label="Block">
           <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"><path d="M12 2 20 5v7c0 5-3.6 8.4-8 10-4.4-1.6-8-5-8-10V5z"/></svg>
         </button>
+        <button class="rbtn" id="jmp" type="button" aria-label="Jump">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 14l7-7 7 7M5 20l7-7 7 7"/></svg>
+        </button>
         <button class="rbtn" id="atk" type="button" aria-label="Attack">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" id="atkIc"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2"/></svg>
         </button>
       </div>
     </div>
@@ -148,14 +152,16 @@
           <summary>How to play</summary>
           <dl class="keys">
             <dt>Move</dt><dd>Left thumb. Drag the right side to turn the camera.</dd>
-            <dt>Fight</dt><dd>Red attacks (hold to keep swinging). Blue blocks hits from the front.</dd>
+            <dt>Fight</dt><dd>Red attacks (hold to keep swinging). Blue blocks hits from the front. Chain three sword swings: the third hits harder and catches the men beside your target.</dd>
+            <dt>Weapons</dt><dd>The weapon button switches Sword (fast combo) → Spear (long reach, runs through two men, brings down horses) → Javelins (a few throws that come back over time).</dd>
+            <dt>Jump</dt><dd>Jump, then attack in mid-air to slam down on everyone in front of you. It can't be blocked and knocks them off balance.</dd>
             <dt>Horse</dt><dd>Ride to cross the map and trample men on foot. No blocking, no castle damage, no banner. Spearmen are deadly to horses.</dd>
             <dt>Units</dt><dd>Footmen upgrade into spear &amp; javelin fighters who dismount riders. Archers deal more damage on a headshot, less on the legs; shields block body shots but not headshots.</dd>
             <dt>Teams</dt><dd>Allies share victory and never hurt each other. In Capture the Fort, allies pool their captures.</dd>
             <dt>Orders</dt><dd>Follow me, Hold here, Charge, and Shieldwall: your squad locks into a tight line ahead of you and marches slowly while arrows from the front bounce off.</dd>
             <dt>Volley</dt><dd>Call it and every archer and javelin-armed footman in your squad fires at once at whatever's in range. Shared cooldown, so time it for a wall of enemies, not one straggler.</dd>
             <dt>Aura</dt><dd>Soldiers inside the ring around your captain hit harder, block more and move faster. Upgrades make it bigger.</dd>
-            <dt>Keys</dt><dd>WASD, arrows turn, Space attack, Shift block, H ride, V volley, Q follow, F hold, E charge, T shieldwall, 1/2 recruit, 3–8 upgrades.</dd>
+            <dt>Keys</dt><dd>WASD, arrows turn, Space attack, Shift block, C jump, R switch weapon, H ride, V volley, Q follow, F hold, E charge, T shieldwall, 1/2 recruit, 3–8 upgrades.</dd>
           </dl>
         </details>
       </div>

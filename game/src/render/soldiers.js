@@ -103,6 +103,8 @@ const K = (...ks) => new Set(ks), F = (...fs) => new Set(fs);
 const MELEE = K('foot', 'captain'), HELMED = K('foot', 'captain');
 const armed = u => u.tier >= 1; // Footman/captain Arms upgrade: spear + javelin
 const armored = u => u.tier >= 2; // Footman/captain Armor upgrade: extra plate
+// what's in the weapon hand: a player captain shows the weapon they picked; everyone else by tier
+const spearOut = u => u.weapon ? u.weapon !== 'sword' : u.tier >= 1;
 const trained = u => u.tier >= 1, marksman = u => u.tier >= 2; // Archer tiers
 const team = u => C.team[colorOf(u.ti)], dark = u => C.dark[colorOf(u.ti)];
 const PARTS = [
@@ -167,12 +169,12 @@ const PARTS = [
   // weapons: base tier carries sword + shield; the Arms upgrade (tier 1+) swaps the sword for a
   // spear (reusing the old Spearman's shaft/tip bones) on both squad Footmen and the captain.
   { bone: 'wArm', geo: 'guard', mat: 'plain', m: e(0, -.5, .12), f: F('roman', 'greek'), k: MELEE, col: () => C.leather },
-  { bone: 'wArm', geo: 'gladius', mat: 'metal', m: e(0, -.5, .5), f: F('roman'), k: MELEE, t: u => !armed(u), col: () => C.steel },
-  { bone: 'wArm', geo: 'blade', mat: 'metal', m: e(0, -.5, .6), f: F('greek'), k: MELEE, t: u => !armed(u), col: () => C.bronze },
-  { bone: 'wArm', geo: 'haft', mat: 'plain', m: e(0, -.5, .42, Math.PI / 2), f: F('barbarian'), k: MELEE, t: u => !armed(u), col: () => C.wood },
-  { bone: 'wArm', geo: 'axeHead', mat: 'metal', m: e(0, -.35, .86), f: F('barbarian'), k: MELEE, t: u => !armed(u), col: () => C.steel },
-  { bone: 'spear', geo: 'shaft', mat: 'plain', m: e(0, 0, .6, Math.PI / 2), k: MELEE, t: armed, col: () => C.wood },
-  { bone: 'spear', geo: 'tip', mat: 'metal', m: e(0, 0, 2.2, Math.PI / 2), k: MELEE, t: armed, col: u => factionOf(u) === 'greek' ? C.bronze : C.steel },
+  { bone: 'wArm', geo: 'gladius', mat: 'metal', m: e(0, -.5, .5), f: F('roman'), k: MELEE, t: u => !spearOut(u), col: () => C.steel },
+  { bone: 'wArm', geo: 'blade', mat: 'metal', m: e(0, -.5, .6), f: F('greek'), k: MELEE, t: u => !spearOut(u), col: () => C.bronze },
+  { bone: 'wArm', geo: 'haft', mat: 'plain', m: e(0, -.5, .42, Math.PI / 2), f: F('barbarian'), k: MELEE, t: u => !spearOut(u), col: () => C.wood },
+  { bone: 'wArm', geo: 'axeHead', mat: 'metal', m: e(0, -.35, .86), f: F('barbarian'), k: MELEE, t: u => !spearOut(u), col: () => C.steel },
+  { bone: 'spear', geo: 'shaft', mat: 'plain', m: e(0, 0, .6, Math.PI / 2), k: MELEE, t: spearOut, col: () => C.wood },
+  { bone: 'spear', geo: 'tip', mat: 'metal', m: e(0, 0, 2.2, Math.PI / 2), k: MELEE, t: spearOut, col: u => factionOf(u) === 'greek' ? C.bronze : C.steel },
   // the Armor upgrade (tier 2) adds a plate over each shoulder, on top of whatever's already worn
   { bone: 'sArm', geo: 'pauldron', mat: 'metal', m: e(0, .08, .02, 0, 0, .3), k: MELEE, t: armored, col: u => factionOf(u) === 'greek' ? C.bronze : C.steel },
   { bone: 'wArm', geo: 'pauldron', mat: 'metal', m: e(0, .08, .02, 0, 0, -.3), k: MELEE, t: armored, col: u => factionOf(u) === 'greek' ? C.bronze : C.steel },
@@ -259,11 +261,18 @@ function pose(u, dt) {
     a.legL[0] = sw; a.legL[1] = a.legL[2] = 0; a.legR[0] = -sw; a.legR[1] = a.legR[2] = 0;
     a.bodyY = Math.abs(Math.cos(a.walk)) * Math.min(1, sp / 3) * .08;
     a.bodyRX = u.stun > 0 ? -.25 : Math.min(.15, sp * .02);
+    if (u.jy > .05) { a.legL[0] = -.9; a.legR[0] = .35; a.bodyY = 0; a.bodyRX = .12; } // knees tucked in the air
   }
   const t = u.swing > 0 ? 1 - u.swing / .38 : -1;
   let blocking = false;
-  const spearArmed = (u.kind === 'foot' || u.kind === 'captain') && u.tier >= 1;
-  if (spearArmed) {
+  const spearArmed = (u.kind === 'foot' || u.kind === 'captain') && spearOut(u);
+  if (u.weapon === 'jav' && !u.mounted) {
+    // javelin cocked back over the shoulder, whipped forward on the throw
+    const tw = t >= 0 ? -2.7 + 2.3 * Math.min(1, t / .45) : -2.6;
+    a.wArmX += (tw - a.wArmX) * Math.min(1, dt * (t >= 0 ? 30 : 10));
+    a.spearRX = 1.5 + (t >= 0 ? .4 * Math.min(1, t / .45) : 0); a.spearZ = t >= 0 ? -.3 + .9 * Math.min(1, t / .45) : -.5;
+    a.sArmX += (-.6 - a.sArmX) * Math.min(1, dt * 8);
+  } else if (spearArmed) {
     const lowered = braced(u) || u.swing > 0;
     a.wArmX += ((lowered ? -1.45 : -.35) - a.wArmX) * Math.min(1, dt * 10);
     a.spearRX = lowered ? 1.45 : -.2;
@@ -274,8 +283,13 @@ function pose(u, dt) {
     a.wArmX += ((u.aim ? (t >= 0 ? -1.2 : -1.5) : -.35) - a.wArmX) * Math.min(1, dt * 12);
   } else {
     if (t >= 0) {
-      a.wArmX = t < .35 ? -.35 - 2.65 * (t / .35) : -3.0 + 2.2 * Math.min(1, (t - .35) / .3);
-      a.wArmZ = u.mounted ? -.9 : -.3;
+      const k = u.mounted ? 0 : u.swingKind | 0;
+      if (k === 2) { // overhead: higher wind-up, a hard chop down (combo finisher and the leap slam)
+        a.wArmX = t < .3 ? -.35 - 3.0 * (t / .3) : -3.35 + 3.0 * Math.min(1, (t - .3) / .22); a.wArmZ = 0; a.bodyRX = t > .3 ? .3 : -.1;
+      } else {
+        a.wArmX = t < .35 ? -.35 - 2.65 * (t / .35) : -3.0 + 2.2 * Math.min(1, (t - .35) / .3);
+        a.wArmZ = u.mounted ? -.9 : k === 1 ? .55 : -.3; // the second hit is a backhand from the other side
+      }
     } else { a.wArmX += (-.35 - a.wArmX) * Math.min(1, dt * 10); a.wArmZ = 0; }
     blocking = ((u.human && u.blocking) || u.blockT > 0) && !u.mounted;
     const over = u.shieldwall && u.kind === 'foot';
@@ -300,7 +314,7 @@ function bones(u, a) {
   M.legR.multiplyMatrices(M.body, local(.18, .7, 0, a.legR[0], a.legR[1], a.legR[2]));
   M.sArm.multiplyMatrices(M.body, local(a.sArmPX, 1.3, .05, a.sArmX, 0, 0));
   M.wArm.multiplyMatrices(M.body, local(-.5, 1.3, .05, a.wArmX, 0, a.wArmZ));
-  if ((u.kind === 'foot' || u.kind === 'captain') && u.tier >= 1) M.spear.multiplyMatrices(M.wArm, local(0, -.48, a.spearZ, a.spearRX, 0, 0));
+  if ((u.kind === 'foot' || u.kind === 'captain') && spearOut(u)) M.spear.multiplyMatrices(M.wArm, local(0, -.48, a.spearZ, a.spearRX, 0, 0));
   if (u.kind === 'foot' || u.kind === 'captain') {
     // held at the side and turned out a little; raised to the front when blocking
     // shieldwall: the shield goes flat overhead, locking with the neighbours' shields
@@ -323,7 +337,7 @@ export function drawSoldiers(units, dt) {
     bones(u, a);
     // a brief streak off the blade/spear tip while mid-swing, so a fast hit reads as motion
     if (u.swing > 0 && !u.dead && (u.kind === 'foot' || u.kind === 'captain')) {
-      if (u.tier >= 1) tipV.set(0, 0, 2.1).applyMatrix4(M.spear); else tipV.set(0, -.4, 1.0).applyMatrix4(M.wArm);
+      if (spearOut(u)) tipV.set(0, 0, 2.1).applyMatrix4(M.spear); else tipV.set(0, -.4, 1.0).applyMatrix4(M.wArm);
       trail(tipV.x, tipV.y, tipV.z, '#eef2f5');
     }
     const ring = ringFor(u), fac = factionOf(u);

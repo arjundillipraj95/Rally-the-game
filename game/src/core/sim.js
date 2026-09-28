@@ -1,6 +1,6 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
-import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CTRL, AURA } from '../config.js';
+import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies } from './state.js';
 import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable } from './nav.js';
@@ -34,7 +34,10 @@ export function mkUnit(ti, x, z, kind, human = false) {
     cd: rnd(0, .6), shootCd: rnd(0, 1.5), swing: 0, pending: null, stun: 0, blockT: 0, rt: rnd(0, .3), foe: null, fd: 1e9,
     dead: false, deadT: 0, trampleT: 0, lastHit: -9, blocking: false, aim: false,
     mounted: false, horse: null, summon: null, horseHp: horseMax(ti), horseCd: 0, carrying: false, aura: false, shieldwall: false,
-    kick: { n: 0, vx: 0, vz: 0, st: 0, dirty: false } };
+    kick: { n: 0, vx: 0, vz: 0, st: 0, dirty: false },
+    // player captains: current weapon, jump state, javelin ammo, sword combo, buffered attack press
+    weapon: kind === 'captain' && human ? ((G.teams[ti] && G.teams[ti].weapon) || 'sword') : undefined,
+    jy: 0, jvy: 0, jumpCd: 0, javAmmo: CAPTAIN_COMBAT.jav.ammo + tier, javRegen: 0, combo: 0, lastSwingT: -9, atkBuf: 0 };
   G.units.push(u); return u;
 }
 export const squadOf = ti => G.units.filter(u => !u.dead && u.ti === ti && !u.leader);
@@ -157,6 +160,7 @@ function summonHorse(u) {
   return true;
 }
 function mountUp(u, h) {
+  u.jy = 0; u.jvy = 0;
   u.summon = null; u.mounted = true; u.horse = h; h.state = 'ridden'; u.r = .95;
   if (u.isMe) fx('float', { x: u.x, y: u.y + 3.4, z: u.z, text: 'Mounted', color: '#fff' });
 }
@@ -213,13 +217,15 @@ function startSweep(u) {
 }
 function resolveSwing(u) {
   const pend = u.pending, tg = pend.target; u.pending = null;
+  const mult = pend.mult || 1;
+  if (pend.leap) { resolveLeap(u); return; }
   if (pend.sweep) {
-    const mult = .8 * (1 + Math.hypot(u.vx, u.vz) / 12);
+    const m = mult * .8 * (1 + Math.hypot(u.vx, u.vz) / 12);
     for (const o of G.units) {
       if (o.dead || !isEnemy(o, u)) continue;
-      if (Math.hypot(o.x - u.x, o.z - u.z) > 3.1) continue;
+      if (Math.hypot(o.x - u.x, o.z - u.z) > 3.1 + (pend.reachB || 0)) continue;
       if (Math.abs(angDiff(u.face, Math.atan2(o.x - u.x, o.z - u.z))) > 1.25) continue;
-      hit(u, o, mult);
+      hit(u, o, m);
     }
     return;
   }
@@ -232,22 +238,55 @@ function resolveSwing(u) {
     if (s.points <= 0) destroyCastle(tg.castle, u.ti);
     return;
   }
-  if (!tg || tg.dead) return;
-  if (Math.hypot(tg.x - u.x, tg.z - u.z) > u.r + tg.r + u.reach + .5) return;
-  hit(u, tg, 1);
+  const reach = u.reach + (pend.reachB || 0), ex = pend.kb ? { kb: pend.kb } : undefined;
+  let landed = false;
+  if (tg && !tg.dead && Math.hypot(tg.x - u.x, tg.z - u.z) <= u.r + tg.r + reach + .5) { hit(u, tg, mult, ex); landed = true; }
+  // sword finisher: the heavy third hit also catches up to two more men beside the target
+  if (pend.cleave) {
+    let n = 0;
+    for (const o of G.units) {
+      if (o === tg || o.dead || !isEnemy(o, u)) continue;
+      if (Math.hypot(o.x - u.x, o.z - u.z) > u.r + o.r + reach + .3) continue;
+      if (Math.abs(angDiff(u.face, Math.atan2(o.x - u.x, o.z - u.z))) > 1.1) continue;
+      hit(u, o, mult * .8, ex); if (++n >= 2) break;
+    }
+  }
+  // spear thrust: runs through to the man standing right behind the target
+  if (pend.pierce && landed) {
+    for (const o of G.units) {
+      if (o === tg || o.dead || !isEnemy(o, u)) continue;
+      if (Math.hypot(o.x - u.x, o.z - u.z) > u.r + o.r + reach + 1.3) continue;
+      if (Math.abs(angDiff(u.face, Math.atan2(o.x - u.x, o.z - u.z))) > .35) continue;
+      hit(u, o, mult * pend.pierce, ex); break;
+    }
+  }
 }
-function hit(a, b, mult = 1) {
+// Leap slam: an attack from mid-air comes down on everyone in a wide arc in front, can't be
+// blocked, and staggers whoever it hits. The crowd-breaker; the sword combo is the duelling tool.
+function resolveLeap(u) {
+  const L = CAPTAIN_COMBAT.leap;
+  const fx0 = u.x + Math.sin(u.face) * 1.2, fz0 = u.z + Math.cos(u.face) * 1.2;
+  spark(fx0, groundY(fx0, fz0) + .2, fz0, '#c9b28a', 14); sound('trample', fx0, fz0);
+  if (u.isMe) { fx('shake', .45); fx('buzz', 40); }
+  for (const o of G.units) {
+    if (o.dead || !isEnemy(o, u)) continue;
+    if (Math.hypot(o.x - u.x, o.z - u.z) > L.range + o.r) continue;
+    if (Math.abs(angDiff(u.face, Math.atan2(o.x - u.x, o.z - u.z))) > L.arc) continue;
+    hit(u, o, L.mult, { stun: L.stun, kb: 1.3, unblockable: true });
+  }
+}
+function hit(a, b, mult = 1, extra) {
   if (!isEnemy(a, b)) return;
   let dmg = a.dmg * rnd(.8, 1.2) * mult * aiDmg(a.ti);
   if (!a.leader && a.aura) dmg *= 1 + auraBonus(a.ti);
   if (a.y - b.y > .8) dmg *= 1.2; // fighting downhill
   b.lastHit = G.T;
-  const spearedHorse = a.kind === 'foot' && a.tier >= 1;
+  const spearedHorse = (a.kind === 'foot' && a.tier >= 1) || (a.leader && a.weapon === 'spear');
   if (b.mounted && (spearedHorse || Math.random() < .5)) { horseDamage(b, dmg * (spearedHorse ? 3 : 1)); return; }
-  let kb = a.leader ? (a.mounted ? 9 : 7) : 4.5;
+  let kb = (a.leader ? (a.mounted ? 9 : 7) : 4.5) * (extra && extra.kb || 1);
   const frontal = Math.abs(angDiff(b.face, Math.atan2(a.x - b.x, a.z - b.z))) < 1.1;
   let blocked = false;
-  if (frontal && b.stun <= 0 && !b.mounted && !b.carrying) {
+  if (frontal && b.stun <= 0 && !b.mounted && !b.carrying && !(extra && extra.unblockable)) {
     if (b.human) blocked = b.blocking;
     else if (Math.random() < (b.block || 0) + (b.aura ? auraBonus(b.ti) : 0) + (b.shieldwall && b.kind === 'foot' ? .3 : 0)) { blocked = true; b.blockT = .45; }
   }
@@ -263,7 +302,7 @@ function hit(a, b, mult = 1) {
   }
   b.hp -= dmg;
   const ang = Math.atan2(b.x - a.x, b.z - a.z);
-  push(b, Math.sin(ang) * kb, Math.cos(ang) * kb, blocked ? 0 : .22);
+  push(b, Math.sin(ang) * kb, Math.cos(ang) * kb, blocked ? 0 : (extra && extra.stun) || .22);
   if (b.hp <= 0) die(b, a, ang);
 }
 function shoot(u, tg, fromY = 1.6) {
@@ -277,9 +316,9 @@ function shoot(u, tg, fromY = 1.6) {
 }
 // A javelin throw: a foot/captain unit with the javelin ability hurls one at a mid-range foe,
 // reusing the arrow flight/hit pipeline (flat damage, no headshot roll) rather than a new system.
-function throwJavelin(u, tg) {
+function throwJavelin(u, tg, dmg) {
   const d = Math.hypot(tg.x - u.x, tg.z - u.z), y0 = (u.y || 0) + 1.5;
-  G.arrows.push(makeArrow({ id: ++G.arrowN, x0: u.x, y0, z0: u.z, x1: tg.x, z1: tg.z, y1: groundY(tg.x, tg.z) + 1.1, dur: .18 + d / 22, peak: Math.min(3.5, d * .09), ti: u.ti, t: 0, shooter: u, javelin: true }));
+  G.arrows.push(makeArrow({ id: ++G.arrowN, x0: u.x, y0, z0: u.z, x1: tg.x, z1: tg.z, y1: groundY(tg.x, tg.z) + 1.1, dur: .18 + d / 22, peak: Math.min(3.5, d * .09), ti: u.ti, t: 0, shooter: u, javelin: true, jd: dmg }));
   u.javCd = JAVELIN.cd; u.swing = .3;
   sound('bow', u.x, u.z);
 }
@@ -288,7 +327,7 @@ function arrowHit(a, b) {
   const shooter = a.shooter;
   let dmg, loc = 'body';
   if (a.javelin) {
-    dmg = JAVELIN.dmg * rnd(.85, 1.15) * aiDmg(a.ti);
+    dmg = (a.jd || JAVELIN.dmg) * rnd(.85, 1.15) * aiDmg(a.ti);
   } else {
     // shooter is missing .arrow/.jitter for a castle tower's arrows (a bare {x,z,ti,tower}
     // placeholder, not a real archer unit), so fall back to the base archer stats for those.
@@ -459,37 +498,112 @@ function updateFlag(dt) {
 }
 
 // ---------- captain actions ----------
-export function softAim(p) {
+export function softAim(p, range = 3.4) {
   let best = null, bs = 1e9;
   for (const o of G.units) {
     if (o.dead || !isEnemy(o, p)) continue;
-    const d = Math.hypot(o.x - p.x, o.z - p.z); if (d > 3.4) continue;
+    const d = Math.hypot(o.x - p.x, o.z - p.z); if (d > range) continue;
     const score = d + Math.abs(angDiff(p.face, Math.atan2(o.x - p.x, o.z - p.z))) * 1.5;
     if (score < bs) { bs = score; best = o; }
   }
   return best;
 }
-// One Attack button, several weapons: melee whenever a foe is in reach, otherwise the captain
-// throws a javelin at anyone further out but still within range (mounted or on foot), once the
-// Arms upgrade has unlocked it. No separate throw button — it's picked by range/context.
+const CC = CAPTAIN_COMBAT;
+export const javMax = ti => CC.jav.ammo + footTier(ti);
+export const airborne = p => (p.jy || 0) > .25;
+export const aimRange = p => (p.weapon === 'spear' ? CC.spear.aim : CC.sword.aim);
+export function captainJump(p) {
+  if (!p || p.dead || p.mounted || p.stun > 0 || p.jy > 0 || p.jvy > 0 || p.jumpCd > 0 || p.carrying) return false;
+  p.jvy = CC.jump.v; p.jy = .001; sound('swing', p.x, p.z);
+  return true;
+}
+// Advances a captain's jump wherever that captain is driven (solo/host, or a client's own phone).
+export function stepJump(p, dt) {
+  if (p.jumpCd > 0) p.jumpCd -= dt;
+  if (!(p.jy > 0) && !(p.jvy > 0)) return;
+  p.jvy -= CC.jump.g * dt; p.jy += p.jvy * dt;
+  if (p.jy <= 0) { p.jy = 0; p.jvy = 0; p.jumpCd = CC.jump.cd; spark(p.x, groundY(p.x, p.z) + .1, p.z, '#c9b28a', 4); }
+}
+// No argument: cycle sword -> spear -> javelins. The choice sticks through respawns.
+export function switchWeapon(p, w) {
+  if (!p || p.dead) return null;
+  const next = WEAPONS.includes(w) ? w : WEAPONS[(WEAPONS.indexOf(p.weapon || 'sword') + 1) % WEAPONS.length];
+  p.weapon = next; p.combo = 0; p.cd = Math.max(p.cd, .12);
+  if (G.teams[p.ti]) G.teams[p.ti].weapon = next;
+  return next;
+}
+// Where a captain's javelin goes: the best enemy in a cone ahead (led a little), else straight ahead.
+export function javTarget(p) {
+  let best = null, bs = 1e9;
+  for (const o of G.units) {
+    if (o.dead || !isEnemy(o, p)) continue;
+    const d = Math.hypot(o.x - p.x, o.z - p.z); if (d > CC.jav.range || d < 1.2) continue;
+    const ad = Math.abs(angDiff(p.face, Math.atan2(o.x - p.x, o.z - p.z))); if (ad > .6) continue;
+    const sc = d + ad * 10; if (sc < bs) { bs = sc; best = o; }
+  }
+  if (!best) return { x: p.x + Math.sin(p.face) * 12, z: p.z + Math.cos(p.face) * 12, foe: null };
+  const lead = (.18 + Math.hypot(best.x - p.x, best.z - p.z) / 22) * .8;
+  return { x: best.x + best.vx * lead, z: best.z + best.vz * lead, foe: best };
+}
+function throwCaptainJav(p) {
+  if ((p.javAmmo || 0) < 1) return false;
+  const t = javTarget(p);
+  p.face = Math.atan2(t.x - p.x, t.z - p.z);
+  throwJavelin(p, t, CC.jav.dmg);
+  p.javAmmo--; if (p.javRegen <= 0) p.javRegen = CC.jav.regen;
+  p.cd = CC.jav.cd; p.swing = .38; p.swingKind = 4;
+  return true;
+}
+function leapSlam(p) {
+  p.swing = .38; p.cd = CC.leap.cd; p.pending = { t: .1, leap: true }; p.swingKind = 2;
+  p.jvy = Math.min(p.jvy, -9);
+  p.vx += Math.sin(p.face) * 3; p.vz += Math.cos(p.face) * 3;
+  sound('swing', p.x, p.z);
+}
+// The player captain's Attack: what it does depends on the weapon in hand and whether you're in the
+// air. Presses that land during a cooldown are buffered briefly instead of being dropped.
 export function captainAttack(p) {
   if (!p || p.dead || p.carrying) return;
+  if (p.cd > 0 || p.stun > 0) { p.atkBuf = .4; return; }
+  p.atkBuf = 0;
+  const wpn = p.weapon || 'sword';
   if (p.mounted) {
-    if (p.javelin && p.javCd <= 0) {
-      const [foe, fd] = nearestFoe(p, JAVELIN.range, o => !o.mounted);
-      if (foe && fd > 3.5) { p.face = Math.atan2(foe.x - p.x, foe.z - p.z); throwJavelin(p, foe); return; }
-    }
-    startSweep(p); return;
+    if (wpn === 'jav' && throwCaptainJav(p)) return;
+    startSweep(p);
+    if (p.pending && wpn === 'spear') { p.pending.mult = 1.3; p.pending.reachB = .8; }
+    return;
   }
-  const best = softAim(p);
-  if (best) { if (startSwing(p, best)) p.face = Math.atan2(best.x - p.x, best.z - p.z); return; }
-  if (p.javelin && p.javCd <= 0) {
-    const [foe, fd] = nearestFoe(p, JAVELIN.range);
-    if (foe && fd > 3.4) { p.face = Math.atan2(foe.x - p.x, foe.z - p.z); throwJavelin(p, foe); return; }
+  if (airborne(p)) { leapSlam(p); return; }
+  if (wpn === 'jav') {
+    if (throwCaptainJav(p)) return;
+    p.weapon = 'sword'; if (G.teams[p.ti]) G.teams[p.ti].weapon = 'sword';
+    if (p.isMe) fx('float', { x: p.x, y: p.y + 3.2, z: p.z, text: 'Out of javelins', color: '#fff' });
   }
-  const [ci, cd] = nearestEnemyCastle(p);
-  if (ci >= 0 && cd < CASTLE_REACH + .6) { if (startSwing(p, { castle: ci })) p.face = Math.atan2(TEAMS[ci].pos[0] - p.x, TEAMS[ci].pos[1] - p.z); return; }
-  startSwing(p, null);
+  const spear = p.weapon === 'spear', S = CC.sword;
+  const best = softAim(p, spear ? CC.spear.aim : S.aim);
+  let target = best;
+  if (!best) {
+    const [ci, cd] = nearestEnemyCastle(p);
+    if (ci >= 0 && cd < CASTLE_REACH + .6) { target = { castle: ci }; p.face = Math.atan2(TEAMS[ci].pos[0] - p.x, TEAMS[ci].pos[1] - p.z); }
+  }
+  if (!startSwing(p, target)) return;
+  p.pending.t = .12;
+  if (best) {
+    const ang = Math.atan2(best.x - p.x, best.z - p.z), d = Math.hypot(best.x - p.x, best.z - p.z);
+    p.face = ang;
+    // step into a target at the edge of reach, so a press always connects
+    const edge = p.r + best.r + p.reach + (spear ? CC.spear.reachB : 0) - .2;
+    if (d > edge) { p.vx += Math.sin(ang) * 4; p.vz += Math.cos(ang) * 4; }
+  }
+  if (spear) {
+    Object.assign(p.pending, { mult: CC.spear.mult, reachB: CC.spear.reachB, pierce: CC.spear.pierce, kb: .8 });
+    p.cd = CC.spear.cd; p.combo = 0; p.swingKind = 3;
+  } else {
+    const combo = G.T - p.lastSwingT < S.window ? (p.combo + 1) % 3 : 0, fin = combo === 2;
+    Object.assign(p.pending, { mult: fin ? S.finisherMult : S.mult, cleave: fin, kb: fin ? 1.25 : .4 }); // light hits keep him in reach, the finisher launches
+    p.cd = fin ? S.finisherCd : S.cd; p.combo = combo; p.swingKind = combo;
+  }
+  p.lastSwingT = G.T;
 }
 // Missile volley: every archer with a target in range fires immediately, and every javelin-ready
 // footman (tier 1+) throws immediately, together, on a shared team cooldown.
@@ -738,15 +852,28 @@ export function integrate(u, dt, pz) {
     if (Math.abs(u.z) < 5 && onBridge(u.x) && Math.abs(u.x) > 20) { const bx = u.x < 0 ? -32 : 32; u.x = clamp(u.x, bx - 2.1, bx + 2.1); }
   }
   u.x = clamp(u.x, -WORLD_LIMIT, WORLD_LIMIT); u.z = clamp(u.z, -WORLD_LIMIT, WORLD_LIMIT);
-  u.y = groundY(u.x, u.z);
+  u.y = groundY(u.x, u.z) + (u.jy || 0);
 }
 // Drives a captain from a move vector in world space (the joystick, already turned by the camera).
+// You keep moving and steering while swinging; in the air you keep your momentum with light control.
 export function driveCaptain(p, input, dt) {
-  p.blocking = !!input.block && !p.mounted;
-  const spd = speedOf(p) * (p.swing > 0 && !p.mounted ? .6 : 1);
-  moveToward(p, p.x + input.wx * 3, p.z + input.wz * 3, spd * input.mag, dt, .05);
-  if (input.mag > .15 && (p.swing <= 0 || p.mounted)) p.face = turn(p.face, Math.atan2(input.wx, input.wz), dt * (p.mounted ? 4.5 : p.blocking ? 5 : 12));
+  const air = (p.jy || 0) > .01;
+  p.blocking = !!input.block && !p.mounted && !air;
+  const swinging = p.swing > 0 && !p.mounted;
+  const spd = speedOf(p) * (swinging ? .85 : 1);
+  if (air) {
+    const k = Math.min(1, dt * 2.5);
+    p.vx += (input.wx * spd * input.mag - p.vx) * k; p.vz += (input.wz * spd * input.mag - p.vz) * k;
+  } else moveToward(p, p.x + input.wx * 3, p.z + input.wz * 3, spd * input.mag, dt, .05);
+  if (input.mag > .15) p.face = turn(p.face, Math.atan2(input.wx, input.wz), dt * (p.mounted ? 4.5 : p.blocking ? 5 : swinging ? 6 : 12));
   if (p.blocking && input.mag < .15) p.face = turn(p.face, input.camYaw, dt * 6);
+  stepJump(p, dt);
+}
+// Javelin ammo trickles back one at a time.
+export function regenJavs(p, dt) {
+  const mx = javMax(p.ti);
+  if (p.javAmmo >= mx) { p.javAmmo = mx; p.javRegen = 0; return; }
+  p.javRegen -= dt; if (p.javRegen <= 0) { p.javAmmo++; p.javRegen = p.javAmmo < mx ? CC.jav.regen : 0; }
 }
 
 // ---------- the main step (solo and host) ----------
@@ -795,7 +922,8 @@ export function update(dt, input) {
     if (nb !== G.bounty) { G.bounty = nb; if (nb >= 0) say('bounty', nb); }
   }
   const p = G.player;
-  if (p && !p.dead && input) { driveCaptain(p, input, dt); if (input.attackHeld && p.cd <= 0) captainAttack(p); }
+  if (p && !p.dead && input) { driveCaptain(p, input, dt); if ((input.attackHeld || p.atkBuf > 0) && p.cd <= 0 && p.stun <= 0) captainAttack(p); }
+  for (const s of G.teams) { const L = s.leader; if (L && L.human && !L.dead) { if (L.atkBuf > 0) { L.atkBuf -= dt; if (L.remote && L.cd <= 0 && L.stun <= 0) captainAttack(L); } regenJavs(L, dt); } }
   for (const s of G.teams) { const L = s.leader; if (L && L.human && !L.dead) { const [f] = nearestFoe(L, 12); if (!f && L.hp < L.max) L.hp = Math.min(L.max, L.hp + dt * 6); } }
 
   const slotIdx = [0, 0, 0, 0, 0, 0, 0, 0], archIdx = [0, 0, 0, 0, 0, 0, 0, 0], meleeN = [0, 0, 0, 0, 0, 0, 0, 0], tIdx = [0, 0, 0, 0, 0, 0, 0, 0];
@@ -881,7 +1009,7 @@ export function update(dt, input) {
   }
   for (const u of G.units) {
     if (u.dead) { fallStep(u, dt); continue; }
-    if (u.remote) { u.y = groundY(u.x, u.z); continue; } // moved by their own phone
+    if (u.remote) { u.y = groundY(u.x, u.z) + (u.jy || 0); continue; } // moved by their own phone
     integrate(u, dt, u.z);
   }
   G.units = G.units.filter(u => !(u.dead && u.deadT > 14));

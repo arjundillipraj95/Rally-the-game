@@ -76,6 +76,18 @@ export const JAVELIN = { dmg: 24, range: 10, cd: 6.5 };
 // Missile volley: a squad-wide "fire at will" command on its own team cooldown, separate from
 // individual archer/javelin cooldowns so it stays a burst rather than a free DPS button.
 export const VOLLEY = { cd: 9 };
+// The player captain's three weapons, switched with one button. The sword chains a 3-hit combo
+// (the 3rd hit cleaves), the spear trades speed for reach and pierces a second man, javelins are
+// a limited, regenerating ranged burst. Attacking in mid-air is a leap slam that hits a whole arc.
+export const WEAPONS = ['sword', 'spear', 'jav'];
+export const WEAPON_NAMES = { sword: 'Sword', spear: 'Spear', jav: 'Javelins' };
+export const CAPTAIN_COMBAT = {
+  sword: { cd: .36, finisherCd: .62, window: .85, mult: 1, finisherMult: 1.5, aim: 3.6 },
+  spear: { cd: .66, reachB: 1.1, mult: 1.15, pierce: .7, aim: 4.6 },
+  jav: { cd: .5, dmg: 30, range: 16, ammo: 3, regen: 4 },
+  jump: { v: 7.6, g: 22, cd: .3 },
+  leap: { mult: 1.4, range: 3, arc: 1.3, stun: .6, cd: .7 },
+};
 
 export const DIFF = [{ name: 'Recruit', dmg: .7, income: 8 }, { name: 'Soldier', dmg: 1, income: 10 }, { name: 'Warlord', dmg: 1.25, income: 12 }];
 // Gold per second for a human player, and how often the computer tries to hire.

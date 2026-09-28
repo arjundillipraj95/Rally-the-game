@@ -260,9 +260,11 @@ window.__fb = {
       flag: G.flag && { s: G.flag.state }, player: p && { x: r1(p.x), z: r1(p.z), hp: Math.round(p.hp), mounted: p.mounted, dead: p.dead, id: p.id },
       gfx: { level: quality.level, setting: quality.setting, fps: Math.round(fpsAvg), calls: renderer.info.render.calls, tris: renderer.info.render.triangles, batches: drawCalls() } };
   },
-  step(n, dt = 1 / 30) { for (let i = 0; i < n && G.state === 'play'; i++) update(dt, null); },
+  // drive: also run the player captain with an idle stick (or a given one), so jumps and buffered attacks advance
+  step(n, dt = 1 / 30, drive) { const inp = drive ? Object.assign({ wx: 0, wz: 0, mag: 0, block: false, attackHeld: false, camYaw: 0 }, drive === true ? {} : drive) : null; for (let i = 0; i < n && G.state === 'play'; i++) update(dt, inp); },
   ride() { if (G.player) { G.player.lastHit = -9; actions.ride(); } },
   volley() { actions.volley(); },
+  attack() { actions.attack(); }, jump() { actions.jump(); }, weapon(w) { actions.weapon(w); },
   G, cam,
 };
 
