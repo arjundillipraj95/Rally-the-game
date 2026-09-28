@@ -4,7 +4,7 @@
 // Factions change the look only: Romans (galea, scutum, gladius), Greeks (bronze Corinthian helmet,
 // round hoplon), barbarians (hair and beards, bare chests, round wooden shields, axes).
 import * as THREE from 'three';
-import { TEAMS } from '../config.js';
+import { TEAMS, CRESTS } from '../config.js';
 import { G, isEnemyTi, isFfa, colorOf } from '../core/state.js';
 import { braced } from '../core/sim.js';
 import { scene, shadowsOn, camera } from './scene.js';
@@ -101,6 +101,9 @@ const e = (x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1) =>
 // filters: k = kinds, f = factions, t = tier predicate (u => bool), for Footman/Archer/captain
 // upgrade tiers so each purchase changes the model, not just the stats.
 const K = (...ks) => new Set(ks), F = (...fs) => new Set(fs);
+// a captain's crest colour: the one their player picked (unlocked by rank); computer captains wear gold
+const CREST_C = CRESTS.map(c => new THREE.Color(c.hex));
+const crestCol = u => CREST_C[(G.crests && G.crests[u.ti]) || 0] || CREST_C[0];
 const MELEE = K('foot', 'captain'), HELMED = K('foot', 'captain');
 const armed = u => u.tier >= 1; // Footman/captain Arms upgrade: spear + javelin
 const armored = u => u.tier >= 2; // Footman/captain Armor upgrade: extra plate
@@ -141,18 +144,18 @@ const PARTS = [
   { bone: 'body', geo: 'cheek', mat: 'metal', m: e(-.34, 1.64, .12, 0, 0, -.12), f: F('roman'), k: HELMED, col: () => C.steel },
   { bone: 'body', geo: 'crest', mat: 'plain', m: e(0, 2.36, 0), f: F('roman'), k: K('foot'), t: u => !armed(u), col: team },
   { bone: 'body', geo: 'knob', mat: 'metal', m: e(0, 2.3, 0), f: F('roman'), k: K('foot'), t: armed, col: () => C.bronze },
-  { bone: 'body', geo: 'crest', mat: 'plain', m: e(0, 2.36, 0, 0, Math.PI / 2, 0, 1.3, 1.5, 1.25), f: F('roman'), k: K('captain'), col: () => C.gold },
+  { bone: 'body', geo: 'crest', mat: 'plain', m: e(0, 2.36, 0, 0, Math.PI / 2, 0, 1.3, 1.5, 1.25), f: F('roman'), k: K('captain'), col: crestCol },
   // Greek Corinthian helmet with a tall horsehair crest
   { bone: 'body', geo: 'corinth', mat: 'metal', m: e(0, 1.8, 0), f: F('greek'), k: HELMED, col: () => C.bronze },
   { bone: 'body', geo: 'nose', mat: 'metal', m: e(0, 1.74, .45), f: F('greek'), k: HELMED, col: () => C.bronze },
   { bone: 'body', geo: 'cheek', mat: 'metal', m: e(.33, 1.62, .18, 0, 0, .1), f: F('greek'), k: HELMED, col: () => C.bronze },
   { bone: 'body', geo: 'cheek', mat: 'metal', m: e(-.33, 1.62, .18, 0, 0, -.1), f: F('greek'), k: HELMED, col: () => C.bronze },
   { bone: 'body', geo: 'crest', mat: 'plain', m: e(0, 2.5, -.04, 0, 0, 0, 1.2, 2.3, 1.6), f: F('greek'), k: K('foot', 'spear'), col: team },
-  { bone: 'body', geo: 'crest', mat: 'plain', m: e(0, 2.58, -.04, 0, 0, 0, 1.4, 2.8, 1.9), f: F('greek'), k: K('captain'), col: () => C.gold },
+  { bone: 'body', geo: 'crest', mat: 'plain', m: e(0, 2.58, -.04, 0, 0, 0, 1.4, 2.8, 1.9), f: F('greek'), k: K('captain'), col: crestCol },
   // barbarians: hair, beards, a gold circlet and fur mantle for the chief
   { bone: 'body', geo: 'hair', mat: 'plain', m: e(0, 1.82, -.03), f: F('barbarian'), k: HELMED, col: hairOf },
   { bone: 'body', geo: 'beard', mat: 'plain', m: e(0, 1.55, .3, .15), f: F('barbarian'), k: HELMED, col: hairOf },
-  { bone: 'body', geo: 'circlet', mat: 'metal', m: e(0, 1.92, 0, Math.PI / 2), f: F('barbarian'), k: K('captain'), col: () => C.gold },
+  { bone: 'body', geo: 'circlet', mat: 'metal', m: e(0, 1.92, 0, Math.PI / 2), f: F('barbarian'), k: K('captain'), col: crestCol },
   { bone: 'body', geo: 'mantle', mat: 'plain', m: e(0, 1.44, 0), f: F('barbarian'), k: K('captain', 'foot'), col: () => C.fur },
   // captain's cape
   { bone: 'body', geo: 'cape', mat: 'plain2', m: e(0, 1.02, -.44, .12), k: K('captain'), col: team },
@@ -161,12 +164,12 @@ const PARTS = [
   { bone: 'wArm', geo: 'arm', mat: 'plain', m: e(0, -.22, 0), col: skinOf },
   // shields (on their own bone so they face forward)
   { bone: 'shield', geo: 'scutum', mat: 'plain2', m: e(0, 0, 0), f: F('roman'), k: MELEE, col: team },
-  { bone: 'shield', geo: 'boss', mat: 'metal', m: e(0, 0, .05), f: F('roman'), k: MELEE, col: u => u.leader ? C.gold : C.steel },
+  { bone: 'shield', geo: 'boss', mat: 'metal', m: e(0, 0, .05), f: F('roman'), k: MELEE, col: u => u.leader ? crestCol(u) : C.steel },
   { bone: 'shield', geo: 'hoplon', mat: 'plain2', m: e(0, 0, 0), f: F('greek'), k: MELEE, col: team },
-  { bone: 'shield', geo: 'rim', mat: 'metal', m: e(0, 0, 0), f: F('greek'), k: MELEE, col: u => u.leader ? C.gold : C.bronze },
+  { bone: 'shield', geo: 'rim', mat: 'metal', m: e(0, 0, 0), f: F('greek'), k: MELEE, col: u => u.leader ? crestCol(u) : C.bronze },
   { bone: 'shield', geo: 'roundShield', mat: 'plain', m: e(0, 0, 0), f: F('barbarian'), k: MELEE, col: team },
   { bone: 'shield', geo: 'woodRim', mat: 'plain', m: e(0, 0, 0), f: F('barbarian'), k: MELEE, col: () => C.wood },
-  { bone: 'shield', geo: 'boss', mat: 'metal', m: e(0, 0, .06), f: F('barbarian'), k: MELEE, col: u => u.leader ? C.gold : C.steel },
+  { bone: 'shield', geo: 'boss', mat: 'metal', m: e(0, 0, .06), f: F('barbarian'), k: MELEE, col: u => u.leader ? crestCol(u) : C.steel },
   // weapons: base tier carries sword + shield; the Arms upgrade (tier 1+) swaps the sword for a
   // spear (reusing the old Spearman's shaft/tip bones) on both squad Footmen and the captain.
   { bone: 'wArm', geo: 'guard', mat: 'plain', m: e(0, -.5, .12), f: F('roman', 'greek'), k: MELEE, col: () => C.leather },

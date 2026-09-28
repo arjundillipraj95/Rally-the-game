@@ -112,6 +112,8 @@
             <button type="button" data-v="greek" aria-pressed="false">Greeks</button>
             <button type="button" data-v="barbarian" aria-pressed="false">Barbarians</button>
           </div>
+          <div class="rankline"><span id="rankLine">Recruit</span><span class="note" id="rankNext"></span></div>
+          <div class="crests" id="segCrest" aria-label="Captain's crest"></div><div class="note" id="crestNote"></div>
           <div class="seg swatches" id="segColor">
             <button type="button" data-v="0" aria-pressed="true" style="background:var(--blue)">Blue</button>
             <button type="button" data-v="1" aria-pressed="false" style="background:var(--red)">Red</button>
@@ -246,6 +248,11 @@
           <div><b id="sKills">0</b><small>Your kills</small></div>
           <div><b id="sSquad">0</b><small>Recruited</small></div>
           <div><b id="sTime">0:00</b><small>Time</small></div>
+        </div>
+        <div class="rank" id="rankBox">
+          <div class="rrow"><b id="rankName">Recruit</b><span id="xpGain"></span></div>
+          <div class="xbar"><i id="xpBar"></i></div>
+          <small id="rankNote"></small>
         </div>
         <div class="brow">
           <button class="go" id="againBtn" type="button">Fight again</button>

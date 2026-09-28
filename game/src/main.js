@@ -1,6 +1,6 @@
 // Rally! Boots the game, runs the frame loop and wires the rules to the screen.
 import './style.css';
-import { TEAMS, MODES, MAPS, PRESETS } from './config.js';
+import { TEAMS, MODES, MAPS, PRESETS, RANKS, CRESTS } from './config.js';
 import { G, bus, colorOf } from './core/state.js';
 import { startMatch, mkUnit, newTeams, update, fallStep, endMatch, auraRange } from './core/sim.js';
 import { makeLayout, gatePos, groundY } from './core/world.js';
@@ -18,6 +18,7 @@ import { showMsg, allyNames } from './ui/messages.js';
 import { buildHud, showHud, updateHud, banner, fmt } from './ui/hud.js';
 import { bindInput, readMove, trayOpen, upOpen, releaseAll, inp } from './ui/input.js';
 import { startTutorial, stopTutorial, tutorialTick, bindTutorial } from './ui/tutorial.js';
+import { progress, awardMatch, rankProgress, rankOf, crestUnlocked, setCrest } from './ui/progress.js';
 import { session, isClient, isHost, prefs } from './net/session.js';
 import { allyFor, describeTeams, assignFactions } from './core/teams.js';
 import { actions, netHostReadInputs, netHostTick, netHostSend, clientTick, clientHorses, setNetHooks, C } from './net/netgame.js';
@@ -67,6 +68,7 @@ bus.on('end', ({ w, why }) => {
   $('endTitle').innerHTML = `<span>${title}</span>`;
   $('endText').textContent = `${MODES[G.mode].name} on ${G.map.name}. ${endText(w, why)}`;
   $('sKills').textContent = G.kills; $('sSquad').textContent = G.recruited; $('sTime').textContent = fmt(G.T);
+  showRank(G.awarded ? null : awardMatch({ result, kills: G.kills, diff: G.diff })); G.awarded = true;
   const host = isHost(), client = isClient();
   $('againBtn').hidden = client;
   $('againBtn').textContent = host ? 'Back to lobby' : 'Fight again';
@@ -75,6 +77,38 @@ bus.on('end', ({ w, why }) => {
   if (host) netHostSend(true);
   setTimeout(() => { if (G.state === 'end') $('ovEnd').hidden = false; }, 1600);
 });
+// Results screen: XP gained, the bar filling toward the next rank, and any crest it unlocked.
+function showRank(aw) {
+  const pr = rankProgress(), bar = $('xpBar');
+  $('rankName').textContent = RANKS[pr.rank].name;
+  $('xpGain').textContent = aw ? `+${aw.gained} XP` : '';
+  const pct = x => { const q = rankProgress(x); return q.span ? Math.min(100, q.into / q.span * 100) : 100; };
+  bar.style.transition = 'none'; bar.style.width = (aw && !aw.rankUp ? pct(aw.before) : 0) + '%';
+  requestAnimationFrame(() => requestAnimationFrame(() => { bar.style.transition = ''; bar.style.width = pct(progress.xp) + '%'; }));
+  const note = $('rankNote'), next = RANKS[pr.rank + 1];
+  note.classList.toggle('up', !!(aw && aw.rankUp));
+  note.textContent = aw && aw.rankUp ? `Rank up! New crest: ${aw.unlocked.join(', ')}` : next ? `${next.xp - progress.xp} XP to ${next.name} (unlocks the ${CRESTS[pr.rank + 1].name} crest)` : 'Top rank reached';
+  buildCrests();
+}
+// Menu: your rank and the crest picker (locked crests name the rank that unlocks them).
+const LOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+function buildCrests() {
+  const r = rankOf(progress.xp), next = RANKS[r + 1];
+  $('rankLine').textContent = `Rank: ${RANKS[r].name}`;
+  $('rankNext').textContent = next ? `${progress.xp} / ${next.xp} XP` : `${progress.xp} XP`;
+  $('segCrest').innerHTML = CRESTS.map((c, i) => {
+    const open = crestUnlocked(i);
+    const label = open ? `${c.name} crest` : `${c.name} crest, unlocks at ${RANKS[i].name}`;
+    return `<button type="button" data-v="${i}" aria-pressed="${i === progress.crest}" aria-disabled="${!open}" aria-label="${label}" title="${label}" style="background:${c.css}">${open ? '' : LOCK}</button>`;
+  }).join('');
+  const nc = CRESTS[r + 1];
+  $('crestNote').textContent = `Crest: ${CRESTS[progress.crest].name}` + (nc ? ` · ${RANKS[r + 1].name} unlocks ${nc.name}` : '');
+}
+$('segCrest').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || b.getAttribute('aria-disabled') === 'true') return;
+  if (setCrest(+b.dataset.v)) buildCrests();
+});
+buildCrests();
 function endText(w, why) {
   if (w < 0) return 'Time ran out with no clear winner.';
   const names = allyNames(w), one = names.indexOf('&') < 0;
@@ -169,6 +203,7 @@ function soloStart() {
   G.seed = (Math.random() * 1e9) | 0;
   G.factions = assignFactions(TEAMS.map((_, i) => i === G.myTi ? prefs.faction : null), G.seed);
   const active = [1, 1, 1, 1, ...soloDuo.map(d => d ? 1 : 0)];
+  G.crests = []; G.crests[G.myTi] = progress.crest;
   beginMatch(TEAMS.map((_, i) => i === G.myTi ? 1 : 0), active);
 }
 const pressSeg = (id, v) => $(id).querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === String(v))));

@@ -89,6 +89,19 @@ export const CAPTAIN_COMBAT = {
   leap: { mult: 1.4, range: 3, arc: 1.3, stun: .6, cd: .7 },
 };
 
+// Progression: XP earned per battle climbs these ranks, and each rank unlocks a crest colour for
+// your captain's helmet plume and shield trim (purely a look; everyone fights the same).
+export const RANKS = [
+  { name: 'Recruit', xp: 0 }, { name: 'Legionary', xp: 150 }, { name: 'Veteran', xp: 400 }, { name: 'Centurion', xp: 800 },
+  { name: 'Tribune', xp: 1400 }, { name: 'Legate', xp: 2200 }, { name: 'General', xp: 3200 }, { name: 'Warlord', xp: 4500 },
+];
+export const CRESTS = [
+  { name: 'Gold', hex: 0xffcf3a, css: '#ffcf3a' }, { name: 'Silver', hex: 0xd8dde3, css: '#d8dde3' }, { name: 'Crimson', hex: 0xc0262d, css: '#c0262d' },
+  { name: 'Obsidian', hex: 0x2a2a30, css: '#2a2a30' }, { name: 'Royal', hex: 0x6a3fb5, css: '#6a3fb5' }, { name: 'Ivory', hex: 0xf4efe1, css: '#f4efe1' },
+  { name: 'Emerald', hex: 0x2fa35a, css: '#2fa35a' }, { name: 'Flame', hex: 0xff6a1a, css: '#ff6a1a' },
+]; // crest i unlocks at rank i
+export const XP = { base: 25, perKill: 4, maxKills: 40, win: 75, draw: 35, diffMult: [.75, 1, 1.35] };
+
 export const DIFF = [{ name: 'Recruit', dmg: .7, income: 8 }, { name: 'Soldier', dmg: 1, income: 10 }, { name: 'Warlord', dmg: 1.25, income: 12 }];
 // Gold per second for a human player, and how often the computer tries to hire.
 export const ECON = { humanIncome: 10, startGold: 60, aiRecruitEvery: [1.5, 3] };

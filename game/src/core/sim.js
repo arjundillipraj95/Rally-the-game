@@ -45,7 +45,7 @@ export const squadOf = ti => G.units.filter(u => !u.dead && u.ti === ti && !u.le
 export function startMatch(humans, active = [1, 1, 1, 1, 0, 0, 0, 0]) {
   G.layout = makeLayout(G.map.id, G.mode === 'ctf', G.mode === 'ctrl', G.seed); buildNav(G.layout);
   G.units = []; G.horses = []; G.arrows = [];
-  G.T = 0; G.kills = 0; G.recruited = 0; G.bounty = -1; G.uid = 0; G.arrowN = 0; G.endInfo = null;
+  G.T = 0; G.kills = 0; G.recruited = 0; G.bounty = -1; G.uid = 0; G.arrowN = 0; G.endInfo = null; G.awarded = false;
   G.teams = newTeams(humans, active);
   G.duo = [0, 1, 2, 3].map(c => !!active[c + 4]);
   G.flag = G.mode === 'ctf' ? { state: 'home', x: 0, z: 0, carrier: null, dropT: 0 } : null;

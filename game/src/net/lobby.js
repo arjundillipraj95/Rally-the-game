@@ -2,6 +2,7 @@
 import { TEAMS, MAPS, PRESETS, AL_LETTER, FACTIONS } from '../config.js';
 import { G, colorOf, slotOf } from '../core/state.js';
 import { makeP2PRoom as rawRoom, newCode, p2pAvailable } from './p2p.js';
+import { progress } from '../ui/progress.js';
 // A brief hiccup reaching the connection server shouldn't end the attempt: try once more before
 // reporting it. Definite answers (code taken, no such battle, battle full) come back immediately.
 const FINAL = new Set(['unavailable-id', 'peer-unavailable', 'full', 'no-webrtc', 'timeout']);
@@ -17,7 +18,7 @@ import { initAudio, stopCrowd } from '../ui/audio.js';
 const $ = id => document.getElementById(id);
 let hooks = { startMatch() {}, seedDemo() {}, preset: () => 'ffa', resetSolo() {} };
 // want is the desired ARMY seat (0-3 = a color's own army, 4-7 = that color's Duo teammate)
-const myPresence = () => ({ role: 'player', nick: session.myNick || 'Captain', ph: 'lobby', want: (session.NET.want ?? -1), fac: prefs.faction });
+const myPresence = () => ({ role: 'player', nick: session.myNick || 'Captain', ph: 'lobby', want: (session.NET.want ?? -1), fac: prefs.faction, cr: progress.crest });
 let busy = false;
 
 export function openBrowse() {
@@ -232,11 +233,13 @@ export function bindLobby(h) {
     G.seed = (Math.random() * 1e9) | 0;
     NET.msgs = []; NET.msgN = 0; NET.inp = {}; NET.snapN = 0;
     const humans = [0, 0, 0, 0, 0, 0, 0, 0], chosen = [null, null, null, null], peers = NET.room.peers();
+    G.crests = [];
     const active = [1, 1, 1, 1, ...L.duo.map(d => d ? 1 : 0)];
     for (const [peer, ti] of Object.entries(NET.seats)) {
       humans[ti] = 1;
       const pr = (peers.find(p => p.peer === peer) || {}).presence || {};
       chosen[colorOf(ti)] = peer === NET.me ? prefs.faction : (FACTIONS[pr.fac] ? pr.fac : null);
+      G.crests[ti] = peer === NET.me ? progress.crest : Math.min(7, Math.max(0, pr.cr | 0));
     }
     G.factions = assignFactions(chosen, G.seed);
     hooks.startMatch(humans, active);
