@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#141312">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -21,7 +21,9 @@
     --display:"Bangers", "Impact", "Arial Black", sans-serif;
     --body:"Barlow Semi Condensed", "Arial Narrow", sans-serif;
   }
+  html{-webkit-text-size-adjust:100%;text-size-adjust:100%;}
   html,body{height:100%;}
+
   body{background:var(--ink);color:var(--paper);font-family:var(--body);overflow:hidden;
     -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none;}
   input{-webkit-user-select:text;user-select:text;}
@@ -36,7 +38,7 @@
   #points h3{margin:0 0 2px;font-weight:400;font-size:19px;line-height:1;font-style:italic;}
   .tp{display:grid;grid-template-columns:auto 1fr 34px;gap:6px;align-items:center;}
   .tp .al{font-family:var(--body);font-weight:800;font-size:10px;width:14px;height:14px;border-radius:3px;display:grid;place-items:center;background:rgba(255,255,255,.14);color:var(--paper);font-style:normal;}
-  .tp .al:empty{display:none;}
+  .tp .al:empty{visibility:hidden;width:0;}
   .tp .bar{height:7px;border-radius:4px;background:rgba(255,255,255,.12);overflow:hidden;}
   .tp .bar i{display:block;height:100%;transform-origin:left;}
   .tp b{font-weight:400;font-size:17px;font-style:italic;text-align:right;font-variant-numeric:tabular-nums;}
@@ -91,7 +93,7 @@
   .joyzone{position:absolute;left:max(18px, env(safe-area-inset-left,0px));bottom:max(18px, env(safe-area-inset-bottom,0px));width:120px;height:120px;border-radius:50%;
     border:2px dashed rgba(255,255,255,.35);display:grid;place-items:center;text-align:center;font:800 11px var(--body);letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.7);pointer-events:none;transition:opacity .3s;}
 
-  .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:14px 16px;overflow:auto;
+  .overlay{touch-action:pan-y;-webkit-overflow-scrolling:touch;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:14px 16px;overflow:auto;
     background:linear-gradient(100deg, rgba(20,19,18,.95) 0%, rgba(20,19,18,.86) 55%, rgba(20,19,18,.5) 100%);}
   .menu{width:100%;max-width:840px;display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:14px 30px;align-items:center;margin:auto;}
   @media (max-width:620px){ .menu{grid-template-columns:1fr;} }
@@ -155,7 +157,40 @@
   .seat.taken{cursor:default;}
   .alchip{position:absolute;right:6px;top:6px;font:800 12px var(--body);background:rgba(0,0,0,.35);color:#fff;border:1.5px solid rgba(255,255,255,.4);border-radius:6px;padding:2px 7px;cursor:pointer;}
   .alchip[disabled]{cursor:default;}
-</style>
+  /* short landscape phones (iPhone SE/8/mini, Safari with its toolbars) */
+  @media (max-height:430px){
+    #points{padding:5px 12px 7px 9px;min-width:124px;gap:1px;}
+    #points h3{font-size:15px;}
+    .tp b{font-size:14px;} .tp{grid-template-columns:auto 1fr 28px;gap:4px;}
+    #clock{top:6px;padding:4px 12px;font-size:15px;gap:6px;} .pip{width:16px;height:16px;font-size:11px;}
+    #netTag{top:34px;}
+    #mini{width:70px;height:70px;top:8px;}
+    #goldTag{top:84px;font-size:15px;padding:3px 10px;}
+    #hp{width:min(24vw,170px);padding:4px 10px 6px;bottom:6px;} #hp span{font-size:12px;}
+    .ctl{gap:6px;bottom:max(8px, env(safe-area-inset-bottom,0px));}
+    #atk{width:66px;height:66px;} #blk,#mnt{width:50px;height:50px;} #mnt{font-size:14px;}
+    .round{gap:8px;} .pillrow{gap:6px;}
+    .pill{min-height:34px;padding:4px 9px;font-size:14px;gap:6px;} .pill small{font-size:10px;}
+    #squadBox{font-size:24px;min-width:48px;padding:2px 8px;} #squadBox small{font-size:9px;}
+    .tray button{min-width:80px;padding:6px 8px;} .tray button b{font-size:16px;}
+    .joyzone{width:96px;height:96px;}
+    .banner{font-size:clamp(22px,4.5vw,36px);top:20%;}
+  }
+  @media (max-height:430px){
+    .overlay{padding:10px 16px;}
+    .logo{font-size:44px;} .logo.sm{font-size:34px;}
+    .menu{gap:10px 24px;} .menu p{font-size:14px;} .side{gap:7px;} .grp{gap:3px;}
+    .seg button{padding:6px 4px;font-size:12px;}
+    .desc{font-size:12.5px;min-height:0;}
+    .go{font-size:20px;padding:7px 14px;}
+    .flags{margin:6px 0 8px;} .flags i{width:18px;height:24px;}
+  }
+  @media (max-height:340px){
+    #points h3{display:none;}
+    #atk{width:58px;height:58px;} #blk,#mnt{width:44px;height:44px;}
+    .pill{min-height:30px;font-size:13px;} #squadBox{font-size:20px;}
+    #mini{width:60px;height:60px;} #goldTag{top:72px;}
+  }</style>
 </head>
 <body>
 <div id="app">
@@ -350,6 +385,8 @@ const fatal = msg => { const d=document.createElement('div'); d.className='err';
 if(!window.THREE){ fatal('The 3D engine could not load. Check your connection and reload.'); return; }
 try{ const t=document.createElement('canvas'); if(!(t.getContext('webgl')||t.getContext('experimental-webgl'))) throw 0; }catch(e){ fatal('This browser could not start 3D graphics. On iPhone, open the link in Safari and make sure Lockdown Mode or Low Power Mode is off, then reload.'); return; }
 const $ = id => document.getElementById(id);
+['gesturestart','gesturechange'].forEach(ev=>document.addEventListener(ev, e=>e.preventDefault(), {passive:false}));
+let lastTouchEnd = 0; document.addEventListener('touchend', e=>{ const n=Date.now(); if(n-lastTouchEnd<300 && !(e.target.closest && e.target.closest('input'))) e.preventDefault(); lastTouchEnd=n; }, {passive:false});
 const rnd = (a,b)=>a+Math.random()*(b-a);
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const angDiff=(a,b)=>{ let d=b-a; while(d>Math.PI)d-=Math.PI*2; while(d<-Math.PI)d+=Math.PI*2; return d; };
@@ -894,7 +931,7 @@ function startMatch(humans){
   teamsState = newTeamsState(humans);
   flag = MODE==='ctf' ? {state:'home', x:0, z:0, carrier:null, dropT:0} : null;
   TEAMS.forEach((t,i)=>{
-    const [gx,gz] = gatePos(t);
+    const [gx,gz] = gatePos(t,0,7);
     teamsState[i].leader = mkUnit(i, gx, gz, 'captain', teamsState[i].human);
     ['foot','foot','foot','spear','spear','arch'].forEach((k,n)=>{ const [sx,sz]=gatePos(t,(n-2.5)*1.4, 1.5); mkUnit(i, sx, sz, k); });
   });
@@ -1620,7 +1657,7 @@ function update(dt){
     if(s.leader.dead && canRespawn(i)){
       s.leaderDeadT -= dt;
       if(s.leaderDeadT<=0){
-        const [gx,gz] = gatePos(TEAMS[i]);
+        const [gx,gz] = gatePos(TEAMS[i],0,7);
         const L = mkUnit(i, gx, gz, 'captain', s.human); s.leader = L; s.plan=null;
         if(i===myTi){ player = L; camYaw = L.face; }
         if(s.human) say('respawn', i);
