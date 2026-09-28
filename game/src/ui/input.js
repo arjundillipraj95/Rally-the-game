@@ -8,7 +8,7 @@ import { initAudio } from './audio.js';
 
 const $ = id => document.getElementById(id);
 export const inp = { joy: { active: false, id: null, ox: 0, oy: 0, x: 0, y: 0 }, look: { id: null, lx: 0, ly: 0 }, keys: {}, attackHeld: false, blockHeld: false, trayIsOpen: false, upIsOpen: false };
-let A = { attack() {}, ride() {}, order() {}, recruit() {}, upgrade() {} };
+let A = { attack() {}, ride() {}, order() {}, recruit() {}, upgrade() {}, volley() {} };
 
 export function trayOpen(on) { inp.trayIsOpen = on; $('tray').hidden = !on; $('recBtn').classList.toggle('open', on); if (on) upOpen(false); }
 export function upOpen(on) { inp.upIsOpen = on; $('upTray').hidden = !on; $('upBtn').classList.toggle('open', on); if (on) trayOpen(false); }
@@ -60,6 +60,7 @@ export function bindInput(actions) {
   holdBtn($('atk'), () => { inp.attackHeld = true; A.attack(); }, () => { inp.attackHeld = false; });
   holdBtn($('blk'), () => { inp.blockHeld = true; }, () => { inp.blockHeld = false; });
   tapBtn($('mnt'), () => A.ride());
+  tapBtn($('vly'), () => A.volley());
   tapBtn($('cmdBtn'), () => A.order());
   tapBtn($('recBtn'), () => trayOpen(!inp.trayIsOpen));
   document.querySelectorAll('#tray button').forEach(b => tapBtn(b, () => A.recruit(b.dataset.kind)));
@@ -76,6 +77,7 @@ export function bindInput(actions) {
     if (e.code === 'KeyF') A.order('hold');
     if (e.code === 'KeyE') A.order('charge');
     if (e.code === 'KeyT') A.order('shieldwall');
+    if (e.code === 'KeyV') A.volley();
     if (e.code === 'KeyU') upOpen(!inp.upIsOpen);
     const up = ['Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8'].indexOf(e.code);
     if (up >= 0) A.upgrade(['foot1', 'foot2', 'arch1', 'arch2', 'aura', 'horse'][up]);

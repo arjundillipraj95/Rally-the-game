@@ -1,6 +1,6 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
-import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, AURA } from '../config.js';
+import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, AURA } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies } from './state.js';
 import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable } from './nav.js';
@@ -460,6 +460,26 @@ export function captainAttack(p) {
   if (ci >= 0 && cd < CASTLE_REACH + .6) { if (startSwing(p, { castle: ci })) p.face = Math.atan2(TEAMS[ci].pos[0] - p.x, TEAMS[ci].pos[1] - p.z); return; }
   startSwing(p, null);
 }
+// Missile volley: every archer with a target in range fires immediately, and every javelin-ready
+// footman (tier 1+) throws immediately, together, on a shared team cooldown.
+export function orderVolley(ti) {
+  const s = G.teams[ti];
+  if (!s || !s.active || s.volleyCd > 0) return false;
+  let fired = false;
+  for (const u of G.units) {
+    if (u.dead || u.ti !== ti || u.stun > 0) continue;
+    if (u.kind === 'arch') {
+      const range = u.range * (u.y > 2.2 ? 1.3 : 1);
+      const [foe] = nearestFoe(u, range);
+      if (foe) { u.face = Math.atan2(foe.x - u.x, foe.z - u.z); shoot(u, foe); u.shootCd = u.shootBase * rnd(.85, 1.2); fired = true; }
+    } else if (u.kind === 'foot' && u.javelin && u.javCd <= 0) {
+      const [foe] = nearestFoe(u, JAVELIN.range, o => !o.mounted);
+      if (foe) { u.face = Math.atan2(foe.x - u.x, foe.z - u.z); throwJavelin(u, foe); fired = true; }
+    }
+  }
+  if (fired) s.volleyCd = VOLLEY.cd;
+  return fired;
+}
 
 // ---------- navigation ----------
 // Where to walk next on the way to (gx,gz): straight there when the way is clear,
@@ -698,6 +718,7 @@ export function update(dt, input) {
   pathBudget = Math.max(2, Math.round(4 * 80 / Math.max(80, G.units.length)));
   G.teams.forEach((s, i) => {
     if (!s.active) return;
+    if (s.volleyCd > 0) s.volleyCd -= dt;
     if (canRecruit(i)) s.gold += dt * (s.human ? ECON.humanIncome : DIFF[G.diff].income);
     if (!s.human && canRecruit(i)) { s.recruitT -= dt; if (s.recruitT <= 0) { s.recruitT = rnd(...ECON.aiRecruitEvery); recruit(i, aiPick(i)); } }
     if (!s.human) {

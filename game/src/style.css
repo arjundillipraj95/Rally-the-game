@@ -58,6 +58,8 @@
   #blk{width:60px;height:60px;border-radius:50%;background:rgba(58,92,240,.85);box-shadow:inset 0 -4px 0 rgba(0,0,0,.25);}
   #mnt{width:60px;height:60px;border-radius:50%;background:rgba(150,98,50,.9);box-shadow:inset 0 -4px 0 rgba(0,0,0,.25);font-size:17px;line-height:1;}
   #mnt small{display:block;font-family:var(--body);font-style:normal;font-weight:800;font-size:9px;letter-spacing:.08em;opacity:.85;}
+  #vly{width:60px;height:60px;border-radius:50%;background:rgba(240,196,25,.9);box-shadow:inset 0 -4px 0 rgba(0,0,0,.25);font-size:14px;line-height:1;}
+  #vly small{display:block;font-family:var(--body);font-style:normal;font-weight:800;font-size:9px;letter-spacing:.08em;opacity:.85;}
   .rbtn.held{transform:scale(.93);filter:brightness(1.2);}
   .rbtn.dim{opacity:.4;}
   .rbtn svg{width:46%;height:46%;}
@@ -178,7 +180,7 @@
     #goldTag{top:84px;font-size:15px;padding:3px 10px;}
     #hp{width:min(24vw,170px);padding:4px 10px 6px;bottom:6px;} #hp span{font-size:12px;}
     .ctl{gap:6px;bottom:max(8px, env(safe-area-inset-bottom,0px));}
-    #atk{width:66px;height:66px;} #blk,#mnt{width:50px;height:50px;} #mnt{font-size:14px;}
+    #atk{width:66px;height:66px;} #blk,#mnt,#vly{width:50px;height:50px;} #mnt,#vly{font-size:13px;}
     .round{gap:8px;} .pillrow{gap:6px;}
     .pill{min-height:34px;padding:4px 9px;font-size:14px;gap:6px;} .pill small{font-size:10px;}
     #squadBox{font-size:24px;min-width:48px;padding:2px 8px;} #squadBox small{font-size:9px;}
@@ -197,7 +199,7 @@
   }
   @media (max-height:340px){
     #points h3{display:none;}
-    #atk{width:58px;height:58px;} #blk,#mnt{width:44px;height:44px;}
+    #atk{width:58px;height:58px;} #blk,#mnt,#vly{width:44px;height:44px;}
     .pill{min-height:30px;font-size:13px;} #squadBox{font-size:20px;}
     #mini{width:60px;height:60px;} #goldTag{top:72px;}
   }

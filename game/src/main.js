@@ -262,6 +262,7 @@ window.__fb = {
   },
   step(n, dt = 1 / 30) { for (let i = 0; i < n && G.state === 'play'; i++) update(dt, null); },
   ride() { if (G.player) { G.player.lastHit = -9; actions.ride(); } },
+  volley() { actions.volley(); },
   G, cam,
 };
 

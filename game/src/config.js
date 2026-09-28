@@ -70,6 +70,9 @@ export const CAPTAIN_TIERS = [
 ];
 // A single javelin throw: reuses the arrow flight/hit pipeline, flat damage, on a cooldown.
 export const JAVELIN = { dmg: 24, range: 10, cd: 6.5 };
+// Missile volley: a squad-wide "fire at will" command on its own team cooldown, separate from
+// individual archer/javelin cooldowns so it stays a burst rather than a free DPS button.
+export const VOLLEY = { cd: 9 };
 
 export const DIFF = [{ name: 'Recruit', dmg: .7, income: 8 }, { name: 'Soldier', dmg: 1, income: 10 }, { name: 'Warlord', dmg: 1.25, income: 12 }];
 // Gold per second for a human player, and how often the computer tries to hire.

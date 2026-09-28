@@ -56,6 +56,8 @@ export function updateHud(lastSnapAt) {
   $('mnt').classList.toggle('dim', !p || (!p.mounted && (p.horseCd > 0 || p.carrying || p.dead)));
   $('blk').classList.toggle('dim', !p || p.mounted);
   $('atk').classList.toggle('dim', !p || p.carrying);
+  $('vlyT').textContent = me.volleyCd > 0 ? Math.ceil(me.volleyCd) + 's' : 'Volley';
+  $('vly').classList.toggle('dim', !p || p.dead || me.volleyCd > 0);
   const o = me.order || 'follow';
   $('cmdT').textContent = ORDER_NAMES[o] || ORDER_NAMES.follow;
   const cc = o === 'follow' ? 'var(--green)' : o === 'hold' ? 'var(--yellow)' : o === 'shieldwall' ? 'var(--blue)' : 'var(--red)';
