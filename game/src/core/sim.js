@@ -1,6 +1,6 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
-import { TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT } from '../config.js';
+import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, UPGRADE_COST, UPGRADE_MAX, AURA } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi } from './state.js';
 import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn } from './world.js';
 
@@ -12,8 +12,9 @@ const sound = (name, x, z) => fx('sfx', { name, x, z });
 
 // ---------- setup ----------
 export function newTeams(humans) {
-  return TEAMS.map((_, i) => ({ points: 100, tickets: DM_TICKETS, caps: 0, gold: 40, alive: true, plan: null, leaderDeadT: 0, recruitT: rnd(2, 6), thinkT: 0,
-    human: !!humans[i], order: 'follow', holdPt: null, towerT: rnd(0, 1.4), leader: null }));
+  return TEAMS.map((_, i) => ({ points: 100, tickets: DM_TICKETS, caps: 0, gold: ECON.startGold, alive: true, plan: null, leaderDeadT: 0, recruitT: rnd(2, 6), thinkT: 0,
+    human: !!humans[i], order: 'follow', holdPt: null, towerT: rnd(0, 1.4), leader: null,
+    up: { dmg: 0, armor: 0, speed: 0, aura: 0, horse: 0 }, arrowHits: 0, testudoT: 0, upT: rnd(20, 40) }));
 }
 export function mkUnit(ti, x, z, kind, human = false) {
   const st = STATS[kind];
@@ -22,7 +23,7 @@ export function mkUnit(ti, x, z, kind, human = false) {
     dmg: human ? HUMAN_CAPTAIN.dmg : st.dmg, spd: human ? HUMAN_CAPTAIN.spd : st.spd, r: st.r, reach: st.reach,
     cd: rnd(0, .6), shootCd: rnd(0, 1.5), swing: 0, pending: null, stun: 0, blockT: 0, rt: rnd(0, .3), foe: null, fd: 1e9,
     dead: false, deadT: 0, trampleT: 0, lastHit: -9, blocking: false, aim: false,
-    mounted: false, horse: null, summon: null, horseHp: HORSE_HP, horseCd: 0, carrying: false,
+    mounted: false, horse: null, summon: null, horseHp: horseMax(ti), horseCd: 0, carrying: false, aura: false, testudo: false,
     kick: { n: 0, vx: 0, vz: 0, st: 0, dirty: false } };
   G.units.push(u); return u;
 }
@@ -37,8 +38,8 @@ export function startMatch(humans) {
   TEAMS.forEach((t, i) => {
     const [gx, gz] = gatePos(t, 0, 7);
     G.teams[i].leader = mkUnit(i, gx, gz, 'captain', G.teams[i].human);
-    const start = G.squadCap > 12 ? ['foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'spear', 'spear', 'spear', 'spear', 'spear', 'spear', 'arch', 'arch', 'arch', 'arch', 'foot', 'spear', 'arch'].slice(0, G.squadCap) : ['foot', 'foot', 'foot', 'spear', 'spear', 'arch'];
-    start.forEach((k, n) => { const [sx, sz] = gatePos(t, ((n % 8) - 3.5) * 1.4, 1.5 + Math.floor(n / 8) * 1.4); mkUnit(i, sx, sz, k); });
+    const start = (G.fullSquads ? FULL_SQUAD : START_SQUAD).slice(0, G.squadCap);
+    start.forEach((n0, n) => { const [sx, sz] = gatePos(t, ((n % 7) - 3) * 1.4, 1.5 + Math.floor(n / 7) * 1.4); mkUnit(i, sx, sz, n0); });
   });
   G.player = G.teams[G.myTi].leader;
   G.state = 'play';
@@ -59,6 +60,24 @@ export function recruit(ti, kind) {
   if (ti === G.myTi) { G.recruited++; sound('coin'); }
   return true;
 }
+// ---------- upgrades and the captain's aura ----------
+const lvl = (ti, id) => (G.teams[ti] && G.teams[ti].up) ? G.teams[ti].up[id] : 0;
+export const horseMax = ti => HORSE_HP + 30 * lvl(ti, 'horse');
+export const horseCooldown = ti => HORSE_CD - 4 * lvl(ti, 'horse');
+export const auraRange = ti => AURA.range + AURA.perRange * lvl(ti, 'aura');
+export const auraBonus = ti => AURA.bonus + AURA.perBonus * lvl(ti, 'aura');
+export const upgradeCost = (ti, id) => lvl(ti, id) >= UPGRADE_MAX ? null : UPGRADE_COST[lvl(ti, id)];
+export function buyUpgrade(ti, id) {
+  const s = G.teams[ti], cost = upgradeCost(ti, id);
+  if (!s || cost == null || s.gold < cost || !UPGRADES.some(u => u.id === id)) return false;
+  s.gold -= cost; s.up[id]++;
+  if (id === 'horse' && s.leader && !s.leader.mounted) s.leader.horseHp = horseMax(ti);
+  if (id === 'horse' && s.leader && s.leader.horseCd > horseCooldown(ti)) s.leader.horseCd = horseCooldown(ti);
+  if (ti === G.myTi) { sound('coin'); say('upgrade', ti, id, s.up[id]); }
+  return true;
+}
+// What a team's soldiers are doing: the human's order, or the computer's choice.
+export const orderOf = ti => { const s = G.teams[ti], L = s.leader, up = L && !L.dead; return s.human ? (s.order || 'follow') : s.testudoT > 0 && up ? 'testudo' : up ? 'follow' : 'charge'; };
 export function canRespawn(ti) { const s = G.teams[ti]; return G.mode === 'conquest' ? s.alive : G.mode === 'dm' ? s.tickets > 0 : true; }
 function push(u, vx, vz, stun) {
   if (u.remote) { u.kick.vx += vx; u.kick.vz += vz; u.kick.st = Math.max(u.kick.st, stun || 0); u.kick.dirty = true; }
@@ -69,7 +88,8 @@ function push(u, vx, vz, stun) {
 // ---------- horses ----------
 export function speedOf(u) {
   let s = u.spd;
-  if (u.mounted) s *= 1.8;
+  if (u.mounted) s *= 1.8 * (1 + .05 * lvl(u.ti, 'horse'));
+  if (!u.leader) { s *= 1 + .06 * lvl(u.ti, 'speed'); if (u.aura) s *= 1 + auraBonus(u.ti) * .5; if (u.testudo) s *= .6; }
   if (u.carrying) s *= .7;
   if (inFord(u.x, u.z)) s *= .6;
   if (u.human && u.blocking && !u.mounted) s *= .5;
@@ -94,7 +114,7 @@ export function dismount(u, thrown) {
   const h = u.horse; u.mounted = false; u.horse = null; u.r = STATS.captain.r;
   if (thrown) {
     h.state = 'dead'; h.t = 0; h.fall = Math.random() < .5 ? 1 : -1;
-    u.horseCd = HORSE_CD; u.horseHp = HORSE_HP;
+    u.horseCd = horseCooldown(u.ti); u.horseHp = horseMax(u.ti);
     push(u, Math.sin(u.face + Math.PI / 2) * 5, Math.cos(u.face + Math.PI / 2) * 5, 1.0);
     if (u.human) say('horseDown', u.ti);
   } else { h.state = 'leaving'; h.t = 0; }
@@ -168,6 +188,8 @@ function resolveSwing(u) {
 function hit(a, b, mult = 1) {
   if (!isEnemy(a, b)) return;
   let dmg = a.dmg * rnd(.8, 1.2) * mult * aiDmg(a.ti);
+  if (!a.leader) { dmg *= 1 + .1 * lvl(a.ti, 'dmg'); if (a.aura) dmg *= 1 + auraBonus(a.ti); }
+  if (!b.leader) dmg *= 1 - .1 * lvl(b.ti, 'armor');
   if (a.kind === 'spear' && b.kind === 'foot') dmg *= 1.3;
   if (a.kind === 'spear' && b.leader) dmg *= 1.4;
   if (a.kind === 'foot' && b.kind === 'arch') dmg *= 1.4;
@@ -179,7 +201,7 @@ function hit(a, b, mult = 1) {
   let blocked = false;
   if (frontal && b.stun <= 0 && !b.mounted && !b.carrying) {
     if (b.human) blocked = b.blocking;
-    else if (Math.random() < STATS[b.kind].block) { blocked = true; b.blockT = .45; }
+    else if (Math.random() < STATS[b.kind].block + (b.aura ? auraBonus(b.ti) : 0) + (b.testudo && b.kind === 'foot' ? .3 : 0)) { blocked = true; b.blockT = .45; }
   }
   const hx = (a.x + b.x) / 2, hz = (a.z + b.z) / 2, hy = (a.y + b.y) / 2 + 1.2;
   if (blocked) {
@@ -208,6 +230,11 @@ export function makeArrow(a) { a.x = a.x0; a.y = a.y0; a.z = a.z0; a.px = a.x0; 
 function arrowHit(a, b) {
   let dmg = STATS.arch.arrow * rnd(.8, 1.2) * aiDmg(a.ti);
   if (b.kind === 'spear') dmg *= 1.5;
+  if (!b.leader) dmg *= 1 - .1 * lvl(b.ti, 'armor');
+  if (a.shooter && !a.shooter.tower) dmg *= 1 + .1 * lvl(a.ti, 'dmg');
+  if (G.teams[b.ti]) G.teams[b.ti].arrowHits++;
+  // a testudo turns arrows: shields overhead for footmen, cover from neighbours for the rest
+  if (b.testudo && (b.kind === 'foot' || Math.random() < .6)) { spark(b.x, b.y + 2.2, b.z, '#e8d9b0', 4); sound('thud', b.x, b.z); return; }
   b.lastHit = G.T;
   if (b.mounted && Math.random() < .6) { horseDamage(b, dmg); return; }
   const frontal = Math.abs(angDiff(b.face, Math.atan2(a.x0 - b.x, a.z0 - b.z))) < 1.1;
@@ -389,7 +416,9 @@ function planLeader(u, s) {
   const t = TEAMS[u.ti], squadN = squadOf(u.ti).length;
   if (G.mode === 'conquest') {
     const threat = G.units.some(o => !o.dead && isEnemy(o, u) && Math.hypot(o.x - t.pos[0], o.z - t.pos[1]) < 22);
-    if (s.alive && (threat || squadN < 3)) { s.plan = { kind: 'defend' }; return; }
+    // gather a real army at home before marching out (keeps the big clashes big)
+    const gather = s.plan && s.plan.kind === 'castle' ? 4 : 11;
+    if (s.alive && (threat || squadN < gather)) { s.plan = { kind: 'defend' }; return; }
     let target = s.plan && s.plan.kind === 'castle' && G.teams[s.plan.ti].alive && Math.random() > .08 ? s.plan.ti : null;
     if (target == null) {
       const opts = G.teams.map((x, i) => i).filter(i => isEnemyTi(i, u.ti) && G.teams[i].alive)
@@ -398,7 +427,8 @@ function planLeader(u, s) {
     }
     s.plan = target == null ? { kind: 'defend' } : { kind: 'castle', ti: target };
   } else if (G.mode === 'dm') {
-    if (squadN < 2 && s.tickets > 0 && s.gold >= 40) { s.plan = { kind: 'defend' }; return; }
+    const gather = s.plan && s.plan.kind === 'hunt' ? 3 : 9;
+    if (squadN < gather && s.tickets > 0) { s.plan = { kind: 'defend' }; return; }
     const [cap] = nearestFoe(u, 400, o => o.leader), [any] = nearestFoe(u, 400);
     const bl = G.bounty >= 0 && isEnemyTi(G.bounty, u.ti) && Math.random() < .5 ? G.teams[G.bounty].leader : null;
     s.plan = { kind: 'hunt', target: (bl && !bl.dead) ? bl : (cap || any) };
@@ -451,15 +481,30 @@ function thinkLeader(u, s, dt) {
   else if (s.plan.kind === 'defend' && d < 2) faceTo(u, 0, 0, dt, 3);
 }
 function slotPos(anchor, front, idx, isArch, meleeN) {
-  const row = Math.floor(idx / 4), lat = (idx % 4 - 1.5) * 1.55;
-  const back = isArch ? (front ? 2.0 + row * 1.6 : 1.8 + Math.ceil(meleeN / 4) * 1.6 + row * 1.6) : (front ? -(2.2 + row * 1.6) : 1.8 + row * 1.6);
+  const W = 5, row = Math.floor(idx / W), lat = (idx % W - 2) * 1.45;
+  const back = isArch ? (front ? 2.0 + row * 1.5 : 1.8 + Math.ceil(meleeN / W) * 1.5 + row * 1.5) : (front ? -(2.2 + row * 1.5) : 1.8 + row * 1.5);
+  const f = anchor.face, fx = Math.sin(f), fz = Math.cos(f), rx = Math.cos(f), rz = -Math.sin(f);
+  return [anchor.x - fx * back + rx * lat, anchor.z - fz * back + rz * lat];
+}
+// Testudo: a tight block, five wide, just ahead of a human captain (behind a computer one).
+function testudoPos(anchor, front, idx) {
+  const row = Math.floor(idx / 5), lat = (idx % 5 - 2) * 1.02, back = front ? -(1.6 + row * 1.05) : 1.6 + row * 1.05;
   const f = anchor.face, fx = Math.sin(f), fz = Math.cos(f), rx = Math.cos(f), rz = -Math.sin(f);
   return [anchor.x - fx * back + rx * lat, anchor.z - fz * back + rz * lat];
 }
 function thinkSoldier(u, dt) {
   const s = G.teams[u.ti], L = s.leader, leaderUp = L && !L.dead;
-  const myOrder = s.human ? (s.order || 'follow') : (leaderUp ? 'follow' : 'charge');
+  const myOrder = orderOf(u.ti);
   const st = STATS[u.kind];
+  if (myOrder === 'testudo' && leaderUp) {
+    u.aim = false;
+    const foe = u.foe;
+    if (foe && u.fd < u.r + foe.r + u.reach) { faceTo(u, foe.x, foe.z, dt); startSwing(u, foe); }
+    const [gx, gz] = testudoPos(L, !!L.human, u.tslot || 0);
+    const d = go(u, gx, gz, speedOf(u) * (Math.hypot(gx - u.x, gz - u.z) > 5 ? 1.5 : 1), dt, .15);
+    if (d < 1 && !(foe && u.fd < 3)) u.face = turn(u.face, L.face, dt * 6);
+    return;
+  }
   const range = u.kind === 'arch' ? st.range * (G.map.id === 'frost' && u.y > 3 ? 1.3 : 1) : 0;
   u.aim = false;
   if (u.kind === 'spear' && myOrder !== 'charge') {
@@ -476,7 +521,7 @@ function thinkSoldier(u, dt) {
       else if (fd <= range) {
         u.aim = true; moveToward(u, u.x, u.z, 0, dt); faceTo(u, foe.x, foe.z, dt, 8);
         if (u.shootCd <= 0 && u.stun <= 0 && Math.abs(angDiff(u.face, Math.atan2(foe.x - u.x, foe.z - u.z))) < .3) { shoot(u, foe); u.shootCd = st.shoot * rnd(.85, 1.2); }
-      } else go(u, foe.x, foe.z, u.spd, dt, range * .8);
+      } else go(u, foe.x, foe.z, speedOf(u), dt, range * .8);
     } else {
       go(u, foe.x, foe.z, speedOf(u), dt, u.r + foe.r + u.reach * .7); faceTo(u, foe.x, foe.z, dt);
       if (fd < u.r + foe.r + u.reach) startSwing(u, foe);
@@ -500,7 +545,7 @@ function thinkSoldier(u, dt) {
   const anchor = myOrder === 'hold' && s.holdPt ? s.holdPt : leaderUp ? L : null;
   if (anchor) {
     const [gx, gz] = slotPos(anchor, anchor.isFront || !!anchor.human, u.slot || 0, u.kind === 'arch', u.meleeN || 0);
-    const d = go(u, gx, gz, u.spd * (Math.hypot(gx - u.x, gz - u.z) > 6 ? 1.15 : 1), dt);
+    const d = go(u, gx, gz, speedOf(u) * (Math.hypot(gx - u.x, gz - u.z) > 6 ? 1.15 : 1), dt);
     if (d < 1) u.face = turn(u.face, anchor.face, dt * 6);
   } else { const [gx, gz] = gatePos(TEAMS[u.ti], 0, 2); go(u, gx, gz, u.spd, dt, 3); }
 }
@@ -547,8 +592,26 @@ export function driveCaptain(p, input, dt) {
 export function update(dt, input) {
   G.T += dt;
   G.teams.forEach((s, i) => {
-    if (canRecruit(i)) s.gold += dt * (s.human ? 3 : DIFF[G.diff].income);
-    if (!s.human && canRecruit(i)) { s.recruitT -= dt; if (s.recruitT <= 0) { s.recruitT = rnd(3, 6); recruit(i, aiPick(i)); } }
+    if (canRecruit(i)) s.gold += dt * (s.human ? ECON.humanIncome : DIFF[G.diff].income);
+    if (!s.human && canRecruit(i)) { s.recruitT -= dt; if (s.recruitT <= 0) { s.recruitT = rnd(...ECON.aiRecruitEvery); recruit(i, aiPick(i)); } }
+    if (!s.human) {
+      // spend spare gold on upgrades once the squad is nearly full
+      s.upT -= dt;
+      if (s.upT <= 0) {
+        s.upT = rnd(6, 12);
+        if (squadOf(i).length >= G.squadCap - 3 || !canRecruit(i)) {
+          const opts = UPGRADES.map(u => u.id).filter(id => upgradeCost(i, id) != null && s.gold >= upgradeCost(i, id) + 30);
+          if (opts.length) buyUpgrade(i, opts[Math.floor(Math.random() * opts.length)]);
+        }
+      }
+      // form a testudo when arrows keep landing and no one is close enough to fight
+      s.arrowHits = Math.max(0, s.arrowHits - dt * .6); s.testudoT -= dt;
+      if (s.arrowHits >= 4 && s.testudoT <= 0 && s.leader && !s.leader.dead) {
+        const [f, fd] = nearestFoe(s.leader, 9, o => o.kind !== 'arch');
+        if (!f) { s.testudoT = 7; s.arrowHits = 0; }
+      }
+      if (s.testudoT > 0 && s.leader && !s.leader.dead) { const [f] = nearestFoe(s.leader, 5, o => o.kind !== 'arch'); if (f) s.testudoT = 0; }
+    }
     if (s.leader.dead && canRespawn(i)) {
       s.leaderDeadT -= dt;
       if (s.leaderDeadT <= 0) {
@@ -568,8 +631,20 @@ export function update(dt, input) {
   if (p && !p.dead && input) { driveCaptain(p, input, dt); if (input.attackHeld && p.cd <= 0) captainAttack(p); }
   for (const s of G.teams) { const L = s.leader; if (L && L.human && !L.dead) { const [f] = nearestFoe(L, 12); if (!f && L.hp < L.max) L.hp = Math.min(L.max, L.hp + dt * 6); } }
 
-  const slotIdx = [0, 0, 0, 0], archIdx = [0, 0, 0, 0], meleeN = [0, 0, 0, 0];
-  for (const u of G.units) if (!u.dead && !u.leader && u.kind !== 'arch') meleeN[u.ti]++;
+  const slotIdx = [0, 0, 0, 0], archIdx = [0, 0, 0, 0], meleeN = [0, 0, 0, 0], tIdx = [0, 0, 0, 0];
+  const ords = G.teams.map((_, i) => orderOf(i)), rng = G.teams.map((_, i) => auraRange(i) ** 2);
+  for (const u of G.units) {
+    if (u.dead || u.leader) continue;
+    if (u.kind !== 'arch') meleeN[u.ti]++;
+    const L = G.teams[u.ti].leader, dx = L ? L.x - u.x : 0, dz = L ? L.z - u.z : 0;
+    u.aura = !!L && !L.dead && dx * dx + dz * dz < rng[u.ti];
+    u.testudo = ords[u.ti] === 'testudo';
+    // testudo ranks: footmen in the front rank, spearmen next, archers at the back.
+    // Slot 0 sits nearest the captain, who is behind a human's block and in front of a computer's.
+    const k = u.kind === 'foot' ? 0 : u.kind === 'spear' ? 1 : 2;
+    u.tkey = G.teams[u.ti].human ? 2 - k : k;
+  }
+  for (const k of [0, 1, 2]) for (const u of G.units) if (!u.dead && !u.leader && u.tkey === k) u.tslot = tIdx[u.ti]++;
   for (const u of G.units) {
     if (u.dead) continue;
     u.cd -= dt; u.shootCd -= dt; u.stun -= dt; u.blockT -= dt; u.rt -= dt; u.trampleT -= dt;

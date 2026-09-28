@@ -1,8 +1,8 @@
 // Turns rule announcements ('castleDown', 'flagTaken'...) into banners, sounds and buzzes,
 // worded for this player. Hosts and clients use the same wording.
-import { TEAMS, MODES, HORSE_CD, CAPS_TO_WIN } from '../config.js';
+import { TEAMS, MODES, CAPS_TO_WIN, UPGRADES } from '../config.js';
 import { G, isEnemyTi } from '../core/state.js';
-import { allianceCaps } from '../core/sim.js';
+import { allianceCaps, horseCooldown } from '../core/sim.js';
 import { groundY } from '../core/world.js';
 import { banner } from './hud.js';
 import { sfx, buzz } from './audio.js';
@@ -23,13 +23,14 @@ export function msgText(k, a) {
     case 'capDown': return mine(a[1]) ? [`${nm(a[0])} captain down`, '', css(a[0])] : null;
     case 'fell': return mine(a[0]) ? ['You fell!', a[1] ? 'Back in the fight in 5 seconds' : 'No way back. Your allies fight on.', '#e0352b'] : null;
     case 'respawn': return mine(a[0]) ? ['Back on your feet', 'Rally your squad'] : null;
-    case 'horseDown': return mine(a[0]) ? ['Your horse is down!', `New horse in ${HORSE_CD} seconds`, '#e0352b'] : null;
+    case 'horseDown': return mine(a[0]) ? ['Your horse is down!', `New horse in ${horseCooldown(a[0])} seconds`, '#e0352b'] : null;
     case 'rideNo': return mine(a[0]) ? (a[1] === 'banner' ? ['Not with the banner', 'Carry it home on foot'] : a[1] === 'rest' ? ['Your horse is resting', `Ready in ${a[2]} seconds`] : ['Too hot to call your horse', 'Get clear of the fight first']) : null;
     case 'flagTaken': return mine(a[0]) ? ['You have the banner!', 'Carry it home. Your squad will escort you.', css(a[0])]
       : [`${nm(a[0])} has the banner!`, ally(a[0]) ? 'Escort them home' : 'Stop the carrier', css(a[0])];
     case 'flagDropped': return mine(a[0]) ? ['Banner dropped!', 'Grab it again before it returns'] : [`${nm(a[0])} dropped the banner`, '', css(a[0])];
     case 'flagHome': return ['The banner returns to the fort', ''];
     case 'capture': return [`${nm(a[0])} captures the banner!`, `${allianceCaps(G.ALLY[a[0]])} of ${CAPS_TO_WIN}`, css(a[0])];
+    case 'upgrade': { const u = UPGRADES.find(x => x.id === a[1]); return mine(a[0]) && u ? [`${u.name} level ${a[2]}`, u.desc, '#ffcf3a'] : null; }
     case 'left': return [`${nm(a[0])}'s player left`, 'The computer takes over their army', css(a[0])];
   }
   return null;

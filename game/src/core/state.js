@@ -28,7 +28,7 @@ export const G = {
   arrowN: 0,
   horseN: 0,
   endInfo: null,
-  squadCap: 12,
+  squadCap: 20,
 };
 
 export const isEnemyTi = (a, b) => G.ALLY[a] !== G.ALLY[b];

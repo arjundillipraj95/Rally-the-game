@@ -1,21 +1,21 @@
 // Rally! Boots the game, runs the frame loop and wires the rules to the screen.
 import './style.css';
-import { TEAMS, MODES, MAPS, PRESETS, STRESS_SQUAD_CAP } from './config.js';
+import { TEAMS, MODES, MAPS, PRESETS } from './config.js';
 import { G, bus } from './core/state.js';
-import { startMatch, mkUnit, newTeams, update, fallStep, endMatch } from './core/sim.js';
+import { startMatch, mkUnit, newTeams, update, fallStep, endMatch, auraRange } from './core/sim.js';
 import { makeLayout, gatePos, groundY } from './core/world.js';
 import { renderer, scene, camera, resize, applyPixelRatio, applyShadowQuality, followSun } from './render/scene.js';
 import { quality, saveSetting, stepDown, LEVELS } from './render/quality.js';
 import { buildWorldView, updateWorldView, grassTime } from './render/world.js';
 import { drawSoldiers, drawCalls } from './render/soldiers.js';
 import { drawHorses, clearHorses } from './render/horses.js';
-import { spark, splat, dust, floatText, castleFx, effectsTick, drawEffects, clearEffects } from './render/effects.js';
+import { spark, splat, dust, drawAura, floatText, castleFx, effectsTick, drawEffects, clearEffects } from './render/effects.js';
 import { drawOverlay, clearOverlay, resizeOverlay } from './render/overlay.js';
 import { cam, followCamera, orbitCamera, camTarget } from './render/camera.js';
 import { initAudio, sfx, buzz, gateS } from './ui/audio.js';
 import { showMsg, allyNames } from './ui/messages.js';
 import { buildHud, showHud, updateHud, banner, fmt } from './ui/hud.js';
-import { bindInput, readMove, trayOpen, releaseAll, inp } from './ui/input.js';
+import { bindInput, readMove, trayOpen, upOpen, releaseAll, inp } from './ui/input.js';
 import { session, isClient, isHost, prefs } from './net/session.js';
 import { allyFor, describeTeams, assignFactions } from './core/teams.js';
 import { actions, netHostReadInputs, netHostTick, netHostSend, clientTick, clientHorses, setNetHooks, C } from './net/netgame.js';
@@ -31,7 +31,7 @@ let lastTouchEnd = 0;
 document.addEventListener('touchend', e => { const n = Date.now(); if (n - lastTouchEnd < 300 && !(e.target.closest && e.target.closest('input'))) e.preventDefault(); lastTouchEnd = n; }, { passive: false });
 
 const params = new URLSearchParams(location.search);
-if (params.get('stress') === '1') G.squadCap = STRESS_SQUAD_CAP;
+if (params.get('stress') === '1') G.fullSquads = true; // every team starts with a full squad of 20
 let preset = 'ffa';
 
 // ---------- presentation listens to the rules ----------
@@ -47,7 +47,7 @@ bus.on('respawnMe', L => { cam.yaw = L.face; });
 bus.on('hud', () => { if (G.state === 'play') updateHud(C.lastSnapAt); });
 bus.on('hostEnd', res => endMatch(res[0], res[1]));
 bus.on('end', ({ w, why }) => {
-  releaseAll(); trayOpen(false);
+  releaseAll(); trayOpen(false); upOpen(false);
   updateHud(C.lastSnapAt);
   const mine = G.ALLY[G.myTi];
   const result = w < 0 ? 'draw' : w === mine ? 'win' : 'lose';
@@ -77,7 +77,7 @@ function endText(w, why) {
 function viewForMatch() {
   buildWorldView(G.layout);
   clearEffects(); clearHorses();
-  buildHud(); showHud(); trayOpen(false);
+  buildHud(); showHud(); trayOpen(false); upOpen(false);
   watchdog.reset();
 }
 function beginMatch(humans) {
@@ -191,6 +191,7 @@ function drawMatch(dt) {
   effectsTick(dt);
   drawEffects();
   followCamera(dt);
+  drawAura(G.player, auraRange(G.myTi), grassTime());
   const tg = camTarget(); followSun(tg ? tg.x : 0, tg ? tg.z : 0, grassTime());
   renderer.render(scene, camera);
   drawOverlay({ joy: inp.joy, nickFor });

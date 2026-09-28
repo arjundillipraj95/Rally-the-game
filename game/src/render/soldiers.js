@@ -192,7 +192,7 @@ const anim = new WeakMap();
 function stateOf(u) {
   let a = anim.get(u);
   if (!a) {
-    a = { walk: Math.random() * 6, bodyY: 0, bodyRX: 0, bodyRZ: 0, yaw: 0, lift: 0, sink: 0, legL: [0, 0, 0], legR: [0, 0, 0], sArmX: 0, sArmPX: .5, wArmX: 0, wArmZ: 0, spearRX: 0, spearZ: 0, block: 0, rag: null };
+    a = { walk: Math.random() * 6, bodyY: 0, bodyRX: 0, bodyRZ: 0, yaw: 0, lift: 0, sink: 0, legL: [0, 0, 0], legR: [0, 0, 0], sArmX: 0, sArmPX: .5, wArmX: 0, wArmZ: 0, spearRX: 0, spearZ: 0, block: 0, over: 0, rag: null };
     anim.set(u, a);
   }
   return a;
@@ -262,7 +262,9 @@ function pose(u, dt) {
       a.wArmZ = u.mounted ? -.9 : -.3;
     } else { a.wArmX += (-.35 - a.wArmX) * Math.min(1, dt * 10); a.wArmZ = 0; }
     blocking = ((u.human && u.blocking) || u.blockT > 0) && !u.mounted;
-    a.sArmX += ((blocking ? -1.35 : u.carrying ? -.1 : -.35) - a.sArmX) * Math.min(1, dt * 14);
+    const over = u.testudo && u.kind === 'foot';
+    a.over += ((over ? 1 : 0) - a.over) * Math.min(1, dt * 8);
+    a.sArmX += ((over ? -2.9 : blocking ? -1.35 : u.carrying ? -.1 : -.35) - a.sArmX) * Math.min(1, dt * 14);
     a.sArmPX = blocking ? .28 : .5;
   }
   a.block += ((blocking ? 1 : 0) - a.block) * Math.min(1, dt * 16);
@@ -285,8 +287,10 @@ function bones(u, a) {
   if (u.kind === 'spear') M.spear.multiplyMatrices(M.wArm, local(0, -.48, a.spearZ, a.spearRX, 0, 0));
   if (u.kind === 'foot' || u.kind === 'captain') {
     // held at the side and turned out a little; raised to the front when blocking
-    const b = a.block, big = factionOf(u) === 'greek' ? .08 : 0;
-    M.shield.multiplyMatrices(M.body, local(.56 - .38 * b, 1.02 + .26 * b + big, .3 + .3 * b, -.05 * (1 - b), .5 * (1 - b), 0));
+    // testudo: the shield goes flat overhead, locking with the neighbours' shields
+    const o = a.over, b = a.block * (1 - o), big = factionOf(u) === 'greek' ? .08 : 0;
+    const x = .56 - .38 * b, y = 1.02 + .26 * b + big, z = .3 + .3 * b;
+    M.shield.multiplyMatrices(M.body, local(x + (.08 - x) * o, y + (2.5 - y) * o, z + (.1 - z) * o, -.05 * (1 - b) * (1 - o) - Math.PI / 2 * o, .5 * (1 - b) * (1 - o), 0));
   }
 }
 

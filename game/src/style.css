@@ -76,6 +76,10 @@
   .tray button span{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);}
   .tray button em{font-style:normal;font-weight:800;color:var(--gold);font-size:14px;}
   .tray button[aria-disabled="true"]{opacity:.45;}
+  .tray.up button{min-width:76px;}
+  .tray .lv{display:flex;gap:3px;font-style:normal;}
+  .tray .lv::before{content:attr(data-pips);letter-spacing:2px;color:var(--gold);font-size:12px;}
+  #upBtn.open{background:rgba(255,207,58,.25);}
   .tray button:focus-visible{outline:3px solid var(--gold);}
   .joyzone{position:absolute;left:max(18px, env(safe-area-inset-left,0px));bottom:max(18px, env(safe-area-inset-bottom,0px));width:120px;height:120px;border-radius:50%;
     border:2px dashed rgba(255,255,255,.35);display:grid;place-items:center;text-align:center;font:800 11px var(--body);letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.7);pointer-events:none;transition:opacity .3s;}

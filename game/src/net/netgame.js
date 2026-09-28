@@ -1,9 +1,9 @@
 // Online battles. The host runs the rules; every other phone sends its captain and button
 // presses and draws the host's snapshots (a compact text string, about 1KB, 12 times a second).
-import { TEAMS, MAPS, KINDS, STATS, HORSE_HP, RECRUITS, FACTIONS, factionFromCode } from '../config.js';
+import { TEAMS, MAPS, KINDS, STATS, RECRUITS, FACTIONS, factionFromCode, ORDERS, ORDER_NAMES, UPGRADES } from '../config.js';
 import { G, bus } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn } from '../core/world.js';
-import { newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf } from '../core/sim.js';
+import { newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax } from '../core/sim.js';
 import { session, isClient, isHost } from './session.js';
 import { showMsg } from '../ui/messages.js';
 import { sfx, buzz, gateS } from '../ui/audio.js';
@@ -31,12 +31,13 @@ bus.on('msg', m => {
 
 // ---------- host ----------
 function encodeSnap() {
-  const teams = G.teams.map(s => [Math.round(s.points * 10), s.tickets, s.caps, Math.floor(s.gold), s.alive ? 1 : 0, Math.max(0, Math.ceil(s.leaderDeadT))].join(',')).join(';');
+  const upPack = s => UPGRADES.reduce((n, u, k) => n + s.up[u.id] * 4 ** k, 0);
+  const teams = G.teams.map(s => [Math.round(s.points * 10), s.tickets, s.caps, Math.floor(s.gold), s.alive ? 1 : 0, Math.max(0, Math.ceil(s.leaderDeadT)), upPack(s)].join(',')).join(';');
   const us = [];
   for (const u of G.units) {
     if (u.dead) continue;
     const kt = KINDS.indexOf(u.kind) * 4 + u.ti;
-    const fl = (u.swing > 0 ? 1 : 0) | (u.mounted ? 2 : 0) | ((u.blockT > 0 || (u.human && u.blocking)) ? 4 : 0) | (u.carrying ? 8 : 0) | (u.stun > 0 ? 16 : 0) | (u.aim ? 32 : 0);
+    const fl = (u.swing > 0 ? 1 : 0) | (u.mounted ? 2 : 0) | ((u.blockT > 0 || (u.human && u.blocking)) ? 4 : 0) | (u.carrying ? 8 : 0) | (u.stun > 0 ? 16 : 0) | (u.aim ? 32 : 0) | (u.testudo ? 64 : 0);
     us.push([b36(u.id), kt.toString(16), encX(u.x), encX(u.z), encF(u.face), b36(clamp(u.hp / u.max, 0, 1) * 35), b36(fl)].join(','));
   }
   const ars = G.arrows.filter(a => !a.stuck && !a.done).slice(-18).map(a => [b36(a.id), encX(a.x0), encX(a.z0), b36(a.y0 * 10), encX(a.x1), encX(a.z1), b36(a.y1 * 10 + 20), b36(a.dur * 100), b36(a.peak * 10), b36(a.t * 100), a.ti].join(','));
@@ -85,14 +86,15 @@ export function netHostReadInputs() {
     const ti = NET.seats[p.peer]; if (ti === undefined) continue;
     const pr = p.presence || {}; if (pr.seed !== G.seed || pr.ph !== 'play') continue;
     const s = G.teams[ti], L = s.leader; if (!s.human) continue;
-    const last = NET.inp[ti] || (NET.inp[ti] = { atk: 0, ride: 0, rec: [0, 0, 0] });
+    const last = NET.inp[ti] || (NET.inp[ti] = { atk: 0, ride: 0, rec: [0, 0, 0], up: [0, 0, 0, 0, 0] });
     if (L && !L.dead && Array.isArray(pr.cap) && pr.cap[0] === L.id) {
       L.x = +pr.cap[1]; L.z = +pr.cap[2]; L.face = +pr.cap[3]; L.vx = +pr.cap[4]; L.vz = +pr.cap[5];
       L.blocking = !!pr.blk;
     }
     if (typeof pr.atk === 'number' && pr.atk > last.atk) { if (L && !L.dead) { if (typeof pr.face === 'number') L.face = pr.face; captainAttack(L); } last.atk = pr.atk; }
     if (typeof pr.ride === 'number' && pr.ride > last.ride) { if (L) toggleHorseFor(L); last.ride = pr.ride; }
-    if (pr.ord && pr.ord !== s.order && ['follow', 'hold', 'charge'].includes(pr.ord)) {
+    if (Array.isArray(pr.up)) for (let k = 0; k < UPGRADES.length; k++) while ((pr.up[k] | 0) > last.up[k]) { last.up[k]++; buyUpgrade(ti, UPGRADES[k].id); }
+    if (pr.ord && pr.ord !== s.order && ORDERS.includes(pr.ord)) {
       s.order = pr.ord;
       if (pr.ord === 'hold') { const h = Array.isArray(pr.hold) ? pr.hold : [L.x, L.z, L.face]; s.holdPt = { x: +h[0], z: +h[1], face: +h[2], isFront: true }; }
     }
@@ -112,7 +114,7 @@ export function clientStart(hp) {
   G.teams = newTeams(humans);
   G.flag = G.mode === 'ctf' ? { state: 'home', x: 0, z: 0, carrier: null, dropT: 0 } : null;
   Object.assign(C, { byId: new Map(), lastN: -1, lastMsgN: (hp.m && hp.m.length) ? hp.m[hp.m.length - 1][0] : 0, meId: null, meInit: false, kickN: 0, localCd: 0, lastSnapAt: performance.now(),
-    inp: { atk: 0, ride: 0, rec: [0, 0, 0], ord: 'follow', hold: null, face: 0 }, sendAt: 0, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
+    inp: { atk: 0, ride: 0, rec: [0, 0, 0], up: [0, 0, 0, 0, 0], ord: 'follow', hold: null, face: 0 }, sendAt: 0, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
   G.player = null;
   cam.yaw = Math.atan2(-TEAMS[G.myTi].pos[0], -TEAMS[G.myTi].pos[1]); cam.pitch = .32;
   G.state = 'play';
@@ -124,7 +126,7 @@ function clientUnit(id, kind, ti, x, z) {
   const human = kind === 'captain' && G.teams[ti].human;
   const u = { id, kind, ti, leader: kind === 'captain', human, x, z, y: groundY(x, z), tx: x, tz: z, tface: 0, face: 0, vx: 0, vz: 0, vy: 0,
     hp: STATS[kind].hp, max: STATS[kind].hp, r: STATS[kind].r, swing: 0, stun: 0, blockT: 0, dead: false, deadT: 0, mounted: false, carrying: false, aim: false,
-    spd: human ? 6.3 : STATS[kind].spd, horseHp: HORSE_HP, horseCd: 0, summon: false, blocking: false, lastHit: -9 };
+    spd: human ? 6.3 : STATS[kind].spd, horseHp: horseMax(ti), horseCd: 0, summon: false, testudo: false, blocking: false, lastHit: -9 };
   G.units.push(u); C.byId.set(id, u); return u;
 }
 function clientKill(u) {
@@ -144,6 +146,7 @@ function clientApply(hp) {
   secs[1].split(';').forEach((row, i) => {
     const v = row.split(',').map(Number), s = G.teams[i]; if (!s) return;
     s.points = v[0] / 10; s.tickets = v[1]; s.caps = v[2]; if (i !== myTi || performance.now() - (C.goldLocalAt || 0) > 700) s.gold = v[3]; s.alive = !!v[4]; s.leaderDeadT = v[5];
+    if (v.length > 6 && (i !== myTi || performance.now() - (C.upLocalAt || 0) > 700)) UPGRADES.forEach((u, k) => { s.up[u.id] = Math.floor(v[6] / 4 ** k) % 4; });
   });
   G.bounty = +secs[7];
   const mine = secs[6] ? secs[6].split(';').map(r => r.split(',')).find(r => +r[0] === myTi) : null;
@@ -166,6 +169,7 @@ function clientApply(hp) {
     }
     if ((fl & 1) && u.swing <= 0 && id !== myId) { u.swing = .38; sfx.swing(u.x, u.z); }
     u.mounted = !!(fl & 2); u.carrying = !!(fl & 8);
+    u.testudo = !!(fl & 64);
     if (id !== myId) { u.blockT = (fl & 4) ? .2 : 0; u.stun = (fl & 16) ? .1 : 0; u.aim = !!(fl & 32); }
     if (id !== myId) {
       u.tx = x; u.tz = z; u.tface = face;
@@ -260,7 +264,7 @@ export function clientTick(dt) {
   // send my captain and my buttons
   if (performance.now() - C.sendAt > 66 && G.state === 'play') {
     C.sendAt = performance.now();
-    const pres = { role: 'player', nick: session.myNick || 'Captain', ph: 'play', seed: G.seed, atk: C.inp.atk, ride: C.inp.ride, rec: C.inp.rec, ord: C.inp.ord, hold: C.inp.hold, face: C.inp.face, blk: inp.blockHeld ? 1 : 0 };
+    const pres = { role: 'player', nick: session.myNick || 'Captain', ph: 'play', seed: G.seed, atk: C.inp.atk, ride: C.inp.ride, rec: C.inp.rec, up: C.inp.up, ord: C.inp.ord, hold: C.inp.hold, face: C.inp.face, blk: inp.blockHeld ? 1 : 0 };
     if (me && !me.dead) pres.cap = [me.id, r2(me.x), r2(me.z), r2(me.face), r1(me.vx), r1(me.vz)];
     NET.room.presence(pres).catch(() => {});
   }
@@ -273,7 +277,7 @@ export function clientHorses() {
 }
 
 // ---------- player actions (solo, host and client) ----------
-const orderName = o => o === 'follow' ? 'Follow me!' : o === 'hold' ? 'Hold here!' : 'Charge!';
+const orderName = o => ORDER_NAMES[o] || ORDER_NAMES.follow;
 export const actions = {
   attack() {
     const p = G.player; if (!p || p.dead || G.state !== 'play') return;
@@ -300,13 +304,27 @@ export const actions = {
     }
     toggleHorseFor(p);
   },
-  order() {
+  // no argument: step to the next order; with one: set it
+  order(want) {
     const p = G.player; if (G.state !== 'play' || !p || p.dead) return;
     const cur = G.teams[G.myTi].order || 'follow';
-    const o = cur === 'follow' ? 'hold' : cur === 'hold' ? 'charge' : 'follow';
+    const o = ORDERS.includes(want) ? want : ORDERS[(ORDERS.indexOf(cur) + 1) % ORDERS.length];
+    if (o === cur && o !== 'hold') return;
     if (isClient()) { G.teams[G.myTi].order = o; C.inp.ord = o; if (o === 'hold') C.inp.hold = [r1(p.x), r1(p.z), r2(p.face)]; }
     else setOrder(G.myTi, o);
     sfx.order(); floatText(p.x, p.y + 3.2, p.z, orderName(o), '#fff');
+    bus.emit('hud');
+  },
+  upgrade(id) {
+    if (G.state !== 'play') return;
+    const me = G.teams[G.myTi], cost = upgradeCost(G.myTi, id), u = UPGRADES.find(x => x.id === id);
+    if (!u) return;
+    if (cost == null) { banner(`${u.name} is maxed`, 'Try another upgrade'); return; }
+    if (me.gold < cost) { banner('Not enough gold', `${u.name} costs ${cost} gold`, '#ffcf3a'); return; }
+    if (isClient()) {
+      C.inp.up[UPGRADES.indexOf(u)]++; me.gold -= cost; me.up[id]++; C.goldLocalAt = C.upLocalAt = performance.now();
+      sfx.coin(); showMsg('upgrade', [G.myTi, id, me.up[id]]);
+    } else buyUpgrade(G.myTi, id);
     bus.emit('hud');
   },
   recruit(kind) {

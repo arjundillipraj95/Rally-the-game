@@ -101,3 +101,17 @@ export function drawEffects() {
 }
 
 export function clearEffects() { parts = []; floats = []; decals = []; }
+
+// ---------- the captain's aura: a faint ring on the ground around your captain ----------
+const auraMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .22, depthWrite: false, side: THREE.DoubleSide });
+const auraRing = new THREE.Mesh(new THREE.RingGeometry(.93, 1, 72), auraMat);
+auraRing.rotation.x = -Math.PI / 2; auraRing.renderOrder = 1; auraRing.visible = false;
+scene.add(auraRing);
+export function drawAura(p, radius, t) {
+  auraRing.visible = !!(p && !p.dead && G.state === 'play');
+  if (!auraRing.visible) return;
+  auraRing.position.set(p.x, groundY(p.x, p.z) + .07, p.z);
+  auraRing.scale.setScalar(radius);
+  auraMat.color.set(TEAMS[p.ti].hex);
+  auraMat.opacity = .16 + .08 * Math.sin(t * 2.4);
+}

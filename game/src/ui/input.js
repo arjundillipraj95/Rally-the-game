@@ -7,10 +7,11 @@ import { cam } from '../render/camera.js';
 import { initAudio } from './audio.js';
 
 const $ = id => document.getElementById(id);
-export const inp = { joy: { active: false, id: null, ox: 0, oy: 0, x: 0, y: 0 }, look: { id: null, lx: 0, ly: 0 }, keys: {}, attackHeld: false, blockHeld: false, trayIsOpen: false };
-let A = { attack() {}, ride() {}, order() {}, recruit() {} };
+export const inp = { joy: { active: false, id: null, ox: 0, oy: 0, x: 0, y: 0 }, look: { id: null, lx: 0, ly: 0 }, keys: {}, attackHeld: false, blockHeld: false, trayIsOpen: false, upIsOpen: false };
+let A = { attack() {}, ride() {}, order() {}, recruit() {}, upgrade() {} };
 
-export function trayOpen(on) { inp.trayIsOpen = on; $('tray').hidden = !on; $('recBtn').classList.toggle('open', on); }
+export function trayOpen(on) { inp.trayIsOpen = on; $('tray').hidden = !on; $('recBtn').classList.toggle('open', on); if (on) upOpen(false); }
+export function upOpen(on) { inp.upIsOpen = on; $('upTray').hidden = !on; $('upBtn').classList.toggle('open', on); if (on) trayOpen(false); }
 export function releaseAll() { inp.keys = {}; inp.attackHeld = inp.blockHeld = false; inp.joy.active = false; inp.joy.x = inp.joy.y = 0; inp.look.id = null; }
 
 export function readMove(dt) {
@@ -28,7 +29,7 @@ export function bindInput(actions) {
   A = actions;
   const touch = $('touch'), { joy, look } = inp;
   touch.addEventListener('pointerdown', e => {
-    if (G.state !== 'play') return; initAudio(); e.preventDefault(); trayOpen(false);
+    if (G.state !== 'play') return; initAudio(); e.preventDefault(); trayOpen(false); upOpen(false);
     if (e.clientX < view.W * .42 && !joy.active) {
       joy.active = true; joy.id = e.pointerId; joy.ox = e.clientX; joy.oy = e.clientY; joy.x = joy.y = 0; $('joyhint').style.opacity = 0;
     } else if (look.id === null) { look.id = e.pointerId; look.lx = e.clientX; look.ly = e.clientY; }
@@ -62,6 +63,8 @@ export function bindInput(actions) {
   tapBtn($('cmdBtn'), () => A.order());
   tapBtn($('recBtn'), () => trayOpen(!inp.trayIsOpen));
   document.querySelectorAll('#tray button').forEach(b => tapBtn(b, () => A.recruit(b.dataset.kind)));
+  tapBtn($('upBtn'), () => upOpen(!inp.upIsOpen));
+  document.querySelectorAll('#upTray button').forEach(b => tapBtn(b, () => A.upgrade(b.dataset.up)));
 
   addEventListener('keydown', e => {
     if (G.state !== 'play') return; if (e.target && e.target.tagName === 'INPUT') return;
@@ -69,7 +72,13 @@ export function bindInput(actions) {
     if (e.code === 'Space') { e.preventDefault(); inp.attackHeld = true; if (!e.repeat) A.attack(); }
     if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') inp.blockHeld = true;
     if (e.repeat) return;
-    if (e.code === 'KeyF') A.order();
+    if (e.code === 'KeyQ') A.order('follow');
+    if (e.code === 'KeyF') A.order('hold');
+    if (e.code === 'KeyE') A.order('charge');
+    if (e.code === 'KeyT') A.order('testudo');
+    if (e.code === 'KeyU') upOpen(!inp.upIsOpen);
+    const up = ['Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8'].indexOf(e.code);
+    if (up >= 0) A.upgrade(['dmg', 'armor', 'speed', 'aura', 'horse'][up]);
     if (e.code === 'KeyH') A.ride();
     if (e.code === 'Digit1') A.recruit('foot'); if (e.code === 'Digit2') A.recruit('spear'); if (e.code === 'Digit3') A.recruit('arch');
   });

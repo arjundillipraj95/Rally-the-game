@@ -1,7 +1,7 @@
 // Scoreboard, clock, health, gold, squad count and button labels.
-import { TEAMS, MODES, STATS, HORSE_HP, DM_TICKETS, CAPS_TO_WIN, AL_LETTER } from '../config.js';
+import { TEAMS, MODES, STATS, DM_TICKETS, CAPS_TO_WIN, AL_LETTER, ORDER_NAMES, UPGRADE_MAX } from '../config.js';
 import { G, isFfa } from '../core/state.js';
-import { teamOut, teamScore, squadOf, canRecruit } from '../core/sim.js';
+import { teamOut, teamScore, squadOf, canRecruit, horseMax, upgradeCost } from '../core/sim.js';
 import { session, isClient } from '../net/session.js';
 
 const $ = id => document.getElementById(id);
@@ -34,13 +34,19 @@ export function updateHud(lastSnapAt) {
     $('hpT').textContent = `${Math.max(0, Math.ceil(p.hp))}/${p.max}`;
     $('hpBar').style.transform = `scaleX(${Math.max(0, p.hp) / p.max})`;
     $('horseBarWrap').hidden = !p.mounted;
-    $('horseBar').style.transform = `scaleX(${Math.max(0, p.horseHp) / HORSE_HP})`;
+    $('horseBar').style.transform = `scaleX(${Math.min(1, Math.max(0, p.horseHp) / horseMax(G.myTi))})`;
   }
   const gold = Math.floor(me.gold); $('gold').textContent = gold;
   const sq = squadOf(G.myTi); $('squadN').textContent = sq.length;
   const c = k => sq.filter(u => u.kind === k).length; $('squadMix').textContent = `F${c('foot')} S${c('spear')} A${c('arch')}`;
   document.querySelectorAll('#tray button').forEach(b => {
     b.setAttribute('aria-disabled', (gold < STATS[b.dataset.kind].cost || sq.length >= G.squadCap || !canRecruit(G.myTi)) ? 'true' : 'false');
+  });
+  document.querySelectorAll('#upTray button').forEach(b => {
+    const id = b.dataset.up, l = me.up ? me.up[id] : 0, cost = upgradeCost(G.myTi, id);
+    b.querySelector('.lv').dataset.pips = '●'.repeat(l) + '○'.repeat(UPGRADE_MAX - l);
+    b.querySelector('em').textContent = cost == null ? 'Max' : cost + 'g';
+    b.setAttribute('aria-disabled', (cost == null || gold < cost) ? 'true' : 'false');
   });
   let t1 = 'Ride', t2 = 'horse';
   if (p && p.mounted) { t1 = 'Walk'; t2 = 'get off'; } else if (p && p.summon) { t1 = '…'; t2 = 'coming'; } else if (p && p.horseCd > 0) { t1 = Math.ceil(p.horseCd) + 's'; t2 = 'resting'; }
@@ -49,8 +55,8 @@ export function updateHud(lastSnapAt) {
   $('blk').classList.toggle('dim', !p || p.mounted);
   $('atk').classList.toggle('dim', !p || p.carrying);
   const o = me.order || 'follow';
-  $('cmdT').textContent = o === 'follow' ? 'Follow me!' : o === 'hold' ? 'Hold here!' : 'Charge!';
-  const cc = o === 'follow' ? 'var(--green)' : o === 'hold' ? 'var(--yellow)' : 'var(--red)';
+  $('cmdT').textContent = ORDER_NAMES[o] || ORDER_NAMES.follow;
+  const cc = o === 'follow' ? 'var(--green)' : o === 'hold' ? 'var(--yellow)' : o === 'testudo' ? 'var(--blue)' : 'var(--red)';
   $('cmdBtn').style.borderLeftColor = cc; $('cmdBtn').querySelector('.ic').style.background = cc;
   const NET = session.NET, tag = $('netTag');
   if (NET) {
