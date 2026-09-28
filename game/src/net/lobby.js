@@ -1,7 +1,14 @@
 // "Play with friends": host or join by code, pick colors and teams, start the battle.
 import { TEAMS, MAPS, PRESETS, AL_LETTER, FACTIONS } from '../config.js';
 import { G, colorOf, slotOf } from '../core/state.js';
-import { makeP2PRoom, newCode, p2pAvailable } from './p2p.js';
+import { makeP2PRoom as rawRoom, newCode, p2pAvailable } from './p2p.js';
+// A brief hiccup reaching the connection server shouldn't end the attempt: try once more before
+// reporting it. Definite answers (code taken, no such battle, battle full) come back immediately.
+const FINAL = new Set(['unavailable-id', 'peer-unavailable', 'full', 'no-webrtc', 'timeout']);
+async function makeP2PRoom(code, host) {
+  try { return await rawRoom(code, host); }
+  catch (e) { if (e && FINAL.has(e.type)) throw e; await new Promise(r => setTimeout(r, 800)); return rawRoom(code, host); }
+}
 import { session, prefs } from './session.js';
 import { allyFor, assignFactions } from '../core/teams.js';
 import { myPeer, clientStart, netHostSend } from './netgame.js';

@@ -56,6 +56,7 @@ export function stopCrowd() {
 export const sfx = {
   swing(x, z) { const v = vol(x, z); if (v > .1 && gateS('sw', 60)) noise(.14, 1800, 1, .12, 'bandpass', 600, v); },
   clang(x, z) { const v = vol(x, z); if (v > .1 && gateS('cl', 60)) { noise(.08, 3400, 7, .22, 'bandpass', 0, v); tone(1500 + Math.random() * 600, .14, .07 * v, 'triangle'); } },
+  heavy(x, z) { const v = vol(x, z); if (v > .1 && gateS('hv', 90)) { tone(95, .22, .3 * v, 'sine', 40); noise(.16, 700, 1, .5, 'lowpass', 150, v); } },
   hit(x, z) { const v = vol(x, z); if (v > .1 && gateS('hi', 50)) { noise(.12, 380, 1, .4, 'lowpass', 0, v); tone(130, .1, .15 * v, 'triangle', 60); } },
   die(x, z) { const v = vol(x, z); if (v > .15 && gateS('di', 140)) tone(260, .35, .08 * v, 'sawtooth', 110); },
   wall(x, z) { const v = vol(x, z); if (v > .1 && gateS('wa', 120)) noise(.2, 500, 1.2, .3, 'lowpass', 0, v); },

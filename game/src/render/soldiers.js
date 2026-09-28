@@ -250,6 +250,9 @@ function pose(u, dt) {
   const a = stateOf(u);
   if (u.dead) { ragdoll(u, a, dt); return a; }
   a.rag = null; a.yaw = 0; a.lift = 0; a.sink = 0; a.bodyRZ = 0;
+  // got hit: flash toward white and flinch back, sized by how hard the blow was
+  if (a.hp != null && u.hp < a.hp - .5) a.flash = Math.min(1, Math.max(a.flash || 0, (a.hp - u.hp) / 18));
+  a.hp = u.hp; if (a.flash > 0) a.flash = Math.max(0, a.flash - dt * 6);
   const sp = Math.hypot(u.vx, u.vz);
   if (u.mounted) {
     a.bodyY = 1.02 + .03 * Math.sin(a.walk * 2);
@@ -262,6 +265,7 @@ function pose(u, dt) {
     a.legL[0] = sw; a.legL[1] = a.legL[2] = 0; a.legR[0] = -sw; a.legR[1] = a.legR[2] = 0;
     a.bodyY = Math.abs(Math.cos(a.walk)) * Math.min(1, sp / 3) * .08;
     a.bodyRX = u.stun > 0 ? -.25 : Math.min(.15, sp * .02);
+    if (a.flash > 0) { a.bodyRX -= .45 * a.flash; a.yaw = (Math.random() - .5) * .16 * a.flash; }
     if (u.jy > .05) { a.legL[0] = -.9; a.legR[0] = .35; a.bodyY = 0; a.bodyRX = .12; } // knees tucked in the air
   }
   const t = u.swing > 0 ? 1 - u.swing / .38 : -1;
@@ -304,6 +308,7 @@ function pose(u, dt) {
 
 // ---------- bones ----------
 const M = { root: new THREE.Matrix4(), body: new THREE.Matrix4(), legL: new THREE.Matrix4(), legR: new THREE.Matrix4(), sArm: new THREE.Matrix4(), wArm: new THREE.Matrix4(), spear: new THREE.Matrix4(), shield: new THREE.Matrix4() };
+const flashC = new THREE.Color(), WHITE = new THREE.Color(1, 1, 1);
 const tmp = new THREE.Matrix4(), out = new THREE.Matrix4(), eu = new THREE.Euler(), qq = new THREE.Quaternion(), vp = new THREE.Vector3(), vs = new THREE.Vector3(), tipV = new THREE.Vector3();
 function local(x, y, z, rx, ry, rz) { eu.set(rx, ry, rz); qq.setFromEuler(eu); return tmp.compose(vp.set(x, y, z), qq, vs.set(1, 1, 1)); }
 function bones(u, a) {
@@ -366,7 +371,7 @@ export function drawSoldiers(units, dt) {
       const b = p.batch, i = b.n++;
       out.multiplyMatrices(M[p.bone], p.m);
       b.mesh.setMatrixAt(i, out);
-      if (p.col) b.mesh.setColorAt(i, p.col(u));
+      if (p.col) b.mesh.setColorAt(i, a.flash > 0 ? flashC.copy(p.col(u)).lerp(WHITE, a.flash * .75) : p.col(u));
     }
   }
   for (const b of batches.values()) {

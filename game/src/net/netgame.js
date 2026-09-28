@@ -176,7 +176,10 @@ function clientApply(hp) {
     if (u.hp < oldHp - .5 && id !== myId) {
       bus.emit('spark', { x: u.x, y: u.y + 1.2, z: u.z, c: (fl & 4) ? '#fff3b0' : TEAMS[colorOf(u.ti)].css, n: 5 });
       if (fl & 4) sfx.clang(u.x, u.z);
-      else { sfx.hit(u.x, u.z); if (Math.random() < .35) bus.emit('splat', { x: u.x + rnd(-.4, .4), z: u.z + rnd(-.4, .4), s: rnd(.6, 1.1), ti: u.ti }); }
+      else { sfx.hit(u.x, u.z);
+        const me = G.player; // a client's own blows landing: the same hit-stop the host gets
+        if (me && performance.now() - (C.lastAtkAt || 0) < 700 && Math.hypot(u.x - me.x, u.z - me.z) < 5) { bus.emit('hitstop', .05); cam.shake = Math.max(cam.shake, .15); }
+        if (Math.random() < .35) bus.emit('splat', { x: u.x + rnd(-.4, .4), z: u.z + rnd(-.4, .4), s: rnd(.6, 1.1), ti: u.ti }); }
     }
     if ((fl & 1) && u.swing <= 0 && id !== myId) { u.swing = .38; sfx.swing(u.x, u.z); }
     u.mounted = !!(fl & 2); u.carrying = !!(fl & 8);
@@ -335,7 +338,7 @@ export const actions = {
       if (C.localCd > 0 || p.stun > 0) { C.atkBuf = .4; return; }
       C.atkBuf = 0; predictAttack(p);
       p.swing = .38; sfx.swing(p.x, p.z);
-      C.inp.atk++; C.inp.face = r2(p.face);
+      C.inp.atk++; C.inp.face = r2(p.face); C.lastAtkAt = performance.now();
       return;
     }
     captainAttack(p);

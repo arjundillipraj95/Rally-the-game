@@ -47,6 +47,9 @@ bus.on('splat', d => { splat(d.x, d.z, d.s, d.ti); dust(d.x, d.z); });
 bus.on('float', d => floatText(d.x, d.y, d.z, d.text, d.color));
 bus.on('sfx', d => { const f = sfx[d.name]; if (f) f(d.x, d.z); });
 bus.on('shake', v => { cam.shake = v; });
+// hit-stop: the world freezes for a few frames when your blow lands, so it reads as weight
+let hitstop = 0;
+bus.on('hitstop', t => { hitstop = Math.max(hitstop, t); });
 bus.on('buzz', ms => buzz(ms));
 bus.on('hint', text => { const p = G.player; if (p && gateS('mhint', 2500)) floatText(p.x, p.y + 3.4, p.z, text, '#fff'); });
 bus.on('respawnMe', L => { cam.yaw = L.face; });
@@ -220,7 +223,8 @@ function nickFor(ti) {
 }
 let hudT = 0, last = performance.now(), fpsAvg = 60;
 function loop(now) {
-  const raw = (now - last) / 1000, dt = Math.min(.05, raw); last = now;
+  const raw = (now - last) / 1000; let dt = Math.min(.05, raw); last = now;
+  if (hitstop > 0) { hitstop -= raw; dt *= .06; }
   if (raw > 0) fpsAvg += (1 / raw - fpsAvg) * .05;
   try {
     if (isClient() && (G.state === 'play' || G.state === 'end')) {

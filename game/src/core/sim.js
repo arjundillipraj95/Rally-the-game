@@ -301,6 +301,11 @@ function hit(a, b, mult = 1, extra) {
     if (b.isMe) { fx('shake', .35); fx('buzz', 35); }
   }
   b.hp -= dmg;
+  if (a.isMe) { // your own blows: a beat of hit-stop, longer for heavy hits and kills, and a deeper thud
+    const heavy = !blocked && (mult >= 1.35 || b.hp <= 0);
+    fx('hitstop', blocked ? .03 : heavy ? .1 : .055);
+    if (heavy) sound('heavy', hx, hz);
+  }
   const ang = Math.atan2(b.x - a.x, b.z - a.z);
   push(b, Math.sin(ang) * kb, Math.cos(ang) * kb, blocked ? 0 : (extra && extra.stun) || .22);
   if (b.hp <= 0) die(b, a, ang);
