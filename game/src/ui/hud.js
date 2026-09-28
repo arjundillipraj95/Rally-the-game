@@ -1,5 +1,5 @@
 // Scoreboard, clock, health, gold, squad count and button labels.
-import { TEAMS, MODES, STATS, DM_TICKETS, CAPS_TO_WIN, AL_LETTER, ORDER_NAMES, UPGRADES } from '../config.js';
+import { TEAMS, MODES, STATS, DM_TICKETS, CAPS_TO_WIN, CTRL, AL_LETTER, ORDER_NAMES, UPGRADES } from '../config.js';
 import { G, isFfa, colorOf } from '../core/state.js';
 import { colorOut, colorScore, colorHuman, squadOf, canRecruit, horseMax, upgradeCost } from '../core/sim.js';
 import { session, isClient } from '../net/session.js';
@@ -22,7 +22,7 @@ export function showHud() {
 export function updateHud(lastSnapAt) {
   TEAMS.forEach((t, i) => {
     const row = $('tp' + i); if (!row) return;
-    const v = colorScore(i), max = G.mode === 'conquest' ? 100 : G.mode === 'dm' ? DM_TICKETS : CAPS_TO_WIN;
+    const v = colorScore(i), max = G.mode === 'conquest' ? 100 : G.mode === 'dm' ? DM_TICKETS : G.mode === 'ctrl' ? CTRL.win : CAPS_TO_WIN;
     row.querySelector('i').style.transform = `scaleX(${Math.max(0, v) / max})`;
     row.querySelector('b').textContent = G.mode === 'ctf' ? `${v}/${CAPS_TO_WIN}` : Math.max(0, Math.ceil(v));
     const out = colorOut(i); row.classList.toggle('out', out);

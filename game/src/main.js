@@ -102,7 +102,7 @@ bindInput(actions);
 // ---------- title scene ----------
 let demoT = 0, demoRider = null;
 function seedDemo() {
-  G.layout = makeLayout(G.map.id, false, 7); buildNav(G.layout);
+  G.layout = makeLayout(G.map.id, false, false, 7); buildNav(G.layout);
   G.units = []; G.horses = []; G.arrows = []; G.flag = null; G.player = null; G.uid = 0;
   G.teams = newTeams([0, 0, 0, 0]);
   G.factions = assignFactions(TEAMS.map((_, i) => i === G.myTi ? prefs.faction : null), 7);

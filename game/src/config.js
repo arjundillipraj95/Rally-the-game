@@ -24,7 +24,10 @@ export const MODES = {
   conquest: { name: 'Conquest', time: 600, title: 'Castle Strength', desc: 'Knock down every enemy castle. A castle only takes damage from fighters on foot.' },
   dm:       { name: 'Deathmatch', time: 480, title: 'Tickets', desc: 'Each team has 250 tickets. A lost soldier costs 1, a lost captain 5. The leading captain carries a bounty worth double gold.' },
   ctf:      { name: 'Capture the Fort', time: 600, title: 'Captures', desc: 'A banner waits in the fort at the centre. Carry it home on foot to score. Allies pool captures; first side to 3 wins.' },
+  ctrl:     { name: 'Control', time: 600, title: 'Control Score', desc: 'Five points are scattered across the map. Whoever has the most soldiers on a point owns it, and every point you hold adds to your score each second. Allies pool their score; first alliance to 450 wins.' },
 };
+// Control mode: capture points, how they flip, and how fast score builds.
+export const CTRL = { points: 5, captureTime: 5, rate: 1, win: 450, radius: 5 };
 
 export const MAPS = {
   forum:     { id: 'forum',     name: 'Forum',        desc: 'A Roman city. Streets between the houses funnel every army, and four temples give the high ground: fighting down their steps deals +20% damage and archers on top shoot 30% farther.', sky: 0xdcd6c6, fog: [70, 200], g1: 0xd9cdb4, g2: 0xc8b99c, g3: 0xb5a584, hill: 0x8a7c66, rock: 0x9b9384 },

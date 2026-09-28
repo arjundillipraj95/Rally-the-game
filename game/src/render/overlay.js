@@ -52,6 +52,7 @@ export function drawOverlay(opts) {
       }
     }
     if (G.flag) drawFlagPointer();
+    if (G.mode === 'ctrl') drawControlLabels();
     if (G.mode === 'dm' && G.bounty === G.myTi && player && !player.dead && (performance.now() / 500 % 1) < .7) {
       ctx.font = 'italic 18px Bangers, Impact, sans-serif'; ctx.fillStyle = '#ffcf3a'; ctx.fillText('BOUNTY ON YOU', W / 2, 118);
     }
@@ -65,6 +66,19 @@ export function drawOverlay(opts) {
   drawMini();
 }
 
+function drawControlLabels() {
+  const cps = G.ctrlPoints; if (!cps) return;
+  for (const p of cps) {
+    const [sx, sy, ok] = proj(p.x, 3.4, p.z); if (!ok) continue;
+    const col = p.owner >= 0 ? TEAMS[colorOf(p.owner)].css : '#c9c9c0';
+    ctx.font = '800 20px "Barlow Semi Condensed", sans-serif'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.6)';
+    ctx.strokeText(p.letter, sx, sy); ctx.fillStyle = col; ctx.fillText(p.letter, sx, sy);
+    if (p.capturer != null && p.capturer !== p.owner && p.prog > 0) {
+      const w = 34; ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(sx - w / 2, sy + 8, w, 4);
+      ctx.fillStyle = TEAMS[colorOf(p.capturer)].css; ctx.fillRect(sx - w / 2, sy + 8, w * Math.min(1, p.prog), 4);
+    }
+  }
+}
 function drawFlagPointer() {
   const W = view.W, H = view.H, flag = G.flag;
   const c = flag.state === 'carried' ? flag.carrier : null;

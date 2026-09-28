@@ -1,6 +1,6 @@
 // Builds the 3D scenery for a map layout: ground, hills, fences, trees, river, castles, centre fort, tall grass.
 import * as THREE from 'three';
-import { TEAMS, CASTLE_R } from '../config.js';
+import { TEAMS, CASTLE_R, CTRL } from '../config.js';
 import { G } from '../core/state.js';
 import { groundY, terrainMeshY, mulberry } from '../core/world.js';
 import { scene, setLook } from './scene.js';
@@ -12,6 +12,8 @@ import { inside, nearObstacles } from '../core/nav.js';
 let world = null;
 export let castleObjs = [];
 export let fort = null;
+export let ctrlObjs = [];
+const neutCol = 0x9a9a92;
 
 const lam = (color, map, extra = {}) => new THREE.MeshLambertMaterial(Object.assign({ color, map: map || null }, extra));
 const stoneMat = lam(0xd9d3c6, stoneTex());
@@ -97,8 +99,21 @@ export function buildWorldView(L) {
   }
   TEAMS.forEach((t, i) => castleObjs.push(buildCastle(t, i)));
   if (L.withFort) buildFort(L);
+  ctrlObjs = L.ctrlSpots && L.ctrlSpots.length ? buildControlPoints(L) : [];
   buildFeatures(L, world);
   buildGrass(L, LK);
+}
+
+function buildControlPoints(L) {
+  return L.ctrlSpots.map(s => {
+    const grp = new THREE.Group(); grp.position.set(s.x, groundY(s.x, s.z), s.z); world.add(grp);
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(.09, .09, 3.2, 6), gateMat); pole.position.y = 1.6; grp.add(pole);
+    const cloth = new THREE.Mesh(new THREE.PlaneGeometry(1.3, .9), new THREE.MeshLambertMaterial({ color: neutCol, side: THREE.DoubleSide })); cloth.position.set(.65, 2.6, 0); grp.add(cloth);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(CTRL.radius - .3, CTRL.radius, 40), new THREE.MeshBasicMaterial({ color: neutCol, transparent: true, opacity: .35, side: THREE.DoubleSide, depthWrite: false }));
+    ring.rotation.x = -Math.PI / 2; ring.position.y = .05; grp.add(ring);
+    shadowy(grp);
+    return { id: s.id, grp, cloth, ring };
+  });
 }
 
 function buildCastle(t, i) {
@@ -205,6 +220,7 @@ function buildGrass(L, LK) {
 export function updateWorldView(dt, fxHook) {
   grassU.time.value += dt;
   updateFeatures(dt, grassU.time.value);
+  updateControlPoints();
   TEAMS.forEach((t, i) => {
     const s = G.teams[i], co = castleObjs[i]; if (!co || !s) return;
     const want = G.mode !== 'conquest' ? 1 : s.alive ? 1 - (1 - s.points / 100) * .12 : .28;
@@ -223,5 +239,19 @@ export function updateWorldView(dt, fxHook) {
     b.position.set(f.x, groundY(f.x, f.z), f.z); b.rotation.y = G.T * .6; b.scale.setScalar(1); fort.ring.visible = true;
   }
   fort.cloth.rotation.y = Math.sin(G.T * 3) * .25;
+}
+const ctrlCol = { own: [], neut: new THREE.Color(neutCol) };
+function updateControlPoints() {
+  const cps = G.ctrlPoints; if (!cps || !ctrlObjs.length) return;
+  for (const o of ctrlObjs) {
+    const p = cps[o.id]; if (!p) continue;
+    const col = p.owner >= 0 ? (ctrlCol.own[p.owner] || (ctrlCol.own[p.owner] = new THREE.Color(TEAMS[p.owner % 4].hex))) : ctrlCol.neut;
+    // (owner is a team index which may be >=4 in Duo modes; TEAMS only has 4 entries, hence % 4 here and in overlay.js's colorOf)
+    o.cloth.material.color.lerp(col, .1);
+    o.cloth.rotation.y = Math.sin(G.T * 2.4 + o.id) * .2;
+    const contested = p.capturer != null && p.capturer !== p.owner && p.prog > 0;
+    o.ring.material.color.lerp(contested ? new THREE.Color(0xffcf3a) : col, .1);
+    o.ring.material.opacity = contested ? .35 + Math.sin(G.T * 6) * .2 : .35;
+  }
 }
 export const grassTime = () => grassU.time.value;

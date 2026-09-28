@@ -105,7 +105,28 @@ function box(L, x, z, hw, hd, rot, h, kind) {
 const angNear = (a, targets, w) => targets.some(t => Math.abs(angDiff(a, t)) < w);
 const DIAG = [Math.PI / 4, 3 * Math.PI / 4, -3 * Math.PI / 4, -Math.PI / 4], AXES = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
 
-export function makeLayout(mapId, withFort, seed) {
+// Control mode's five capture points: a cross pattern (centre + one toward each axis), nudged
+// off any obstacle the procedural layout dropped on top of them.
+const CTRL_LETTERS = ['A', 'B', 'C', 'D', 'E'];
+function clearSpot(L, x, z, pad) {
+  return !L.obstacles.some(o => o.box
+    ? Math.abs((x - o.x) * Math.cos(o.rot) - (z - o.z) * Math.sin(o.rot)) < o.hw + pad && Math.abs((x - o.x) * Math.sin(o.rot) + (z - o.z) * Math.cos(o.rot)) < o.hd + pad
+    : Math.hypot(x - o.x, z - o.z) < o.r + pad);
+}
+function findClearSpot(L, x, z) {
+  if (clearSpot(L, x, z, 3)) return [x, z];
+  for (let rad = 3; rad <= 18; rad += 3) for (let a = 0; a < 10; a++) {
+    const ang = a / 10 * Math.PI * 2, nx = x + Math.cos(ang) * rad, nz = z + Math.sin(ang) * rad;
+    if (clearSpot(L, nx, nz, 3)) return [nx, nz];
+  }
+  return [x, z];
+}
+function makeCtrlSpots(L) {
+  const base = [[0, 0], [42, 0], [-42, 0], [0, 42], [0, -42]];
+  return base.map(([x, z], i) => { const [gx, gz] = findClearSpot(L, x, z); return { id: i, letter: CTRL_LETTERS[i], x: gx, z: gz }; });
+}
+
+export function makeLayout(mapId, withFort, withCtrl, seed) {
   const R = mulberry(seed | 0), r = (a, b) => a + R() * (b - a);
   const L = { mapId, withFort, hills: [], palisades: [], rocks: [], trees: [], stones: [], obstacles: [], blockers: [], fortSegments: [],
     buildings: [], columns: [], towers: [], rings: [], gates: [], palms: [], huts: [], statues: [] };
@@ -240,5 +261,6 @@ export function makeLayout(mapId, withFort, seed) {
       L.obstacles.push({ x, z, r: 1.3 });
     }
   }
+  L.ctrlSpots = withCtrl ? makeCtrlSpots(L) : [];
   return L;
 }

@@ -1,6 +1,6 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
-import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, AURA } from '../config.js';
+import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CTRL, AURA } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies } from './state.js';
 import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable } from './nav.js';
@@ -16,7 +16,7 @@ const sound = (name, x, z) => fx('sfx', { name, x, z });
 // Castle strength (points/alive, conquest only) is only ever read/written on the color's own
 // army (0-3): a Duo teammate's army shares its castle rather than owning one.
 export function newTeams(humans, active = [1, 1, 1, 1, 0, 0, 0, 0]) {
-  return Array.from({ length: 8 }, (_, i) => ({ points: 100, tickets: DM_TICKETS, caps: 0, gold: ECON.startGold, alive: true, plan: null, leaderDeadT: 0, recruitT: rnd(2, 6), thinkT: 0,
+  return Array.from({ length: 8 }, (_, i) => ({ points: 100, tickets: DM_TICKETS, caps: 0, ctrlScore: 0, gold: ECON.startGold, alive: true, plan: null, leaderDeadT: 0, recruitT: rnd(2, 6), thinkT: 0,
     human: !!humans[i], active: !!active[i], order: 'follow', holdPt: null, towerT: rnd(0, 1.4), leader: null,
     up: { foot1: 0, foot2: 0, arch1: 0, arch2: 0, aura: 0, horse: 0 }, arrowHits: 0, shieldwallT: 0, volleyCd: 0, upT: rnd(20, 40) }));
 }
@@ -40,12 +40,13 @@ export function mkUnit(ti, x, z, kind, human = false) {
 export const squadOf = ti => G.units.filter(u => !u.dead && u.ti === ti && !u.leader);
 
 export function startMatch(humans, active = [1, 1, 1, 1, 0, 0, 0, 0]) {
-  G.layout = makeLayout(G.map.id, G.mode === 'ctf', G.seed); buildNav(G.layout);
+  G.layout = makeLayout(G.map.id, G.mode === 'ctf', G.mode === 'ctrl', G.seed); buildNav(G.layout);
   G.units = []; G.horses = []; G.arrows = [];
   G.T = 0; G.kills = 0; G.recruited = 0; G.bounty = -1; G.uid = 0; G.arrowN = 0; G.endInfo = null;
   G.teams = newTeams(humans, active);
   G.duo = [0, 1, 2, 3].map(c => !!active[c + 4]);
   G.flag = G.mode === 'ctf' ? { state: 'home', x: 0, z: 0, carrier: null, dropT: 0 } : null;
+  G.ctrlPoints = G.mode === 'ctrl' ? makeCtrlPoints(G.layout) : null;
   for (let i = 0; i < 8; i++) {
     if (!G.teams[i].active) continue;
     const t = TEAMS[colorOf(i)], duo = i >= 4; // a Duo army musters a little further back so it doesn't spawn on top of its teammate
@@ -361,14 +362,17 @@ export function teamOut(i) {
 // One color's shown score: castle strength is shared (conquest), tickets and captures are each
 // army's own and add up across a Duo pair.
 export const armiesOfColor = c => G.duo[c] ? [c, c + 4] : [c];
+const ARMY_SCORE_FIELD = { dm: 'tickets', ctf: 'caps', ctrl: 'ctrlScore' };
 export function colorScore(c) {
   if (G.mode === 'conquest') return G.teams[c].points;
-  return armiesOfColor(c).reduce((s, i) => s + (G.mode === 'dm' ? G.teams[i].tickets : G.teams[i].caps), 0);
+  const field = ARMY_SCORE_FIELD[G.mode];
+  return armiesOfColor(c).reduce((s, i) => s + G.teams[i][field], 0);
 }
 export const colorOut = c => armiesOfColor(c).every(i => teamOut(i));
 export const colorHuman = c => armiesOfColor(c).some(i => G.teams[i].human);
-export const teamScore = i => { const s = G.teams[i]; return G.mode === 'conquest' ? G.teams[colorOf(i)].points : G.mode === 'dm' ? s.tickets : s.caps; };
+export const teamScore = i => { const s = G.teams[i]; return G.mode === 'conquest' ? G.teams[colorOf(i)].points : s[ARMY_SCORE_FIELD[G.mode]]; };
 export const allianceCaps = a => G.teams.reduce((s, t, i) => s + (G.ALLY[colorOf(i)] === a ? t.caps : 0), 0);
+export const allianceCtrl = a => G.teams.reduce((s, t, i) => s + (G.ALLY[colorOf(i)] === a ? t.ctrlScore : 0), 0);
 const alliancesIn = () => [...new Set(activeArmies().filter(i => !teamOut(i)).map(i => G.ALLY[colorOf(i)]))];
 export function checkEnd() {
   if (G.state !== 'play' || G.role === 'client') return;
@@ -378,6 +382,7 @@ export function checkEnd() {
     if (inA.length === 0) return endMatch(-1, 'time');
   }
   if (G.mode === 'ctf') for (const a of new Set(G.ALLY)) if (allianceCaps(a) >= CAPS_TO_WIN) return endMatch(a, 'caps');
+  if (G.mode === 'ctrl') for (const a of new Set(G.ALLY)) if (allianceCtrl(a) >= CTRL.win) return endMatch(a, 'control');
 }
 function checkTime() {
   if (G.state !== 'play' || G.T < MODES[G.mode].time) return;
@@ -395,6 +400,32 @@ export function endMatch(w, why) {
   if (G.state !== 'play') return;
   G.state = 'end'; G.endInfo = { w, why };
   bus.emit('end', G.endInfo);
+}
+
+// ---------- control points ----------
+// Ownership flips to whichever army has strict majority presence within the point's radius,
+// after holding that lead uncontested for CTRL.captureTime seconds; any dead-heat or gap in
+// presence resets the progress rather than letting it decay gradually (simple, readable rule).
+export function makeCtrlPoints(L) { return L.ctrlSpots.map(s => ({ ...s, owner: -1, prog: 0 })); }
+function updateControlPoints(dt) {
+  const pts = G.ctrlPoints; if (!pts) return;
+  for (const p of pts) {
+    const counts = {};
+    for (const u of G.units) {
+      if (u.dead || u.mounted) continue;
+      if (Math.hypot(u.x - p.x, u.z - p.z) > CTRL.radius) continue;
+      counts[u.ti] = (counts[u.ti] || 0) + 1;
+    }
+    const entries = Object.entries(counts).map(([ti, n]) => [+ti, n]).sort((a, b) => b[1] - a[1]);
+    const top = entries[0], tie = entries[1] && entries[1][1] === top[1];
+    const leadTi = top && !tie ? top[0] : null;
+    if (leadTi == null || leadTi === p.owner) { p.prog = 0; continue; }
+    p.capturer = leadTi;
+    p.prog += dt / CTRL.captureTime;
+    if (p.prog >= 1) { p.owner = leadTi; p.prog = 0; say('pointCaptured', leadTi, p.letter); }
+  }
+  for (const p of pts) if (p.owner >= 0 && G.teams[p.owner] && G.teams[p.owner].active) G.teams[p.owner].ctrlScore += CTRL.rate * dt;
+  checkEnd();
 }
 
 // ---------- capture the fort ----------
@@ -541,6 +572,14 @@ function planLeader(u, s) {
     const [cap] = nearestFoe(u, 400, o => o.leader), [any] = nearestFoe(u, 400);
     const bl = G.bounty >= 0 && isEnemyTi(G.bounty, u.ti) && Math.random() < .5 ? G.teams[G.bounty].leader : null;
     s.plan = { kind: 'hunt', target: (bl && !bl.dead) ? bl : (cap || any) };
+  } else if (G.mode === 'ctrl') {
+    const gather = s.plan && s.plan.kind === 'point' ? 4 : 9;
+    if (squadN < gather) { s.plan = { kind: 'defend' }; return; }
+    const mine = s.plan && s.plan.kind === 'point' ? G.ctrlPoints[s.plan.id] : null;
+    // stick with the point already being pushed unless it's ours now or someone else has since taken it over
+    if (mine && mine.owner !== u.ti && Math.random() > .1) return;
+    const opts = G.ctrlPoints.filter(p => p.owner !== u.ti).sort((a, b) => Math.hypot(a.x - u.x, a.z - u.z) - Math.hypot(b.x - u.x, b.z - u.z));
+    s.plan = opts.length ? { kind: 'point', id: opts[0].id } : { kind: 'defend' };
   } else {
     const f = G.flag;
     if (u.carrying) s.plan = { kind: 'home' };
@@ -557,6 +596,7 @@ function planGoal(u, s) {
     case 'hunt': case 'escort': return p.target && !p.target.dead ? { x: p.target.x, z: p.target.z, stop: p.kind === 'escort' ? 3 : 1.5 } : null;
     case 'home': { const [gx, gz] = gatePos(t); return { x: gx, z: gz, stop: .5 }; }
     case 'banner': return { x: G.flag.x, z: G.flag.z, stop: .2 };
+    case 'point': { const pt = G.ctrlPoints && G.ctrlPoints[p.id]; return pt ? { x: pt.x, z: pt.z, stop: CTRL.radius * .6 } : null; }
   }
   return null;
 }
@@ -858,6 +898,7 @@ export function update(dt, input) {
 
   arrowsTick(dt, true);
   updateFlag(dt);
+  updateControlPoints(dt);
   checkTime();
 }
 export function fallStep(u, dt) {
