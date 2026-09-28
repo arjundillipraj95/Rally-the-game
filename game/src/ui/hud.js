@@ -1,5 +1,5 @@
 // Scoreboard, clock, health, gold, squad count and button labels.
-import { TEAMS, MODES, STATS, DM_TICKETS, CAPS_TO_WIN, AL_LETTER, ORDER_NAMES, UPGRADE_MAX } from '../config.js';
+import { TEAMS, MODES, STATS, DM_TICKETS, CAPS_TO_WIN, AL_LETTER, ORDER_NAMES, UPGRADES } from '../config.js';
 import { G, isFfa, colorOf } from '../core/state.js';
 import { colorOut, colorScore, colorHuman, squadOf, canRecruit, horseMax, upgradeCost } from '../core/sim.js';
 import { session, isClient } from '../net/session.js';
@@ -38,15 +38,17 @@ export function updateHud(lastSnapAt) {
   }
   const gold = Math.floor(me.gold); $('gold').textContent = gold;
   const sq = squadOf(G.myTi); $('squadN').textContent = sq.length;
-  const c = k => sq.filter(u => u.kind === k).length; $('squadMix').textContent = `F${c('foot')} S${c('spear')} A${c('arch')}`;
+  const c = k => sq.filter(u => u.kind === k).length; $('squadMix').textContent = `F${c('foot')} A${c('arch')}`;
   document.querySelectorAll('#tray button').forEach(b => {
     b.setAttribute('aria-disabled', (gold < STATS[b.dataset.kind].cost || sq.length >= G.squadCap || !canRecruit(G.myTi)) ? 'true' : 'false');
   });
   document.querySelectorAll('#upTray button').forEach(b => {
-    const id = b.dataset.up, l = me.up ? me.up[id] : 0, cost = upgradeCost(G.myTi, id);
-    b.querySelector('.lv').dataset.pips = '●'.repeat(l) + '○'.repeat(UPGRADE_MAX - l);
-    b.querySelector('em').textContent = cost == null ? 'Max' : cost + 'g';
-    b.setAttribute('aria-disabled', (cost == null || gold < cost) ? 'true' : 'false');
+    const id = b.dataset.up, def = UPGRADES.find(u => u.id === id), max = def ? def.cost.length : 0;
+    const l = me.up ? me.up[id] : 0, cost = upgradeCost(G.myTi, id);
+    const locked = (id === 'foot2' && !(me.up && me.up.foot1)) || (id === 'arch2' && !(me.up && me.up.arch1));
+    b.querySelector('.lv').dataset.pips = '●'.repeat(l) + '○'.repeat(Math.max(0, max - l));
+    b.querySelector('em').textContent = cost == null ? 'Max' : (locked ? 'Locked' : cost + 'g');
+    b.setAttribute('aria-disabled', (cost == null || gold < cost || locked) ? 'true' : 'false');
   });
   let t1 = 'Ride', t2 = 'horse';
   if (p && p.mounted) { t1 = 'Walk'; t2 = 'get off'; } else if (p && p.summon) { t1 = '…'; t2 = 'coming'; } else if (p && p.horseCd > 0) { t1 = Math.ceil(p.horseCd) + 's'; t2 = 'resting'; }

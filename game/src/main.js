@@ -107,7 +107,7 @@ function seedDemo() {
   G.teams = newTeams([0, 0, 0, 0]);
   G.factions = assignFactions(TEAMS.map((_, i) => i === G.myTi ? prefs.faction : null), 7);
   buildWorldView(G.layout); clearEffects(); clearHorses();
-  const kinds = ['foot', 'spear', 'arch', 'foot', 'spear'];
+  const kinds = ['foot', 'foot', 'arch', 'foot', 'arch'];
   TEAMS.forEach((t, i) => kinds.forEach((k, n) => { const [x, z] = gatePos(t, (n - 2) * 1.5); const u = mkUnit(i, x * .5, z * .5, k); u.face = Math.atan2(-u.x, -u.z); u.demo = true; }));
   const c = mkUnit(G.myTi, 0, 22, 'captain'); c.demo = true;
   const h = { id: 1, x: 0, z: 22, face: 0, state: 'ridden', rider: c, t: 0, spd: 9, ti: G.myTi };
@@ -256,7 +256,7 @@ window.__fb = {
     return { state: G.state, T: Math.round(G.T), MODE: G.mode, map: G.map.id, myTi: G.myTi, al: G.ALLY.join(''), units: G.units.length, horses: G.horses.length, arrows: G.arrows.length,
       net: NET && { role: NET.role, seats: NET.seats, size: NET.lastSize, hostPeer: NET.hostPeer },
       teams: G.teams.map(s => ({ p: Math.round(s.points), t: s.tickets, c: s.caps, g: Math.round(s.gold), alive: s.alive, h: s.human ? 1 : 0, plan: s.plan && s.plan.kind, lead: s.leader && { m: s.leader.mounted, dead: s.leader.dead } })),
-      kinds: ['foot', 'spear', 'arch'].map(k => G.units.filter(u => !u.dead && u.kind === k).length),
+      kinds: ['foot', 'arch'].map(k => G.units.filter(u => !u.dead && u.kind === k).length),
       flag: G.flag && { s: G.flag.state }, player: p && { x: r1(p.x), z: r1(p.z), hp: Math.round(p.hp), mounted: p.mounted, dead: p.dead, id: p.id },
       gfx: { level: quality.level, setting: quality.setting, fps: Math.round(fpsAvg), calls: renderer.info.render.calls, tris: renderer.info.render.triangles, batches: drawCalls() } };
   },

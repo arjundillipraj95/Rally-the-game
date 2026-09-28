@@ -34,21 +34,21 @@
     <div class="ctl" id="ctl">
       <div class="pillrow" style="position:relative">
         <div class="tray" id="tray" hidden>
-          <button type="button" data-kind="foot"><b>Footman</b><em>40g</em><span>Beats archers</span></button>
-          <button type="button" data-kind="spear"><b>Spearman</b><em>45g</em><span>Beats foot &amp; horse</span></button>
-          <button type="button" data-kind="arch"><b>Archer</b><em>50g</em><span>Beats spearmen</span></button>
+          <button type="button" data-kind="foot"><b>Footman</b><em>40g</em><span>Sword &amp; shield, upgrades to spear + javelin</span></button>
+          <button type="button" data-kind="arch"><b>Archer</b><em>50g</em><span>Ranged, damage by hit location</span></button>
         </div>
         <div class="tray up" id="upTray" hidden>
-          <button type="button" data-up="dmg"><b>Damage</b><i class="lv"></i><em></em></button>
-          <button type="button" data-up="armor"><b>Armor</b><i class="lv"></i><em></em></button>
-          <button type="button" data-up="speed"><b>Speed</b><i class="lv"></i><em></em></button>
+          <button type="button" data-up="foot1"><b>Arms</b><i class="lv"></i><em></em></button>
+          <button type="button" data-up="foot2"><b>Armor</b><i class="lv"></i><em></em></button>
+          <button type="button" data-up="arch1"><b>Training</b><i class="lv"></i><em></em></button>
+          <button type="button" data-up="arch2"><b>Marksman</b><i class="lv"></i><em></em></button>
           <button type="button" data-up="aura"><b>Aura</b><i class="lv"></i><em></em></button>
           <button type="button" data-up="horse"><b>Horse</b><i class="lv"></i><em></em></button>
         </div>
         <button class="rbtn pill" id="recBtn" type="button"><small>Recruit</small><span>+</span></button>
         <button class="rbtn pill" id="upBtn" type="button"><small>Upgrade</small><span>&#9650;</span></button>
         <button class="rbtn pill" id="cmdBtn" type="button"><span class="ic"></span><span id="cmdT">Follow me!</span></button>
-        <div id="squadBox"><span id="squadN">6</span><small id="squadMix">F3 S2 A1</small></div>
+        <div id="squadBox"><span id="squadN">6</span><small id="squadMix">F5 A1</small></div>
       </div>
       <div class="round">
         <button class="rbtn" id="mnt" type="button" aria-label="Ride or walk"><span id="mntT">Ride</span><small id="mntS">horse</small></button>
@@ -68,7 +68,7 @@
       <div>
         <h1 class="logo"><span>Rally!</span></h1>
         <div class="flags"><i style="background:var(--blue)"></i><i style="background:var(--red)"></i><i style="background:var(--green)"></i><i style="background:var(--yellow)"></i></div>
-        <p>Lead your army against three rival teams, alone or with friends on their own phones. Recruit footmen, spearmen and archers, call your horse, and fight at the front of your squad.</p>
+        <p>Lead your army against three rival teams, alone or with friends on their own phones. Recruit footmen and archers, call your horse, and fight at the front of your squad.</p>
         <div class="rotate" style="margin-top:10px">Turn your phone sideways for the best view</div>
       </div>
       <div class="side">
@@ -148,7 +148,7 @@
             <dt>Move</dt><dd>Left thumb. Drag the right side to turn the camera.</dd>
             <dt>Fight</dt><dd>Red attacks (hold to keep swinging). Blue blocks hits from the front.</dd>
             <dt>Horse</dt><dd>Ride to cross the map and trample men on foot. No blocking, no castle damage, no banner. Spearmen are deadly to horses.</dd>
-            <dt>Units</dt><dd>Footmen beat archers. Spearmen beat footmen and riders. Archers beat spearmen.</dd>
+            <dt>Units</dt><dd>Footmen upgrade into spear &amp; javelin fighters who dismount riders. Archers deal more damage on a headshot, less on the legs; shields block body shots but not headshots.</dd>
             <dt>Teams</dt><dd>Allies share victory and never hurt each other. In Capture the Fort, allies pool their captures.</dd>
             <dt>Orders</dt><dd>Follow me, Hold here, Charge, and Testudo: your squad locks shields overhead and marches slowly while arrows bounce off.</dd>
             <dt>Aura</dt><dd>Soldiers inside the ring around your captain hit harder, block more and move faster. Upgrades make it bigger.</dd>

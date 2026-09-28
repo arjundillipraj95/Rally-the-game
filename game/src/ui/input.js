@@ -77,10 +77,10 @@ export function bindInput(actions) {
     if (e.code === 'KeyE') A.order('charge');
     if (e.code === 'KeyT') A.order('testudo');
     if (e.code === 'KeyU') upOpen(!inp.upIsOpen);
-    const up = ['Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8'].indexOf(e.code);
-    if (up >= 0) A.upgrade(['dmg', 'armor', 'speed', 'aura', 'horse'][up]);
+    const up = ['Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8'].indexOf(e.code);
+    if (up >= 0) A.upgrade(['foot1', 'foot2', 'arch1', 'arch2', 'aura', 'horse'][up]);
     if (e.code === 'KeyH') A.ride();
-    if (e.code === 'Digit1') A.recruit('foot'); if (e.code === 'Digit2') A.recruit('spear'); if (e.code === 'Digit3') A.recruit('arch');
+    if (e.code === 'Digit1') A.recruit('foot'); if (e.code === 'Digit2') A.recruit('arch');
   });
   addEventListener('keyup', e => { inp.keys[e.code] = false; if (e.code === 'Space') inp.attackHeld = false; if (e.code.startsWith('Shift')) inp.blockHeld = false; });
   addEventListener('blur', releaseAll);

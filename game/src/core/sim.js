@@ -1,6 +1,6 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
-import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, UPGRADE_COST, UPGRADE_MAX, AURA } from '../config.js';
+import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, AURA } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies } from './state.js';
 import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable } from './nav.js';
@@ -18,13 +18,19 @@ const sound = (name, x, z) => fx('sfx', { name, x, z });
 export function newTeams(humans, active = [1, 1, 1, 1, 0, 0, 0, 0]) {
   return Array.from({ length: 8 }, (_, i) => ({ points: 100, tickets: DM_TICKETS, caps: 0, gold: ECON.startGold, alive: true, plan: null, leaderDeadT: 0, recruitT: rnd(2, 6), thinkT: 0,
     human: !!humans[i], active: !!active[i], order: 'follow', holdPt: null, towerT: rnd(0, 1.4), leader: null,
-    up: { dmg: 0, armor: 0, speed: 0, aura: 0, horse: 0 }, arrowHits: 0, testudoT: 0, upT: rnd(20, 40) }));
+    up: { foot1: 0, foot2: 0, arch1: 0, arch2: 0, aura: 0, horse: 0 }, arrowHits: 0, testudoT: 0, upT: rnd(20, 40) }));
 }
 export function mkUnit(ti, x, z, kind, human = false) {
   const st = STATS[kind];
+  const tier = kind === 'foot' ? footTier(ti) : kind === 'arch' ? archTier(ti) : 0;
+  const base = kind === 'foot' ? FOOT_TIERS[tier] : kind === 'arch' ? ARCH_TIERS[tier] : st;
+  const capB = kind === 'captain' ? CAPTAIN_TIERS[footTier(ti)] : null;
   const u = { id: ++G.uid, ti, kind, leader: kind === 'captain', human, isMe: human && ti === G.myTi && G.role !== 'client', remote: human && ti !== G.myTi,
-    x, z, y: groundY(x, z), vx: 0, vz: 0, vy: 0, face: Math.atan2(-x, -z), hp: st.hp, max: st.hp,
-    dmg: human ? HUMAN_CAPTAIN.dmg : st.dmg, spd: human ? HUMAN_CAPTAIN.spd : st.spd, r: st.r, reach: st.reach,
+    x, z, y: groundY(x, z), vx: 0, vz: 0, vy: 0, face: Math.atan2(-x, -z),
+    hp: base.hp + (capB ? capB.hpB : 0), max: base.hp + (capB ? capB.hpB : 0),
+    dmg: (human ? HUMAN_CAPTAIN.dmg : base.dmg) + (capB ? capB.dmgB : 0), spd: human ? HUMAN_CAPTAIN.spd : base.spd, r: base.r, reach: base.reach + (capB ? capB.reachB : 0),
+    block: base.block || 0, range: base.range || 0, shootBase: base.shoot || 0, arrow: base.arrow || 0, jitter: base.jitter || .8,
+    javelin: capB ? capB.javelin : !!base.javelin, javCd: 0, tier,
     cd: rnd(0, .6), shootCd: rnd(0, 1.5), swing: 0, pending: null, stun: 0, blockT: 0, rt: rnd(0, .3), foe: null, fd: 1e9,
     dead: false, deadT: 0, trampleT: 0, lastHit: -9, blocking: false, aim: false,
     mounted: false, horse: null, summon: null, horseHp: horseMax(ti), horseCd: 0, carrying: false, aura: false, testudo: false,
@@ -73,11 +79,48 @@ export const horseMax = ti => HORSE_HP + 30 * lvl(ti, 'horse');
 export const horseCooldown = ti => HORSE_CD - 4 * lvl(ti, 'horse');
 export const auraRange = ti => AURA.range + AURA.perRange * lvl(ti, 'aura');
 export const auraBonus = ti => AURA.bonus + AURA.perBonus * lvl(ti, 'aura');
-export const upgradeCost = (ti, id) => lvl(ti, id) >= UPGRADE_MAX ? null : UPGRADE_COST[lvl(ti, id)];
+// Tier index (0/1/2) from how many of that line's upgrades are bought so far.
+export const footTier = ti => Math.min(2, lvl(ti, 'foot1') + lvl(ti, 'foot2'));
+export const archTier = ti => Math.min(2, lvl(ti, 'arch1') + lvl(ti, 'arch2'));
+export const upgradeCost = (ti, id) => {
+  const def = UPGRADES.find(u => u.id === id);
+  if (!def) return null;
+  const l = lvl(ti, id);
+  return l >= def.cost.length ? null : def.cost[l];
+};
+// Applying a tier retroactively updates every already-recruited unit of that kind, matching
+// how the old dmg/armor/speed upgrades already worked live via lvl() — bought mid-battle, felt
+// immediately. HP changes preserve damage already taken rather than fully healing the unit.
+function applyFootTier(ti) {
+  const tier = footTier(ti), t = FOOT_TIERS[tier], cb = CAPTAIN_TIERS[tier];
+  for (const u of G.units) {
+    if (u.dead || u.ti !== ti) continue;
+    if (u.kind === 'foot') {
+      const nmax = t.hp; u.hp = Math.min(nmax, Math.max(1, u.hp + (nmax - u.max))); u.max = nmax;
+      u.dmg = t.dmg; u.reach = t.reach; u.block = t.block; u.spd = t.spd; u.javelin = t.javelin; u.tier = tier;
+    } else if (u.leader) {
+      const nmax = STATS.captain.hp + cb.hpB; u.hp = Math.min(nmax, Math.max(1, u.hp + (nmax - u.max))); u.max = nmax;
+      u.dmg = (u.human ? HUMAN_CAPTAIN.dmg : STATS.captain.dmg) + cb.dmgB;
+      u.reach = STATS.captain.reach + cb.reachB; u.javelin = cb.javelin;
+    }
+  }
+}
+function applyArchTier(ti) {
+  const tier = archTier(ti), t = ARCH_TIERS[tier];
+  for (const u of G.units) {
+    if (u.dead || u.ti !== ti || u.kind !== 'arch') continue;
+    const nmax = t.hp; u.hp = Math.min(nmax, Math.max(1, u.hp + (nmax - u.max))); u.max = nmax;
+    u.dmg = t.dmg; u.spd = t.spd; u.range = t.range; u.shootBase = t.shoot; u.arrow = t.arrow; u.jitter = t.jitter; u.tier = tier;
+  }
+}
 export function buyUpgrade(ti, id) {
   const s = G.teams[ti], cost = upgradeCost(ti, id);
   if (!s || cost == null || s.gold < cost || !UPGRADES.some(u => u.id === id)) return false;
+  if (id === 'foot2' && lvl(ti, 'foot1') < 1) return false;
+  if (id === 'arch2' && lvl(ti, 'arch1') < 1) return false;
   s.gold -= cost; s.up[id]++;
+  if (id === 'foot1' || id === 'foot2') applyFootTier(ti);
+  if (id === 'arch1' || id === 'arch2') applyArchTier(ti);
   if (id === 'horse' && s.leader && !s.leader.mounted) s.leader.horseHp = horseMax(ti);
   if (id === 'horse' && s.leader && s.leader.horseCd > horseCooldown(ti)) s.leader.horseCd = horseCooldown(ti);
   if (ti === G.myTi) { sound('coin'); say('upgrade', ti, id, s.up[id]); }
@@ -96,7 +139,7 @@ function push(u, vx, vz, stun) {
 export function speedOf(u) {
   let s = u.spd;
   if (u.mounted) s *= 1.8 * (1 + .05 * lvl(u.ti, 'horse'));
-  if (!u.leader) { s *= 1 + .06 * lvl(u.ti, 'speed'); if (u.aura) s *= 1 + auraBonus(u.ti) * .5; if (u.testudo) s *= .6; }
+  if (!u.leader) { if (u.aura) s *= 1 + auraBonus(u.ti) * .5; if (u.testudo) s *= .6; }
   if (u.carrying) s *= .7;
   if (inFord(u.x, u.z)) s *= .6;
   if (u.human && u.blocking && !u.mounted) s *= .5;
@@ -131,8 +174,8 @@ function horseDamage(r, dmg) {
   spark(r.x, r.y + 1.3, r.z, '#d42a1e', 5); sound('hit', r.x, r.z);
   if (r.horseHp <= 0) dismount(r, true);
 }
-const spearNear = (u, d) => G.units.some(o => !o.dead && isEnemy(o, u) && o.kind === 'spear' && Math.hypot(o.x - u.x, o.z - u.z) < d);
-export const braced = s => s.kind === 'spear' && s.stun <= 0 && Math.hypot(s.vx, s.vz) < 2.2;
+const spearNear = (u, d) => G.units.some(o => !o.dead && isEnemy(o, u) && o.kind === 'foot' && o.tier >= 1 && Math.hypot(o.x - u.x, o.z - u.z) < d);
+export const braced = s => s.kind === 'foot' && s.tier >= 1 && s.stun <= 0 && Math.hypot(s.vx, s.vz) < 2.2;
 export function toggleHorseFor(p) {
   if (!p || p.dead) return;
   if (p.mounted) { dismount(p, false); return; }
@@ -195,20 +238,17 @@ function resolveSwing(u) {
 function hit(a, b, mult = 1) {
   if (!isEnemy(a, b)) return;
   let dmg = a.dmg * rnd(.8, 1.2) * mult * aiDmg(a.ti);
-  if (!a.leader) { dmg *= 1 + .1 * lvl(a.ti, 'dmg'); if (a.aura) dmg *= 1 + auraBonus(a.ti); }
-  if (!b.leader) dmg *= 1 - .1 * lvl(b.ti, 'armor');
-  if (a.kind === 'spear' && b.kind === 'foot') dmg *= 1.3;
-  if (a.kind === 'spear' && b.leader) dmg *= 1.4;
-  if (a.kind === 'foot' && b.kind === 'arch') dmg *= 1.4;
+  if (!a.leader && a.aura) dmg *= 1 + auraBonus(a.ti);
   if (a.y - b.y > .8) dmg *= 1.2; // fighting downhill
   b.lastHit = G.T;
-  if (b.mounted && (a.kind === 'spear' || Math.random() < .5)) { horseDamage(b, dmg * (a.kind === 'spear' ? 3 : 1)); return; }
+  const spearedHorse = a.kind === 'foot' && a.tier >= 1;
+  if (b.mounted && (spearedHorse || Math.random() < .5)) { horseDamage(b, dmg * (spearedHorse ? 3 : 1)); return; }
   let kb = a.leader ? (a.mounted ? 9 : 7) : 4.5;
   const frontal = Math.abs(angDiff(b.face, Math.atan2(a.x - b.x, a.z - b.z))) < 1.1;
   let blocked = false;
   if (frontal && b.stun <= 0 && !b.mounted && !b.carrying) {
     if (b.human) blocked = b.blocking;
-    else if (Math.random() < STATS[b.kind].block + (b.aura ? auraBonus(b.ti) : 0) + (b.testudo && b.kind === 'foot' ? .3 : 0)) { blocked = true; b.blockT = .45; }
+    else if (Math.random() < (b.block || 0) + (b.aura ? auraBonus(b.ti) : 0) + (b.testudo && b.kind === 'foot' ? .3 : 0)) { blocked = true; b.blockT = .45; }
   }
   const hx = (a.x + b.x) / 2, hz = (a.z + b.z) / 2, hy = (a.y + b.y) / 2 + 1.2;
   if (blocked) {
@@ -226,19 +266,36 @@ function hit(a, b, mult = 1) {
   if (b.hp <= 0) die(b, a, ang);
 }
 function shoot(u, tg, fromY = 1.6) {
+  const j = u.jitter || .8;
   const lead = .35 + Math.hypot(tg.x - u.x, tg.z - u.z) / 30;
-  const tx = tg.x + tg.vx * lead + rnd(-.8, .8), tz = tg.z + tg.vz * lead + rnd(-.8, .8);
+  const tx = tg.x + tg.vx * lead + rnd(-j, j), tz = tg.z + tg.vz * lead + rnd(-j, j);
   const d = Math.hypot(tx - u.x, tz - u.z), y0 = (u.y || 0) + fromY;
   G.arrows.push(makeArrow({ id: ++G.arrowN, x0: u.x, y0, z0: u.z, x1: tx, z1: tz, y1: groundY(tx, tz) + 1.1, dur: .25 + d / 28, peak: Math.min(6, d * .16), ti: u.ti, t: 0, shooter: u }));
   if (!u.tower) u.swing = .38;
   sound('bow', u.x, u.z);
 }
+// A javelin throw: a foot/captain unit with the javelin ability hurls one at a mid-range foe,
+// reusing the arrow flight/hit pipeline (flat damage, no headshot roll) rather than a new system.
+function throwJavelin(u, tg) {
+  const d = Math.hypot(tg.x - u.x, tg.z - u.z), y0 = (u.y || 0) + 1.5;
+  G.arrows.push(makeArrow({ id: ++G.arrowN, x0: u.x, y0, z0: u.z, x1: tg.x, z1: tg.z, y1: groundY(tg.x, tg.z) + 1.1, dur: .18 + d / 22, peak: Math.min(3.5, d * .09), ti: u.ti, t: 0, shooter: u, javelin: true }));
+  u.javCd = JAVELIN.cd; u.swing = .3;
+  sound('bow', u.x, u.z);
+}
 export function makeArrow(a) { a.x = a.x0; a.y = a.y0; a.z = a.z0; a.px = a.x0; a.py = a.y0; a.pz = a.z0; return a; }
 function arrowHit(a, b) {
-  let dmg = STATS.arch.arrow * rnd(.8, 1.2) * aiDmg(a.ti);
-  if (b.kind === 'spear') dmg *= 1.5;
-  if (!b.leader) dmg *= 1 - .1 * lvl(b.ti, 'armor');
-  if (a.shooter && !a.shooter.tower) dmg *= 1 + .1 * lvl(a.ti, 'dmg');
+  const shooter = a.shooter;
+  let dmg, loc = 'body';
+  if (a.javelin) {
+    dmg = JAVELIN.dmg * rnd(.85, 1.15) * aiDmg(a.ti);
+  } else {
+    dmg = (shooter ? shooter.arrow : STATS.arch.arrow) * rnd(.8, 1.2) * aiDmg(a.ti);
+    // Skill/tier-based headshots: tighter aim (lower jitter, from the Marksman upgrade) means
+    // more of them land on the head for extra damage, or the legs for less.
+    const j = shooter ? shooter.jitter : .8, headChance = .08 + (1 - j) * .22, roll = Math.random();
+    if (roll < headChance) { dmg *= 1.8; loc = 'head'; }
+    else if (roll > .82) { dmg *= .6; loc = 'legs'; }
+  }
   if (G.teams[b.ti]) G.teams[b.ti].arrowHits++;
   // a testudo turns arrows: shields overhead for footmen, cover from neighbours for the rest
   if (b.testudo && (b.kind === 'foot' || Math.random() < .6)) { spark(b.x, b.y + 2.2, b.z, '#e8d9b0', 4); sound('thud', b.x, b.z); return; }
@@ -246,7 +303,7 @@ function arrowHit(a, b) {
   if (b.mounted && Math.random() < .6) { horseDamage(b, dmg); return; }
   const frontal = Math.abs(angDiff(b.face, Math.atan2(a.x0 - b.x, a.z0 - b.z))) < 1.1;
   let blocked = false;
-  if (frontal && !b.mounted && !b.carrying) {
+  if (frontal && !b.mounted && !b.carrying && loc !== 'head') {
     if (b.kind === 'foot' && Math.random() < .7) blocked = true;
     if (b.leader && (b.human ? b.blocking : Math.random() < .35)) blocked = true;
   }
@@ -379,11 +436,24 @@ export function softAim(p) {
   }
   return best;
 }
+// One Attack button, several weapons: melee whenever a foe is in reach, otherwise the captain
+// throws a javelin at anyone further out but still within range (mounted or on foot), once the
+// Arms upgrade has unlocked it. No separate throw button — it's picked by range/context.
 export function captainAttack(p) {
   if (!p || p.dead || p.carrying) return;
-  if (p.mounted) { startSweep(p); return; }
+  if (p.mounted) {
+    if (p.javelin && p.javCd <= 0) {
+      const [foe, fd] = nearestFoe(p, JAVELIN.range, o => !o.mounted);
+      if (foe && fd > 3.5) { p.face = Math.atan2(foe.x - p.x, foe.z - p.z); throwJavelin(p, foe); return; }
+    }
+    startSweep(p); return;
+  }
   const best = softAim(p);
   if (best) { if (startSwing(p, best)) p.face = Math.atan2(best.x - p.x, best.z - p.z); return; }
+  if (p.javelin && p.javCd <= 0) {
+    const [foe, fd] = nearestFoe(p, JAVELIN.range);
+    if (foe && fd > 3.4) { p.face = Math.atan2(foe.x - p.x, foe.z - p.z); throwJavelin(p, foe); return; }
+  }
   const [ci, cd] = nearestEnemyCastle(p);
   if (ci >= 0 && cd < CASTLE_REACH + .6) { if (startSwing(p, { castle: ci })) p.face = Math.atan2(TEAMS[ci].pos[0] - p.x, TEAMS[ci].pos[1] - p.z); return; }
   startSwing(p, null);
@@ -512,7 +582,6 @@ function testudoPos(anchor, front, idx) {
 function thinkSoldier(u, dt) {
   const s = G.teams[u.ti], L = s.leader, leaderUp = L && !L.dead;
   const myOrder = orderOf(u.ti);
-  const st = STATS[u.kind];
   if (myOrder === 'testudo' && leaderUp) {
     u.aim = false;
     const foe = u.foe;
@@ -522,9 +591,9 @@ function thinkSoldier(u, dt) {
     if (d < 1 && !(foe && u.fd < 3)) u.face = turn(u.face, L.face, dt * 6);
     return;
   }
-  const range = u.kind === 'arch' ? st.range * (u.y > 2.2 ? 1.3 : 1) : 0; // archers on high ground shoot farther
+  const range = u.kind === 'arch' ? u.range * (u.y > 2.2 ? 1.3 : 1) : 0; // archers on high ground shoot farther
   u.aim = false;
-  if (u.kind === 'spear' && myOrder !== 'charge') {
+  if (u.kind === 'foot' && u.tier >= 1 && myOrder !== 'charge') {
     const [rider, rd] = nearestFoe(u, 9, o => o.mounted);
     if (rider) { moveToward(u, u.x, u.z, 0, dt); faceTo(u, rider.x, rider.z, dt, 10); if (rd < u.r + rider.r + u.reach) startSwing(u, rider); return; }
   }
@@ -537,8 +606,11 @@ function thinkSoldier(u, dt) {
       else if (fd < 5.5) { moveToward(u, u.x - (foe.x - u.x), u.z - (foe.z - u.z), u.spd, dt); faceTo(u, foe.x, foe.z, dt, 6); }
       else if (fd <= range) {
         u.aim = true; moveToward(u, u.x, u.z, 0, dt); faceTo(u, foe.x, foe.z, dt, 8);
-        if (u.shootCd <= 0 && u.stun <= 0 && Math.abs(angDiff(u.face, Math.atan2(foe.x - u.x, foe.z - u.z))) < .3) { shoot(u, foe); u.shootCd = st.shoot * rnd(.85, 1.2); }
+        if (u.shootCd <= 0 && u.stun <= 0 && Math.abs(angDiff(u.face, Math.atan2(foe.x - u.x, foe.z - u.z))) < .3) { shoot(u, foe); u.shootCd = u.shootBase * rnd(.85, 1.2); }
       } else go(u, foe.x, foe.z, speedOf(u), dt, range * .8);
+    } else if (u.javelin && u.javCd <= 0 && fd > u.r + foe.r + u.reach + .3 && fd < JAVELIN.range && !foe.mounted) {
+      moveToward(u, u.x, u.z, 0, dt); faceTo(u, foe.x, foe.z, dt, 8);
+      if (Math.abs(angDiff(u.face, Math.atan2(foe.x - u.x, foe.z - u.z))) < .3) throwJavelin(u, foe);
     } else {
       go(u, foe.x, foe.z, speedOf(u), dt, u.r + foe.r + u.reach * .7); faceTo(u, foe.x, foe.z, dt);
       if (fd < u.r + foe.r + u.reach) startSwing(u, foe);
@@ -571,13 +643,10 @@ function aiPick(ti) {
   if (G.diff === 2) {
     const foes = activeArmies().filter(i => G.teams[i].human && isEnemyTi(i, ti));
     const sq = foes.flatMap(i => squadOf(i)), c = k => sq.filter(u => u.kind === k).length;
-    const f = c('foot'), s = c('spear'), a = c('arch');
-    if (foes.some(i => G.teams[i].leader && G.teams[i].leader.mounted) && r < .5) return 'spear';
-    if (a >= f && a >= s) return r < .7 ? 'foot' : 'spear';
-    if (f >= s) return r < .7 ? 'spear' : 'arch';
-    return r < .7 ? 'arch' : 'foot';
+    const f = c('foot'), a = c('arch');
+    return a >= f ? (r < .7 ? 'foot' : 'arch') : (r < .35 ? 'arch' : 'foot');
   }
-  return r < .45 ? 'foot' : r < .75 ? 'spear' : 'arch';
+  return r < .65 ? 'foot' : 'arch';
 }
 
 // ---------- physics ----------
@@ -672,15 +741,15 @@ export function update(dt, input) {
     const L = G.teams[u.ti].leader, dx = L ? L.x - u.x : 0, dz = L ? L.z - u.z : 0;
     u.aura = !!L && !L.dead && dx * dx + dz * dz < rng[u.ti];
     u.testudo = ords[u.ti] === 'testudo';
-    // testudo ranks: footmen in the front rank, spearmen next, archers at the back.
+    // testudo ranks: footmen in the front rank, archers at the back.
     // Slot 0 sits nearest the captain, who is behind a human's block and in front of a computer's.
-    const k = u.kind === 'foot' ? 0 : u.kind === 'spear' ? 1 : 2;
-    u.tkey = G.teams[u.ti].human ? 2 - k : k;
+    const k = u.kind === 'foot' ? 0 : 1;
+    u.tkey = G.teams[u.ti].human ? 1 - k : k;
   }
-  for (const k of [0, 1, 2]) for (const u of G.units) if (!u.dead && !u.leader && u.tkey === k) u.tslot = tIdx[u.ti]++;
+  for (const k of [0, 1]) for (const u of G.units) if (!u.dead && !u.leader && u.tkey === k) u.tslot = tIdx[u.ti]++;
   for (const u of G.units) {
     if (u.dead) continue;
-    u.cd -= dt; u.shootCd -= dt; u.stun -= dt; u.blockT -= dt; u.rt -= dt; u.trampleT -= dt;
+    u.cd -= dt; u.shootCd -= dt; u.javCd -= dt; u.stun -= dt; u.blockT -= dt; u.rt -= dt; u.trampleT -= dt;
     if (u.horseCd > 0) u.horseCd -= dt;
     if (u.swing > 0) u.swing -= dt;
     if (u.pending) { u.pending.t -= dt; if (u.pending.t <= 0) resolveSwing(u); }
@@ -713,7 +782,7 @@ export function update(dt, input) {
       if (o.dead || !isEnemy(o, r) || o.mounted) continue;
       const dx = o.x - r.x, dz = o.z - r.z; if (Math.abs(dx) > 4 || Math.abs(dz) > 4) continue;
       const d = Math.hypot(dx, dz);
-      if (o.kind === 'spear' && d < o.r + r.r + 1.6 && braced(o) && sp > 4 && Math.abs(angDiff(o.face, Math.atan2(r.x - o.x, r.z - o.z))) < 1.0) {
+      if (o.kind === 'foot' && o.tier >= 1 && d < o.r + r.r + 1.6 && braced(o) && sp > 4 && Math.abs(angDiff(o.face, Math.atan2(r.x - o.x, r.z - o.z))) < 1.0) {
         horseDamage(r, 55); if (r.mounted) dismount(r, true);
         spark(o.x, o.y + 1.5, o.z, '#fff3b0', 8); sound('clang', o.x, o.z);
         fx('float', { x: o.x, y: o.y + 2.8, z: o.z, text: 'Spear wall!', color: TEAMS[colorOf(o.ti)].css });
