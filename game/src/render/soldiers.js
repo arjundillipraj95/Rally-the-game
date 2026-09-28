@@ -31,6 +31,7 @@ const GEO = {
   crest: new THREE.BoxGeometry(.1, .22, .62),
   cheek: new THREE.BoxGeometry(.08, .3, .24),
   neckGuard: new THREE.BoxGeometry(.56, .08, .22),
+  pauldron: new THREE.BoxGeometry(.22, .16, .24),
   nose: new THREE.BoxGeometry(.07, .24, .05),
   knob: new THREE.SphereGeometry(.08, 8, 6),
   hair: new THREE.SphereGeometry(.45, 12, 8, 0, Math.PI * 2, 0, Math.PI * .55),
@@ -93,9 +94,13 @@ export const factionOf = u => (G.factions && G.factions[colorOf(u.ti)]) || 'roma
 // ---------- part list ----------
 const e = (x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1) =>
   new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz)), new THREE.Vector3(sx, sy, sz));
-// filters: k = kinds, f = factions
+// filters: k = kinds, f = factions, t = tier predicate (u => bool), for Footman/Archer/captain
+// upgrade tiers so each purchase changes the model, not just the stats.
 const K = (...ks) => new Set(ks), F = (...fs) => new Set(fs);
-const MELEE = K('foot', 'captain'), HELMED = K('foot', 'captain', 'spear');
+const MELEE = K('foot', 'captain'), HELMED = K('foot', 'captain');
+const armed = u => u.tier >= 1; // Footman/captain Arms upgrade: spear + javelin
+const armored = u => u.tier >= 2; // Footman/captain Armor upgrade: extra plate
+const trained = u => u.tier >= 1, marksman = u => u.tier >= 2; // Archer tiers
 const team = u => C.team[colorOf(u.ti)], dark = u => C.dark[colorOf(u.ti)];
 const PARTS = [
   { bone: 'root', geo: 'shadow', mat: 'shadow', m: e(0, .03, 0, -Math.PI / 2), when: 'blob' },
@@ -112,8 +117,8 @@ const PARTS = [
   { bone: 'body', geo: 'torso', mat: 'metal', m: e(0, 1.08, 0), f: F('roman'), k: HELMED, col: () => C.steel },
   { bone: 'body', geo: 'torso', mat: 'metal', m: e(0, 1.08, 0), f: F('greek'), k: K('captain'), col: () => C.bronze },
   { bone: 'body', geo: 'torso', mat: 'plain', m: e(0, 1.08, 0), f: F('greek'), k: K('foot', 'spear'), col: () => C.linen },
-  { bone: 'body', geo: 'torso', mat: 'plain', m: e(0, 1.08, 0), f: F('barbarian'), k: MELEE, col: skinOf },
-  { bone: 'body', geo: 'torso', mat: 'plain', m: e(0, 1.08, 0), f: F('barbarian'), k: K('spear'), col: dark },
+  { bone: 'body', geo: 'torso', mat: 'plain', m: e(0, 1.08, 0), f: F('barbarian'), k: MELEE, t: u => !armed(u), col: skinOf },
+  { bone: 'body', geo: 'torso', mat: 'plain', m: e(0, 1.08, 0), f: F('barbarian'), k: MELEE, t: armed, col: dark },
   { bone: 'body', geo: 'torso', mat: 'plain', m: e(0, 1.08, 0), k: K('arch'), col: dark },
   { bone: 'body', geo: 'skirt', mat: 'plain', m: e(0, .64, 0), f: F('roman', 'greek'), col: team },
   { bone: 'body', geo: 'belt', mat: 'plain', m: e(0, .78, 0), col: u => factionOf(u) === 'barbarian' ? team(u) : C.leather },
@@ -128,8 +133,8 @@ const PARTS = [
   { bone: 'body', geo: 'helm', mat: 'metal', m: e(0, 1.86, 0), f: F('roman'), k: HELMED, col: () => C.steel },
   { bone: 'body', geo: 'cheek', mat: 'metal', m: e(.34, 1.64, .12, 0, 0, .12), f: F('roman'), k: HELMED, col: () => C.steel },
   { bone: 'body', geo: 'cheek', mat: 'metal', m: e(-.34, 1.64, .12, 0, 0, -.12), f: F('roman'), k: HELMED, col: () => C.steel },
-  { bone: 'body', geo: 'crest', mat: 'plain', m: e(0, 2.36, 0), f: F('roman'), k: K('foot'), col: team },
-  { bone: 'body', geo: 'knob', mat: 'metal', m: e(0, 2.3, 0), f: F('roman'), k: K('spear'), col: () => C.bronze },
+  { bone: 'body', geo: 'crest', mat: 'plain', m: e(0, 2.36, 0), f: F('roman'), k: K('foot'), t: u => !armed(u), col: team },
+  { bone: 'body', geo: 'knob', mat: 'metal', m: e(0, 2.3, 0), f: F('roman'), k: K('foot'), t: armed, col: () => C.bronze },
   { bone: 'body', geo: 'crest', mat: 'plain', m: e(0, 2.36, 0, 0, Math.PI / 2, 0, 1.3, 1.5, 1.25), f: F('roman'), k: K('captain'), col: () => C.gold },
   // Greek Corinthian helmet with a tall horsehair crest
   { bone: 'body', geo: 'corinth', mat: 'metal', m: e(0, 1.8, 0), f: F('greek'), k: HELMED, col: () => C.bronze },
@@ -156,15 +161,22 @@ const PARTS = [
   { bone: 'shield', geo: 'roundShield', mat: 'plain', m: e(0, 0, 0), f: F('barbarian'), k: MELEE, col: team },
   { bone: 'shield', geo: 'woodRim', mat: 'plain', m: e(0, 0, 0), f: F('barbarian'), k: MELEE, col: () => C.wood },
   { bone: 'shield', geo: 'boss', mat: 'metal', m: e(0, 0, .06), f: F('barbarian'), k: MELEE, col: u => u.leader ? C.gold : C.steel },
-  // weapons
+  // weapons: base tier carries sword + shield; the Arms upgrade (tier 1+) swaps the sword for a
+  // spear (reusing the old Spearman's shaft/tip bones) on both squad Footmen and the captain.
   { bone: 'wArm', geo: 'guard', mat: 'plain', m: e(0, -.5, .12), f: F('roman', 'greek'), k: MELEE, col: () => C.leather },
-  { bone: 'wArm', geo: 'gladius', mat: 'metal', m: e(0, -.5, .5), f: F('roman'), k: MELEE, col: () => C.steel },
-  { bone: 'wArm', geo: 'blade', mat: 'metal', m: e(0, -.5, .6), f: F('greek'), k: MELEE, col: () => C.bronze },
-  { bone: 'wArm', geo: 'haft', mat: 'plain', m: e(0, -.5, .42, Math.PI / 2), f: F('barbarian'), k: MELEE, col: () => C.wood },
-  { bone: 'wArm', geo: 'axeHead', mat: 'metal', m: e(0, -.35, .86), f: F('barbarian'), k: MELEE, col: () => C.steel },
-  { bone: 'spear', geo: 'shaft', mat: 'plain', m: e(0, 0, .6, Math.PI / 2), k: K('spear'), col: () => C.wood },
-  { bone: 'spear', geo: 'tip', mat: 'metal', m: e(0, 0, 2.2, Math.PI / 2), k: K('spear'), col: u => factionOf(u) === 'greek' ? C.bronze : C.steel },
+  { bone: 'wArm', geo: 'gladius', mat: 'metal', m: e(0, -.5, .5), f: F('roman'), k: MELEE, t: u => !armed(u), col: () => C.steel },
+  { bone: 'wArm', geo: 'blade', mat: 'metal', m: e(0, -.5, .6), f: F('greek'), k: MELEE, t: u => !armed(u), col: () => C.bronze },
+  { bone: 'wArm', geo: 'haft', mat: 'plain', m: e(0, -.5, .42, Math.PI / 2), f: F('barbarian'), k: MELEE, t: u => !armed(u), col: () => C.wood },
+  { bone: 'wArm', geo: 'axeHead', mat: 'metal', m: e(0, -.35, .86), f: F('barbarian'), k: MELEE, t: u => !armed(u), col: () => C.steel },
+  { bone: 'spear', geo: 'shaft', mat: 'plain', m: e(0, 0, .6, Math.PI / 2), k: MELEE, t: armed, col: () => C.wood },
+  { bone: 'spear', geo: 'tip', mat: 'metal', m: e(0, 0, 2.2, Math.PI / 2), k: MELEE, t: armed, col: u => factionOf(u) === 'greek' ? C.bronze : C.steel },
+  // the Armor upgrade (tier 2) adds a plate over each shoulder, on top of whatever's already worn
+  { bone: 'sArm', geo: 'pauldron', mat: 'metal', m: e(0, .08, .02, 0, 0, .3), k: MELEE, t: armored, col: u => factionOf(u) === 'greek' ? C.bronze : C.steel },
+  { bone: 'wArm', geo: 'pauldron', mat: 'metal', m: e(0, .08, .02, 0, 0, -.3), k: MELEE, t: armored, col: u => factionOf(u) === 'greek' ? C.bronze : C.steel },
   { bone: 'sArm', geo: 'bow', mat: 'plain', m: e(0, -.48, .2, 0, Math.PI / 2, Math.PI / 2), k: K('arch'), col: () => C.wood },
+  // Archer tiers: Training (1+) adds a forearm guard, Marksman (2) reinforces the bow with steel
+  { bone: 'wArm', geo: 'guard', mat: 'plain', m: e(0, -.5, .12), k: K('arch'), t: trained, col: () => C.leather },
+  { bone: 'wArm', geo: 'guard', mat: 'metal', m: e(0, -.5, .3), k: K('arch'), t: marksman, col: () => C.steel },
 ];
 
 // One InstancedMesh per (geometry, material) pair.
@@ -247,7 +259,8 @@ function pose(u, dt) {
   }
   const t = u.swing > 0 ? 1 - u.swing / .38 : -1;
   let blocking = false;
-  if (u.kind === 'spear') {
+  const spearArmed = (u.kind === 'foot' || u.kind === 'captain') && u.tier >= 1;
+  if (spearArmed) {
     const lowered = braced(u) || u.swing > 0;
     a.wArmX += ((lowered ? -1.45 : -.35) - a.wArmX) * Math.min(1, dt * 10);
     a.spearRX = lowered ? 1.45 : -.2;
@@ -284,7 +297,7 @@ function bones(u, a) {
   M.legR.multiplyMatrices(M.body, local(.18, .7, 0, a.legR[0], a.legR[1], a.legR[2]));
   M.sArm.multiplyMatrices(M.body, local(a.sArmPX, 1.3, .05, a.sArmX, 0, 0));
   M.wArm.multiplyMatrices(M.body, local(-.5, 1.3, .05, a.wArmX, 0, a.wArmZ));
-  if (u.kind === 'spear') M.spear.multiplyMatrices(M.wArm, local(0, -.48, a.spearZ, a.spearRX, 0, 0));
+  if ((u.kind === 'foot' || u.kind === 'captain') && u.tier >= 1) M.spear.multiplyMatrices(M.wArm, local(0, -.48, a.spearZ, a.spearRX, 0, 0));
   if (u.kind === 'foot' || u.kind === 'captain') {
     // held at the side and turned out a little; raised to the front when blocking
     // testudo: the shield goes flat overhead, locking with the neighbours' shields
@@ -309,6 +322,7 @@ export function drawSoldiers(units, dt) {
     for (const p of PARTS) {
       if (p.k && !p.k.has(u.kind)) continue;
       if (p.f && !p.f.has(fac)) continue;
+      if (p.t && !p.t(u)) continue;
       if (p.when && (p.when === 'blob' ? !blob : p.when !== ring)) continue;
       const b = p.batch, i = b.n++;
       out.multiplyMatrices(M[p.bone], p.m);

@@ -22,9 +22,9 @@ export function newTeams(humans, active = [1, 1, 1, 1, 0, 0, 0, 0]) {
 }
 export function mkUnit(ti, x, z, kind, human = false) {
   const st = STATS[kind];
-  const tier = kind === 'foot' ? footTier(ti) : kind === 'arch' ? archTier(ti) : 0;
+  const tier = kind === 'foot' || kind === 'captain' ? footTier(ti) : kind === 'arch' ? archTier(ti) : 0;
   const base = kind === 'foot' ? FOOT_TIERS[tier] : kind === 'arch' ? ARCH_TIERS[tier] : st;
-  const capB = kind === 'captain' ? CAPTAIN_TIERS[footTier(ti)] : null;
+  const capB = kind === 'captain' ? CAPTAIN_TIERS[tier] : null;
   const u = { id: ++G.uid, ti, kind, leader: kind === 'captain', human, isMe: human && ti === G.myTi && G.role !== 'client', remote: human && ti !== G.myTi,
     x, z, y: groundY(x, z), vx: 0, vz: 0, vy: 0, face: Math.atan2(-x, -z),
     hp: base.hp + (capB ? capB.hpB : 0), max: base.hp + (capB ? capB.hpB : 0),
@@ -101,7 +101,7 @@ function applyFootTier(ti) {
     } else if (u.leader) {
       const nmax = STATS.captain.hp + cb.hpB; u.hp = Math.min(nmax, Math.max(1, u.hp + (nmax - u.max))); u.max = nmax;
       u.dmg = (u.human ? HUMAN_CAPTAIN.dmg : STATS.captain.dmg) + cb.dmgB;
-      u.reach = STATS.captain.reach + cb.reachB; u.javelin = cb.javelin;
+      u.reach = STATS.captain.reach + cb.reachB; u.javelin = cb.javelin; u.tier = tier;
     }
   }
 }
