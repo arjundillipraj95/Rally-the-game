@@ -152,12 +152,19 @@ seg('segMap', v => { G.map = MAPS[v]; updateDesc(); seedDemo(); });
 seg('segTeams', v => { preset = v; G.ALLY = allyFor(v, G.myTi); updateDesc(); });
 seg('segFaction', v => { prefs.faction = v; prefs.save(); seedDemo(); });
 seg('segColor', v => { prefs.color = +v; prefs.save(); resetSolo(); updateDesc(); seedDemo(); });
+// Duo for solo/vs-computer play: each color can get a second, computer-run army sharing its castle.
+// Unlike the multiplayer lobby's Duo toggle, these are independent on/off chips, not a single-select segment.
+const soloDuo = [false, false, false, false];
+$('segDuo').querySelectorAll('button').forEach((b, i) => {
+  b.addEventListener('click', () => { soloDuo[i] = !soloDuo[i]; b.setAttribute('aria-pressed', String(soloDuo[i])); });
+});
 function resetSolo() { G.role = 'solo'; G.myTi = prefs.color; G.ALLY = allyFor(preset, G.myTi); }
 function soloStart() {
   initAudio(); session.NET = null; resetSolo();
   G.seed = (Math.random() * 1e9) | 0;
   G.factions = assignFactions(TEAMS.map((_, i) => i === G.myTi ? prefs.faction : null), G.seed);
-  beginMatch(TEAMS.map((_, i) => i === G.myTi ? 1 : 0));
+  const active = [1, 1, 1, 1, ...soloDuo.map(d => d ? 1 : 0)];
+  beginMatch(TEAMS.map((_, i) => i === G.myTi ? 1 : 0), active);
 }
 const pressSeg = (id, v) => $(id).querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === String(v))));
 seg('segDiff', v => { G.diff = +v; });
