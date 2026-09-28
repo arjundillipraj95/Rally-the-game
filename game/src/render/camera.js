@@ -3,7 +3,8 @@ import { G, isEnemyTi } from '../core/state.js';
 import { groundY, rnd } from '../core/world.js';
 import { camera, view } from './scene.js';
 
-export const cam = { yaw: 0, pitch: .32, shake: 0 };
+export const cam = { yaw: 0, pitch: .42, shake: 0 };
+export const CAM_PITCH = .42; // a little higher than eye level, so the squad behind you doesn't wall off the fight
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 export function camTarget() {
@@ -18,7 +19,7 @@ export function followCamera(dt) {
   cam.shake = Math.max(0, cam.shake - dt * 1.6);
   const tgt = camTarget(); if (!tgt) return;
   const px = tgt.x, pz = tgt.z, py = tgt.y;
-  const dist = (view.W < view.H ? 10 : 8.5) + (tgt.mounted ? 3 : 0), h = 2.2 + Math.sin(cam.pitch) * dist + (tgt.mounted ? 1 : 0);
+  const dist = (view.W < view.H ? 11 : 9.5) + (tgt.mounted ? 3 : 0), h = 2.2 + Math.sin(cam.pitch) * dist + (tgt.mounted ? 1 : 0);
   const cx = px - Math.sin(cam.yaw) * Math.cos(cam.pitch) * dist, cz = pz - Math.cos(cam.yaw) * Math.cos(cam.pitch) * dist;
   const k = Math.min(1, dt * 8);
   camera.position.x += (cx - camera.position.x) * k; camera.position.z += (cz - camera.position.z) * k; camera.position.y += (py + h - camera.position.y) * k;

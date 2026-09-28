@@ -13,7 +13,7 @@ import { sfx, buzz, gateS } from '../ui/audio.js';
 import { banner } from '../ui/hud.js';
 import { readMove, inp } from '../ui/input.js';
 import { floatText } from '../render/effects.js';
-import { cam } from '../render/camera.js';
+import { cam, CAM_PITCH } from '../render/camera.js';
 
 export const C = {}; // client-side state
 const r1 = v => Math.round(v * 10) / 10, r2 = v => Math.round(v * 100) / 100;
@@ -126,7 +126,7 @@ export function clientStart(hp) {
   Object.assign(C, { byId: new Map(), lastN: -1, lastMsgN: (hp.m && hp.m.length) ? hp.m[hp.m.length - 1][0] : 0, meId: null, meInit: false, kickN: 0, localCd: 0, lastSnapAt: performance.now(),
     inp: { atk: 0, ride: 0, vly: 0, rec: [0, 0, 0], up: [0, 0, 0, 0, 0], ord: 'follow', hold: null, face: 0 }, sendAt: 0, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
   G.player = null;
-  cam.yaw = Math.atan2(-TEAMS[colorOf(G.myTi)].pos[0], -TEAMS[colorOf(G.myTi)].pos[1]); cam.pitch = .32;
+  cam.yaw = Math.atan2(-TEAMS[colorOf(G.myTi)].pos[0], -TEAMS[colorOf(G.myTi)].pos[1]); cam.pitch = CAM_PITCH;
   G.state = 'play';
   hooks.onMatchStart();
   sfx.horn(); showMsg('start', []);

@@ -7,7 +7,8 @@ import * as THREE from 'three';
 import { TEAMS } from '../config.js';
 import { G, isEnemyTi, isFfa, colorOf } from '../core/state.js';
 import { braced } from '../core/sim.js';
-import { scene, shadowsOn } from './scene.js';
+import { scene, shadowsOn, camera } from './scene.js';
+import { camTarget } from './camera.js';
 import { trail } from './effects.js';
 
 const MAX_UNITS = 320;
@@ -329,8 +330,24 @@ export function drawSoldiers(units, dt) {
   for (const b of batches.values()) b.n = 0;
   const blob = !shadowsOn();
   let drawn = 0;
+  // Friendly soldiers standing between the camera and your captain step out of the picture, so
+  // you can always see yourself and who you're fighting. Enemies are never hidden.
+  const tg = camTarget(), cp = camera.position;
+  let lx = 0, ly = 0, lz = 0, l2 = 0;
+  if (tg && !tg.dead) { lx = tg.x - cp.x; ly = tg.y + 1.3 - cp.y; lz = tg.z - cp.z; l2 = lx * lx + ly * ly + lz * lz; }
   for (const u of units) {
     if (u.hidden) continue;
+    if (l2 > 0 && u !== tg && !u.dead) {
+      const a = stateOf(u);
+      if (!isEnemyTi(u.ti, G.myTi)) {
+        const ux = u.x - cp.x, uy = u.y + 1.1 - cp.y, uz = u.z - cp.z, t = (ux * lx + uy * ly + uz * lz) / l2;
+        if (t > 0 && t < .93) {
+          const ex = ux - lx * t, ey = uy - ly * t, ez = uz - lz * t;
+          if (ex * ex + ey * ey + ez * ez < 1.05 * 1.05) a.occT = .3; // keep hidden a moment, so it doesn't flicker
+        }
+      }
+      if (a.occT > 0) { a.occT -= dt; continue; }
+    }
     if (drawn >= MAX_UNITS) break;
     drawn++;
     const a = pose(u, dt);

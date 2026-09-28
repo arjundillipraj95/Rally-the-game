@@ -12,7 +12,7 @@ import { drawSoldiers, drawCalls } from './render/soldiers.js';
 import { drawHorses, clearHorses } from './render/horses.js';
 import { spark, splat, dust, drawAura, floatText, castleFx, effectsTick, drawEffects, clearEffects } from './render/effects.js';
 import { drawOverlay, clearOverlay, resizeOverlay } from './render/overlay.js';
-import { cam, followCamera, orbitCamera, camTarget } from './render/camera.js';
+import { cam, followCamera, orbitCamera, camTarget, CAM_PITCH } from './render/camera.js';
 import { initAudio, sfx, buzz, gateS, startCrowd, stopCrowd } from './ui/audio.js';
 import { showMsg, allyNames } from './ui/messages.js';
 import { buildHud, showHud, updateHud, banner, fmt } from './ui/hud.js';
@@ -91,7 +91,7 @@ function viewForMatch() {
 function beginMatch(humans, active) {
   if (!session.NET) G.role = 'solo';
   startMatch(humans, active);
-  cam.yaw = G.player.face; cam.pitch = .32;
+  cam.yaw = G.player.face; cam.pitch = CAM_PITCH;
   viewForMatch();
   sfx.horn();
 }
