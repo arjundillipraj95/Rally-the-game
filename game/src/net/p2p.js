@@ -20,7 +20,7 @@ export function makeP2PRoom(code, host) {
     let notifyT = null;
     const notifyNow = () => { notifyT = null; const sn = snap(); for (const f of listeners) { try { f({ peers: sn }); } catch (e) { console.error(e); } } };
     const notify = () => { if (!notifyT) notifyT = setTimeout(notifyNow, 16); };
-    const trim = pr => ({ role: pr.role, nick: pr.nick, want: pr.want, ph: pr.ph });
+    const trim = pr => ({ role: pr.role, nick: pr.nick, want: pr.want, ph: pr.ph, fac: pr.fac });
     function relayRoster() { // host tells every player who is here (players' own fields trimmed to lobby info)
       lastRelay = performance.now(); relayTimer = null;
       const all = {}; for (const [p, pr] of peers) all[p] = p === myId ? pr : trim(pr);
@@ -55,7 +55,7 @@ export function makeP2PRoom(code, host) {
         if (!d || d.t !== 'p' || !d.pr || typeof d.pr !== 'object') return;
         seen.set(c.peer, performance.now());
         const old = peers.get(c.peer); peers.set(c.peer, d.pr); notify();
-        if (!old || old.nick !== d.pr.nick || old.want !== d.pr.want || old.ph !== d.pr.ph || old.role !== d.pr.role) relaySoon();
+        if (!old || old.nick !== d.pr.nick || old.want !== d.pr.want || old.ph !== d.pr.ph || old.role !== d.pr.role || old.fac !== d.pr.fac) relaySoon();
       });
       const gone = () => { if (!conns.has(c.peer)) return; conns.delete(c.peer); peers.delete(c.peer); notify(); relaySoon(); };
       c.on('close', gone); c.on('error', gone);

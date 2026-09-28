@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { TEAMS } from '../config.js';
 import { groundY } from '../core/world.js';
-import { scene } from './scene.js';
+import { scene, shadowsOn } from './scene.js';
 
 const GEO = {
   torso: new THREE.SphereGeometry(1, 14, 10),
@@ -37,8 +37,9 @@ function build(ti, coatI) {
     const p = new THREE.Group(); p.position.set(x, 1.05, z); body.add(p);
     mk(GEO.leg, coat, p, 0, -.5, 0); mk(GEO.hoof, maneMat, p, 0, -1.0, .03); legs.push(p);
   }
+  body.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   scene.add(root);
-  return { root, body, legs, walk: 0 };
+  return { root, body, legs, sh, walk: 0 };
 }
 
 const models = new Map();
@@ -50,7 +51,7 @@ export function drawHorses(list, dt) {
     let m = models.get(h.key);
     if (!m) { m = build(h.ti, Math.abs(h.key * 7919) % 3); models.set(h.key, m); }
     m.root.position.set(h.x, groundY(h.x, h.z), h.z); m.root.rotation.y = h.face;
-    m.root.visible = true;
+    m.root.visible = true; m.sh.visible = !shadowsOn();
     if (h.state === 'dead') {
       m.body.rotation.z = Math.min(1, h.t / .5) * Math.PI / 2 * .9 * (h.fall || 1);
       if (h.t > 6) m.root.position.y -= (h.t - 6) * .6;

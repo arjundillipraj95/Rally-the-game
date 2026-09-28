@@ -10,10 +10,12 @@ export const TEAMS = [
 
 // Faction sets a team's look only; every faction plays the same.
 export const FACTIONS = {
-  roman:     { name: 'Romans' },
-  greek:     { name: 'Greeks' },
-  barbarian: { name: 'Barbarians' },
+  roman:     { name: 'Romans', code: 'r' },
+  greek:     { name: 'Greeks', code: 'g' },
+  barbarian: { name: 'Barbarians', code: 'b' },
 };
+export const FACTION_IDS = ['roman', 'greek', 'barbarian'];
+export const factionFromCode = c => FACTION_IDS.find(f => FACTIONS[f].code === c) || 'roman';
 
 export const PRESETS = { ffa: [0, 1, 2, 3], '2v2': [0, 1, 1, 0], '2v1v1': [0, 1, 2, 0], '3v1': [0, 1, 0, 0] };
 export const AL_LETTER = ['A', 'B', 'C', 'D'];

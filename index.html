@@ -14,8 +14,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bangers&family=Barlow+Semi+Condensed:ital,wght@0,600;0,800;1,800&display=swap">
 <title>Rally</title>
-  <script type="module" crossorigin src="./assets/index-DRl3-UXU.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-CDniXzno.css">
+  <script type="module" crossorigin src="./assets/index-D5Rnr5b3.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-tT6iS_N_.css">
 </head>
 <body>
 <div id="app">
@@ -89,6 +89,19 @@
             <button type="button" data-v="3v1" aria-pressed="false">3 v 1</button>
           </div>
         </div>
+        <div class="grp"><label>Your army</label>
+          <div class="seg" id="segFaction">
+            <button type="button" data-v="roman" aria-pressed="true">Romans</button>
+            <button type="button" data-v="greek" aria-pressed="false">Greeks</button>
+            <button type="button" data-v="barbarian" aria-pressed="false">Barbarians</button>
+          </div>
+          <div class="seg swatches" id="segColor">
+            <button type="button" data-v="0" aria-pressed="true" style="background:var(--blue)">Blue</button>
+            <button type="button" data-v="1" aria-pressed="false" style="background:var(--red)">Red</button>
+            <button type="button" data-v="2" aria-pressed="false" style="background:var(--green)">Green</button>
+            <button type="button" data-v="3" aria-pressed="false" style="background:var(--yellow)">Yellow</button>
+          </div>
+        </div>
         <div class="desc" id="desc"></div>
         <div class="grp"><label>Difficulty</label>
           <div class="seg" id="segDiff">
@@ -158,6 +171,11 @@
         </div>
         <div class="grp"><label>Tap a color to take it · tap the letter to change teams</label><div class="seats" id="seats"></div></div>
         <div class="lgrid">
+          <div class="grp"><label>Your faction</label>
+            <div class="seg" id="lobbyFaction">
+              <button type="button" data-v="roman">Romans</button><button type="button" data-v="greek">Greeks</button><button type="button" data-v="barbarian">Barbarians</button>
+            </div>
+          </div>
           <div class="grp" id="lobbyTeamsGrp"><label>Team setup</label>
             <div class="seg" id="lobbyTeams">
               <button type="button" data-v="ffa">Free for all</button>

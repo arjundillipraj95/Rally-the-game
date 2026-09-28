@@ -4,19 +4,20 @@ import { TEAMS, MODES, MAPS, PRESETS, STRESS_SQUAD_CAP } from './config.js';
 import { G, bus } from './core/state.js';
 import { startMatch, mkUnit, newTeams, update, fallStep, endMatch } from './core/sim.js';
 import { makeLayout, gatePos, groundY } from './core/world.js';
-import { renderer, scene, camera, resize, applyPixelRatio } from './render/scene.js';
+import { renderer, scene, camera, resize, applyPixelRatio, applyShadowQuality, followSun } from './render/scene.js';
 import { quality, saveSetting, stepDown, LEVELS } from './render/quality.js';
-import { buildWorldView, updateWorldView } from './render/world.js';
+import { buildWorldView, updateWorldView, grassTime } from './render/world.js';
 import { drawSoldiers, drawCalls } from './render/soldiers.js';
 import { drawHorses, clearHorses } from './render/horses.js';
-import { spark, splat, floatText, castleFx, effectsTick, drawEffects, clearEffects } from './render/effects.js';
+import { spark, splat, dust, floatText, castleFx, effectsTick, drawEffects, clearEffects } from './render/effects.js';
 import { drawOverlay, clearOverlay, resizeOverlay } from './render/overlay.js';
-import { cam, followCamera, orbitCamera } from './render/camera.js';
+import { cam, followCamera, orbitCamera, camTarget } from './render/camera.js';
 import { initAudio, sfx, buzz, gateS } from './ui/audio.js';
 import { showMsg, allyNames } from './ui/messages.js';
 import { buildHud, showHud, updateHud, banner, fmt } from './ui/hud.js';
 import { bindInput, readMove, trayOpen, releaseAll, inp } from './ui/input.js';
-import { session, isClient, isHost } from './net/session.js';
+import { session, isClient, isHost, prefs } from './net/session.js';
+import { allyFor, describeTeams, assignFactions } from './core/teams.js';
 import { actions, netHostReadInputs, netHostTick, netHostSend, clientTick, clientHorses, setNetHooks, C } from './net/netgame.js';
 import { bindLobby, showLobby, hostLobbyTick, clientLobbyTick, netLeave } from './net/lobby.js';
 import { CAPS_TO_WIN } from './config.js';
@@ -36,7 +37,7 @@ let preset = 'ffa';
 // ---------- presentation listens to the rules ----------
 bus.on('msg', m => showMsg(m.k, m.a));
 bus.on('spark', d => spark(d.x, d.y, d.z, d.c, d.n));
-bus.on('splat', d => splat(d.x, d.z, d.s, d.ti));
+bus.on('splat', d => { splat(d.x, d.z, d.s, d.ti); dust(d.x, d.z); });
 bus.on('float', d => floatText(d.x, d.y, d.z, d.text, d.color));
 bus.on('sfx', d => { const f = sfx[d.name]; if (f) f(d.x, d.z); });
 bus.on('shake', v => { cam.shake = v; });
@@ -87,7 +88,7 @@ function beginMatch(humans) {
   sfx.horn();
 }
 setNetHooks({ onMatchStart: viewForMatch, onAbort: msg => netLeave(msg), onLobby: () => showLobby() });
-bindLobby({ startMatch: beginMatch, seedDemo, preset: () => preset });
+bindLobby({ startMatch: beginMatch, seedDemo, preset: () => preset, resetSolo: () => resetSolo() });
 bindInput(actions);
 
 // ---------- title scene ----------
@@ -96,11 +97,12 @@ function seedDemo() {
   G.layout = makeLayout(G.map.id, false, 7);
   G.units = []; G.horses = []; G.arrows = []; G.flag = null; G.player = null; G.uid = 0;
   G.teams = newTeams([0, 0, 0, 0]);
+  G.factions = assignFactions(TEAMS.map((_, i) => i === G.myTi ? prefs.faction : null), 7);
   buildWorldView(G.layout); clearEffects(); clearHorses();
   const kinds = ['foot', 'spear', 'arch', 'foot', 'spear'];
   TEAMS.forEach((t, i) => kinds.forEach((k, n) => { const [x, z] = gatePos(t, (n - 2) * 1.5); const u = mkUnit(i, x * .5, z * .5, k); u.face = Math.atan2(-u.x, -u.z); u.demo = true; }));
-  const c = mkUnit(0, 0, 22, 'captain'); c.demo = true;
-  const h = { id: 1, x: 0, z: 22, face: 0, state: 'ridden', rider: c, t: 0, spd: 9, ti: 0 };
+  const c = mkUnit(G.myTi, 0, 22, 'captain'); c.demo = true;
+  const h = { id: 1, x: 0, z: 22, face: 0, state: 'ridden', rider: c, t: 0, spd: 9, ti: G.myTi };
   G.horses.push(h); c.mounted = true; c.horse = h; demoRider = c;
 }
 function demo(dt) {
@@ -113,7 +115,9 @@ function demo(dt) {
   drawSoldiers(G.units, dt);
   drawHorses(G.horses.map(h => ({ key: h.id, ti: h.ti, x: h.x, z: h.z, face: h.face, spd: h.spd, state: h.state, t: h.t, fall: h.fall })), dt);
   drawEffects();
+  updateWorldView(dt, () => {});
   orbitCamera(demoT);
+  followSun(0, 0, demoT);
   renderer.render(scene, camera);
   clearOverlay();
 }
@@ -127,7 +131,7 @@ function seg(id, cb) {
   });
 }
 function updateDesc() {
-  const tdesc = { ffa: 'Every team for itself.', '2v2': 'You and Yellow against Red and Green.', '2v1v1': 'You and Yellow against Red, and Green on its own.', '3v1': 'You, Green and Yellow against Red.' }[preset];
+  const tdesc = describeTeams(G.ALLY, G.myTi);
   $('desc').innerHTML = `<strong>${MODES[G.mode].name}.</strong> ${MODES[G.mode].desc}<br><strong>${G.map.name}.</strong> ${G.map.desc} <strong>Teams:</strong> ${tdesc}`;
 }
 function updateQualityNote() {
@@ -137,22 +141,32 @@ function updateQualityNote() {
 }
 seg('segMode', v => { G.mode = v; updateDesc(); });
 seg('segMap', v => { G.map = MAPS[v]; updateDesc(); seedDemo(); });
-seg('segTeams', v => { preset = v; G.ALLY = [...PRESETS[v]]; updateDesc(); });
+seg('segTeams', v => { preset = v; G.ALLY = allyFor(v, G.myTi); updateDesc(); });
+seg('segFaction', v => { prefs.faction = v; prefs.save(); seedDemo(); });
+seg('segColor', v => { prefs.color = +v; prefs.save(); resetSolo(); updateDesc(); seedDemo(); });
+function resetSolo() { G.role = 'solo'; G.myTi = prefs.color; G.ALLY = allyFor(preset, G.myTi); }
+function soloStart() {
+  initAudio(); session.NET = null; resetSolo();
+  G.seed = (Math.random() * 1e9) | 0;
+  G.factions = assignFactions(TEAMS.map((_, i) => i === G.myTi ? prefs.faction : null), G.seed);
+  beginMatch(TEAMS.map((_, i) => i === G.myTi ? 1 : 0));
+}
+const pressSeg = (id, v) => $(id).querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === String(v))));
 seg('segDiff', v => { G.diff = +v; });
 seg('segQuality', v => {
   if (v === quality.setting) return;
   saveSetting(v);
   location.reload(); // antialiasing can only change with a fresh page
 });
-$('goBtn').addEventListener('click', () => { initAudio(); session.NET = null; G.myTi = 0; G.ALLY = [...PRESETS[preset]]; G.seed = (Math.random() * 1e9) | 0; beginMatch([1, 0, 0, 0]); });
+$('goBtn').addEventListener('click', soloStart);
 $('againBtn').addEventListener('click', () => {
   initAudio();
   if (isHost()) { showLobby(); return; }
-  G.seed = (Math.random() * 1e9) | 0; beginMatch([1, 0, 0, 0]);
+  soloStart();
 });
 $('menuBtn').addEventListener('click', () => {
   if (session.NET) { netLeave(); return; }
-  G.state = 'title'; $('ovEnd').hidden = true; $('hudWrap').hidden = true; $('ovTitle').hidden = false; seedDemo();
+  G.state = 'title'; resetSolo(); $('ovEnd').hidden = true; $('hudWrap').hidden = true; $('ovTitle').hidden = false; seedDemo();
 });
 
 // ---------- frame-rate watchdog: steps graphics down if the first seconds of a battle run slowly ----------
@@ -164,7 +178,7 @@ const watchdog = {
     this.t += rawDt; this.frames++;
     if (this.t < 8) return;
     const fps = this.frames / this.t;
-    if (fps < 30 && stepDown()) { this.steps++; applyPixelRatio(); onResize(); updateQualityNote(); this.reset(); }
+    if (fps < 30 && stepDown()) { this.steps++; applyShadowQuality(); applyPixelRatio(); onResize(); updateQualityNote(); this.reset(); }
   },
 };
 
@@ -177,6 +191,7 @@ function drawMatch(dt) {
   effectsTick(dt);
   drawEffects();
   followCamera(dt);
+  const tg = camTarget(); followSun(tg ? tg.x : 0, tg ? tg.z : 0, grassTime());
   renderer.render(scene, camera);
   drawOverlay({ joy: inp.joy, nickFor });
 }
@@ -231,8 +246,10 @@ window.__fb = {
   },
   step(n, dt = 1 / 30) { for (let i = 0; i < n && G.state === 'play'; i++) update(dt, null); },
   ride() { if (G.player) { G.player.lastHit = -9; actions.ride(); } },
+  G, cam,
 };
 
 function onResize() { resize(); resizeOverlay(); }
 addEventListener('resize', onResize);
-onResize(); updateDesc(); updateQualityNote(); seedDemo(); requestAnimationFrame(loop);
+pressSeg('segFaction', prefs.faction); pressSeg('segColor', prefs.color); resetSolo();
+applyShadowQuality(); onResize(); updateDesc(); updateQualityNote(); seedDemo(); requestAnimationFrame(loop);

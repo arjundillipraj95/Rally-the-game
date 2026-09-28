@@ -15,6 +15,12 @@ export function spark(x, y, z, c, n) {
   for (let i = 0; i < n && parts.length < cap; i++) parts.push({ x, y, z, vx: rnd(-4, 4), vy: rnd(1, 5), vz: rnd(-4, 4), life: rnd(.25, .5), c, s: rnd(2, 4) });
 }
 export function puff(p) { if (parts.length < quality.cfg.particles + 40) parts.push(p); }
+// Dust kicked up by hits and falls, tinted to the ground.
+const DUST = { dunes: '#dcc69c', river: '#b7a888', forest: '#a89a7c', frost: '#f4f7fa' };
+export function dust(x, z) {
+  const c = DUST[G.map.id] || DUST.dunes, y = groundY(x, z) + .3;
+  for (let i = 0; i < 3; i++) puff({ x: x + rnd(-.4, .4), y, z: z + rnd(-.4, .4), vx: rnd(-1, 1), vy: rnd(.8, 1.6), vz: rnd(-1, 1), life: rnd(.5, .8), c, s: rnd(5.5, 8) });
+}
 export function floatText(x, y, z, text, color) { floats.push({ x, y, z, text, color, t: 0 }); }
 
 // Smoke from a failing castle, rubble when it falls.

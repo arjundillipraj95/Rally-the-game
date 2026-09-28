@@ -1,8 +1,9 @@
 // Graphics quality: picks a level for the device, and steps down if the game runs slowly.
+// Low: no real-time shadows, no tall grass, flat sky. Medium: shadows and grass. High: sharper, softer, denser.
 export const LEVELS = {
-  low:    { name: 'Low',    pixelRatio: 1,    antialias: false, particles: 120, splats: 30, fogScale: .8 },
-  medium: { name: 'Medium', pixelRatio: 1.35, antialias: true,  particles: 260, splats: 60, fogScale: 1 },
-  high:   { name: 'High',   pixelRatio: 2,    antialias: true,  particles: 420, splats: 90, fogScale: 1 },
+  low:    { name: 'Low',    pixelRatio: 1,    antialias: false, particles: 120, splats: 30, fogScale: .8, shadows: 0,    softShadows: false, shadowRange: 0,  grass: 0,    clouds: false },
+  medium: { name: 'Medium', pixelRatio: 1.35, antialias: true,  particles: 260, splats: 60, fogScale: 1,  shadows: 1024, softShadows: false, shadowRange: 30, grass: 2600, clouds: true },
+  high:   { name: 'High',   pixelRatio: 2,    antialias: true,  particles: 420, splats: 90, fogScale: 1,  shadows: 2048, softShadows: true,  shadowRange: 42, grass: 6000, clouds: true },
 };
 const ORDER = ['low', 'medium', 'high'];
 

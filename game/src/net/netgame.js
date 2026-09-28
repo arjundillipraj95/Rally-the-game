@@ -1,6 +1,6 @@
 // Online battles. The host runs the rules; every other phone sends its captain and button
 // presses and draws the host's snapshots (a compact text string, about 1KB, 12 times a second).
-import { TEAMS, MAPS, KINDS, STATS, HORSE_HP, RECRUITS } from '../config.js';
+import { TEAMS, MAPS, KINDS, STATS, HORSE_HP, RECRUITS, FACTIONS, factionFromCode } from '../config.js';
 import { G, bus } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn } from '../core/world.js';
 import { newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf } from '../core/sim.js';
@@ -57,7 +57,7 @@ export function netHostTick() {
 export function netHostSend() {
   const NET = session.NET; if (!NET) return;
   NET.lastSend = performance.now();
-  const pres = { role: 'host', ph: G.state === 'end' ? 'end' : 'play', seed: G.seed, mode: G.mode, map: G.map.id, diff: G.diff, al: G.ALLY.join(''), seats: NET.seats, nick: session.myNick || 'Host', n: ++NET.snapN, s: encodeSnap(), m: NET.msgs };
+  const pres = { role: 'host', ph: G.state === 'end' ? 'end' : 'play', seed: G.seed, mode: G.mode, map: G.map.id, diff: G.diff, al: G.ALLY.join(''), seats: NET.seats, nick: session.myNick || 'Host', fa: G.factions.map(f => (FACTIONS[f] || FACTIONS.roman).code).join(''), n: ++NET.snapN, s: encodeSnap(), m: NET.msgs };
   if (G.state === 'end' && G.endInfo) pres.res = [G.endInfo.w, G.endInfo.why];
   let json = JSON.stringify(pres);
   while (json.length > 3900) { // trim arrows first, then messages
@@ -104,6 +104,7 @@ export function netHostReadInputs() {
 export function clientStart(hp) {
   G.role = 'client';
   G.mode = hp.mode; G.map = MAPS[hp.map]; G.diff = hp.diff; G.ALLY = hp.al.split('').map(Number); G.seed = hp.seed;
+  G.factions = String(hp.fa || 'rrrr').split('').map(factionFromCode);
   G.layout = makeLayout(G.map.id, G.mode === 'ctf', G.seed);
   G.units = []; G.horses = []; G.arrows = [];
   G.T = 0; G.kills = 0; G.recruited = 0; G.bounty = -1; G.endInfo = null;
