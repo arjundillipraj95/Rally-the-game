@@ -8,53 +8,56 @@ import { TEAMS } from '../config.js';
 import { G, isEnemyTi, isFfa, colorOf } from '../core/state.js';
 import { braced } from '../core/sim.js';
 import { scene, shadowsOn } from './scene.js';
+import { trail } from './effects.js';
 
 const MAX_UNITS = 320;
 
 // ---------- geometry ----------
-const scutum = (() => { const g = new THREE.CylinderGeometry(1, 1, 1.15, 10, 1, true, -.42, .84); g.translate(0, 0, -1); return g; })();
-const hoplon = (() => { const g = new THREE.SphereGeometry(.95, 20, 6, 0, Math.PI * 2, 0, .7); g.rotateX(Math.PI / 2); g.translate(0, 0, -.95 * Math.cos(.7)); g.scale(1, 1, .6); return g; })();
-const roundShield = (() => { const g = new THREE.CylinderGeometry(.5, .5, .08, 18); g.rotateX(Math.PI / 2); return g; })();
+// Segment counts bumped a notch over the original low-poly pass for smoother silhouettes —
+// same rig and part count per unit, so the draw-call/instance budget is unchanged.
+const scutum = (() => { const g = new THREE.CylinderGeometry(1, 1, 1.15, 14, 1, true, -.42, .84); g.translate(0, 0, -1); return g; })();
+const hoplon = (() => { const g = new THREE.SphereGeometry(.95, 24, 8, 0, Math.PI * 2, 0, .7); g.rotateX(Math.PI / 2); g.translate(0, 0, -.95 * Math.cos(.7)); g.scale(1, 1, .6); return g; })();
+const roundShield = (() => { const g = new THREE.CylinderGeometry(.5, .5, .08, 22); g.rotateX(Math.PI / 2); return g; })();
 const GEO = {
-  leg: new THREE.CylinderGeometry(.15, .13, .7, 7),
+  leg: new THREE.CylinderGeometry(.15, .13, .7, 9),
   boot: new THREE.BoxGeometry(.2, .14, .32),
-  greave: new THREE.CylinderGeometry(.16, .15, .32, 8),
-  torso: new THREE.CylinderGeometry(.42, .36, .78, 12),
-  skirt: new THREE.CylinderGeometry(.43, .52, .32, 12),
-  belt: new THREE.CylinderGeometry(.44, .44, .14, 12),
-  head: new THREE.SphereGeometry(.4, 14, 10),
-  helm: new THREE.SphereGeometry(.44, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2),
-  corinth: new THREE.SphereGeometry(.47, 14, 10, 0, Math.PI * 2, 0, Math.PI * .52),
-  cone: new THREE.ConeGeometry(.44, .7, 12),
-  hood: new THREE.SphereGeometry(.45, 12, 8, 0, Math.PI * 2, 0, Math.PI * .6),
-  brim: new THREE.CylinderGeometry(.66, .66, .05, 16),
+  greave: new THREE.CylinderGeometry(.16, .15, .32, 10),
+  torso: new THREE.CylinderGeometry(.42, .36, .78, 16),
+  skirt: new THREE.CylinderGeometry(.43, .52, .32, 16),
+  belt: new THREE.CylinderGeometry(.44, .44, .14, 16),
+  head: new THREE.SphereGeometry(.4, 18, 12),
+  helm: new THREE.SphereGeometry(.44, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2),
+  corinth: new THREE.SphereGeometry(.47, 18, 12, 0, Math.PI * 2, 0, Math.PI * .52),
+  cone: new THREE.ConeGeometry(.44, .7, 16),
+  hood: new THREE.SphereGeometry(.45, 16, 10, 0, Math.PI * 2, 0, Math.PI * .6),
+  brim: new THREE.CylinderGeometry(.66, .66, .05, 20),
   crest: new THREE.BoxGeometry(.1, .22, .62),
   cheek: new THREE.BoxGeometry(.08, .3, .24),
   neckGuard: new THREE.BoxGeometry(.56, .08, .22),
   pauldron: new THREE.BoxGeometry(.22, .16, .24),
   nose: new THREE.BoxGeometry(.07, .24, .05),
-  knob: new THREE.SphereGeometry(.08, 8, 6),
-  hair: new THREE.SphereGeometry(.45, 12, 8, 0, Math.PI * 2, 0, Math.PI * .55),
+  knob: new THREE.SphereGeometry(.08, 10, 8),
+  hair: new THREE.SphereGeometry(.45, 16, 10, 0, Math.PI * 2, 0, Math.PI * .55),
   beard: new THREE.BoxGeometry(.44, .3, .2),
-  circlet: new THREE.TorusGeometry(.42, .045, 6, 18),
-  mantle: new THREE.CylinderGeometry(.58, .5, .26, 12),
+  circlet: new THREE.TorusGeometry(.42, .045, 8, 22),
+  mantle: new THREE.CylinderGeometry(.58, .5, .26, 16),
   face: new THREE.PlaneGeometry(.5, .26),
-  arm: new THREE.CylinderGeometry(.11, .1, .55, 6),
+  arm: new THREE.CylinderGeometry(.11, .1, .55, 8),
   blade: new THREE.BoxGeometry(.07, .07, 1.0),
   gladius: new THREE.BoxGeometry(.09, .06, .72),
   guard: new THREE.BoxGeometry(.32, .06, .06),
-  haft: new THREE.CylinderGeometry(.04, .04, 1.05, 6),
+  haft: new THREE.CylinderGeometry(.04, .04, 1.05, 8),
   axeHead: new THREE.BoxGeometry(.05, .36, .26),
-  shaft: new THREE.CylinderGeometry(.04, .04, 3.0, 5),
-  tip: new THREE.ConeGeometry(.09, .35, 5),
-  bow: new THREE.TorusGeometry(.6, .035, 5, 14, Math.PI),
-  quiver: new THREE.CylinderGeometry(.13, .11, .7, 6),
+  shaft: new THREE.CylinderGeometry(.04, .04, 3.0, 7),
+  tip: new THREE.ConeGeometry(.09, .35, 7),
+  bow: new THREE.TorusGeometry(.6, .035, 6, 18, Math.PI),
+  quiver: new THREE.CylinderGeometry(.13, .11, .7, 8),
   scutum, hoplon, roundShield,
-  rim: new THREE.TorusGeometry(.6, .05, 6, 24),
-  woodRim: new THREE.TorusGeometry(.5, .04, 6, 20),
-  boss: new THREE.SphereGeometry(.12, 8, 6),
-  shadow: new THREE.CircleGeometry(.62, 14),
-  ring: new THREE.RingGeometry(.8, 1.0, 24),
+  rim: new THREE.TorusGeometry(.6, .05, 8, 28),
+  woodRim: new THREE.TorusGeometry(.5, .04, 8, 24),
+  boss: new THREE.SphereGeometry(.12, 10, 8),
+  shadow: new THREE.CircleGeometry(.62, 18),
+  ring: new THREE.RingGeometry(.8, 1.0, 28),
   cape: new THREE.PlaneGeometry(.9, 1.1),
 };
 
@@ -72,7 +75,7 @@ const faceTex = (() => {
 export const MAT = {
   plain: new THREE.MeshLambertMaterial({ color: 0xffffff }),
   plain2: new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide }),
-  metal: new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 70, specular: 0x6a6a6a }),
+  metal: new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 110, specular: 0x9a9a9a }),
   shadow: new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: .28, depthWrite: false }),
   ring: new THREE.MeshBasicMaterial({ color: 0xffcf3a, transparent: true, opacity: .8, side: THREE.DoubleSide, depthWrite: false }),
   ringAlly: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .45, side: THREE.DoubleSide, depthWrite: false }),
@@ -286,7 +289,7 @@ function pose(u, dt) {
 
 // ---------- bones ----------
 const M = { root: new THREE.Matrix4(), body: new THREE.Matrix4(), legL: new THREE.Matrix4(), legR: new THREE.Matrix4(), sArm: new THREE.Matrix4(), wArm: new THREE.Matrix4(), spear: new THREE.Matrix4(), shield: new THREE.Matrix4() };
-const tmp = new THREE.Matrix4(), out = new THREE.Matrix4(), eu = new THREE.Euler(), qq = new THREE.Quaternion(), vp = new THREE.Vector3(), vs = new THREE.Vector3();
+const tmp = new THREE.Matrix4(), out = new THREE.Matrix4(), eu = new THREE.Euler(), qq = new THREE.Quaternion(), vp = new THREE.Vector3(), vs = new THREE.Vector3(), tipV = new THREE.Vector3();
 function local(x, y, z, rx, ry, rz) { eu.set(rx, ry, rz); qq.setFromEuler(eu); return tmp.compose(vp.set(x, y, z), qq, vs.set(1, 1, 1)); }
 function bones(u, a) {
   const s = u.kind === 'captain' ? 1.18 : 1;
@@ -318,6 +321,11 @@ export function drawSoldiers(units, dt) {
     drawn++;
     const a = pose(u, dt);
     bones(u, a);
+    // a brief streak off the blade/spear tip while mid-swing, so a fast hit reads as motion
+    if (u.swing > 0 && !u.dead && (u.kind === 'foot' || u.kind === 'captain')) {
+      if (u.tier >= 1) tipV.set(0, 0, 2.1).applyMatrix4(M.spear); else tipV.set(0, -.4, 1.0).applyMatrix4(M.wArm);
+      trail(tipV.x, tipV.y, tipV.z, '#eef2f5');
+    }
     const ring = ringFor(u), fac = factionOf(u);
     for (const p of PARTS) {
       if (p.k && !p.k.has(u.kind)) continue;

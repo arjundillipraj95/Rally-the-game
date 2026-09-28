@@ -12,9 +12,16 @@ export let floats = [];
 
 export function spark(x, y, z, c, n) {
   const cap = quality.cfg.particles;
+  // a bright, near-instant flash at the point of impact sells the hit before the debris scatters
+  if (parts.length < cap) parts.push({ x, y, z, vx: 0, vy: rnd(.2, .6), vz: 0, life: .22, c: '#fff8e6', s: 9 });
   for (let i = 0; i < n && parts.length < cap; i++) parts.push({ x, y, z, vx: rnd(-4, 4), vy: rnd(1, 5), vz: rnd(-4, 4), life: rnd(.25, .5), c, s: rnd(2, 4) });
 }
 export function puff(p) { if (parts.length < quality.cfg.particles + 40) parts.push(p); }
+// A weapon's blade tip leaves a brief, near-stationary streak so a fast swing reads as motion,
+// not a snap between poses. Cheap: reuses the same particle pool, just near-zero velocity.
+export function trail(x, y, z, c) {
+  if (parts.length < quality.cfg.particles) parts.push({ x, y, z, vx: rnd(-.2, .2), vy: rnd(-.1, .2), vz: rnd(-.2, .2), life: rnd(.08, .14), c, s: rnd(2.5, 4) });
+}
 // Dust kicked up by hits and falls, tinted to the ground.
 const DUST = { dunes: '#dcc69c', river: '#b7a888', forest: '#a89a7c', frost: '#f4f7fa' };
 export function dust(x, z) {
