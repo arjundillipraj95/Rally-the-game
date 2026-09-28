@@ -275,7 +275,7 @@ function pose(u, dt) {
       a.wArmZ = u.mounted ? -.9 : -.3;
     } else { a.wArmX += (-.35 - a.wArmX) * Math.min(1, dt * 10); a.wArmZ = 0; }
     blocking = ((u.human && u.blocking) || u.blockT > 0) && !u.mounted;
-    const over = u.testudo && u.kind === 'foot';
+    const over = u.shieldwall && u.kind === 'foot';
     a.over += ((over ? 1 : 0) - a.over) * Math.min(1, dt * 8);
     a.sArmX += ((over ? -2.9 : blocking ? -1.35 : u.carrying ? -.1 : -.35) - a.sArmX) * Math.min(1, dt * 14);
     a.sArmPX = blocking ? .28 : .5;
@@ -300,7 +300,7 @@ function bones(u, a) {
   if ((u.kind === 'foot' || u.kind === 'captain') && u.tier >= 1) M.spear.multiplyMatrices(M.wArm, local(0, -.48, a.spearZ, a.spearRX, 0, 0));
   if (u.kind === 'foot' || u.kind === 'captain') {
     // held at the side and turned out a little; raised to the front when blocking
-    // testudo: the shield goes flat overhead, locking with the neighbours' shields
+    // shieldwall: the shield goes flat overhead, locking with the neighbours' shields
     const o = a.over, b = a.block * (1 - o), big = factionOf(u) === 'greek' ? .08 : 0;
     const x = .56 - .38 * b, y = 1.02 + .26 * b + big, z = .3 + .3 * b;
     M.shield.multiplyMatrices(M.body, local(x + (.08 - x) * o, y + (2.5 - y) * o, z + (.1 - z) * o, -.05 * (1 - b) * (1 - o) - Math.PI / 2 * o, .5 * (1 - b) * (1 - o), 0));

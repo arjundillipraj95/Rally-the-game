@@ -78,8 +78,8 @@ export const ECON = { humanIncome: 10, startGold: 60, aiRecruitEvery: [1.5, 3] }
 export const SQUAD_CAP = 20;
 export const START_SQUAD = ['foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'arch', 'arch', 'arch'];
 export const FULL_SQUAD = ['foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'arch', 'arch', 'arch', 'arch', 'arch', 'arch'];
-export const ORDERS = ['follow', 'hold', 'charge', 'testudo'];
-export const ORDER_NAMES = { follow: 'Follow me!', hold: 'Hold here!', charge: 'Charge!', testudo: 'Testudo!' };
+export const ORDERS = ['follow', 'hold', 'charge', 'shieldwall'];
+export const ORDER_NAMES = { follow: 'Follow me!', hold: 'Hold here!', charge: 'Charge!', shieldwall: 'Shieldwall!' };
 
 // Upgrades bought with gold during a battle. Footman/Archer tiers are single-purchase (one
 // cost each, foot2/arch2 require foot1/arch1 first); Aura/Horse stay repeatable up to 3 levels.

@@ -75,7 +75,7 @@ export function bindInput(actions) {
     if (e.code === 'KeyQ') A.order('follow');
     if (e.code === 'KeyF') A.order('hold');
     if (e.code === 'KeyE') A.order('charge');
-    if (e.code === 'KeyT') A.order('testudo');
+    if (e.code === 'KeyT') A.order('shieldwall');
     if (e.code === 'KeyU') upOpen(!inp.upIsOpen);
     const up = ['Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8'].indexOf(e.code);
     if (up >= 0) A.upgrade(['foot1', 'foot2', 'arch1', 'arch2', 'aura', 'horse'][up]);

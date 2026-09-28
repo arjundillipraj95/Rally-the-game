@@ -58,7 +58,7 @@ export function updateHud(lastSnapAt) {
   $('atk').classList.toggle('dim', !p || p.carrying);
   const o = me.order || 'follow';
   $('cmdT').textContent = ORDER_NAMES[o] || ORDER_NAMES.follow;
-  const cc = o === 'follow' ? 'var(--green)' : o === 'hold' ? 'var(--yellow)' : o === 'testudo' ? 'var(--blue)' : 'var(--red)';
+  const cc = o === 'follow' ? 'var(--green)' : o === 'hold' ? 'var(--yellow)' : o === 'shieldwall' ? 'var(--blue)' : 'var(--red)';
   $('cmdBtn').style.borderLeftColor = cc; $('cmdBtn').querySelector('.ic').style.background = cc;
   const NET = session.NET, tag = $('netTag');
   if (NET) {

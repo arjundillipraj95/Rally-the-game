@@ -40,7 +40,7 @@ function encodeSnap() {
   for (const u of G.units) {
     if (u.dead) continue;
     const kt = KINDS.indexOf(u.kind) * 8 + u.ti;
-    const fl = (u.swing > 0 ? 1 : 0) | (u.mounted ? 2 : 0) | ((u.blockT > 0 || (u.human && u.blocking)) ? 4 : 0) | (u.carrying ? 8 : 0) | (u.stun > 0 ? 16 : 0) | (u.aim ? 32 : 0) | (u.testudo ? 64 : 0);
+    const fl = (u.swing > 0 ? 1 : 0) | (u.mounted ? 2 : 0) | ((u.blockT > 0 || (u.human && u.blocking)) ? 4 : 0) | (u.carrying ? 8 : 0) | (u.stun > 0 ? 16 : 0) | (u.aim ? 32 : 0) | (u.shieldwall ? 64 : 0);
     us.push([b36(u.id), kt.toString(16), encX(u.x), encX(u.z), encF(u.face), b36(clamp(u.hp / u.max, 0, 1) * 35), b36(fl)].join(','));
   }
   const ars = G.arrows.filter(a => !a.stuck && !a.done).slice(-18).map(a => [b36(a.id), encX(a.x0), encX(a.z0), b36(a.y0 * 10), encX(a.x1), encX(a.z1), b36(a.y1 * 10 + 20), b36(a.dur * 100), b36(a.peak * 10), b36(a.t * 100), a.ti].join(','));
@@ -131,7 +131,7 @@ function clientUnit(id, kind, ti, x, z) {
   const human = kind === 'captain' && G.teams[ti].human;
   const u = { id, kind, ti, leader: kind === 'captain', human, x, z, y: groundY(x, z), tx: x, tz: z, tface: 0, face: 0, vx: 0, vz: 0, vy: 0,
     hp: STATS[kind].hp, max: STATS[kind].hp, r: STATS[kind].r, swing: 0, stun: 0, blockT: 0, dead: false, deadT: 0, mounted: false, carrying: false, aim: false,
-    spd: human ? 6.3 : STATS[kind].spd, horseHp: horseMax(ti), horseCd: 0, summon: false, testudo: false, blocking: false, lastHit: -9 };
+    spd: human ? 6.3 : STATS[kind].spd, horseHp: horseMax(ti), horseCd: 0, summon: false, shieldwall: false, blocking: false, lastHit: -9 };
   G.units.push(u); C.byId.set(id, u); return u;
 }
 function clientKill(u) {
@@ -174,7 +174,7 @@ function clientApply(hp) {
     }
     if ((fl & 1) && u.swing <= 0 && id !== myId) { u.swing = .38; sfx.swing(u.x, u.z); }
     u.mounted = !!(fl & 2); u.carrying = !!(fl & 8);
-    u.testudo = !!(fl & 64);
+    u.shieldwall = !!(fl & 64);
     if (id !== myId) { u.blockT = (fl & 4) ? .2 : 0; u.stun = (fl & 16) ? .1 : 0; u.aim = !!(fl & 32); }
     if (id !== myId) {
       u.tx = x; u.tz = z; u.tface = face;

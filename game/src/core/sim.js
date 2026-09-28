@@ -18,7 +18,7 @@ const sound = (name, x, z) => fx('sfx', { name, x, z });
 export function newTeams(humans, active = [1, 1, 1, 1, 0, 0, 0, 0]) {
   return Array.from({ length: 8 }, (_, i) => ({ points: 100, tickets: DM_TICKETS, caps: 0, gold: ECON.startGold, alive: true, plan: null, leaderDeadT: 0, recruitT: rnd(2, 6), thinkT: 0,
     human: !!humans[i], active: !!active[i], order: 'follow', holdPt: null, towerT: rnd(0, 1.4), leader: null,
-    up: { foot1: 0, foot2: 0, arch1: 0, arch2: 0, aura: 0, horse: 0 }, arrowHits: 0, testudoT: 0, upT: rnd(20, 40) }));
+    up: { foot1: 0, foot2: 0, arch1: 0, arch2: 0, aura: 0, horse: 0 }, arrowHits: 0, shieldwallT: 0, volleyCd: 0, upT: rnd(20, 40) }));
 }
 export function mkUnit(ti, x, z, kind, human = false) {
   const st = STATS[kind];
@@ -33,7 +33,7 @@ export function mkUnit(ti, x, z, kind, human = false) {
     javelin: capB ? capB.javelin : !!base.javelin, javCd: 0, tier,
     cd: rnd(0, .6), shootCd: rnd(0, 1.5), swing: 0, pending: null, stun: 0, blockT: 0, rt: rnd(0, .3), foe: null, fd: 1e9,
     dead: false, deadT: 0, trampleT: 0, lastHit: -9, blocking: false, aim: false,
-    mounted: false, horse: null, summon: null, horseHp: horseMax(ti), horseCd: 0, carrying: false, aura: false, testudo: false,
+    mounted: false, horse: null, summon: null, horseHp: horseMax(ti), horseCd: 0, carrying: false, aura: false, shieldwall: false,
     kick: { n: 0, vx: 0, vz: 0, st: 0, dirty: false } };
   G.units.push(u); return u;
 }
@@ -127,7 +127,7 @@ export function buyUpgrade(ti, id) {
   return true;
 }
 // What a team's soldiers are doing: the human's order, or the computer's choice.
-export const orderOf = ti => { const s = G.teams[ti], L = s.leader, up = L && !L.dead; return s.human ? (s.order || 'follow') : s.testudoT > 0 && up ? 'testudo' : up ? 'follow' : 'charge'; };
+export const orderOf = ti => { const s = G.teams[ti], L = s.leader, up = L && !L.dead; return s.human ? (s.order || 'follow') : s.shieldwallT > 0 && up ? 'shieldwall' : up ? 'follow' : 'charge'; };
 export function canRespawn(ti) { const s = G.teams[ti]; return G.mode === 'conquest' ? G.teams[colorOf(ti)].alive : G.mode === 'dm' ? s.tickets > 0 : true; }
 function push(u, vx, vz, stun) {
   if (u.remote) { u.kick.vx += vx; u.kick.vz += vz; u.kick.st = Math.max(u.kick.st, stun || 0); u.kick.dirty = true; }
@@ -139,7 +139,7 @@ function push(u, vx, vz, stun) {
 export function speedOf(u) {
   let s = u.spd;
   if (u.mounted) s *= 1.8 * (1 + .05 * lvl(u.ti, 'horse'));
-  if (!u.leader) { if (u.aura) s *= 1 + auraBonus(u.ti) * .5; if (u.testudo) s *= .6; }
+  if (!u.leader) { if (u.aura) s *= 1 + auraBonus(u.ti) * .5; if (u.shieldwall) s *= .55; }
   if (u.carrying) s *= .7;
   if (inFord(u.x, u.z)) s *= .6;
   if (u.human && u.blocking && !u.mounted) s *= .5;
@@ -248,7 +248,7 @@ function hit(a, b, mult = 1) {
   let blocked = false;
   if (frontal && b.stun <= 0 && !b.mounted && !b.carrying) {
     if (b.human) blocked = b.blocking;
-    else if (Math.random() < (b.block || 0) + (b.aura ? auraBonus(b.ti) : 0) + (b.testudo && b.kind === 'foot' ? .3 : 0)) { blocked = true; b.blockT = .45; }
+    else if (Math.random() < (b.block || 0) + (b.aura ? auraBonus(b.ti) : 0) + (b.shieldwall && b.kind === 'foot' ? .3 : 0)) { blocked = true; b.blockT = .45; }
   }
   const hx = (a.x + b.x) / 2, hz = (a.z + b.z) / 2, hy = (a.y + b.y) / 2 + 1.2;
   if (blocked) {
@@ -299,11 +299,11 @@ function arrowHit(a, b) {
     else if (roll > .82) { dmg *= .6; loc = 'legs'; }
   }
   if (G.teams[b.ti]) G.teams[b.ti].arrowHits++;
-  // a testudo turns arrows: shields overhead for footmen, cover from neighbours for the rest
-  if (b.testudo && (b.kind === 'foot' || Math.random() < .6)) { spark(b.x, b.y + 2.2, b.z, '#e8d9b0', 4); sound('thud', b.x, b.z); return; }
+  const frontal = Math.abs(angDiff(b.face, Math.atan2(a.x0 - b.x, a.z0 - b.z))) < 1.1;
+  // a shieldwall turns arrows from the front only — locked shields don't cover the sides or back
+  if (b.shieldwall && frontal && (b.kind === 'foot' || Math.random() < .6)) { spark(b.x, b.y + 2.2, b.z, '#e8d9b0', 4); sound('thud', b.x, b.z); return; }
   b.lastHit = G.T;
   if (b.mounted && Math.random() < .6) { horseDamage(b, dmg); return; }
-  const frontal = Math.abs(angDiff(b.face, Math.atan2(a.x0 - b.x, a.z0 - b.z))) < 1.1;
   let blocked = false;
   if (frontal && !b.mounted && !b.carrying && loc !== 'head') {
     if (b.kind === 'foot' && Math.random() < .7) blocked = true;
@@ -575,20 +575,22 @@ function slotPos(anchor, front, idx, isArch, meleeN) {
   const f = anchor.face, fx = Math.sin(f), fz = Math.cos(f), rx = Math.cos(f), rz = -Math.sin(f);
   return [anchor.x - fx * back + rx * lat, anchor.z - fz * back + rz * lat];
 }
-// Testudo: a tight block, five wide, just ahead of a human captain (behind a computer one).
-function testudoPos(anchor, front, idx) {
-  const row = Math.floor(idx / 5), lat = (idx % 5 - 2) * 1.02, back = front ? -(1.6 + row * 1.05) : 1.6 + row * 1.05;
+// Shieldwall: a tight forward-facing line (9 wide) just ahead of a human captain (behind a
+// computer one), rather than a deep huddled block — footmen up front, archers a rank behind.
+function shieldwallPos(anchor, front, idx) {
+  const perRow = 9, row = Math.floor(idx / perRow), lat = (idx % perRow - (perRow - 1) / 2) * .95;
+  const back = front ? -(1.6 + row * 1.1) : 1.6 + row * 1.1;
   const f = anchor.face, fx = Math.sin(f), fz = Math.cos(f), rx = Math.cos(f), rz = -Math.sin(f);
   return [anchor.x - fx * back + rx * lat, anchor.z - fz * back + rz * lat];
 }
 function thinkSoldier(u, dt) {
   const s = G.teams[u.ti], L = s.leader, leaderUp = L && !L.dead;
   const myOrder = orderOf(u.ti);
-  if (myOrder === 'testudo' && leaderUp) {
+  if (myOrder === 'shieldwall' && leaderUp) {
     u.aim = false;
     const foe = u.foe;
     if (foe && u.fd < u.r + foe.r + u.reach) { faceTo(u, foe.x, foe.z, dt); startSwing(u, foe); }
-    const [gx, gz] = testudoPos(L, !!L.human, u.tslot || 0);
+    const [gx, gz] = shieldwallPos(L, !!L.human, u.tslot || 0);
     const d = go(u, gx, gz, speedOf(u) * (Math.hypot(gx - u.x, gz - u.z) > 5 ? 1.5 : 1), dt, .15);
     if (d < 1 && !(foe && u.fd < 3)) u.face = turn(u.face, L.face, dt * 6);
     return;
@@ -708,13 +710,13 @@ export function update(dt, input) {
           if (opts.length) buyUpgrade(i, opts[Math.floor(Math.random() * opts.length)]);
         }
       }
-      // form a testudo when arrows keep landing and no one is close enough to fight
-      s.arrowHits = Math.max(0, s.arrowHits - dt * .6); s.testudoT -= dt;
-      if (s.arrowHits >= 4 && s.testudoT <= 0 && s.leader && !s.leader.dead) {
+      // form a shieldwall when arrows keep landing and no one is close enough to fight
+      s.arrowHits = Math.max(0, s.arrowHits - dt * .6); s.shieldwallT -= dt;
+      if (s.arrowHits >= 4 && s.shieldwallT <= 0 && s.leader && !s.leader.dead) {
         const [f, fd] = nearestFoe(s.leader, 9, o => o.kind !== 'arch');
-        if (!f) { s.testudoT = 7; s.arrowHits = 0; }
+        if (!f) { s.shieldwallT = 7; s.arrowHits = 0; }
       }
-      if (s.testudoT > 0 && s.leader && !s.leader.dead) { const [f] = nearestFoe(s.leader, 5, o => o.kind !== 'arch'); if (f) s.testudoT = 0; }
+      if (s.shieldwallT > 0 && s.leader && !s.leader.dead) { const [f] = nearestFoe(s.leader, 5, o => o.kind !== 'arch'); if (f) s.shieldwallT = 0; }
     }
     if (s.leader.dead && canRespawn(i)) {
       s.leaderDeadT -= dt;
@@ -742,8 +744,8 @@ export function update(dt, input) {
     if (u.kind !== 'arch') meleeN[u.ti]++;
     const L = G.teams[u.ti].leader, dx = L ? L.x - u.x : 0, dz = L ? L.z - u.z : 0;
     u.aura = !!L && !L.dead && dx * dx + dz * dz < rng[u.ti];
-    u.testudo = ords[u.ti] === 'testudo';
-    // testudo ranks: footmen in the front rank, archers at the back.
+    u.shieldwall = ords[u.ti] === 'shieldwall';
+    // shieldwall ranks: footmen in the front rank, archers at the back.
     // Slot 0 sits nearest the captain, who is behind a human's block and in front of a computer's.
     const k = u.kind === 'foot' ? 0 : 1;
     u.tkey = G.teams[u.ti].human ? 1 - k : k;
