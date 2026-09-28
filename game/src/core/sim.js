@@ -289,10 +289,12 @@ function arrowHit(a, b) {
   if (a.javelin) {
     dmg = JAVELIN.dmg * rnd(.85, 1.15) * aiDmg(a.ti);
   } else {
-    dmg = (shooter ? shooter.arrow : STATS.arch.arrow) * rnd(.8, 1.2) * aiDmg(a.ti);
+    // shooter is missing .arrow/.jitter for a castle tower's arrows (a bare {x,z,ti,tower}
+    // placeholder, not a real archer unit), so fall back to the base archer stats for those.
+    dmg = (shooter && shooter.arrow != null ? shooter.arrow : STATS.arch.arrow) * rnd(.8, 1.2) * aiDmg(a.ti);
     // Skill/tier-based headshots: tighter aim (lower jitter, from the Marksman upgrade) means
     // more of them land on the head for extra damage, or the legs for less.
-    const j = shooter ? shooter.jitter : .8, headChance = .08 + (1 - j) * .22, roll = Math.random();
+    const j = shooter && shooter.jitter != null ? shooter.jitter : .8, headChance = .08 + (1 - j) * .22, roll = Math.random();
     if (roll < headChance) { dmg *= 1.8; loc = 'head'; }
     else if (roll > .82) { dmg *= .6; loc = 'legs'; }
   }
