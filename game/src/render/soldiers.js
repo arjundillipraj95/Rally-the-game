@@ -454,6 +454,18 @@ function pose(u, dt) {
     if (blocking) { a.bodyY -= .05; a.bodyRX += .08; } // brace behind the shield
   }
   if (air && !u.mounted && t < 0 && u.weapon !== 'jav') a.sArmX = near(a.sArmX, -1.1, k12); // arms up on the rise
+  // the battle's over: winners jump about with their arms in the air, everyone else runs for it
+  if (G.state === 'end' && G.endInfo && G.endInfo.w >= 0 && !u.mounted) {
+    const ph = a.idle * 7 + (u.id % 7);
+    if (G.ALLY[colorOf(u.ti)] === G.endInfo.w) {
+      a.lift = Math.abs(Math.sin(ph)) * .38; a.expr = 'yell';
+      a.sArmX = -2.7 + Math.sin(ph * 2) * .25; a.wArmX = -2.9 + Math.sin(ph * 2 + 1) * .3; a.wArmZ = 0; a.spearRX = -.2;
+      a.legL[0] = a.legR[0] = -.3 * Math.abs(Math.sin(ph));
+    } else {
+      a.expr = 'scared';
+      a.sArmX = -2.3 + Math.sin(a.walk * 2) * .7; a.wArmX = -2.3 + Math.sin(a.walk * 2 + 2) * .7; a.bodyRX = -.12;
+    }
+  }
   a.block = near(a.block, blocking ? 1 : 0, Math.min(1, dt * 16));
   return a;
 }

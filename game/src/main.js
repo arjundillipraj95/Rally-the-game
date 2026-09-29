@@ -2,7 +2,7 @@
 import './style.css';
 import { TEAMS, MODES, MAPS, PRESETS, RANKS, CRESTS, QUIPS, TIPS } from './config.js';
 import { G, bus, colorOf } from './core/state.js';
-import { startMatch, mkUnit, newTeams, update, fallStep, endMatch, auraRange } from './core/sim.js';
+import { startMatch, mkUnit, newTeams, update, fallStep, endMatch, auraRange, endStep } from './core/sim.js';
 import { makeLayout, gatePos, groundY } from './core/world.js';
 import { buildNav } from './core/nav.js';
 import { renderer, scene, camera, resize, applyPixelRatio, applyShadowQuality, followSun } from './render/scene.js';
@@ -10,6 +10,7 @@ import { quality, saveSetting, stepDown, LEVELS } from './render/quality.js';
 import { buildWorldView, updateWorldView, grassTime } from './render/world.js';
 import { drawSoldiers, drawCalls, clearProps } from './render/soldiers.js';
 import { banterTick, clearBanter } from './render/banter.js';
+import { spawnCritters, updateCritters, clearCritters } from './render/critters.js';
 import { drawHorses, clearHorses } from './render/horses.js';
 import { spark, splat, dust, drawAura, floatText, castleFx, effectsTick, drawEffects, clearEffects } from './render/effects.js';
 import { drawOverlay, clearOverlay, resizeOverlay } from './render/overlay.js';
@@ -139,7 +140,7 @@ function endText(w, why) {
 // ---------- match start ----------
 function viewForMatch() {
   buildWorldView(G.layout);
-  clearEffects(); clearHorses(); clearProps(); clearBanter();
+  clearEffects(); clearHorses(); clearProps(); clearBanter(); spawnCritters(G.seed);
   buildHud(); showHud(); trayOpen(false); upOpen(false);
   watchdog.reset();
   startCrowd(G.map.id);
@@ -160,7 +161,7 @@ bindInput(actions); bindTutorial();
 let demoT = 0, demoRider = null;
 function seedDemo() {
   G.layout = makeLayout(G.map.id, false, false, 7); buildNav(G.layout);
-  G.units = []; G.horses = []; G.arrows = []; G.flag = null; G.player = null; G.uid = 0;
+  G.units = []; G.horses = []; G.arrows = []; G.flag = null; G.player = null; G.uid = 0; clearCritters();
   G.teams = newTeams([0, 0, 0, 0]);
   G.factions = assignFactions(TEAMS.map((_, i) => i === G.myTi ? prefs.faction : null), 7);
   buildWorldView(G.layout); clearEffects(); clearHorses(); clearProps();
@@ -253,7 +254,7 @@ $('againBtn').addEventListener('click', () => {
 });
 $('menuBtn').addEventListener('click', () => {
   if (session.NET) { netLeave(); return; }
-  G.state = 'title'; resetSolo(); newTip(); $('ovEnd').hidden = true; $('hudWrap').hidden = true; $('ovTitle').hidden = false; seedDemo();
+  G.state = 'title'; resetSolo(); newTip(); clearCritters(); $('ovEnd').hidden = true; $('hudWrap').hidden = true; $('ovTitle').hidden = false; seedDemo();
 });
 
 // ---------- frame-rate watchdog: steps graphics down if the first seconds of a battle run slowly ----------
@@ -271,7 +272,7 @@ const watchdog = {
 
 // ---------- loop ----------
 function drawMatch(dt) {
-  audioTick(dt); banterTick(dt);
+  audioTick(dt); banterTick(dt); updateCritters(dt);
   drawSoldiers(G.units, dt);
   const horses = isClient() ? clientHorses() : G.horses.map(h => ({ key: h.id, ti: h.ti, x: h.x, z: h.z, face: h.face, spd: h.spd, state: h.state, t: h.t, fall: h.fall }));
   drawHorses(horses, dt);
@@ -306,7 +307,7 @@ function loop(now) {
       drawMatch(dt);
       watchdog.tick(raw);
     } else if (G.state === 'end') {
-      for (const u of G.units) if (u.dead) fallStep(u, dt);
+      endStep(dt);
       drawMatch(dt);
       if (isHost() && now - (session.NET.lastSend || 0) > 500) netHostSend(true);
     } else {

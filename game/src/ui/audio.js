@@ -219,6 +219,20 @@ export const sfx = {
     o.start(t); o.stop(t + up + .6); vib.start(t); vib.stop(t + up + .6);
   },
   helmClank(x, z) { if (gateS('hc', 60)) play('clang', x, z, { vol: .3, rate: 1.5, jit: .15, send: .15 }); },
+  // the farmyard: a startled chicken's bawk and a goat's complaint
+  bawk(x, z) {
+    if (!ac || !gateS('bk', 350)) return; const pl = place(x, z); if (pl.v < .1) return;
+    [[0, 820, 1250], [.11, 1150, 700], [.2, 980, 620]].forEach(([d, a, b]) => tone(a, .09, .06, 'square', b, d, pl, .12));
+  },
+  bleat(x, z) {
+    if (!ac || !gateS('bl', 900)) return; const pl = place(x, z); if (pl.v < .1) return;
+    const t = ac.currentTime, o = ac.createOscillator(), bp = ac.createBiquadFilter(), lfo = ac.createOscillator(), lg = ac.createGain();
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(420, t); o.frequency.linearRampToValueAtTime(360, t + .6);
+    lfo.frequency.value = 22; lg.gain.value = 26; lfo.connect(lg).connect(o.frequency);
+    bp.type = 'bandpass'; bp.frequency.value = 1300; bp.Q.value = 2.5; o.connect(bp);
+    const gn = route(bp, 1, pl, .2); gn.gain.setValueAtTime(.0001, t); gn.gain.exponentialRampToValueAtTime(.12 * pl.v, t + .05); gn.gain.exponentialRampToValueAtTime(.0001, t + .65);
+    o.start(t); o.stop(t + .7); lfo.start(t); lfo.stop(t + .7);
+  },
   thump(x, z) { if (gateS('tp', 70)) play('fall', x, z, { vol: .7, rate: .85 }); },
   uiClick() { if (gateS('ui', 45)) tone(620, .04, .04, 'triangle', 480); },
 };

@@ -1072,6 +1072,23 @@ export function update(dt, input) {
   updateControlPoints(dt);
   checkTime();
 }
+// After the whistle: the winners stay put (the renderer has them celebrating) and everyone else
+// legs it away from the nearest winner. Runs on the solo/host game; clients follow its snapshots.
+export function endStep(dt) {
+  const w = G.endInfo ? G.endInfo.w : -1;
+  for (const u of G.units) {
+    if (u.dead) { fallStep(u, dt); continue; }
+    if (u.remote) continue;
+    const lose = w >= 0 && G.ALLY[colorOf(u.ti)] !== w;
+    if (lose) {
+      let best = null, bd = 1e9;
+      for (const o of G.units) { if (o.dead || G.ALLY[colorOf(o.ti)] !== w) continue; const d = Math.hypot(o.x - u.x, o.z - u.z); if (d < bd) { bd = d; best = o; } }
+      const dx = best ? u.x - best.x : u.x, dz = best ? u.z - best.z : u.z, d = Math.hypot(dx, dz) || 1;
+      moveToward(u, u.x + dx / d * 4, u.z + dz / d * 4, u.spd * 1.15, dt); faceTo(u, u.x + dx, u.z + dz, dt, 8);
+    } else moveToward(u, u.x, u.z, 0, dt);
+    integrate(u, dt, u.z);
+  }
+}
 export function fallStep(u, dt) {
   u.deadT += dt;
   u.x += u.vx * dt; u.z += u.vz * dt; u.vy -= 18 * dt;
