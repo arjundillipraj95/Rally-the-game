@@ -1,6 +1,6 @@
 // The whole game state lives in one plain object. Rules read and write it;
 // the renderer and UI only read it. Nothing here depends on three.js or the DOM.
-import { MAPS } from '../config.js';
+import { MAPS, LENGTHS } from '../config.js';
 
 export const G = {
   role: 'solo',          // 'solo' | 'host' | 'client'
@@ -8,6 +8,7 @@ export const G = {
   mode: 'conquest',
   map: MAPS.forum,
   diff: 1,
+  len: 'quick',          // match length: 'quick' | 'standard' (see LENGTHS)
   preset: 'ffa',
   ALLY: [0, 1, 2, 3],
   myTi: 0,
@@ -39,6 +40,10 @@ export const slotOf = ti => ti < 4 ? 0 : 1;
 export const armyOf = (color, slot) => slot ? color + 4 : color;
 export const activeArmies = () => { const out = [0, 1, 2, 3]; for (let c = 0; c < 4; c++) if (G.duo[c]) out.push(c + 4); return out; };
 
+// the numbers for this match's length: time limit, tickets, captures, control target...
+export const rules = () => LENGTHS[G.len] || LENGTHS.quick;
+export const matchTime = () => rules().time[G.mode] || 600;
+export const modeDesc = m => (m.desc || '').replace('{tickets}', rules().tickets).replace('{caps}', rules().caps).replace('{win}', rules().win);
 export const isEnemyTi = (a, b) => G.ALLY[colorOf(a)] !== G.ALLY[colorOf(b)];
 export const isEnemy = (a, b) => G.ALLY[colorOf(a.ti)] !== G.ALLY[colorOf(b.ti)];
 export const isFfa = () => new Set(G.ALLY).size === 4;

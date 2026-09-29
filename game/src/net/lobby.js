@@ -61,17 +61,17 @@ export function hostLobbyTick() {
       if (!taken().includes(want)) NET.seats[p.peer] = want;
     } else if (want === -1 && NET.seats[p.peer] !== undefined) delete NET.seats[p.peer];
   }
-  NET.room.presence({ role: 'host', ph: 'lobby', nick: session.myNick || 'Host', fac: prefs.faction, mode: L.mode, map: L.map, diff: L.diff, al: L.al.join(''), duo: L.duo.map(d => d ? 1 : 0).join(''), seats: NET.seats, s: null, m: null, res: null }).catch(() => {});
+  NET.room.presence({ role: 'host', ph: 'lobby', nick: session.myNick || 'Host', fac: prefs.faction, mode: L.mode, map: L.map, diff: L.diff, len: L.len, al: L.al.join(''), duo: L.duo.map(d => d ? 1 : 0).join(''), seats: NET.seats, s: null, m: null, res: null }).catch(() => {});
   renderLobby();
 }
 function lobbyView() {
   const NET = session.NET;
-  if (NET.role === 'host') return { mode: NET.lobby.mode, map: NET.lobby.map, diff: NET.lobby.diff, al: NET.lobby.al, duo: NET.lobby.duo, seats: NET.seats, hostNick: session.myNick || 'Host' };
+  if (NET.role === 'host') return { mode: NET.lobby.mode, map: NET.lobby.map, diff: NET.lobby.diff, len: NET.lobby.len, al: NET.lobby.al, duo: NET.lobby.duo, seats: NET.seats, hostNick: session.myNick || 'Host' };
   const hostP = NET.room.peers().find(p => p.presence && p.presence.role === 'host');
   if (!hostP) return null;
   NET.hostPeer = hostP.peer;
   const h = hostP.presence;
-  return { mode: h.mode, map: h.map, diff: h.diff, al: String(h.al || '0123').split('').map(Number), duo: String(h.duo || '0000').split('').map(c => c === '1'), seats: h.seats || {}, hostNick: h.nick, ph: h.ph, hostP };
+  return { mode: h.mode, map: h.map, diff: h.diff, len: h.len === 'standard' ? 'standard' : 'quick', al: String(h.al || '0123').split('').map(Number), duo: String(h.duo || '0000').split('').map(c => c === '1'), seats: h.seats || {}, hostNick: h.nick, ph: h.ph, hostP };
 }
 export function renderLobby() {
   const NET = session.NET;
@@ -85,7 +85,7 @@ export function renderLobby() {
   const facOf = peer => { const p = peers.find(x => x.peer === peer); const f = p && p.presence && p.presence.fac; return FACTIONS[f] ? FACTIONS[f].name : ''; };
   const me = myPeer(NET.room);
   const seatOf = ti => Object.keys(v.seats).find(k => v.seats[k] === ti);
-  const sig = JSON.stringify([me, v.mode, v.map, v.diff, v.al, v.duo, v.seats, v.hostNick, peers.map(p => [p.peer, p.presence && p.presence.nick, p.presence && p.presence.role, p.presence && p.presence.fac])]);
+  const sig = JSON.stringify([me, v.mode, v.map, v.diff, v.len, v.al, v.duo, v.seats, v.hostNick, peers.map(p => [p.peer, p.presence && p.presence.nick, p.presence && p.presence.role, p.presence && p.presence.fac])]);
   if (sig === NET.lobbySig) return; NET.lobbySig = sig;
   const box = $('seats'); box.innerHTML = '';
   const seatBtn = (armyTi, t, label) => {
@@ -124,7 +124,7 @@ export function renderLobby() {
   const hostSeat = host ? NET.seats[NET.me] : v.seats[NET.hostPeer];
   const presetOf = al => Object.keys(PRESETS).find(k => allyFor(k, colorOf(hostSeat ?? 0)).join('') === al.join('')) || '';
   setSeg('lobbyFaction', prefs.faction, false);
-  setSeg('lobbyTeams', presetOf(v.al), !host); setSeg('lobbyMode', v.mode, !host); setSeg('lobbyMap', v.map, !host); setSeg('lobbyDiff', v.diff, !host);
+  setSeg('lobbyTeams', presetOf(v.al), !host); setSeg('lobbyMode', v.mode, !host); setSeg('lobbyMap', v.map, !host); setSeg('lobbyDiff', v.diff, !host); setSeg('lobbyLen', v.len, !host);
   $('startBtn').hidden = !host;
   const nAl = new Set(v.al).size, nPlayers = Object.keys(v.seats).length;
   $('startBtn').disabled = nAl < 2;
@@ -183,7 +183,7 @@ export function bindLobby(h) {
     busy = false;
     if (!gr) { $('netNote').textContent = 'Could not open a battle. Try again.'; return; }
     $('netNote').textContent = '';
-    const NET = session.NET = { role: 'host', room: gr, name: code, seats: {}, msgs: [], msgN: 0, snapN: 0, inp: {}, lobby: { mode: G.mode, map: G.map.id, diff: G.diff, al: allyFor(hooks.preset(), prefs.color), duo: [false, false, false, false] } };
+    const NET = session.NET = { role: 'host', room: gr, name: code, seats: {}, msgs: [], msgN: 0, snapN: 0, inp: {}, lobby: { mode: G.mode, map: G.map.id, diff: G.diff, len: G.len, al: allyFor(hooks.preset(), prefs.color), duo: [false, false, false, false] } };
     const me = myPeer(gr) || 'me';
     NET.me = me; NET.seats[me] = prefs.color; G.myTi = prefs.color; G.role = 'host';
     NET.unsub = gr.onPeers(() => { if (G.state === 'lobby') hostLobbyTick(); });
@@ -223,12 +223,12 @@ export function bindLobby(h) {
     prefs.faction = b.dataset.v; prefs.save();
     if (NET.role === 'host') hostLobbyTick(); else { NET.lobbySig = null; NET.room.presence(myPresence()).catch(() => {}); renderLobby(); }
   });
-  lobbySeg('lobbyTeams', 'al'); lobbySeg('lobbyMode', 'mode'); lobbySeg('lobbyMap', 'map'); lobbySeg('lobbyDiff', 'diff');
+  lobbySeg('lobbyTeams', 'al'); lobbySeg('lobbyMode', 'mode'); lobbySeg('lobbyMap', 'map'); lobbySeg('lobbyDiff', 'diff'); lobbySeg('lobbyLen', 'len');
   $('startBtn').addEventListener('click', () => {
     const NET = session.NET; if (!NET || NET.role !== 'host') return;
     initAudio();
     const L = NET.lobby;
-    G.mode = L.mode; G.map = MAPS[L.map]; G.diff = L.diff; G.ALLY = [...L.al];
+    G.mode = L.mode; G.map = MAPS[L.map]; G.diff = L.diff; G.len = L.len || 'quick'; G.ALLY = [...L.al];
     G.myTi = NET.seats[NET.me] ?? 0;
     G.seed = (Math.random() * 1e9) | 0;
     NET.msgs = []; NET.msgN = 0; NET.inp = {}; NET.snapN = 0;

@@ -6,7 +6,7 @@ import '@fontsource/barlow-semi-condensed/latin-800.css';
 import '@fontsource/barlow-semi-condensed/latin-800-italic.css';
 import './style.css';
 import { TEAMS, MODES, MAPS, PRESETS, RANKS, CRESTS, QUIPS, TIPS } from './config.js';
-import { G, bus, colorOf } from './core/state.js';
+import { G, bus, colorOf, rules, matchTime, modeDesc } from './core/state.js';
 import { startMatch, mkUnit, newTeams, update, fallStep, endMatch, auraRange, endStep } from './core/sim.js';
 import { makeLayout, gatePos, groundY } from './core/world.js';
 import { buildNav } from './core/nav.js';
@@ -140,7 +140,7 @@ function endText(w, why) {
   const names = allyNames(w), one = names.indexOf('&') < 0;
   if (why === 'castles') return `${names} tore down every enemy castle.`;
   if (why === 'tickets') return `${names} ${one ? 'is' : 'are'} the last side with tickets.`;
-  if (why === 'caps') return `${names} carried the banner home ${CAPS_TO_WIN} times.`;
+  if (why === 'caps') return `${names} carried the banner home ${rules().caps} times.`;
   return `Time is up and ${names} ${one ? 'leads' : 'lead'}.`;
 }
 
@@ -207,7 +207,7 @@ function seg(id, cb) {
 }
 function updateDesc() {
   const tdesc = describeTeams(G.ALLY, G.myTi);
-  $('desc').innerHTML = `<strong>${MODES[G.mode].name}.</strong> ${MODES[G.mode].desc}<br><strong>${G.map.name}.</strong> ${G.map.desc} <strong>Teams:</strong> ${tdesc}`;
+  $('desc').innerHTML = `<strong>${MODES[G.mode].name} · ${rules().name}, about ${Math.round(matchTime() / 60)} min.</strong> ${modeDesc(MODES[G.mode])}<br><strong>${G.map.name}.</strong> ${G.map.desc} <strong>Teams:</strong> ${tdesc}`;
 }
 function updateQualityNote() {
   const lvl = LEVELS[quality.level].name;
@@ -236,6 +236,7 @@ function soloStart() {
 }
 const pressSeg = (id, v) => $(id).querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === String(v))));
 seg('segDiff', v => { G.diff = +v; });
+seg('segLen', v => { G.len = v; prefs.len = v; prefs.save(); updateDesc(); });
 seg('segQuality', v => {
   if (v === quality.setting) return;
   saveSetting(v);
@@ -366,7 +367,7 @@ window.__fb = {
 
 function onResize() { resize(); resizeOverlay(); }
 addEventListener('resize', onResize);
-pressSeg('segFaction', prefs.faction); pressSeg('segColor', prefs.color); resetSolo();
+G.len = prefs.len; pressSeg('segLen', prefs.len); pressSeg('segFaction', prefs.faction); pressSeg('segColor', prefs.color); resetSolo();
 applyShadowQuality(); onResize(); updateDesc(); updateQualityNote(); seedDemo(); requestAnimationFrame(loop);
 // the games site (if we're on one): its SDK, its mute setting, and our pause during its ads
 portalInit({ mute: m => setMuted(m), pause: p => { paused = p; } }).then(() => { portal.loadingStart(); requestAnimationFrame(() => portal.loadingStop()); });

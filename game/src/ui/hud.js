@@ -1,6 +1,6 @@
 // Scoreboard, clock, health, gold, squad count and button labels.
 import { TEAMS, MODES, STATS, DM_TICKETS, CAPS_TO_WIN, CTRL, AL_LETTER, ORDER_NAMES, UPGRADES, WEAPON_NAMES } from '../config.js';
-import { G, isFfa, colorOf } from '../core/state.js';
+import { G, isFfa, colorOf, rules, matchTime } from '../core/state.js';
 import { colorOut, colorScore, colorHuman, squadOf, canRecruit, horseMax, upgradeCost, javMax } from '../core/sim.js';
 import { session, isClient } from '../net/session.js';
 
@@ -11,7 +11,7 @@ export function buildHud() {
   $('ptsTitle').textContent = MODES[G.mode].title;
   $('tpRows').innerHTML = TEAMS.map((t, i) => `<div class="tp${i === colorOf(G.myTi) ? ' me' : ''}" id="tp${i}"><span class="al">${isFfa() ? '' : AL_LETTER[G.ALLY[i]]}</span><div class="bar"><i style="background:${t.css}"></i></div><b>0</b></div>`).join('');
   $('pips').innerHTML = TEAMS.map((t, i) => `<span class="pip" id="pip${i}" style="background:${t.css}">${t.name[0]}</span>`).join('');
-  $('clockMax').textContent = fmt(MODES[G.mode].time);
+  $('clockMax').textContent = fmt(matchTime());
 }
 export function showHud() {
   ['ovTitle', 'ovEnd', 'ovBrowse', 'ovLobby'].forEach(id => $(id).hidden = true);
@@ -37,9 +37,9 @@ const ORDER_ICONS = {
 export function updateHud(lastSnapAt) {
   TEAMS.forEach((t, i) => {
     const row = $('tp' + i); if (!row) return;
-    const v = colorScore(i), max = G.mode === 'conquest' ? 100 : G.mode === 'dm' ? DM_TICKETS : G.mode === 'ctrl' ? CTRL.win : CAPS_TO_WIN;
+    const v = colorScore(i), max = G.mode === 'conquest' ? 100 : G.mode === 'dm' ? rules().tickets : G.mode === 'ctrl' ? rules().win : rules().caps;
     row.querySelector('i').style.transform = `scaleX(${Math.max(0, v) / max})`;
-    row.querySelector('b').textContent = G.mode === 'ctf' ? `${v}/${CAPS_TO_WIN}` : Math.max(0, Math.ceil(v));
+    row.querySelector('b').textContent = G.mode === 'ctf' ? `${v}/${rules().caps}` : Math.max(0, Math.ceil(v));
     const out = colorOut(i); row.classList.toggle('out', out);
     const pip = $('pip' + i); pip.classList.toggle('out', out); pip.classList.toggle('hum', colorHuman(i)); pip.textContent = out ? '✕' : t.name[0];
   });

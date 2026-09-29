@@ -63,7 +63,7 @@ export function netHostTick() {
 export function netHostSend() {
   const NET = session.NET; if (!NET) return;
   NET.lastSend = performance.now();
-  const pres = { role: 'host', ph: G.state === 'end' ? 'end' : 'play', seed: G.seed, mode: G.mode, map: G.map.id, diff: G.diff, al: G.ALLY.join(''), duo: G.duo.map(d => d ? 1 : 0).join(''), seats: NET.seats, nick: session.myNick || 'Host', fa: G.factions.map(f => (FACTIONS[f] || FACTIONS.roman).code).join(''), cr: Array.from({ length: 8 }, (_, i) => (G.crests && G.crests[i]) | 0).join(''), n: ++NET.snapN, s: encodeSnap(), m: NET.msgs };
+  const pres = { role: 'host', ph: G.state === 'end' ? 'end' : 'play', seed: G.seed, mode: G.mode, map: G.map.id, diff: G.diff, len: G.len, al: G.ALLY.join(''), duo: G.duo.map(d => d ? 1 : 0).join(''), seats: NET.seats, nick: session.myNick || 'Host', fa: G.factions.map(f => (FACTIONS[f] || FACTIONS.roman).code).join(''), cr: Array.from({ length: 8 }, (_, i) => (G.crests && G.crests[i]) | 0).join(''), n: ++NET.snapN, s: encodeSnap(), m: NET.msgs };
   if (G.state === 'end' && G.endInfo) pres.res = [G.endInfo.w, G.endInfo.why];
   let json = JSON.stringify(pres);
   while (json.length > 3900) { // trim arrows first, then messages
@@ -112,7 +112,7 @@ export function netHostReadInputs() {
 // ---------- client ----------
 export function clientStart(hp) {
   G.role = 'client';
-  G.mode = hp.mode; G.map = MAPS[hp.map]; G.diff = hp.diff; G.ALLY = hp.al.split('').map(Number); G.seed = hp.seed;
+  G.mode = hp.mode; G.map = MAPS[hp.map]; G.diff = hp.diff; G.len = hp.len === 'standard' ? 'standard' : 'quick'; G.ALLY = hp.al.split('').map(Number); G.seed = hp.seed;
   G.factions = String(hp.fa || 'rrrr').split('').map(factionFromCode);
   G.crests = String(hp.cr || '').split('').map(c => Math.min(7, +c || 0));
   G.duo = String(hp.duo || '0000').split('').map(c => c === '1');

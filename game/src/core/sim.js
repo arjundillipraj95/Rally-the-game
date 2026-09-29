@@ -1,7 +1,7 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
 import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT } from '../config.js';
-import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies } from './state.js';
+import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, rules, matchTime } from './state.js';
 import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable } from './nav.js';
 
@@ -16,7 +16,7 @@ const sound = (name, x, z) => fx('sfx', { name, x, z });
 // Castle strength (points/alive, conquest only) is only ever read/written on the color's own
 // army (0-3): a Duo teammate's army shares its castle rather than owning one.
 export function newTeams(humans, active = [1, 1, 1, 1, 0, 0, 0, 0]) {
-  return Array.from({ length: 8 }, (_, i) => ({ points: 100, tickets: DM_TICKETS, caps: 0, ctrlScore: 0, gold: ECON.startGold, alive: true, plan: null, leaderDeadT: 0, recruitT: rnd(2, 6), thinkT: 0,
+  return Array.from({ length: 8 }, (_, i) => ({ points: 100, tickets: rules().tickets, caps: 0, ctrlScore: 0, gold: Math.round(ECON.startGold * rules().gold), alive: true, plan: null, leaderDeadT: 0, recruitT: rnd(2, 6), thinkT: 0,
     human: !!humans[i], active: !!active[i], order: 'follow', holdPt: null, towerT: rnd(0, 1.4), leader: null,
     up: { foot1: 0, foot2: 0, arch1: 0, arch2: 0, aura: 0, horse: 0 }, arrowHits: 0, shieldwallT: 0, volleyCd: 0, upT: rnd(20, 40) }));
 }
@@ -233,7 +233,7 @@ function resolveSwing(u) {
     const s = G.teams[tg.castle];
     if (!s.alive || u.mounted || !isEnemyTi(tg.castle, u.ti)) return;
     if (Math.hypot(TEAMS[tg.castle].pos[0] - u.x, TEAMS[tg.castle].pos[1] - u.z) > CASTLE_REACH + .8) return;
-    s.points -= u.human ? 1.3 : u.leader ? .7 : u.kind === 'arch' ? .08 : .2;
+    s.points -= (u.human ? 1.3 : u.leader ? .7 : u.kind === 'arch' ? .08 : .2) * rules().castle;
     sound('wall', u.x, u.z); spark(u.x + Math.sin(u.face) * 1.2, 1.4, u.z + Math.cos(u.face) * 1.2, '#cfc8b8', 5);
     if (s.points <= 0) destroyCastle(tg.castle, u.ti);
     return;
@@ -429,11 +429,11 @@ export function checkEnd() {
     if (inA.length === 1) return endMatch(inA[0], G.mode === 'conquest' ? 'castles' : 'tickets');
     if (inA.length === 0) return endMatch(-1, 'time');
   }
-  if (G.mode === 'ctf') for (const a of new Set(G.ALLY)) if (allianceCaps(a) >= CAPS_TO_WIN) return endMatch(a, 'caps');
-  if (G.mode === 'ctrl') for (const a of new Set(G.ALLY)) if (allianceCtrl(a) >= CTRL.win) return endMatch(a, 'control');
+  if (G.mode === 'ctf') for (const a of new Set(G.ALLY)) if (allianceCaps(a) >= rules().caps) return endMatch(a, 'caps');
+  if (G.mode === 'ctrl') for (const a of new Set(G.ALLY)) if (allianceCtrl(a) >= rules().win) return endMatch(a, 'control');
 }
 function checkTime() {
-  if (G.state !== 'play' || G.T < MODES[G.mode].time) return;
+  if (G.state !== 'play' || G.T < matchTime()) return;
   const scores = {};
   if (G.mode === 'conquest') { // the castle's score counts once per color, however many armies defend it
     for (let c = 0; c < 4; c++) { if (!G.teams[c].alive) continue; scores[G.ALLY[c]] = (scores[G.ALLY[c]] || 0) + G.teams[c].points; }
@@ -681,7 +681,7 @@ function planLeader(u, s) {
   if (G.mode === 'conquest') {
     const threat = G.units.some(o => !o.dead && isEnemy(o, u) && Math.hypot(o.x - t.pos[0], o.z - t.pos[1]) < 22);
     // gather a real army at home before marching out (keeps the big clashes big)
-    const gather = s.plan && s.plan.kind === 'castle' ? 4 : 11;
+    const gather = Math.round((s.plan && s.plan.kind === 'castle' ? 4 : 11) * rules().gather);
     if (G.teams[colorOf(u.ti)].alive && (threat || squadN < gather)) { s.plan = { kind: 'defend' }; return; }
     let target = s.plan && s.plan.kind === 'castle' && G.teams[s.plan.ti].alive && Math.random() > .08 ? s.plan.ti : null;
     if (target == null) {
@@ -691,13 +691,13 @@ function planLeader(u, s) {
     }
     s.plan = target == null ? { kind: 'defend' } : { kind: 'castle', ti: target };
   } else if (G.mode === 'dm') {
-    const gather = s.plan && s.plan.kind === 'hunt' ? 3 : 9;
+    const gather = Math.round((s.plan && s.plan.kind === 'hunt' ? 3 : 9) * rules().gather);
     if (squadN < gather && s.tickets > 0) { s.plan = { kind: 'defend' }; return; }
     const [cap] = nearestFoe(u, 400, o => o.leader), [any] = nearestFoe(u, 400);
     const bl = G.bounty >= 0 && isEnemyTi(G.bounty, u.ti) && Math.random() < .5 ? G.teams[G.bounty].leader : null;
     s.plan = { kind: 'hunt', target: (bl && !bl.dead) ? bl : (cap || any) };
   } else if (G.mode === 'ctrl') {
-    const gather = s.plan && s.plan.kind === 'point' ? 4 : 9;
+    const gather = Math.round((s.plan && s.plan.kind === 'point' ? 4 : 9) * rules().gather);
     if (squadN < gather) { s.plan = { kind: 'defend' }; return; }
     const mine = s.plan && s.plan.kind === 'point' ? G.ctrlPoints[s.plan.id] : null;
     // stick with the point already being pushed unless it's ours now or someone else has since taken it over

@@ -1,7 +1,7 @@
 // Turns rule announcements ('castleDown', 'flagTaken'...) into banners, sounds and buzzes,
 // worded for this player. Hosts and clients use the same wording.
 import { TEAMS, MODES, CAPS_TO_WIN, UPGRADES } from '../config.js';
-import { G, isEnemyTi, colorOf, bus } from '../core/state.js';
+import { G, isEnemyTi, colorOf, bus, rules } from '../core/state.js';
 import { allianceCaps, horseCooldown } from '../core/sim.js';
 import { groundY } from '../core/world.js';
 import { banner } from './hud.js';
@@ -14,7 +14,7 @@ export const allyNames = a => TEAMS.filter((_, i) => G.ALLY[i] === a).map(t => t
 export function msgText(k, a) {
   const myTi = G.myTi, nm = i => TEAMS[colorOf(i)].name, css = i => TEAMS[colorOf(i)].css, mine = i => i === myTi, ally = i => !isEnemyTi(i, myTi);
   switch (k) {
-    case 'start': return [MODES[G.mode].name, G.mode === 'conquest' ? 'Tear down every enemy castle' : G.mode === 'dm' ? 'Last side with tickets wins' : G.mode === 'ctrl' ? 'Hold the points to build your score' : 'Bring the banner home three times'];
+    case 'start': return [MODES[G.mode].name, G.mode === 'conquest' ? 'Tear down every enemy castle' : G.mode === 'dm' ? 'Last side with tickets wins' : G.mode === 'ctrl' ? 'Hold the points to build your score' : `Bring the banner home ${rules().caps} times`];
     // a[0] here is the castle's color: a Duo teammate shares it, so both see it as "your castle"
     case 'castleDown': return colorOf(a[0]) === colorOf(myTi) ? ['Your castle has fallen!', 'No more recruits. Stay alive.', '#e0352b']
       : [`${nm(a[0])} castle destroyed!`, a[1] === myTi ? 'Your doing' : `by ${nm(a[1])}`, css(a[0])];
@@ -30,7 +30,7 @@ export function msgText(k, a) {
       : [`${nm(a[0])} has the banner!`, ally(a[0]) ? 'Escort them home' : 'Stop the carrier', css(a[0])];
     case 'flagDropped': return mine(a[0]) ? ['Banner dropped!', 'Grab it again before it returns'] : [`${nm(a[0])} dropped the banner`, '', css(a[0])];
     case 'flagHome': return ['The banner returns to the fort', ''];
-    case 'capture': return [`${nm(a[0])} captures the banner!`, `${allianceCaps(G.ALLY[colorOf(a[0])])} of ${CAPS_TO_WIN}`, css(a[0])];
+    case 'capture': return [`${nm(a[0])} captures the banner!`, `${allianceCaps(G.ALLY[colorOf(a[0])])} of ${rules().caps}`, css(a[0])];
     case 'upgrade': { const u = UPGRADES.find(x => x.id === a[1]); return mine(a[0]) && u ? [`${u.name} level ${a[2]}`, u.desc, '#ffcf3a'] : null; }
     case 'left': return [`${nm(a[0])}'s player left`, 'The computer takes over their army', css(a[0])];
     case 'pointCaptured': return mine(a[0]) ? [`You captured Point ${a[1]}!`, '', css(a[0])] : [`${nm(a[0])} captured Point ${a[1]}!`, ally(a[0]) ? 'Reinforce them' : 'Take it back', css(a[0])];

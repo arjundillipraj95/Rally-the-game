@@ -9,5 +9,6 @@ const read = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch (e) 
 export const prefs = {
   faction: read('rally-faction', 'roman'),
   color: +read('rally-color', '0') || 0,
-  save() { try { localStorage.setItem('rally-faction', this.faction); localStorage.setItem('rally-color', String(this.color)); } catch (e) {} },
+  len: read('rally-len', 'quick') === 'standard' ? 'standard' : 'quick',
+  save() { try { localStorage.setItem('rally-faction', this.faction); localStorage.setItem('rally-color', String(this.color)); localStorage.setItem('rally-len', this.len); } catch (e) {} },
 };
