@@ -256,16 +256,25 @@ function goFullscreen() {
     if (p && p.then) p.then(() => { try { screen.orientation.lock('landscape').catch(() => {}); } catch (e) {} }).catch(() => {});
   } catch (e) {}
 }
-['goBtn', 'againBtn', 'hostBtn', 'joinBtn', 'startBtn'].forEach(id => { const b = $(id); if (b) b.addEventListener('click', goFullscreen); });
+['goBtn', 'quickBtn', 'againBtn', 'hostBtn', 'joinBtn', 'startBtn'].forEach(id => { const b = $(id); if (b) b.addEventListener('click', goFullscreen); });
 // Building a battlefield takes a moment on a slow phone. Show "Mustering the troops" the instant a
 // start button is touched (a tap spans a frame or two before it becomes a click, so this gets drawn
 // before the work begins), and lift it once the battle's first frame is on screen.
 let veilT = 0;
 function showVeil() { $('veil').hidden = false; clearTimeout(veilT); veilT = setTimeout(hideVeil, 5000); }
 function hideVeil() { clearTimeout(veilT); $('veil').hidden = true; }
-['goBtn', 'startBtn'].forEach(id => { const b = $(id); if (b) b.addEventListener('pointerdown', showVeil); });
+['goBtn', 'quickBtn', 'startBtn'].forEach(id => { const b = $(id); if (b) b.addEventListener('pointerdown', showVeil); });
 $('againBtn').addEventListener('pointerdown', () => { if (!isHost()) showVeil(); }); // a host's "again" goes to the lobby, not a battle
 $('goBtn').addEventListener('click', soloStart);
+// One tap to a fight: Quick length, a random map and mode, everyone for themselves; keeps your
+// army, colour and difficulty. The menu shows what was picked, so "Fight again" repeats it.
+$('quickBtn').addEventListener('click', () => {
+  const pick = a => a[(Math.random() * a.length) | 0];
+  const mode = pick(Object.keys(MODES)), map = pick(Object.keys(MAPS));
+  G.mode = mode; G.map = MAPS[map]; G.len = 'quick'; preset = 'ffa';
+  pressSeg('segMode', mode); pressSeg('segMap', map); pressSeg('segLen', 'quick'); pressSeg('segTeams', 'ffa');
+  updateDesc(); soloStart();
+});
 // between battles is the one place a games-site ad may play (off during a Basic Launch; see portal.js)
 $('againBtn').addEventListener('click', () => {
   initAudio();
