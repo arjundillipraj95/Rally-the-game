@@ -1,4 +1,9 @@
 // Rally! Boots the game, runs the frame loop and wires the rules to the screen.
+// fonts ship with the game (no calls to Google's servers): Latin only, just the weights we use
+import '@fontsource/bangers/latin-400.css';
+import '@fontsource/barlow-semi-condensed/latin-600.css';
+import '@fontsource/barlow-semi-condensed/latin-800.css';
+import '@fontsource/barlow-semi-condensed/latin-800-italic.css';
 import './style.css';
 import { TEAMS, MODES, MAPS, PRESETS, RANKS, CRESTS, QUIPS, TIPS } from './config.js';
 import { G, bus, colorOf } from './core/state.js';
@@ -145,6 +150,7 @@ function viewForMatch() {
   clearEffects(); clearHorses(); clearProps(); clearBanter(); spawnCritters(G.seed);
   buildHud(); showHud(); trayOpen(false); upOpen(false);
   portal.gameplayStart();
+  requestAnimationFrame(() => requestAnimationFrame(hideVeil));
   watchdog.reset();
   startCrowd(G.map.id);
 }
@@ -249,6 +255,14 @@ function goFullscreen() {
   } catch (e) {}
 }
 ['goBtn', 'againBtn', 'hostBtn', 'joinBtn', 'startBtn'].forEach(id => { const b = $(id); if (b) b.addEventListener('click', goFullscreen); });
+// Building a battlefield takes a moment on a slow phone. Show "Mustering the troops" the instant a
+// start button is touched (a tap spans a frame or two before it becomes a click, so this gets drawn
+// before the work begins), and lift it once the battle's first frame is on screen.
+let veilT = 0;
+function showVeil() { $('veil').hidden = false; clearTimeout(veilT); veilT = setTimeout(hideVeil, 5000); }
+function hideVeil() { clearTimeout(veilT); $('veil').hidden = true; }
+['goBtn', 'startBtn'].forEach(id => { const b = $(id); if (b) b.addEventListener('pointerdown', showVeil); });
+$('againBtn').addEventListener('pointerdown', () => { if (!isHost()) showVeil(); }); // a host's "again" goes to the lobby, not a battle
 $('goBtn').addEventListener('click', soloStart);
 // between battles is the one place a games-site ad may play (off during a Basic Launch; see portal.js)
 $('againBtn').addEventListener('click', () => {

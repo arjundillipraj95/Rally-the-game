@@ -137,6 +137,11 @@
   .tip{font:600 13px var(--body);color:var(--dim);margin-top:12px;max-width:40ch;border-left:3px solid var(--gold);padding-left:8px;}
   .quip{font:italic 700 17px var(--body);color:var(--gold)!important;margin-top:8px!important;}
   @media (max-height:430px){ .home .tip{display:none;} }
+  .veil{position:fixed;inset:0;z-index:50;pointer-events:none;display:grid;place-content:center;justify-items:center;gap:14px;background:rgba(20,19,18,.82);font:400 28px var(--display);font-style:italic;letter-spacing:.03em;color:var(--paper);}
+  .veil[hidden]{display:none;}
+  .spin{width:44px;height:44px;border-radius:50%;border:4px solid rgba(255,255,255,.2);border-top-color:var(--gold);animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){ .spin{animation-duration:2.4s;} }
   .linkbtn{background:none;border:0;padding:0;color:var(--gold);font:inherit;text-decoration:underline;cursor:pointer;}
   .coach-hi{box-shadow:0 0 0 3px rgba(255,207,58,.9),0 0 18px 4px rgba(255,207,58,.55)!important;animation:coachPulse 1s ease-in-out infinite;}
   @keyframes coachPulse{50%{box-shadow:0 0 0 5px rgba(255,207,58,.5),0 0 26px 8px rgba(255,207,58,.35)!important;}}
