@@ -209,6 +209,17 @@ export const sfx = {
   capture() { brass(262, .35, .08); brass(330, .35, .07, .3); brass(392, .9, .09, .6); },
   crumble() { for (let i = 0; i < 4; i++) play('wall', null, null, { vol: .8, rate: .55 + i * .08, delay: i * .12 }); noise(1.6, 260, .7, .7, 'lowpass', 60); },
   cheer() { if (!gateS('ch', 400)) return; noise(1.6, 700, .8, .18, 'bandpass', 1400, undefined, 0, .4); noise(1.9, 480, .6, .14, 'bandpass', 900, undefined, .1, .4); },
+  // comedy: a slide whistle for anyone sent flying, and the thump when they come down
+  whee(x, z) {
+    if (!ac || !gateS('wh', 140)) return; const pl = place(x, z); if (pl.v < .08) return;
+    const t = ac.currentTime, o = ac.createOscillator(), up = .28 + Math.random() * .1, f0 = 520 + Math.random() * 160;
+    o.type = 'sine'; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f0 * 3.1, t + up); o.frequency.exponentialRampToValueAtTime(f0 * .8, t + up + .5);
+    const vib = ac.createOscillator(), vg = ac.createGain(); vib.frequency.value = 7; vg.gain.value = 18; vib.connect(vg).connect(o.frequency);
+    const gn = route(o, 1, pl, .15); gn.gain.setValueAtTime(.0001, t); gn.gain.exponentialRampToValueAtTime(.09 * pl.v, t + .04); gn.gain.setValueAtTime(.09 * pl.v, t + up + .3); gn.gain.exponentialRampToValueAtTime(.0001, t + up + .55);
+    o.start(t); o.stop(t + up + .6); vib.start(t); vib.stop(t + up + .6);
+  },
+  helmClank(x, z) { if (gateS('hc', 60)) play('clang', x, z, { vol: .3, rate: 1.5, jit: .15, send: .15 }); },
+  thump(x, z) { if (gateS('tp', 70)) play('fall', x, z, { vol: .7, rate: .85 }); },
   uiClick() { if (gateS('ui', 45)) tone(620, .04, .04, 'triangle', 480); },
 };
 export function buzz(ms) { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) {} }

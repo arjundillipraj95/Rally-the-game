@@ -51,6 +51,7 @@ export function drawOverlay(opts) {
         ctx.strokeText('BOUNTY', sx, sy - 20); ctx.fillStyle = '#ffcf3a'; ctx.fillText('BOUNTY', sx, sy - 20);
       }
     }
+    drawStars();
     if (G.flag) drawFlagPointer();
     if (G.mode === 'ctrl') drawControlLabels();
     if (G.mode === 'dm' && G.bounty === G.myTi && player && !player.dead && (performance.now() / 500 % 1) < .7) {
@@ -66,6 +67,20 @@ export function drawOverlay(opts) {
   drawMini();
 }
 
+// Stunned soldiers see stars: three little ones circling the head.
+function drawStars() {
+  const now = performance.now() / 1000;
+  ctx.textAlign = 'center';
+  for (const u of G.units) {
+    if (u.dead || !u.seesStars) continue;
+    const d = Math.hypot(u.x - camera.position.x, u.z - camera.position.z); if (d > 30) continue;
+    const sz = clamp(260 / d, 9, 20), hy = u.y + (u.leader ? 2.75 : 2.4) + (u.mounted ? 1.2 : 0);
+    for (let k = 0; k < 3; k++) {
+      const a = now * 5 + k * 2.094 + u.id, [sx, sy, ok] = proj(u.x + Math.cos(a) * .45, hy + Math.sin(a * 2) * .06, u.z + Math.sin(a) * .45); if (!ok) continue;
+      ctx.font = `${sz}px sans-serif`; ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.strokeText('★', sx, sy); ctx.fillStyle = '#ffd84a'; ctx.fillText('★', sx, sy);
+    }
+  }
+}
 function drawControlLabels() {
   const cps = G.ctrlPoints; if (!cps) return;
   for (const p of cps) {

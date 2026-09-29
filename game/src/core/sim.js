@@ -308,7 +308,8 @@ function hit(a, b, mult = 1, extra) {
   }
   const ang = Math.atan2(b.x - a.x, b.z - a.z);
   push(b, Math.sin(ang) * kb, Math.cos(ang) * kb, blocked ? 0 : (extra && extra.stun) || .22);
-  if (b.hp <= 0) die(b, a, ang);
+  // heavy blows, slams and captains' finishers launch the body; now and then any captain's kill does
+  if (b.hp <= 0) die(b, a, ang, mult >= 1.35 || (extra && extra.unblockable) || (a.leader && Math.random() < .18) ? 1 : 0);
 }
 function shoot(u, tg, fromY = 1.6) {
   const j = u.jitter || .8;
@@ -361,10 +362,13 @@ function arrowHit(a, b) {
   const sh = a.shooter;
   if (b.hp <= 0) die(b, sh && !sh.dead && !sh.tower ? sh : { ti: a.ti, human: false, leader: false }, Math.atan2(b.x - a.x0, b.z - a.z0));
 }
-function die(u, killer, ang) {
+function die(u, killer, ang, launch = 0) {
   if (u.dead) return;
   u.dead = true; u.deadT = 0;
-  u.vx += Math.sin(ang) * 6; u.vz += Math.cos(ang) * 6; u.vy = rnd(3, 6);
+  if (launch) { // off they go: high, far, spinning (see the ragdoll in render/soldiers.js)
+    const f = rnd(8.5, 12); u.vx += Math.sin(ang) * f; u.vz += Math.cos(ang) * f; u.vy = rnd(9, 12); u.launch = true;
+    sound('whee', u.x, u.z);
+  } else { u.vx += Math.sin(ang) * 6; u.vz += Math.cos(ang) * 6; u.vy = rnd(3, 6); }
   u.fallDir = Math.random() < .5 ? 1 : -1;
   fx('splat', { x: u.x, z: u.z, s: rnd(1, 1.5), ti: u.ti }); sound('die', u.x, u.z);
   if (u.mounted) dismount(u, false);
@@ -1026,7 +1030,7 @@ export function update(dt, input) {
         push(o, Math.sin(ang) * 10 + r.vx * .5, Math.cos(ang) * 10 + r.vz * .5, .7);
         o.hp -= 12 * aiDmg(r.ti);
         spark(o.x, o.y + 1, o.z, '#c9b28a', 6); sound('trample', o.x, o.z);
-        if (o.hp <= 0) die(o, r, ang);
+        if (o.hp <= 0) die(o, r, ang, 1); // trampled: sent flying
       }
     }
     if (Math.random() < dt * sp * .9) sound('hoof', r.x, r.z);
@@ -1071,8 +1075,10 @@ export function update(dt, input) {
 export function fallStep(u, dt) {
   u.deadT += dt;
   u.x += u.vx * dt; u.z += u.vz * dt; u.vy -= 18 * dt;
-  const gy = groundY(u.x, u.z); u.y = Math.max(gy, u.y + u.vy * dt);
-  const f = Math.pow(u.y > gy ? .6 : .03, dt); u.vx *= f; u.vz *= f;
+  const gy = groundY(u.x, u.z), ny = u.y + u.vy * dt;
+  if (ny <= gy && u.vy < -5) { u.vy = -u.vy * .38; u.y = gy; u.bounces = (u.bounces || 0) + 1; if (u.launch) bus.emit('sfx', { name: 'thump', x: u.x, z: u.z }); }
+  else u.y = Math.max(gy, ny);
+  const air = u.y > gy + .05, f = Math.pow(air ? .7 : .03, dt); u.vx *= f; u.vz *= f;
 }
 export function arrowsTick(dt, authoritative) {
   for (const a of G.arrows) {

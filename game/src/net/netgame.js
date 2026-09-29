@@ -145,6 +145,11 @@ function clientKill(u) {
   if (u.dead) return;
   u.dead = true; u.deadT = 0; u.vy = rnd(3, 6); u.fallDir = Math.random() < .5 ? 1 : -1;
   u.vx *= .5; u.vz *= .5;
+  // the host doesn't send how a man died, so a client launches the ones cut down by a big hit
+  // (or a charging horse), and now and then one more, to match the feel of the host's battle
+  if ((u.bigHitT && performance.now() - u.bigHitT < 500) || Math.random() < .12) {
+    const a = Math.random() * Math.PI * 2, f = rnd(10, 14); u.vx += Math.sin(a) * f; u.vz += Math.cos(a) * f; u.vy = rnd(9, 12); u.launch = true; sfx.whee(u.x, u.z);
+  }
   bus.emit('splat', { x: u.x, z: u.z, s: rnd(1, 1.5), ti: u.ti }); sfx.die(u.x, u.z);
   C.byId.delete(u.id);
 }
@@ -174,6 +179,7 @@ function clientApply(hp) {
     if (!u) { u = clientUnit(id, kind, ti, x, z); u.face = face; }
     const oldHp = u.hp;
     u.hp = hpq / 35 * u.max;
+    if (oldHp - u.hp > u.max * .3) u.bigHitT = performance.now();
     if (u.hp < oldHp - .5 && id !== myId) {
       bus.emit('spark', { x: u.x, y: u.y + 1.2, z: u.z, c: (fl & 4) ? '#fff3b0' : TEAMS[colorOf(u.ti)].css, n: 5 });
       if (fl & 4) sfx.clang(u.x, u.z);

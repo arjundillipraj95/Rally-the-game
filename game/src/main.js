@@ -8,7 +8,7 @@ import { buildNav } from './core/nav.js';
 import { renderer, scene, camera, resize, applyPixelRatio, applyShadowQuality, followSun } from './render/scene.js';
 import { quality, saveSetting, stepDown, LEVELS } from './render/quality.js';
 import { buildWorldView, updateWorldView, grassTime } from './render/world.js';
-import { drawSoldiers, drawCalls } from './render/soldiers.js';
+import { drawSoldiers, drawCalls, clearProps } from './render/soldiers.js';
 import { drawHorses, clearHorses } from './render/horses.js';
 import { spark, splat, dust, drawAura, floatText, castleFx, effectsTick, drawEffects, clearEffects } from './render/effects.js';
 import { drawOverlay, clearOverlay, resizeOverlay } from './render/overlay.js';
@@ -134,7 +134,7 @@ function endText(w, why) {
 // ---------- match start ----------
 function viewForMatch() {
   buildWorldView(G.layout);
-  clearEffects(); clearHorses();
+  clearEffects(); clearHorses(); clearProps();
   buildHud(); showHud(); trayOpen(false); upOpen(false);
   watchdog.reset();
   startCrowd(G.map.id);
@@ -158,7 +158,7 @@ function seedDemo() {
   G.units = []; G.horses = []; G.arrows = []; G.flag = null; G.player = null; G.uid = 0;
   G.teams = newTeams([0, 0, 0, 0]);
   G.factions = assignFactions(TEAMS.map((_, i) => i === G.myTi ? prefs.faction : null), 7);
-  buildWorldView(G.layout); clearEffects(); clearHorses();
+  buildWorldView(G.layout); clearEffects(); clearHorses(); clearProps();
   const kinds = ['foot', 'foot', 'arch', 'foot', 'arch'];
   TEAMS.forEach((t, i) => kinds.forEach((k, n) => { const [x, z] = gatePos(t, (n - 2) * 1.5); const u = mkUnit(i, x * .5, z * .5, k); u.face = Math.atan2(-u.x, -u.z); u.demo = true; }));
   const c = mkUnit(G.myTi, 0, 22, 'captain'); c.demo = true;

@@ -5,11 +5,12 @@
 // round hoplon), barbarians (hair and beards, bare chests, round wooden shields, axes).
 import * as THREE from 'three';
 import { TEAMS, CRESTS } from '../config.js';
-import { G, isEnemyTi, isFfa, colorOf } from '../core/state.js';
+import { G, isEnemyTi, isFfa, colorOf, bus } from '../core/state.js';
 import { braced } from '../core/sim.js';
 import { scene, shadowsOn, camera } from './scene.js';
 import { camTarget } from './camera.js';
 import { trail } from './effects.js';
+import { groundY } from '../core/world.js';
 
 const MAX_UNITS = 320;
 
@@ -42,7 +43,7 @@ const GEO = {
   beard: new THREE.BoxGeometry(.44, .3, .2),
   circlet: new THREE.TorusGeometry(.42, .045, 8, 22),
   mantle: new THREE.CylinderGeometry(.58, .5, .26, 16),
-  face: new THREE.PlaneGeometry(.5, .26),
+  face: new THREE.PlaneGeometry(.58, .3),
   arm: new THREE.CylinderGeometry(.11, .1, .55, 8),
   blade: new THREE.BoxGeometry(.07, .07, 1.0),
   gladius: new THREE.BoxGeometry(.09, .06, .72),
@@ -62,15 +63,35 @@ const GEO = {
   cape: new THREE.PlaneGeometry(.9, 1.1),
 };
 
-const faceTex = (() => {
+// Faces: one painted texture per expression, swapped per soldier by what he's going through.
+const INK = '#1b1512';
+function faceTex(draw) {
   const c = document.createElement('canvas'); c.width = 128; c.height = 64; const x = c.getContext('2d');
-  x.fillStyle = '#1b1512';
-  x.beginPath(); x.ellipse(40, 26, 7, 9, 0, 0, Math.PI * 2); x.ellipse(88, 26, 7, 9, 0, 0, Math.PI * 2); x.fill();
-  x.lineWidth = 7; x.lineCap = 'round'; x.strokeStyle = '#1b1512';
-  x.beginPath(); x.moveTo(24, 10); x.lineTo(54, 17); x.moveTo(104, 10); x.lineTo(74, 17); x.stroke();
-  x.beginPath(); x.moveTo(64, 48); x.quadraticCurveTo(44, 42, 30, 56); x.quadraticCurveTo(46, 50, 64, 54); x.quadraticCurveTo(82, 50, 98, 56); x.quadraticCurveTo(84, 42, 64, 48); x.fill();
+  x.fillStyle = INK; x.strokeStyle = INK; x.lineCap = 'round'; x.lineJoin = 'round';
+  draw(x);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
-})();
+}
+const eyes = (x, rx = 7, ry = 9, y = 26) => { x.beginPath(); x.ellipse(40, y, rx, ry, 0, 0, Math.PI * 2); x.ellipse(88, y, rx, ry, 0, 0, Math.PI * 2); x.fill(); };
+const brows = (x, l1, l2, w = 7) => { x.lineWidth = w; x.beginPath(); x.moveTo(24, l1); x.lineTo(54, l2); x.moveTo(104, l1); x.lineTo(74, l2); x.stroke(); };
+const FACES = {
+  // determined: the old face
+  normal: faceTex(x => { eyes(x); brows(x, 10, 17); x.beginPath(); x.moveTo(64, 48); x.quadraticCurveTo(44, 42, 30, 56); x.quadraticCurveTo(46, 50, 64, 54); x.quadraticCurveTo(82, 50, 98, 56); x.quadraticCurveTo(84, 42, 64, 48); x.fill(); }),
+  // mid-swing war cry: furious brows, squinting, mouth wide open
+  yell: faceTex(x => { eyes(x, 8, 5, 28); brows(x, 8, 22, 8); x.beginPath(); x.ellipse(64, 50, 17, 11, 0, 0, Math.PI * 2); x.fill(); x.fillStyle = '#c0474b'; x.beginPath(); x.ellipse(64, 55, 9, 4, 0, 0, Math.PI * 2); x.fill(); }),
+  // just got hit: eyes screwed shut (> <), mouth stretched in a wince
+  ouch: faceTex(x => { x.lineWidth = 6; x.beginPath(); x.moveTo(30, 18); x.lineTo(48, 26); x.lineTo(30, 34); x.moveTo(98, 18); x.lineTo(80, 26); x.lineTo(98, 34); x.stroke();
+    x.lineWidth = 5; x.beginPath(); x.moveTo(40, 52); x.lineTo(50, 46); x.lineTo(58, 52); x.lineTo(66, 46); x.lineTo(74, 52); x.lineTo(82, 46); x.lineTo(90, 52); x.stroke(); }),
+  // stunned: spiral eyes and a wobbly mouth
+  dizzy: faceTex(x => { x.lineWidth = 3.5; for (const cx of [40, 88]) { x.beginPath(); for (let a = 0; a < 14; a += .3) { const r = a * .75; x.lineTo(cx + Math.cos(a) * r, 26 + Math.sin(a) * r); } x.stroke(); }
+    x.lineWidth = 5; x.beginPath(); x.moveTo(38, 52); for (let i = 0; i <= 8; i++) x.lineTo(38 + i * 6.5, 52 + (i % 2 ? -5 : 4)); x.stroke(); }),
+  // captain's down or nearly dead: worried brows, wide eyes, small "o"
+  scared: faceTex(x => { x.fillStyle = '#fff'; eyes(x, 10, 12, 28); x.fillStyle = INK; eyes(x, 4, 5, 30); brows(x, 18, 8, 6); x.lineWidth = 5; x.beginPath(); x.ellipse(64, 52, 6, 7, 0, 0, Math.PI * 2); x.stroke(); }),
+  // gone: X eyes and the tongue out
+  dead: faceTex(x => { x.lineWidth = 6; for (const cx of [40, 88]) { x.beginPath(); x.moveTo(cx - 9, 17); x.lineTo(cx + 9, 35); x.moveTo(cx + 9, 17); x.lineTo(cx - 9, 35); x.stroke(); }
+    x.lineWidth = 5; x.beginPath(); x.moveTo(44, 48); x.lineTo(84, 48); x.stroke(); x.fillStyle = '#d75a6a'; x.beginPath(); x.ellipse(72, 55, 7, 8, 0, 0, Math.PI * 2); x.fill(); }),
+};
+const EXPRS = Object.keys(FACES);
+if (import.meta.env.DEV) window.__faces = FACES; // dev-only: lets tests look at the expressions
 
 // White materials take their color from each instance (skin, team color, wood, bronze...).
 export const MAT = {
@@ -80,10 +101,10 @@ export const MAT = {
   shadow: new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: .28, depthWrite: false }),
   ring: new THREE.MeshBasicMaterial({ color: 0xffcf3a, transparent: true, opacity: .8, side: THREE.DoubleSide, depthWrite: false }),
   ringAlly: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .45, side: THREE.DoubleSide, depthWrite: false }),
-  face: new THREE.MeshBasicMaterial({ map: faceTex, transparent: true, depthWrite: false }),
 };
+for (const k of EXPRS) MAT['face_' + k] = new THREE.MeshBasicMaterial({ map: FACES[k], transparent: true, depthWrite: false });
 const TINTED = new Set(['plain', 'plain2', 'metal']);
-const NO_SHADOW = new Set(['shadow', 'ring', 'ringAlly', 'face']);
+const NO_SHADOW = new Set(['shadow', 'ring', 'ringAlly', ...EXPRS.map(k => 'face_' + k)]);
 
 const col = h => new THREE.Color(h);
 const C = {
@@ -132,7 +153,7 @@ const PARTS = [
   { bone: 'body', geo: 'skirt', mat: 'plain', m: e(0, .64, 0), f: F('roman', 'greek'), col: team },
   { bone: 'body', geo: 'belt', mat: 'plain', m: e(0, .78, 0), col: u => factionOf(u) === 'barbarian' ? team(u) : C.leather },
   { bone: 'body', geo: 'head', mat: 'plain', m: e(0, 1.78, 0), col: skinOf },
-  { bone: 'body', geo: 'face', mat: 'face', m: e(0, 1.73, .39) },
+  ...EXPRS.map(k => ({ bone: 'body', geo: 'face', mat: 'face_' + k, m: e(0, 1.73, .39), t: u => exprOf(u) === k })),
   // archers (every faction)
   { bone: 'body', geo: 'hood', mat: 'plain', m: e(0, 1.82, -.02), k: K('arch'), f: F('roman', 'barbarian'), col: team },
   { bone: 'body', geo: 'helm', mat: 'plain', m: e(0, 1.9, 0, 0, 0, 0, .8, .7, .8), k: K('arch'), f: F('greek'), col: () => C.leather },
@@ -202,14 +223,60 @@ for (const b of batches.values()) {
   m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   if (TINTED.has(b.mat)) { m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3); m.instanceColor.setUsage(THREE.DynamicDrawUsage); }
   m.frustumCulled = false; m.count = 0;
-  m.castShadow = !NO_SHADOW.has(b.mat); m.receiveShadow = b.mat !== 'face' && !NO_SHADOW.has(b.mat);
+  m.castShadow = !NO_SHADOW.has(b.mat); m.receiveShadow = !NO_SHADOW.has(b.mat);
   if (b.mat === 'shadow' || b.mat.startsWith('ring')) m.renderOrder = 1;
   scene.add(m); b.mesh = m;
 }
+// ---------- helmets that pop off and go bouncing across the field ----------
+const HELM_GEOS = new Set(['helm', 'corinth', 'crest', 'cheek', 'nose', 'knob', 'circlet']);
+const PROP_MAX = 36, props = [];
+const propMesh = {};
+for (const g of ['helm', 'corinth', 'circlet']) {
+  const m = new THREE.InstancedMesh(GEO[g], MAT.metal, PROP_MAX);
+  m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(PROP_MAX * 3), 3); m.count = 0; m.castShadow = true; m.frustumCulled = false;
+  scene.add(m); propMesh[g] = m;
+}
+function popHelmet(u) {
+  const fac = factionOf(u), s = u.kind === 'captain' ? 1.18 : 1;
+  const geo = fac === 'roman' ? 'helm' : fac === 'greek' ? 'corinth' : u.kind === 'captain' ? 'circlet' : null;
+  if (!geo) { u.helmOff = false; return; } // barbarian footmen fight bareheaded anyway
+  if (props.length >= PROP_MAX) props.shift();
+  const R = (lo, hi) => lo + Math.random() * (hi - lo);
+  props.push({ geo, s, col: geo === 'helm' ? C.steel : geo === 'corinth' ? C.bronze : crestCol(u),
+    x: u.x, y: u.y + 1.9 * s, z: u.z, vx: u.vx * .6 + R(-2, 2), vy: R(6, 9) + Math.max(0, u.vy) * .4, vz: u.vz * .6 + R(-2, 2),
+    rx: 0, ry: 0, rz: 0, wx: R(-12, 12), wy: R(-8, 8), wz: R(-12, 12), t: 0, clank: 0 });
+  // a little clink the moment it flies off; a lighter one on each bounce (handled below)
+}
+const pm = new THREE.Matrix4(), pq = new THREE.Quaternion(), pe = new THREE.Euler(), pv = new THREE.Vector3(), ps = new THREE.Vector3();
+function drawProps(dt) {
+  const n = { helm: 0, corinth: 0, circlet: 0 };
+  for (let i = props.length - 1; i >= 0; i--) {
+    const p = props[i]; p.t += dt;
+    if (p.t > 14) { props.splice(i, 1); continue; }
+    const gy = groundY(p.x, p.z) + .18 * p.s;
+    p.vy -= 20 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
+    if (p.y < gy) {
+      p.y = gy;
+      if (p.vy < -2.5) { p.vy = -p.vy * .42; p.wx *= .6; p.wz *= .6; if (p.clank < 3) { p.clank++; bus.emit('sfx', { name: 'helmClank', x: p.x, z: p.z }); } }
+      else { p.vy = 0; p.rx += (Math.round(p.rx / Math.PI) * Math.PI - p.rx) * Math.min(1, dt * 6); p.rz += (0 - p.rz) * Math.min(1, dt * 6); p.wx = p.wz = 0; }
+      const f = Math.pow(.08, dt); p.vx *= f; p.vz *= f; p.wy *= f;
+    }
+    p.rx += p.wx * dt; p.ry += p.wy * dt; p.rz += p.wz * dt;
+    const sink = p.t > 11 ? (p.t - 11) * .25 : 0;
+    pe.set(p.rx, p.ry, p.rz); pq.setFromEuler(pe);
+    pm.compose(pv.set(p.x, p.y - sink, p.z), pq, ps.set(p.s, p.s, p.s));
+    const m = propMesh[p.geo], k = n[p.geo]++;
+    m.setMatrixAt(k, pm); m.setColorAt(k, p.col);
+  }
+  for (const g in propMesh) { const m = propMesh[g]; m.count = n[g]; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
+}
+export function clearProps() { props.length = 0; for (const g in propMesh) propMesh[g].count = 0; }
+
 export const drawCalls = () => [...batches.values()].filter(b => b.mesh.count > 0).length;
 
 // ---------- per-unit animation state ----------
 const anim = new WeakMap();
+function exprOf(u) { const a = anim.get(u); return (a && a.expr) || 'normal'; }
 function stateOf(u) {
   let a = anim.get(u);
   if (!a) {
@@ -232,7 +299,25 @@ function ragdoll(u, a, dt) {
   if (!r) {
     const R = (lo, hi) => lo + Math.random() * (hi - lo), dir = u.fallDir || 1;
     r = a.rag = { dir, pitch: a.bodyRX, pv: -dir * R(3, 6), roll: 0, rollT: R(-.4, .4), spin: R(-4, 4),
-      arms: [R(-3, -.3), R(-3, -.3), R(-1.3, -.2)], legs: [R(-.7, .7), R(-.7, .7), R(.05, .5)] };
+      arms: [R(-3, -.3), R(-3, -.3), R(-1.3, -.2)], legs: [R(-.7, .7), R(-.7, .7), R(.05, .5)],
+      // launched: tumble head over heels (sometimes sideways too), limbs windmilling
+      flip: u.launch ? dir * R(9, 15) : 0, twirl: u.launch ? R(-8, 8) : 0, cart: u.launch && Math.random() < .35 ? R(8, 12) * (Math.random() < .5 ? -1 : 1) : 0, fl: 0 };
+    // helmets come off on the big ones (and occasionally on an ordinary fall)
+    if (u.kind !== 'arch' && (u.launch ? Math.random() < .8 : Math.random() < .12)) { u.helmOff = true; popHelmet(u); }
+  }
+  const air = u.y - groundY(u.x, u.z) > .25;
+  if (r.flip || r.cart) {
+    if (air && u.deadT < 3) { // mid-air: spin freely and flail
+      r.pitch += r.flip * dt; r.roll += r.cart * dt; a.yaw += r.twirl * dt; r.fl += dt * 22;
+      a.sArmX = -1.6 + Math.sin(r.fl) * 1.4; a.wArmX = -1.6 + Math.sin(r.fl + 2) * 1.4; a.wArmZ = Math.sin(r.fl * .7) * .8;
+      a.legL[0] = Math.sin(r.fl + 1) * .9; a.legR[0] = Math.sin(r.fl + 3.5) * .9; a.legL[2] = .3; a.legR[2] = -.3;
+      a.bodyY = 0; a.bodyRX = r.pitch; a.bodyRZ = r.roll; a.lift = .5; a.sink = 0;
+      return;
+    }
+    // down: settle flat on whichever side is nearest, then lie there like everyone else
+    const TAU = Math.PI * 2, norm = x => ((x % TAU) + TAU + Math.PI) % TAU - Math.PI;
+    r.pitch = norm(r.pitch); r.dir = r.pitch > 0 ? -1 : 1; r.roll = norm(r.roll) * .3; r.rollT = 0;
+    r.pv = 0; r.flip = r.cart = 0; r.spin = r.twirl * .3;
   }
   const P = -r.dir * Math.PI / 2 * .97;
   r.pv += ((P - r.pitch) * 70 - r.pv * 6) * dt; r.pitch += r.pv * dt;
@@ -264,13 +349,14 @@ const near = (x, to, k) => x + (to - x) * k;
 // Advances one soldier's pose (walk, swing, block, brace, aim, ride, stagger, landing).
 function pose(u, dt) {
   const a = stateOf(u);
-  if (u.dead) { a.bodyRY = 0; ragdoll(u, a, dt); return a; }
+  if (u.dead) { a.bodyRY = 0; a.expr = 'dead'; a.dizzy = 0; ragdoll(u, a, dt); return a; }
   a.rag = null; a.yaw = 0; a.lift = 0; a.sink = 0; a.bodyRZ = 0; a.bodyRY = 0;
   a.idle = (a.idle || 0) + dt;
   // got hit: flash toward white and get knocked back on a spring that overshoots and settles
   if (a.hp != null && u.hp < a.hp - .5) {
     const sev = Math.min(1, (a.hp - u.hp) / 18);
     a.flash = Math.min(1, Math.max(a.flash || 0, sev));
+    if (sev > .8 && Math.random() < .35) a.dizzy = 1.4; // a real clout leaves him seeing stars
     a.stagV = (a.stagV || 0) - (3 + 6 * sev); a.stagYV = (a.stagYV || 0) + (Math.random() < .5 ? -1 : 1) * 4 * sev; // (a kick to the spring)
   }
   a.hp = u.hp; if (a.flash > 0) a.flash = Math.max(0, a.flash - dt * 6);
@@ -280,6 +366,13 @@ function pose(u, dt) {
 
   const sp = Math.hypot(u.vx, u.vz), mv = Math.min(1, sp / 3);
   const t = u.swing > 0 ? 1 - u.swing / .38 : -1, P = t >= 0 ? swingPhase(t) : 0;
+  // the face: stunned > just hit > yelling mid-swing > scared (captain down, or nearly dead) > normal
+  if (u.stun > .3) a.dizzy = Math.max(a.dizzy || 0, u.stun + .4);
+  if (a.dizzy > 0) a.dizzy -= dt;
+  const L = G.teams[u.ti] && G.teams[u.ti].leader;
+  a.expr = a.dizzy > 0 ? 'dizzy' : a.flash > .25 ? 'ouch' : (t >= 0 && t < .62 && u.kind !== 'arch') ? 'yell'
+    : ((!u.leader && L && L.dead) || u.hp < u.max * .25) ? 'scared' : 'normal';
+  u.seesStars = a.dizzy > 0; // the overlay draws the little stars
   const kind = u.mounted ? 0 : u.swingKind | 0;
   const spearArmed = (u.kind === 'foot' || u.kind === 'captain') && spearOut(u);
   const melee = u.kind === 'foot' || u.kind === 'captain';
@@ -428,6 +521,7 @@ export function drawSoldiers(units, dt) {
       if (p.k && !p.k.has(u.kind)) continue;
       if (p.f && !p.f.has(fac)) continue;
       if (p.t && !p.t(u)) continue;
+      if (u.helmOff && HELM_GEOS.has(p.geo)) continue;
       if (p.when && (p.when === 'blob' ? !blob : p.when !== ring)) continue;
       const b = p.batch, i = b.n++;
       out.multiplyMatrices(M[p.bone], p.m);
@@ -435,6 +529,7 @@ export function drawSoldiers(units, dt) {
       if (p.col) b.mesh.setColorAt(i, a.flash > 0 ? flashC.copy(p.col(u)).lerp(WHITE, a.flash * .75) : p.col(u));
     }
   }
+  drawProps(dt);
   for (const b of batches.values()) {
     b.mesh.count = b.n;
     if (!b.n) continue;
