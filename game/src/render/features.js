@@ -2,6 +2,7 @@
 // the arena, its stands, crowd and timed gates (Colosseum), the sand fortress and palms (Desert Fort),
 // palisade rings, watchtowers and huts (Wooden Fort). Repeated pieces are instanced.
 import * as THREE from 'three';
+import { seeThrough } from './seethrough.js';
 import { TEAMS } from '../config.js';
 import { G } from '../core/state.js';
 import { TEMPLES, TEMPLE, DESERT, ARENA, arenaGatesOpen, terrainMeshY, groundY, mulberry, angDiff } from '../core/world.js';
@@ -138,9 +139,12 @@ export function buildFeatures(L, world) {
       for (let k = 0; k < n; k++) { const bend = p.lean * (k + 1) / n; segs.push({ x: x + Math.sin(p.rot) * bend * .5, y: y + h / 2, z: z + Math.cos(p.rot) * bend * .5, rx: bend * Math.cos(p.rot), rz: -bend * Math.sin(p.rot), s: p.s * (1 - k * .08) }); x += Math.sin(p.rot) * bend * h; z += Math.cos(p.rot) * bend * h; y += h * .97; }
       for (let k = 0; k < 7; k++) leaves.push({ x, y: y + .1, z, ry: k / 7 * Math.PI * 2 + p.rot, s: p.s });
     }
-    world.add(shadowy(instanced(uvScale(new THREE.CylinderGeometry(.2, .26, 1.35, 7), 1, 2), M.palmTrunk, segs, (m, i, sg) => place(m, i, sg.x, sg.y, sg.z, sg.rx, 0, sg.rz, sg.s, sg.s, sg.s))));
+    const trunks = instanced(uvScale(new THREE.CylinderGeometry(.2, .26, 1.35, 7), 1, 2), M.palmTrunk, segs, (m, i, sg) => place(m, i, sg.x, sg.y, sg.z, sg.rx, 0, sg.rz, sg.s, sg.s, sg.s));
     const leafGeo = new THREE.BoxGeometry(.55, .05, 2.2); leafGeo.translate(0, 0, 1.1);
-    world.add(shadowy(instanced(leafGeo, M.palmLeaf, leaves, (m, i, l) => place(m, i, l.x, l.y, l.z, .45, l.ry, 0, l.s, l.s, l.s))));
+    const fronds = instanced(leafGeo, M.palmLeaf, leaves, (m, i, l) => place(m, i, l.x, l.y, l.z, .45, l.ry, 0, l.s, l.s, l.s));
+    world.add(shadowy(trunks), shadowy(fronds));
+    // palms step out of the camera's way too (anchored where each trunk or frond cluster stands)
+    seeThrough(trunks, segs.map(sg => ({ x: sg.x, z: sg.z, r: 1.6 * sg.s }))); seeThrough(fronds, leaves.map(l => ({ x: l.x, z: l.z, r: 2.4 * l.s })));
   }
   // ---------- Colosseum: arena wall, stands, crowd, banners, timed gates ----------
   if (id === 'colosseum') {

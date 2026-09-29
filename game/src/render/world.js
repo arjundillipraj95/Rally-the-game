@@ -7,6 +7,7 @@ import { scene, setLook } from './scene.js';
 import { quality } from './quality.js';
 import { lookFor, groundTex, stoneTex, woodTex, uvScale } from './look.js';
 import { buildFeatures, updateFeatures } from './features.js';
+import { seeThrough, clearSeeThrough } from './seethrough.js';
 import { inside, nearObstacles } from '../core/nav.js';
 
 let world = null;
@@ -32,7 +33,7 @@ export function buildWorldView(L) {
   if (world) dispose(world);
   if (fort) scene.remove(fort.banner);
   world = new THREE.Group(); scene.add(world);
-  castleObjs = []; fort = null;
+  castleObjs = []; fort = null; clearSeeThrough();
   const M = G.map, LK = lookFor(M.id);
   setLook(M);
   // ground: map colors per vertex, fine detail from a tiling texture
@@ -91,6 +92,8 @@ export function buildWorldView(L) {
       mx.makeScale(t.s, t.s, t.s); mx.setPosition(t.x, gy + 5.4 * t.s, t.z); leaf2.setMatrixAt(i, mx);
     });
     world.add(shadowy(trunk), shadowy(leaf1), shadowy(leaf2));
+    const anchors = L.trees.map(t => ({ x: t.x, z: t.z, r: 2 * t.s }));
+    for (const m of [trunk, leaf1, leaf2]) seeThrough(m, anchors);
   }
   const rockMat = lam(M.rock, stoneTex());
   for (const r of L.rocks) {

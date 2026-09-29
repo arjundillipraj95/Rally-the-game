@@ -15,6 +15,7 @@ import { quality, saveSetting, stepDown, LEVELS } from './render/quality.js';
 import { buildWorldView, updateWorldView, grassTime } from './render/world.js';
 import { drawSoldiers, drawCalls, clearProps } from './render/soldiers.js';
 import { banterTick, clearBanter } from './render/banter.js';
+import { updateSeeThrough } from './render/seethrough.js';
 import { spawnCritters, updateCritters, clearCritters } from './render/critters.js';
 import { drawHorses, clearHorses } from './render/horses.js';
 import { spark, splat, dust, drawAura, floatText, castleFx, effectsTick, drawEffects, clearEffects } from './render/effects.js';
@@ -299,6 +300,7 @@ function drawMatch(dt) {
   effectsTick(dt);
   drawEffects();
   followCamera(dt);
+  updateSeeThrough(dt, camera.position, camTarget());
   drawAura(G.player, auraRange(G.myTi), grassTime());
   const tg = camTarget(); followSun(tg ? tg.x : 0, tg ? tg.z : 0, grassTime());
   renderer.render(scene, camera);
