@@ -248,69 +248,125 @@ function ragdoll(u, a, dt) {
   a.sink = u.deadT > 10 ? Math.min(1.5, (u.deadT - 10) * .4) : 0;
 }
 
-// Advances one soldier's pose (walk, swing, block, brace, aim, ride).
+// Swing timing as one "phase" p: 0 at rest, +1 fully wound back, -1 at the end of the follow-through.
+// Wind-up eases back (anticipation), the strike snaps through fast, the follow-through holds a beat,
+// then the arm recovers. The wind-up is short on purpose: the captain's blow lands at t ≈ .32, so
+// the blade is sweeping through right as the hit registers (computer soldiers land a touch later).
+const ease = x => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+function swingPhase(t) {
+  if (t < .18) return ease(t / .18);
+  if (t < .34) return 1 - 2 * ease((t - .18) / .16);
+  if (t < .62) return -1;
+  return -1 + ease((t - .62) / .38);
+}
+const near = (x, to, k) => x + (to - x) * k;
+
+// Advances one soldier's pose (walk, swing, block, brace, aim, ride, stagger, landing).
 function pose(u, dt) {
   const a = stateOf(u);
-  if (u.dead) { ragdoll(u, a, dt); return a; }
-  a.rag = null; a.yaw = 0; a.lift = 0; a.sink = 0; a.bodyRZ = 0;
-  // got hit: flash toward white and flinch back, sized by how hard the blow was
-  if (a.hp != null && u.hp < a.hp - .5) a.flash = Math.min(1, Math.max(a.flash || 0, (a.hp - u.hp) / 18));
+  if (u.dead) { a.bodyRY = 0; ragdoll(u, a, dt); return a; }
+  a.rag = null; a.yaw = 0; a.lift = 0; a.sink = 0; a.bodyRZ = 0; a.bodyRY = 0;
+  a.idle = (a.idle || 0) + dt;
+  // got hit: flash toward white and get knocked back on a spring that overshoots and settles
+  if (a.hp != null && u.hp < a.hp - .5) {
+    const sev = Math.min(1, (a.hp - u.hp) / 18);
+    a.flash = Math.min(1, Math.max(a.flash || 0, sev));
+    a.stagV = (a.stagV || 0) - (3 + 6 * sev); a.stagYV = (a.stagYV || 0) + (Math.random() < .5 ? -1 : 1) * 4 * sev; // (a kick to the spring)
+  }
   a.hp = u.hp; if (a.flash > 0) a.flash = Math.max(0, a.flash - dt * 6);
-  const sp = Math.hypot(u.vx, u.vz);
+  a.stag = a.stag || 0; a.stagY = a.stagY || 0; a.stagV = a.stagV || 0; a.stagYV = a.stagYV || 0;
+  a.stagV += (-a.stag * 140 - a.stagV * 13) * dt; a.stag += a.stagV * dt;
+  a.stagYV += (-a.stagY * 120 - a.stagYV * 12) * dt; a.stagY += a.stagYV * dt;
+
+  const sp = Math.hypot(u.vx, u.vz), mv = Math.min(1, sp / 3);
+  const t = u.swing > 0 ? 1 - u.swing / .38 : -1, P = t >= 0 ? swingPhase(t) : 0;
+  const kind = u.mounted ? 0 : u.swingKind | 0;
+  const spearArmed = (u.kind === 'foot' || u.kind === 'captain') && spearOut(u);
+  const melee = u.kind === 'foot' || u.kind === 'captain';
+  // ready stance: an enemy within a few steps and not running flat out
+  const ready = melee && !u.mounted && !u.carrying && u.fd != null && u.fd < 6 && sp < 3.5;
+  a.ready = near(a.ready || 0, ready ? 1 : 0, Math.min(1, dt * 6));
+  const air = u.jy > .05;
+  if (a.wasAir && !air) a.land = .2; // touched down: a quick crouch
+  a.wasAir = air; if (a.land > 0) a.land -= dt;
+  const land = a.land > 0 ? a.land / .2 : 0;
+
   if (u.mounted) {
     a.bodyY = 1.02 + .03 * Math.sin(a.walk * 2);
     a.legL[0] = -.9; a.legL[1] = 0; a.legL[2] = .55; a.legR[0] = -.9; a.legR[1] = 0; a.legR[2] = -.55;
-    a.bodyRX = 0;
+    a.bodyRX = 0; a.bodyRY = .35 * P;
     a.walk += dt * sp * .9;
   } else {
     a.walk += dt * sp * 2.2;
-    const sw = Math.sin(a.walk) * Math.min(1, sp / 3) * .7;
-    a.legL[0] = sw; a.legL[1] = a.legL[2] = 0; a.legR[0] = -sw; a.legR[1] = a.legR[2] = 0;
-    a.bodyY = Math.abs(Math.cos(a.walk)) * Math.min(1, sp / 3) * .08;
-    a.bodyRX = u.stun > 0 ? -.25 : Math.min(.15, sp * .02);
-    if (a.flash > 0) { a.bodyRX -= .45 * a.flash; a.yaw = (Math.random() - .5) * .16 * a.flash; }
-    if (u.jy > .05) { a.legL[0] = -.9; a.legR[0] = .35; a.bodyY = 0; a.bodyRX = .12; } // knees tucked in the air
+    const sw = Math.sin(a.walk) * mv * .7;
+    const wide = .13 * a.ready;
+    a.legL[0] = sw; a.legL[1] = 0; a.legL[2] = wide; a.legR[0] = -sw; a.legR[1] = 0; a.legR[2] = -wide;
+    a.bodyY = Math.abs(Math.cos(a.walk)) * mv * .08 + (1 - mv) * .012 * Math.sin(a.idle * 2.1) - .05 * a.ready;
+    a.bodyRZ = Math.sin(a.walk) * mv * .05; // a little side-to-side roll in the stride
+    a.bodyRX = u.stun > 0 ? -.2 : Math.min(.15, sp * .02) + .06 * a.ready;
+    if (t >= 0 && melee) { // step into the blow: front foot forward, weight leaning through
+      const into = Math.max(0, -P);
+      a.legL[0] -= .45 * into; a.legR[0] += .25 * into; a.bodyRX += (kind === 2 ? .35 : .16) * into - .08 * Math.max(0, P);
+      if (kind === 2) a.bodyY -= .08 * into;
+    }
+    if (air) { a.legL[0] = -.9; a.legR[0] = .35; a.bodyY = 0; a.bodyRX = .12; }
+    if (land) { a.bodyY -= .2 * land; a.legL[0] = -.55 * land; a.legR[0] = .45 * land; a.bodyRX += .15 * land; }
   }
-  const t = u.swing > 0 ? 1 - u.swing / .38 : -1;
+  a.bodyRX += a.stag; a.bodyRY += a.stagY * .5;
+  a.yaw = a.stagY * .3;
+
   let blocking = false;
-  const spearArmed = (u.kind === 'foot' || u.kind === 'captain') && spearOut(u);
+  const k8 = Math.min(1, dt * 8), k12 = Math.min(1, dt * 12);
+  const armSw = Math.sin(a.walk) * mv * .35; // natural arm swing while walking
   if (u.weapon === 'jav' && !u.mounted) {
-    // javelin cocked back over the shoulder, whipped forward on the throw
-    const tw = t >= 0 ? -2.7 + 2.3 * Math.min(1, t / .45) : -2.6;
-    a.wArmX += (tw - a.wArmX) * Math.min(1, dt * (t >= 0 ? 30 : 10));
-    a.spearRX = 1.5 + (t >= 0 ? .4 * Math.min(1, t / .45) : 0); a.spearZ = t >= 0 ? -.3 + .9 * Math.min(1, t / .45) : -.5;
-    a.sArmX += (-.6 - a.sArmX) * Math.min(1, dt * 8);
+    // javelin cocked back over the shoulder, body turned away; whipped forward with the whole torso
+    const r = t >= 0 ? ease(Math.min(1, t / .4)) : 0;
+    a.wArmX = near(a.wArmX, t >= 0 ? -2.75 + 2.4 * r : -2.6, Math.min(1, dt * (t >= 0 ? 30 : 10)));
+    a.spearRX = 1.5 + .4 * r; a.spearZ = t >= 0 ? -.35 + .95 * r : -.5;
+    a.bodyRY += t >= 0 ? .45 - .8 * r : .3;
+    a.sArmX = near(a.sArmX, -.9 + .4 * r, k8);
   } else if (spearArmed) {
-    const lowered = braced(u) || u.swing > 0;
-    a.wArmX += ((lowered ? -1.45 : -.35) - a.wArmX) * Math.min(1, dt * 10);
+    const lowered = braced(u) || u.swing > 0 || a.ready > .5;
+    a.wArmX = near(a.wArmX, lowered ? -1.45 : -.35 + armSw, Math.min(1, dt * 10));
     a.spearRX = lowered ? 1.45 : -.2;
-    a.spearZ = t >= 0 ? Math.sin(t * Math.PI) * .8 : 0;
-    a.sArmX += (-.6 - a.sArmX) * Math.min(1, dt * 8);
+    // pull the shaft back, then drive it forward, turning the shoulders into the thrust
+    a.spearZ = t >= 0 ? (P > 0 ? -.5 * P : 1.0 * -P) : 0;
+    a.bodyRY += t >= 0 ? .3 * P : 0;
+    if (t >= 0) a.bodyRX += .15 * Math.max(0, -P);
+    a.sArmX = near(a.sArmX, -.6 - .25 * a.ready, k8);
   } else if (u.kind === 'arch') {
-    a.sArmX += ((u.aim ? -1.5 : -.3) - a.sArmX) * Math.min(1, dt * 10);
-    a.wArmX += ((u.aim ? (t >= 0 ? -1.2 : -1.5) : -.35) - a.wArmX) * Math.min(1, dt * 12);
+    a.sArmX = near(a.sArmX, u.aim ? -1.5 : -.3 - armSw, Math.min(1, dt * 10));
+    a.wArmX = near(a.wArmX, u.aim ? (t >= 0 ? -1.2 : -1.5) : -.35 + armSw, k12);
+    if (u.aim) a.bodyRY += .25; // side-on to draw the bow
   } else {
     if (t >= 0) {
-      const k = u.mounted ? 0 : u.swingKind | 0;
-      if (k === 2) { // overhead: higher wind-up, a hard chop down (combo finisher and the leap slam)
-        a.wArmX = t < .3 ? -.35 - 3.0 * (t / .3) : -3.35 + 3.0 * Math.min(1, (t - .3) / .22); a.wArmZ = 0; a.bodyRX = t > .3 ? .3 : -.1;
-      } else {
-        a.wArmX = t < .35 ? -.35 - 2.65 * (t / .35) : -3.0 + 2.2 * Math.min(1, (t - .35) / .3);
-        a.wArmZ = u.mounted ? -.9 : k === 1 ? .55 : -.3; // the second hit is a backhand from the other side
+      if (kind === 2) { // overhead: raised high behind the head, chopped straight down through
+        a.wArmX = -1.55 - 1.65 * P; a.wArmZ = -.1;
+      } else if (kind === 1) { // backhand: wound across the body, swept out the other way
+        a.wArmX = -1.5 - .9 * Math.abs(P); a.wArmZ = .25 + .75 * P; a.bodyRY -= .45 * P;
+      } else { // forehand: wound out to the side, swept across
+        a.wArmX = -1.5 - .9 * Math.abs(P); a.wArmZ = (u.mounted ? -.6 : -.2) - .7 * P; a.bodyRY += .45 * P;
       }
-    } else { a.wArmX += (-.35 - a.wArmX) * Math.min(1, dt * 10); a.wArmZ = 0; }
+    } else {
+      const rest = -.35 + armSw * (1 - a.ready) - .5 * a.ready + .03 * Math.sin(a.idle * 2.1 + 1);
+      a.wArmX = near(a.wArmX, rest, Math.min(1, dt * 10)); a.wArmZ = near(a.wArmZ, 0, Math.min(1, dt * 10));
+    }
     blocking = ((u.human && u.blocking) || u.blockT > 0) && !u.mounted;
     const over = u.shieldwall && u.kind === 'foot';
-    a.over += ((over ? 1 : 0) - a.over) * Math.min(1, dt * 8);
-    a.sArmX += ((over ? -2.9 : blocking ? -1.35 : u.carrying ? -.1 : -.35) - a.sArmX) * Math.min(1, dt * 14);
+    a.over = near(a.over, over ? 1 : 0, k8);
+    const shieldRest = u.carrying ? -.1 : -.35 - armSw * (1 - a.ready) - .45 * a.ready;
+    // the shield arm counter-swings a little against the blow
+    a.sArmX = near(a.sArmX, (over ? -2.9 : blocking ? -1.35 : shieldRest) + (t >= 0 && !blocking && !over ? .25 * P : 0), Math.min(1, dt * 14));
     a.sArmPX = blocking ? .28 : .5;
+    if (blocking) { a.bodyY -= .05; a.bodyRX += .08; } // brace behind the shield
   }
-  a.block += ((blocking ? 1 : 0) - a.block) * Math.min(1, dt * 16);
+  if (air && !u.mounted && t < 0 && u.weapon !== 'jav') a.sArmX = near(a.sArmX, -1.1, k12); // arms up on the rise
+  a.block = near(a.block, blocking ? 1 : 0, Math.min(1, dt * 16));
   return a;
 }
 
 // ---------- bones ----------
-const M = { root: new THREE.Matrix4(), body: new THREE.Matrix4(), legL: new THREE.Matrix4(), legR: new THREE.Matrix4(), sArm: new THREE.Matrix4(), wArm: new THREE.Matrix4(), spear: new THREE.Matrix4(), shield: new THREE.Matrix4() };
+const M = { root: new THREE.Matrix4(), hips: new THREE.Matrix4(), body: new THREE.Matrix4(), legL: new THREE.Matrix4(), legR: new THREE.Matrix4(), sArm: new THREE.Matrix4(), wArm: new THREE.Matrix4(), spear: new THREE.Matrix4(), shield: new THREE.Matrix4() };
 const flashC = new THREE.Color(), WHITE = new THREE.Color(1, 1, 1);
 const tmp = new THREE.Matrix4(), out = new THREE.Matrix4(), eu = new THREE.Euler(), qq = new THREE.Quaternion(), vp = new THREE.Vector3(), vs = new THREE.Vector3(), tipV = new THREE.Vector3();
 function local(x, y, z, rx, ry, rz) { eu.set(rx, ry, rz); qq.setFromEuler(eu); return tmp.compose(vp.set(x, y, z), qq, vs.set(1, 1, 1)); }
@@ -318,9 +374,11 @@ function bones(u, a) {
   const s = u.kind === 'captain' ? 1.18 : 1;
   eu.set(0, u.face + a.yaw, 0); qq.setFromEuler(eu);
   M.root.compose(vp.set(u.x, u.y + a.lift - a.sink, u.z), qq, vs.set(s, s, s));
-  M.body.multiplyMatrices(M.root, local(0, a.bodyY, 0, a.bodyRX, 0, a.bodyRZ));
-  M.legL.multiplyMatrices(M.body, local(-.18, .7, 0, a.legL[0], a.legL[1], a.legL[2]));
-  M.legR.multiplyMatrices(M.body, local(.18, .7, 0, a.legR[0], a.legR[1], a.legR[2]));
+  M.body.multiplyMatrices(M.root, local(0, a.bodyY, 0, a.bodyRX, a.bodyRY || 0, a.bodyRZ));
+  // legs hang from the hips, which lean a little with the body but don't twist with the shoulders
+  M.hips.multiplyMatrices(M.root, local(0, a.bodyY, 0, a.bodyRX * (u.dead ? 1 : .35), 0, a.bodyRZ));
+  M.legL.multiplyMatrices(M.hips, local(-.18, .7, 0, a.legL[0], a.legL[1], a.legL[2]));
+  M.legR.multiplyMatrices(M.hips, local(.18, .7, 0, a.legR[0], a.legR[1], a.legR[2]));
   M.sArm.multiplyMatrices(M.body, local(a.sArmPX, 1.3, .05, a.sArmX, 0, 0));
   M.wArm.multiplyMatrices(M.body, local(-.5, 1.3, .05, a.wArmX, 0, a.wArmZ));
   if ((u.kind === 'foot' || u.kind === 'captain') && spearOut(u)) M.spear.multiplyMatrices(M.wArm, local(0, -.48, a.spearZ, a.spearRX, 0, 0));
