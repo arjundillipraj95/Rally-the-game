@@ -519,7 +519,7 @@ export const airborne = p => (p.jy || 0) > .25;
 export const aimRange = p => (p.weapon === 'spear' ? CC.spear.aim : CC.sword.aim);
 export function captainJump(p) {
   if (!p || p.dead || p.mounted || p.stun > 0 || p.jy > 0 || p.jvy > 0 || p.jumpCd > 0 || p.carrying) return false;
-  p.jvy = CC.jump.v; p.jy = .001; sound('swing', p.x, p.z);
+  p.jvy = CC.jump.v; p.jy = .001; sound('jump', p.x, p.z);
   return true;
 }
 // Advances a captain's jump wherever that captain is driven (solo/host, or a client's own phone).
@@ -527,7 +527,7 @@ export function stepJump(p, dt) {
   if (p.jumpCd > 0) p.jumpCd -= dt;
   if (!(p.jy > 0) && !(p.jvy > 0)) return;
   p.jvy -= CC.jump.g * dt; p.jy += p.jvy * dt;
-  if (p.jy <= 0) { p.jy = 0; p.jvy = 0; p.jumpCd = CC.jump.cd; spark(p.x, groundY(p.x, p.z) + .1, p.z, '#c9b28a', 4); }
+  if (p.jy <= 0) { p.jy = 0; p.jvy = 0; p.jumpCd = CC.jump.cd; sound('land', p.x, p.z); spark(p.x, groundY(p.x, p.z) + .1, p.z, '#c9b28a', 4); }
 }
 // No argument: cycle sword -> spear -> javelins. The choice sticks through respawns.
 export function switchWeapon(p, w) {

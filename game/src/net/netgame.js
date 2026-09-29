@@ -351,7 +351,7 @@ export const actions = {
   weapon(w) {
     const p = G.player; if (G.state !== 'play' || !p || p.dead) return;
     const nw = switchWeapon(p, w); if (!nw) return;
-    sfx.order(); floatText(p.x, p.y + 3.2, p.z, nw === 'jav' ? `Javelins ${p.javAmmo | 0}` : WEAPON_NAMES[nw], '#fff');
+    sfx.draw(); floatText(p.x, p.y + 3.2, p.z, nw === 'jav' ? `Javelins ${p.javAmmo | 0}` : WEAPON_NAMES[nw], '#fff');
     bus.emit('hud');
   },
   ride() {

@@ -13,7 +13,7 @@ import { drawHorses, clearHorses } from './render/horses.js';
 import { spark, splat, dust, drawAura, floatText, castleFx, effectsTick, drawEffects, clearEffects } from './render/effects.js';
 import { drawOverlay, clearOverlay, resizeOverlay } from './render/overlay.js';
 import { cam, followCamera, orbitCamera, camTarget, CAM_PITCH } from './render/camera.js';
-import { initAudio, sfx, buzz, gateS, startCrowd, stopCrowd } from './ui/audio.js';
+import { initAudio, sfx, buzz, gateS, startCrowd, stopCrowd, audioTick, audioStats } from './ui/audio.js';
 import { showMsg, allyNames } from './ui/messages.js';
 import { buildHud, showHud, updateHud, banner, fmt } from './ui/hud.js';
 import { bindInput, readMove, trayOpen, upOpen, releaseAll, inp } from './ui/input.js';
@@ -266,6 +266,7 @@ const watchdog = {
 
 // ---------- loop ----------
 function drawMatch(dt) {
+  audioTick(dt);
   drawSoldiers(G.units, dt);
   const horses = isClient() ? clientHorses() : G.horses.map(h => ({ key: h.id, ti: h.ti, x: h.x, z: h.z, face: h.face, spd: h.spd, state: h.state, t: h.t, fall: h.fall }));
   drawHorses(horses, dt);
@@ -333,7 +334,7 @@ window.__fb = {
   ride() { if (G.player) { G.player.lastHit = -9; actions.ride(); } },
   volley() { actions.volley(); },
   attack() { actions.attack(); }, jump() { actions.jump(); }, weapon(w) { actions.weapon(w); },
-  G, cam,
+  G, cam, audio: () => audioStats(),
 };
 
 function onResize() { resize(); resizeOverlay(); }

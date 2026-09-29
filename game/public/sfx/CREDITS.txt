@@ -1,0 +1,12 @@
+Sound effects in this folder are CC0 (public domain) recordings, trimmed, normalised and re-encoded:
+
+- Kenney "Impact Sounds" and "RPG Audio" (CC0) - https://kenney.nl/assets/impact-sounds , https://kenney.nl/assets/rpg-audio
+    clang*, heavy*, wall*, thud*, fall*, step*, cloth*, coins*
+- qubodup "37 Hits/Punches" (CC0) - https://opengameart.org/content/37-hitspunches
+    hit*
+- Ogrebane "Battle Sound Effects" (offered under CC0 among others) - https://opengameart.org/content/battle-sound-effects
+    swing1-3, bow1
+- artisticdude "RPG Sound Pack" (CC0) - https://opengameart.org/content/rpg-sound-pack
+    swing4-6, draw*
+
+War drums, horns and the distant battle bed are synthesised in src/ui/audio.js.
