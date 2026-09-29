@@ -40,3 +40,8 @@ Cartoon combat, no realistic gore (paint-like splats), no chat. PEGI 12-friendly
 - Online play is peer-to-peer (PeerJS) with a four-letter room code; the host's browser runs the battle.
 - No external links, no login, no data collected. Progress (XP, rank, crest) is stored in the browser's local storage.
 - The game's own fullscreen request is disabled on CrazyGames.
+
+## Assets in this folder
+- cover_1920x1080.png, cover_800x1200.png, cover_800x800.png — the three required covers.
+- Preview videos (20s, silent, 1080p landscape and 1080x1620 portrait) were rendered separately and not kept in the repo (28 MB + 17 MB).
+- stage.mjs / cover.mjs / compose.mjs / video.mjs — the Playwright scripts that staged and captured them (run against `npm run dev`).
