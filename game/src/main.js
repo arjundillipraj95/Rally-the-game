@@ -323,7 +323,7 @@ function loop(now) {
       if (clientTick(dt) && (G.state === 'play' || G.state === 'end')) drawMatch(dt); else demo(dt);
     } else if (G.state === 'play') {
       if (isHost()) netHostReadInputs();
-      update(dt, readMove(dt));
+      update(dt, import.meta.env.DEV && window.__moveOverride ? window.__moveOverride() : readMove(dt)); // (dev-only override for scripted capture)
       if (isHost() && G.state === 'play') netHostTick();
       drawMatch(dt);
       watchdog.tick(raw);

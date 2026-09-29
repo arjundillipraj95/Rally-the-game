@@ -356,7 +356,7 @@ function pose(u, dt) {
   if (a.hp != null && u.hp < a.hp - .5) {
     const sev = Math.min(1, (a.hp - u.hp) / 18);
     a.flash = Math.min(1, Math.max(a.flash || 0, sev));
-    if (sev > .8 && Math.random() < .35) a.dizzy = 1.4; // a real clout leaves him seeing stars
+    if (a.hp - u.hp > u.max * .3 && Math.random() < .35) a.dizzy = 1.4; // a real clout (a third of his health) leaves him seeing stars
     a.stagV = (a.stagV || 0) - (3 + 6 * sev); a.stagYV = (a.stagYV || 0) + (Math.random() < .5 ? -1 : 1) * 4 * sev; // (a kick to the spring)
   }
   a.hp = u.hp; if (a.flash > 0) a.flash = Math.max(0, a.flash - dt * 6);
