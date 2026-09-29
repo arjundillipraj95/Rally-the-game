@@ -36,7 +36,7 @@
   .pip.out{background:#555!important;color:#999;}
   .pip.hum{border-color:#fff;}
   #mini{position:absolute;right:max(12px, env(safe-area-inset-right,0px));top:10px;width:92px;height:92px;border-radius:6px;background:rgba(22,20,18,.7);pointer-events:none;}
-  #hp{left:50%;bottom:68px;transform:translateX(-50%);padding:5px 14px 8px;width:min(26vw,210px);}
+  #hp{left:50%;top:52px;transform:translateX(-50%);padding:4px 14px 7px;width:min(24vw,200px);}
   #hp span{font-size:15px;font-style:italic;}
   #hp .bar{height:8px;border-radius:4px;background:rgba(255,255,255,.12);overflow:hidden;margin-top:2px;}
   #hp .bar i{display:block;height:100%;background:linear-gradient(90deg,#b8d43a,#e0c43a);transform-origin:left;}
@@ -59,20 +59,24 @@
   .rbtn.held,.sbtn.held{transform:scale(.93);background:rgba(255,255,255,.3);}
   .rbtn.dim,.sbtn.dim{opacity:.4;}
   /* thumb pad: a big Attack in the corner, Block / Jump / Weapon on an arc around it; each labelled */
-  .pad{position:relative;width:200px;height:192px;}
+  /* every pad size derives from --A (Attack's diameter), which follows the screen's height, so the
+     pad is the same share of the screen on a tall tablet and a phone with its browser bars showing */
+  .pad{--A:clamp(62px,23vh,104px);--B:calc(var(--A) * .75);--J:calc(var(--A) * .69);--W:calc(var(--A) * .67);--g:calc(var(--A) * .13);
+    --off:calc((var(--A) / 2 + var(--g) + var(--J) / 2) * .7071);
+    position:relative;width:calc(var(--A) + var(--g) + var(--B));height:calc(var(--A) + var(--g) + var(--W));}
   .pad .rbtn{position:absolute;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;}
   .pad .rbtn svg{width:40%;height:40%;}
-  .lbl{font:800 10px var(--body);letter-spacing:.07em;text-transform:uppercase;text-shadow:0 1px 2px #000;line-height:1;}
-  #atk{right:0;bottom:0;width:104px;height:104px;background:rgba(224,53,43,.34);border-color:rgba(255,196,188,.9);border-width:2.5px;}
+  .lbl{font:800 clamp(8px,2.6vh,10px) var(--body);letter-spacing:.07em;text-transform:uppercase;text-shadow:0 1px 2px #000;line-height:1;}
+  #atk{right:0;bottom:0;width:var(--A);height:var(--A);background:rgba(224,53,43,.34);border-color:rgba(255,196,188,.9);border-width:2.5px;}
   #atk.held{background:rgba(224,53,43,.6);}
   #atk svg{width:44%;height:44%;}
-  #blk{right:118px;bottom:13px;width:78px;height:78px;background:rgba(58,92,240,.26);}
+  #blk{right:calc(var(--A) + var(--g));bottom:calc((var(--A) - var(--B)) / 2);width:var(--B);height:var(--B);background:rgba(58,92,240,.26);}
   #blk.held{background:rgba(58,92,240,.55);}
-  #jmp{right:88px;bottom:88px;width:72px;height:72px;}
-  #wpn{right:17px;bottom:118px;width:70px;height:70px;}
+  #jmp{right:calc(var(--A) / 2 + var(--off) - var(--J) / 2);bottom:calc(var(--A) / 2 + var(--off) - var(--J) / 2);width:var(--J);height:var(--J);}
+  #wpn{right:calc((var(--A) - var(--W)) / 2);bottom:calc(var(--A) + var(--g));width:var(--W);height:var(--W);}
   /* squad & army bar: icon + word, bottom centre */
   .sbar{position:absolute;left:50%;transform:translateX(-50%);bottom:max(8px, env(safe-area-inset-bottom,0px));display:flex;gap:6px;align-items:stretch;}
-  .sbtn{border-radius:12px;min-width:66px;height:50px;border-width:1.5px;border-color:rgba(255,255,255,.5);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:0 8px;}
+  .sbtn{border-radius:12px;min-width:clamp(52px,17vh,66px);height:clamp(38px,12.5vh,50px);border-width:1.5px;border-color:rgba(255,255,255,.5);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:0 8px;}
   .sbtn svg{width:20px;height:20px;}
   .sbtn span{font:800 10px var(--body);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;text-shadow:0 1px 2px #000;}
   #mnt.on{background:rgba(150,98,50,.55);border-color:#e8c9a0;}
@@ -82,12 +86,12 @@
   .sbar .tray{right:auto;left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100vw - 20px);}
   .sbar .tray button{width:168px;min-width:0;} .sbar .tray.up{display:grid;grid-template-columns:repeat(3,104px);} .sbar .tray.up button{width:104px;}
   /* narrow phones: the squad bar sits just left of the thumb pad instead of dead centre */
-  @media (max-width:800px){ .sbar{left:auto;transform:none;right:222px;} .sbar .sbtn{min-width:56px;padding:0 5px;} #squadBox{min-width:40px;} }
-  @media (max-width:800px) and (max-height:430px){ .sbar{right:182px;gap:5px;} }
+  @media (max-width:800px){ .sbar{left:auto;transform:none;right:calc(clamp(62px,23vh,104px) * 1.88 + 22px);} .sbar .sbtn{min-width:56px;padding:0 5px;} #squadBox{min-width:40px;} }
+  @media (max-width:800px) and (max-height:430px){ .sbar{gap:5px;} }
   /* held upright: squad bar stacks above the thumb pad, health bar above the stick */
   @media (orientation:portrait) and (max-width:620px){
     .sbar{right:10px;left:auto;transform:none;bottom:212px;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100vw - 20px);}
-    #hp{left:16px;transform:none;bottom:150px;}
+    #hp{top:52px;}
   }
   /* keyboard players see the key on each button */
   @media (hover:hover) and (pointer:fine){
@@ -106,7 +110,7 @@
   .tray .lv::before{content:attr(data-pips);letter-spacing:2px;color:var(--gold);font-size:12px;}
   .tray button:focus-visible{outline:3px solid var(--gold);}
   /* first-battle coach card, and a pulsing ring on the button it's teaching */
-  .coach{position:absolute;left:50%;top:52px;transform:translateX(-50%);display:grid;grid-template-columns:auto 1fr auto;column-gap:10px;align-items:center;
+  .coach{position:absolute;left:50%;top:92px;transform:translateX(-50%);display:grid;grid-template-columns:auto 1fr auto;column-gap:10px;align-items:center;
     background:rgba(12,14,18,.62);border:1.5px solid rgba(255,207,58,.6);border-radius:12px;padding:8px 10px 8px 14px;max-width:min(520px,70vw);pointer-events:auto;
     -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);}
   .coach .n{grid-row:1 / 3;font:800 11px var(--body);letter-spacing:.08em;color:var(--gold);text-transform:uppercase;white-space:nowrap;}
@@ -132,7 +136,7 @@
   .linkbtn{background:none;border:0;padding:0;color:var(--gold);font:inherit;text-decoration:underline;cursor:pointer;}
   .coach-hi{box-shadow:0 0 0 3px rgba(255,207,58,.9),0 0 18px 4px rgba(255,207,58,.55)!important;animation:coachPulse 1s ease-in-out infinite;}
   @keyframes coachPulse{50%{box-shadow:0 0 0 5px rgba(255,207,58,.5),0 0 26px 8px rgba(255,207,58,.35)!important;}}
-  @media (max-height:430px){ .coach{top:40px;padding:5px 8px 5px 10px;} .coach b{font-size:17px;} .coach .s{font-size:11px;} }
+  @media (max-height:430px){ .coach{top:70px;padding:5px 8px 5px 10px;} .coach b{font-size:17px;} .coach .s{font-size:11px;} }
   .joyzone{position:absolute;left:max(18px, env(safe-area-inset-left,0px));bottom:max(18px, env(safe-area-inset-bottom,0px));width:120px;height:120px;border-radius:50%;
     border:2px solid rgba(255,255,255,.3);background:rgba(12,14,18,.14);display:grid;place-items:center;pointer-events:none;transition:opacity .3s;}
   .joyzone svg{width:34%;height:34%;opacity:.6;}
@@ -262,11 +266,9 @@
     #netTag{top:34px;}
     #mini{width:70px;height:70px;top:8px;}
     #goldTag{top:84px;font-size:15px;padding:3px 10px;}
-    #hp{width:min(24vw,170px);padding:4px 10px 6px;bottom:60px;} #hp span{font-size:12px;}
+    #hp{width:min(22vw,160px);padding:3px 10px 5px;top:38px;} #hp span{font-size:11px;}
     .ctl{gap:6px;bottom:max(8px, env(safe-area-inset-bottom,0px));}
-    .pad{width:172px;height:164px;}
-    #atk{width:90px;height:90px;} #blk{right:102px;bottom:11px;width:68px;height:68px;} #jmp{right:76px;bottom:76px;width:62px;height:62px;} #wpn{right:15px;bottom:102px;width:60px;height:60px;}
-    .sbtn{height:46px;min-width:60px;padding:0 6px;} #squadBox{font-size:18px;min-width:44px;}
+    .sbtn{padding:0 6px;} #squadBox{font-size:18px;min-width:44px;}
     .tray button{min-width:80px;padding:6px 8px;} .tray button b{font-size:16px;}
     .joyzone{width:96px;height:96px;}
     .banner{font-size:clamp(22px,4.5vw,36px);top:20%;}
@@ -282,7 +284,7 @@
   }
   @media (max-height:340px){
     #points h3{display:none;}
-    .sbtn{height:42px;min-width:54px;} .sbtn span{font-size:9px;}
+    .sbtn span{font-size:9px;} #squadBox{font-size:16px;min-width:38px;} #squadBox small{display:none;}
     #mini{width:60px;height:60px;} #goldTag{top:72px;}
   }
   #segMap button,#lobbyMap button{flex:1 1 30%;}
