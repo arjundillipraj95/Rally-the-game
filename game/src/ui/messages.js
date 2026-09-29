@@ -1,7 +1,7 @@
 // Turns rule announcements ('castleDown', 'flagTaken'...) into banners, sounds and buzzes,
 // worded for this player. Hosts and clients use the same wording.
 import { TEAMS, MODES, CAPS_TO_WIN, UPGRADES } from '../config.js';
-import { G, isEnemyTi, colorOf } from '../core/state.js';
+import { G, isEnemyTi, colorOf, bus } from '../core/state.js';
 import { allianceCaps, horseCooldown } from '../core/sim.js';
 import { groundY } from '../core/world.js';
 import { banner } from './hud.js';
@@ -39,6 +39,7 @@ export function msgText(k, a) {
 }
 
 export function showMsg(k, a) {
+  bus.emit('shownMsg', { k, a });
   const myTi = G.myTi;
   if (k === 'gold') { if (a[0] === myTi) { floatText(a[1], groundY(a[1], a[2]) + 2.6, a[2], `+${a[3]} gold`, '#ffcf3a'); sfx.coin(); } return; }
   const m = msgText(k, a); if (!m) return;

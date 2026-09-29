@@ -133,6 +133,10 @@
   .crests button[aria-pressed="true"]{border-color:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.35);}
   .crests button[aria-disabled="true"]{opacity:.35;filter:grayscale(.7);border-style:dashed;cursor:not-allowed;}
   .crests svg{width:55%;height:55%;}
+  .rankjoke{font:italic 600 13px var(--body);color:var(--dim);margin-top:2px;}
+  .tip{font:600 13px var(--body);color:var(--dim);margin-top:12px;max-width:40ch;border-left:3px solid var(--gold);padding-left:8px;}
+  .quip{font:italic 700 17px var(--body);color:var(--gold)!important;margin-top:8px!important;}
+  @media (max-height:430px){ .home .tip{display:none;} }
   .linkbtn{background:none;border:0;padding:0;color:var(--gold);font:inherit;text-decoration:underline;cursor:pointer;}
   .coach-hi{box-shadow:0 0 0 3px rgba(255,207,58,.9),0 0 18px 4px rgba(255,207,58,.55)!important;animation:coachPulse 1s ease-in-out infinite;}
   @keyframes coachPulse{50%{box-shadow:0 0 0 5px rgba(255,207,58,.5),0 0 26px 8px rgba(255,207,58,.35)!important;}}

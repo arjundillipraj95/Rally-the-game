@@ -92,14 +92,28 @@ export const CAPTAIN_COMBAT = {
 // Progression: XP earned per battle climbs these ranks, and each rank unlocks a crest colour for
 // your captain's helmet plume and shield trim (purely a look; everyone fights the same).
 export const RANKS = [
-  { name: 'Recruit', xp: 0 }, { name: 'Legionary', xp: 150 }, { name: 'Veteran', xp: 400 }, { name: 'Centurion', xp: 800 },
-  { name: 'Tribune', xp: 1400 }, { name: 'Legate', xp: 2200 }, { name: 'General', xp: 3200 }, { name: 'Warlord', xp: 4500 },
+  { name: 'Recruit', xp: 0, joke: 'still has all ten fingers' }, { name: 'Legionary', xp: 150, joke: 'owns a pointy stick' },
+  { name: 'Veteran', xp: 400, joke: 'has seen things (mostly mud)' }, { name: 'Centurion', xp: 800, joke: 'can count to a hundred, mostly' },
+  { name: 'Tribune', xp: 1400, joke: 'has a nicer helmet than you' }, { name: 'Legate', xp: 2200, joke: 'hasn\u2019t walked anywhere in years' },
+  { name: 'General', xp: 3200, joke: 'points at maps, dramatically' }, { name: 'Warlord', xp: 4500, joke: 'even the goats salute' },
 ];
 export const CRESTS = [
   { name: 'Gold', hex: 0xffcf3a, css: '#ffcf3a' }, { name: 'Silver', hex: 0xd8dde3, css: '#d8dde3' }, { name: 'Crimson', hex: 0xc0262d, css: '#c0262d' },
   { name: 'Obsidian', hex: 0x2a2a30, css: '#2a2a30' }, { name: 'Royal', hex: 0x6a3fb5, css: '#6a3fb5' }, { name: 'Ivory', hex: 0xf4efe1, css: '#f4efe1' },
   { name: 'Emerald', hex: 0x2fa35a, css: '#2fa35a' }, { name: 'Flame', hex: 0xff6a1a, css: '#ff6a1a' },
 ]; // crest i unlocks at rank i
+// Cheek for the results screen and the menu.
+export const QUIPS = {
+  win: ['Glory! And only slightly fewer sandals.', 'The bards will sing of this. Badly.', 'Victory! Somebody fetch the goats.', 'Flawless. Well, mostly flawless.', 'They\u2019ll be finding helmets for weeks.'],
+  lose: ['A tactical retreat. Very tactical.', 'We\u2019ll call that a rehearsal.', 'At least the helmets had fun.', 'In fairness, they had more pointy sticks.', 'Morale is… present.'],
+  draw: ['Everybody lost. Mostly the goats.', 'A draw. Nobody tell the emperor.', 'Honours even. Bruises everywhere.'],
+};
+export const TIPS = [
+  'Hitting people is faster than asking nicely.', 'Spears beat horses. Horses beat feet. Nobody beats the goat.',
+  'A shieldwall stops arrows, not gossip.', 'Jump, then hit. Physics does the rest.', 'Archers aim for the head. Wear a helmet. Keep it on.',
+  'Three sword swings in a row: the third one really means it.', 'Your aura makes men braver. Or at least louder.',
+  'Horses are fast. Stopping them is a spearman\u2019s hobby.', 'Castles only take damage from men on foot. Horses refuse to help.',
+];
 export const XP = { base: 25, perKill: 4, maxKills: 40, win: 75, draw: 35, diffMult: [.75, 1, 1.35] };
 
 export const DIFF = [{ name: 'Recruit', dmg: .7, income: 8 }, { name: 'Soldier', dmg: 1, income: 10 }, { name: 'Warlord', dmg: 1.25, income: 12 }];

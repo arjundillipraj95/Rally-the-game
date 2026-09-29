@@ -1,6 +1,6 @@
 // Rally! Boots the game, runs the frame loop and wires the rules to the screen.
 import './style.css';
-import { TEAMS, MODES, MAPS, PRESETS, RANKS, CRESTS } from './config.js';
+import { TEAMS, MODES, MAPS, PRESETS, RANKS, CRESTS, QUIPS, TIPS } from './config.js';
 import { G, bus, colorOf } from './core/state.js';
 import { startMatch, mkUnit, newTeams, update, fallStep, endMatch, auraRange } from './core/sim.js';
 import { makeLayout, gatePos, groundY } from './core/world.js';
@@ -9,6 +9,7 @@ import { renderer, scene, camera, resize, applyPixelRatio, applyShadowQuality, f
 import { quality, saveSetting, stepDown, LEVELS } from './render/quality.js';
 import { buildWorldView, updateWorldView, grassTime } from './render/world.js';
 import { drawSoldiers, drawCalls, clearProps } from './render/soldiers.js';
+import { banterTick, clearBanter } from './render/banter.js';
 import { drawHorses, clearHorses } from './render/horses.js';
 import { spark, splat, dust, drawAura, floatText, castleFx, effectsTick, drawEffects, clearEffects } from './render/effects.js';
 import { drawOverlay, clearOverlay, resizeOverlay } from './render/overlay.js';
@@ -67,6 +68,7 @@ bus.on('end', ({ w, why }) => {
   if (result === 'win') { sfx.horn(); banner('Victory!', '', '#ffcf3a'); } else banner(title, '', result === 'draw' ? '#fff' : '#e0352b');
   $('endTitle').innerHTML = `<span>${title}</span>`;
   $('endText').textContent = `${MODES[G.mode].name} on ${G.map.name}. ${endText(w, why)}`;
+  const qs = QUIPS[result]; $('endQuip').textContent = qs[(Math.random() * qs.length) | 0];
   $('sKills').textContent = G.kills; $('sSquad').textContent = G.recruited; $('sTime').textContent = fmt(G.T);
   showRank(G.awarded ? null : awardMatch({ result, kills: G.kills, diff: G.diff })); G.awarded = true;
   const host = isHost(), client = isClient();
@@ -80,7 +82,7 @@ bus.on('end', ({ w, why }) => {
 // Results screen: XP gained, the bar filling toward the next rank, and any crest it unlocked.
 function showRank(aw) {
   const pr = rankProgress(), bar = $('xpBar');
-  $('rankName').textContent = RANKS[pr.rank].name;
+  $('rankName').textContent = RANKS[pr.rank].name; $('rankNameJoke').textContent = RANKS[pr.rank].joke;
   $('xpGain').textContent = aw ? `+${aw.gained} XP` : '';
   const pct = x => { const q = rankProgress(x); return q.span ? Math.min(100, q.into / q.span * 100) : 100; };
   bar.style.transition = 'none'; bar.style.width = (aw && !aw.rankUp ? pct(aw.before) : 0) + '%';
@@ -94,7 +96,7 @@ function showRank(aw) {
 const LOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
 function buildCrests() {
   const r = rankOf(progress.xp), next = RANKS[r + 1];
-  $('rankLine').textContent = `Rank: ${RANKS[r].name}`;
+  $('rankLine').textContent = `Rank: ${RANKS[r].name}`; $('rankJoke').textContent = RANKS[r].joke;
   $('rankNext').textContent = next ? `${progress.xp} / ${next.xp} XP` : `${progress.xp} XP`;
   $('segCrest').innerHTML = CRESTS.map((c, i) => {
     const open = crestUnlocked(i);
@@ -109,6 +111,9 @@ $('segCrest').addEventListener('click', e => {
   if (setCrest(+b.dataset.v)) buildCrests();
 });
 buildCrests();
+// a fresh tip every time the menu shows
+function newTip() { $('tip').textContent = 'Tip: ' + TIPS[(Math.random() * TIPS.length) | 0]; }
+newTip();
 // Home menu tabs: one panel at a time, the play buttons always in reach.
 const tabs = [...document.querySelectorAll('#ovTitle .tabs button')];
 function showTab(id) {
@@ -134,7 +139,7 @@ function endText(w, why) {
 // ---------- match start ----------
 function viewForMatch() {
   buildWorldView(G.layout);
-  clearEffects(); clearHorses(); clearProps();
+  clearEffects(); clearHorses(); clearProps(); clearBanter();
   buildHud(); showHud(); trayOpen(false); upOpen(false);
   watchdog.reset();
   startCrowd(G.map.id);
@@ -248,7 +253,7 @@ $('againBtn').addEventListener('click', () => {
 });
 $('menuBtn').addEventListener('click', () => {
   if (session.NET) { netLeave(); return; }
-  G.state = 'title'; resetSolo(); $('ovEnd').hidden = true; $('hudWrap').hidden = true; $('ovTitle').hidden = false; seedDemo();
+  G.state = 'title'; resetSolo(); newTip(); $('ovEnd').hidden = true; $('hudWrap').hidden = true; $('ovTitle').hidden = false; seedDemo();
 });
 
 // ---------- frame-rate watchdog: steps graphics down if the first seconds of a battle run slowly ----------
@@ -266,7 +271,7 @@ const watchdog = {
 
 // ---------- loop ----------
 function drawMatch(dt) {
-  audioTick(dt);
+  audioTick(dt); banterTick(dt);
   drawSoldiers(G.units, dt);
   const horses = isClient() ? clientHorses() : G.horses.map(h => ({ key: h.id, ti: h.ti, x: h.x, z: h.z, face: h.face, spd: h.spd, state: h.state, t: h.t, fall: h.fall }));
   drawHorses(horses, dt);

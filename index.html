@@ -14,8 +14,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bangers&family=Barlow+Semi+Condensed:ital,wght@0,600;0,800;1,800&display=swap">
 <title>Rally</title>
-  <script type="module" crossorigin src="./assets/index-DEfbaWWS.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-vwMpes0J.css">
+  <script type="module" crossorigin src="./assets/index-Cw3FrXXY.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-Cd_60sxD.css">
 </head>
 <body>
 <div id="app">
@@ -77,6 +77,8 @@
         <div class="flags"><i style="background:var(--blue)"></i><i style="background:var(--red)"></i><i style="background:var(--green)"></i><i style="background:var(--yellow)"></i></div>
         <p class="tagline">Lead your army against three rival teams, alone or with friends on their own phones.</p>
         <div class="rankchip"><span id="rankLine">Recruit</span><span id="rankNext"></span></div>
+        <div class="rankjoke" id="rankJoke"></div>
+        <div class="tip" id="tip"></div>
         <div class="rotate">Turn your phone sideways for the best view</div>
       </div>
       <div class="side">
@@ -261,6 +263,7 @@
       <div>
         <h2 class="logo" id="endTitle"><span>Victory</span></h2>
         <p id="endText"></p>
+        <p class="quip" id="endQuip"></p>
       </div>
       <div class="side">
         <div class="stats">
@@ -270,6 +273,7 @@
         </div>
         <div class="rank" id="rankBox">
           <div class="rrow"><b id="rankName">Recruit</b><span id="xpGain"></span></div>
+          <small class="rankjoke" id="rankNameJoke"></small>
           <div class="xbar"><i id="xpBar"></i></div>
           <small id="rankNote"></small>
         </div>

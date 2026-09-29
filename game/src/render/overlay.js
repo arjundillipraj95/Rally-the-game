@@ -7,6 +7,7 @@ import { groundY, clamp } from '../core/world.js';
 import { camera, view } from './scene.js';
 import { cam } from './camera.js';
 import { parts, floats } from './effects.js';
+import { bubbles } from './banter.js';
 
 const fx = document.getElementById('fx'), ctx = fx.getContext('2d');
 const mini = document.getElementById('mini'), mctx = mini.getContext('2d');
@@ -52,6 +53,7 @@ export function drawOverlay(opts) {
       }
     }
     drawStars();
+    drawBubbles();
     if (G.flag) drawFlagPointer();
     if (G.mode === 'ctrl') drawControlLabels();
     if (G.mode === 'dm' && G.bounty === G.myTi && player && !player.dead && (performance.now() / 500 % 1) < .7) {
@@ -67,6 +69,21 @@ export function drawOverlay(opts) {
   drawMini();
 }
 
+// Speech bubbles over soldiers' heads: white, rounded, a little tail, popping in and fading out.
+function drawBubbles() {
+  for (const b of bubbles) {
+    const u = b.u, [sx, sy0, ok] = proj(u.x, u.y + (u.leader ? 3.3 : 2.9) + (u.dead ? -1.2 : 0) + (u.mounted ? 1.2 : 0), u.z); if (!ok) continue;
+    const pop = Math.min(1, b.t / .12), fade = Math.min(1, (b.dur - b.t) / .3), sy = sy0 - 10 * (1 - pop);
+    ctx.globalAlpha = Math.max(0, fade);
+    ctx.font = `800 ${b.big ? 15 : 13}px "Barlow Semi Condensed", sans-serif`;
+    const w = ctx.measureText(b.text).width + 16, h = b.big ? 26 : 23, x = sx - w / 2, y = sy - h - 8;
+    ctx.fillStyle = 'rgba(255,255,255,.95)'; ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, 10) : ctx.rect(x, y, w, h);
+    ctx.moveTo(sx - 6, y + h); ctx.lineTo(sx, y + h + 8); ctx.lineTo(sx + 6, y + h); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#1b1512'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(b.text, sx, y + h / 2 + 1); ctx.textBaseline = 'alphabetic';
+  }
+  ctx.globalAlpha = 1;
+}
 // Stunned soldiers see stars: three little ones circling the head.
 function drawStars() {
   const now = performance.now() / 1000;

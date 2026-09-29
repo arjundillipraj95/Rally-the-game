@@ -386,7 +386,7 @@ export const actions = {
     if (o === cur && o !== 'hold') return;
     if (isClient()) { G.teams[G.myTi].order = o; C.inp.ord = o; if (o === 'hold') C.inp.hold = [r1(p.x), r1(p.z), r2(p.face)]; }
     else setOrder(G.myTi, o);
-    sfx.order(); floatText(p.x, p.y + 3.2, p.z, orderName(o), '#fff');
+    sfx.order(); bus.emit('shout', { u: p, kind: o }); // your captain bellows it
     bus.emit('hud');
   },
   upgrade(id) {
