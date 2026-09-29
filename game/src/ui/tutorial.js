@@ -23,7 +23,7 @@ const STEPS = [
     start: (p, c) => { c.n = p.leaps || 0; }, done: (p, c) => (p.leaps || 0) > c.n },
   { t: 'Switch weapon', s: touch ? 'Sword → Spear → Javelins' : 'R: Sword → Spear → Javelins', hi: 'wpn',
     start: (p, c) => { c.w = p.weapon; }, done: (p, c) => p.weapon !== c.w },
-  { t: 'Give your squad an order', s: touch ? 'The flag button: Follow, Hold, Charge, Shieldwall' : 'Q follow · F hold · E charge · T shieldwall', hi: 'cmdBtn',
+  { t: 'Give your squad an order', s: touch ? 'The Follow button: Follow, Hold, Charge, Shieldwall' : 'Q follow · F hold · E charge · T shieldwall', hi: 'cmdBtn',
     start: (p, c) => { c.o = G.teams[G.myTi].order; }, done: (p, c) => G.teams[G.myTi].order !== c.o },
   { t: 'Hire a soldier', s: touch ? 'The recruit button, then Footman or Archer' : '1 footman · 2 archer', hi: 'recBtn',
     start: (p, c) => { c.r = G.recruited; }, done: (p, c) => G.recruited > c.r },

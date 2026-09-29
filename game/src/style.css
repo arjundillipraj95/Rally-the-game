@@ -36,7 +36,7 @@
   .pip.out{background:#555!important;color:#999;}
   .pip.hum{border-color:#fff;}
   #mini{position:absolute;right:max(12px, env(safe-area-inset-right,0px));top:10px;width:92px;height:92px;border-radius:6px;background:rgba(22,20,18,.7);pointer-events:none;}
-  #hp{left:50%;bottom:10px;transform:translateX(-50%);padding:5px 14px 8px;width:min(26vw,210px);}
+  #hp{left:50%;bottom:68px;transform:translateX(-50%);padding:5px 14px 8px;width:min(26vw,210px);}
   #hp span{font-size:15px;font-style:italic;}
   #hp .bar{height:8px;border-radius:4px;background:rgba(255,255,255,.12);overflow:hidden;margin-top:2px;}
   #hp .bar i{display:block;height:100%;background:linear-gradient(90deg,#b8d43a,#e0c43a);transform-origin:left;}
@@ -50,36 +50,50 @@
   .banner.on{opacity:1;}
   .banner small{display:block;font-family:var(--body);font-weight:800;font-size:15px;letter-spacing:.14em;text-transform:uppercase;font-style:normal;}
 
-  .ctl{position:absolute;right:max(12px, env(safe-area-inset-right,0px));bottom:max(10px, env(safe-area-inset-bottom,0px));display:grid;gap:8px;justify-items:end;}
+  .ctl{position:absolute;right:max(10px, env(safe-area-inset-right,0px));bottom:max(8px, env(safe-area-inset-bottom,0px));}
   /* see-through, controller-style buttons: white outline + icon over a light smoke fill */
-  .rbtn,.sbtn{position:relative;border:2px solid rgba(255,255,255,.55);border-radius:50%;background:rgba(12,14,18,.26);cursor:pointer;touch-action:none;color:#fff;display:grid;place-items:center;padding:0;
-    -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);transition:transform .06s, background .1s, opacity .2s;}
+  .rbtn,.sbtn{position:relative;border:2px solid rgba(255,255,255,.6);background:rgba(12,14,18,.3);cursor:pointer;touch-action:none;color:#fff;padding:0;
+    -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);transition:transform .06s, background .1s, opacity .2s;-webkit-user-select:none;user-select:none;}
   .rbtn:focus-visible,.sbtn:focus-visible{outline:3px solid var(--gold);outline-offset:3px;}
-  .rbtn svg{width:44%;height:44%;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5));}
-  .sbtn svg{width:52%;height:52%;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5));}
-  .rbtn.held,.sbtn.held{transform:scale(.92);background:rgba(255,255,255,.28);}
-  .rbtn.dim,.sbtn.dim{opacity:.35;}
-  /* thumb pad: Attack in the corner, Block / Jump / Weapon on an arc around it */
-  .pad{position:relative;width:188px;height:182px;transform-origin:100% 100%;}
-  .pad .rbtn{position:absolute;}
-  #atk{right:0;bottom:0;width:92px;height:92px;background:rgba(224,53,43,.3);border-color:rgba(255,196,188,.85);}
-  #atk.held{background:rgba(224,53,43,.55);}
-  #atk svg{width:46%;height:46%;}
-  #blk{right:112px;bottom:12px;width:68px;height:68px;background:rgba(58,92,240,.22);}
-  #blk.held{background:rgba(58,92,240,.5);}
-  #jmp{right:86px;bottom:88px;width:60px;height:60px;}
-  #wpn{right:16px;bottom:118px;width:60px;height:60px;}
-  #wpn svg{width:40%;height:40%;margin-top:-8px;}
-  #wpn small{position:absolute;bottom:7px;left:0;right:0;text-align:center;font:800 9px var(--body);letter-spacing:.06em;text-transform:uppercase;text-shadow:0 1px 2px #000;}
-  /* squad & army row: small icon buttons */
-  .srow{display:flex;gap:7px;align-items:center;}
-  .sbtn{width:42px;height:42px;border-width:1.5px;border-color:rgba(255,255,255,.45);}
-  .badge{position:absolute;right:-5px;top:-5px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:rgba(0,0,0,.72);font:800 11px/18px var(--body);color:#fff;font-style:normal;}
-  .badge:empty{display:none;}
+  .rbtn svg,.sbtn svg{filter:drop-shadow(0 1px 1px rgba(0,0,0,.5));}
+  .rbtn.held,.sbtn.held{transform:scale(.93);background:rgba(255,255,255,.3);}
+  .rbtn.dim,.sbtn.dim{opacity:.4;}
+  /* thumb pad: a big Attack in the corner, Block / Jump / Weapon on an arc around it; each labelled */
+  .pad{position:relative;width:200px;height:192px;}
+  .pad .rbtn{position:absolute;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;}
+  .pad .rbtn svg{width:40%;height:40%;}
+  .lbl{font:800 10px var(--body);letter-spacing:.07em;text-transform:uppercase;text-shadow:0 1px 2px #000;line-height:1;}
+  #atk{right:0;bottom:0;width:104px;height:104px;background:rgba(224,53,43,.34);border-color:rgba(255,196,188,.9);border-width:2.5px;}
+  #atk.held{background:rgba(224,53,43,.6);}
+  #atk svg{width:44%;height:44%;}
+  #blk{right:118px;bottom:13px;width:78px;height:78px;background:rgba(58,92,240,.26);}
+  #blk.held{background:rgba(58,92,240,.55);}
+  #jmp{right:88px;bottom:88px;width:72px;height:72px;}
+  #wpn{right:17px;bottom:118px;width:70px;height:70px;}
+  /* squad & army bar: icon + word, bottom centre */
+  .sbar{position:absolute;left:50%;transform:translateX(-50%);bottom:max(8px, env(safe-area-inset-bottom,0px));display:flex;gap:6px;align-items:stretch;}
+  .sbtn{border-radius:12px;min-width:66px;height:50px;border-width:1.5px;border-color:rgba(255,255,255,.5);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:0 8px;}
+  .sbtn svg{width:20px;height:20px;}
+  .sbtn span{font:800 10px var(--body);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;text-shadow:0 1px 2px #000;}
   #mnt.on{background:rgba(150,98,50,.55);border-color:#e8c9a0;}
-  #squadBox{font-family:var(--display);font-style:italic;font-size:22px;line-height:1;padding:2px 8px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(12,14,18,.3);border-radius:8px;min-width:44px;text-shadow:0 1px 2px #000;}
+  #recBtn.open,#upBtn.open{background:rgba(255,207,58,.3);border-color:var(--gold);}
+  #squadBox{font-family:var(--display);font-style:italic;font-size:22px;line-height:1;padding:2px 8px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(12,14,18,.3);border-radius:12px;min-width:50px;text-shadow:0 1px 2px #000;}
   #squadBox small{font-family:var(--body);font-style:normal;font-weight:800;font-size:9px;letter-spacing:.06em;color:var(--dim);white-space:nowrap;}
-  #recBtn.open{background:rgba(255,207,58,.25);}
+  .sbar .tray{right:auto;left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100vw - 20px);}
+  .sbar .tray button{width:168px;min-width:0;} .sbar .tray.up{display:grid;grid-template-columns:repeat(3,104px);} .sbar .tray.up button{width:104px;}
+  /* narrow phones: the squad bar sits just left of the thumb pad instead of dead centre */
+  @media (max-width:800px){ .sbar{left:auto;transform:none;right:222px;} .sbar .sbtn{min-width:56px;padding:0 5px;} #squadBox{min-width:40px;} }
+  @media (max-width:800px) and (max-height:430px){ .sbar{right:182px;gap:5px;} }
+  /* held upright: squad bar stacks above the thumb pad, health bar above the stick */
+  @media (orientation:portrait) and (max-width:620px){
+    .sbar{right:10px;left:auto;transform:none;bottom:212px;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100vw - 20px);}
+    #hp{left:16px;transform:none;bottom:150px;}
+  }
+  /* keyboard players see the key on each button */
+  @media (hover:hover) and (pointer:fine){
+    [data-key]::after{content:attr(data-key);position:absolute;top:-8px;right:-6px;font:800 9px/1 var(--body);letter-spacing:.04em;background:rgba(0,0,0,.75);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:4px;padding:2px 4px;white-space:nowrap;}
+    .pad [data-key]::after{top:-2px;right:-2px;}
+  }
   .tray{position:absolute;right:0;bottom:calc(100% + 8px);display:flex;gap:6px;}
   .tray button{background:var(--panel);border:1.5px solid rgba(255,255,255,.2);border-radius:10px;color:#fff;padding:8px 10px;min-width:92px;text-align:left;cursor:pointer;
     font-family:var(--body);display:grid;gap:1px;touch-action:none;}
@@ -90,7 +104,6 @@
   .tray.up button{min-width:76px;}
   .tray .lv{display:flex;gap:3px;font-style:normal;}
   .tray .lv::before{content:attr(data-pips);letter-spacing:2px;color:var(--gold);font-size:12px;}
-  #upBtn.open{background:rgba(255,207,58,.25);}
   .tray button:focus-visible{outline:3px solid var(--gold);}
   /* first-battle coach card, and a pulsing ring on the button it's teaching */
   .coach{position:absolute;left:50%;top:52px;transform:translateX(-50%);display:grid;grid-template-columns:auto 1fr auto;column-gap:10px;align-items:center;
@@ -249,10 +262,11 @@
     #netTag{top:34px;}
     #mini{width:70px;height:70px;top:8px;}
     #goldTag{top:84px;font-size:15px;padding:3px 10px;}
-    #hp{width:min(24vw,170px);padding:4px 10px 6px;bottom:6px;} #hp span{font-size:12px;}
+    #hp{width:min(24vw,170px);padding:4px 10px 6px;bottom:60px;} #hp span{font-size:12px;}
     .ctl{gap:6px;bottom:max(8px, env(safe-area-inset-bottom,0px));}
-    .pad{transform:scale(.8);margin:-36px 0 0 -38px;} .sbtn{width:36px;height:36px;} #squadBox{font-size:18px;}
-    .srow{gap:5px;}
+    .pad{width:172px;height:164px;}
+    #atk{width:90px;height:90px;} #blk{right:102px;bottom:11px;width:68px;height:68px;} #jmp{right:76px;bottom:76px;width:62px;height:62px;} #wpn{right:15px;bottom:102px;width:60px;height:60px;}
+    .sbtn{height:46px;min-width:60px;padding:0 6px;} #squadBox{font-size:18px;min-width:44px;}
     .tray button{min-width:80px;padding:6px 8px;} .tray button b{font-size:16px;}
     .joyzone{width:96px;height:96px;}
     .banner{font-size:clamp(22px,4.5vw,36px);top:20%;}
@@ -268,7 +282,7 @@
   }
   @media (max-height:340px){
     #points h3{display:none;}
-    .pad{transform:scale(.68);margin:-58px 0 0 -60px;} .sbtn{width:32px;height:32px;}
+    .sbtn{height:42px;min-width:54px;} .sbtn span{font-size:9px;}
     #mini{width:60px;height:60px;} #goldTag{top:72px;}
   }
   #segMap button,#lobbyMap button{flex:1 1 30%;}

@@ -25,6 +25,7 @@ const ICONS = {
   jav: '<path d="M3 18 16 8"/><path d="M14 5.5 21 4 18.5 10.5z" fill="#fff"/><path d="M3 12h5M5 21.5h5"/>',
 };
 let atkIcon = null, cmdIcon = null;
+const ORDER_SHORT = { follow: 'Follow', hold: 'Hold', charge: 'Charge', shieldwall: 'Wall' };
 // the squad order button shows the order in force as an icon (tap cycles; the name pops up in the world)
 const ORDER_ICONS = {
   follow: '<path d="M6 21V4h11l-2.5 4 2.5 4H6"/>',
@@ -66,7 +67,7 @@ export function updateHud(lastSnapAt) {
   });
   // Ride: lit while mounted, a countdown badge while the horse rests
   $('mnt').classList.toggle('on', !!(p && p.mounted));
-  $('mntB').textContent = p && !p.mounted && !p.summon && p.horseCd > 0 ? Math.ceil(p.horseCd) : p && p.summon ? '…' : '';
+  $('mntT').textContent = !p ? 'Ride' : p.mounted ? 'Walk' : p.summon ? 'Coming' : p.horseCd > 0 ? Math.ceil(p.horseCd) + 's' : 'Ride';
   $('mnt').setAttribute('aria-label', p && p.mounted ? 'Get off your horse' : 'Call your horse');
   $('mnt').classList.toggle('dim', !p || (!p.mounted && (p.horseCd > 0 || p.carrying || p.dead)));
   $('blk').classList.toggle('dim', !p || p.mounted);
@@ -76,10 +77,10 @@ export function updateHud(lastSnapAt) {
   const mx = javMax(G.myTi), am = p ? Math.min(mx, p.javAmmo | 0) : 0;
   $('wpnS').textContent = w === 'jav' ? `Jav ${am}` : WEAPON_NAMES[w];
   $('jmp').classList.toggle('dim', !p || p.mounted || p.carrying);
-  $('vlyB').textContent = me.volleyCd > 0 ? Math.ceil(me.volleyCd) : '';
+  $('vlyT').textContent = me.volleyCd > 0 ? Math.ceil(me.volleyCd) + 's' : 'Volley';
   $('vly').classList.toggle('dim', !p || p.dead || me.volleyCd > 0);
   const o = me.order || 'follow';
-  if (cmdIcon !== o) { cmdIcon = o; $('cmdIc').innerHTML = ORDER_ICONS[o] || ORDER_ICONS.follow; $('cmdBtn').setAttribute('aria-label', 'Squad order: ' + (ORDER_NAMES[o] || ORDER_NAMES.follow)); }
+  if (cmdIcon !== o) { cmdIcon = o; $('cmdIc').innerHTML = ORDER_ICONS[o] || ORDER_ICONS.follow; $('cmdT').textContent = ORDER_SHORT[o] || 'Follow'; $('cmdBtn').setAttribute('aria-label', 'Squad order: ' + (ORDER_NAMES[o] || ORDER_NAMES.follow)); }
   $('cmdBtn').style.borderColor = o === 'follow' ? 'var(--green)' : o === 'hold' ? 'var(--yellow)' : o === 'shieldwall' ? '#7f9bff' : 'var(--red)';
   const NET = session.NET, tag = $('netTag');
   if (NET) {
