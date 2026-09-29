@@ -148,7 +148,7 @@ function clientKill(u) {
   // the host doesn't send how a man died, so a client launches the ones cut down by a big hit
   // (or a charging horse), and now and then one more, to match the feel of the host's battle
   if ((u.bigHitT && performance.now() - u.bigHitT < 500) || Math.random() < .12) {
-    const a = Math.random() * Math.PI * 2, f = rnd(10, 14); u.vx += Math.sin(a) * f; u.vz += Math.cos(a) * f; u.vy = rnd(9, 12); u.launch = true; sfx.whee(u.x, u.z);
+    const a = Math.random() * Math.PI * 2, f = rnd(10, 14); u.vx += Math.sin(a) * f; u.vz += Math.cos(a) * f; u.vy = rnd(9, 12); u.launch = true; sfx.scream(u.x, u.z);
   }
   bus.emit('splat', { x: u.x, z: u.z, s: rnd(1, 1.5), ti: u.ti }); sfx.die(u.x, u.z);
   C.byId.delete(u.id);

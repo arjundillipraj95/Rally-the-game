@@ -367,7 +367,7 @@ function die(u, killer, ang, launch = 0) {
   u.dead = true; u.deadT = 0;
   if (launch) { // off they go: high, far, spinning (see the ragdoll in render/soldiers.js)
     const f = rnd(8.5, 12); u.vx += Math.sin(ang) * f; u.vz += Math.cos(ang) * f; u.vy = rnd(9, 12); u.launch = true;
-    sound('whee', u.x, u.z);
+    sound('scream', u.x, u.z);
   } else { u.vx += Math.sin(ang) * 6; u.vz += Math.cos(ang) * 6; u.vy = rnd(3, 6); }
   u.fallDir = Math.random() < .5 ? 1 : -1;
   fx('splat', { x: u.x, z: u.z, s: rnd(1, 1.5), ti: u.ti }); sound('die', u.x, u.z);

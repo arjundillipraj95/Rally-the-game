@@ -10,3 +10,5 @@ Sound effects in this folder are CC0 (public domain) recordings, trimmed, normal
     swing4-6, draw*
 
 War drums, horns and the distant battle bed are synthesised in src/ui/audio.js.
+
+scream1-6 are original: synthesised for Rally by scripts/screams.py (a small source-filter voice model).
