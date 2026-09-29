@@ -15,7 +15,8 @@ import { drawHorses, clearHorses } from './render/horses.js';
 import { spark, splat, dust, drawAura, floatText, castleFx, effectsTick, drawEffects, clearEffects } from './render/effects.js';
 import { drawOverlay, clearOverlay, resizeOverlay } from './render/overlay.js';
 import { cam, followCamera, orbitCamera, camTarget, CAM_PITCH } from './render/camera.js';
-import { initAudio, sfx, buzz, gateS, startCrowd, stopCrowd, audioTick, audioStats } from './ui/audio.js';
+import { initAudio, sfx, buzz, gateS, startCrowd, stopCrowd, audioTick, audioStats, setMuted } from './ui/audio.js';
+import { portal, portalInit, onPortal } from './portal.js';
 import { showMsg, allyNames } from './ui/messages.js';
 import { buildHud, showHud, updateHud, banner, fmt } from './ui/hud.js';
 import { bindInput, readMove, trayOpen, upOpen, releaseAll, inp } from './ui/input.js';
@@ -61,12 +62,13 @@ bus.on('hud', () => { if (G.state === 'play') updateHud(C.lastSnapAt); });
 bus.on('hostEnd', res => endMatch(res[0], res[1]));
 bus.on('end', ({ w, why }) => {
   releaseAll(); trayOpen(false); upOpen(false); stopTutorial();
+  portal.gameplayStop();
   updateHud(C.lastSnapAt);
   stopCrowd();
   const mine = G.ALLY[colorOf(G.myTi)];
   const result = w < 0 ? 'draw' : w === mine ? 'win' : 'lose';
   const title = result === 'win' ? 'Victory' : result === 'draw' ? 'Draw' : 'Defeat';
-  if (result === 'win') { sfx.horn(); banner('Victory!', '', '#ffcf3a'); } else banner(title, '', result === 'draw' ? '#fff' : '#e0352b');
+  if (result === 'win') { sfx.horn(); banner('Victory!', '', '#ffcf3a'); portal.happytime(); } else banner(title, '', result === 'draw' ? '#fff' : '#e0352b');
   $('endTitle').innerHTML = `<span>${title}</span>`;
   $('endText').textContent = `${MODES[G.mode].name} on ${G.map.name}. ${endText(w, why)}`;
   const qs = QUIPS[result]; $('endQuip').textContent = qs[(Math.random() * qs.length) | 0];
@@ -142,6 +144,7 @@ function viewForMatch() {
   buildWorldView(G.layout);
   clearEffects(); clearHorses(); clearProps(); clearBanter(); spawnCritters(G.seed);
   buildHud(); showHud(); trayOpen(false); upOpen(false);
+  portal.gameplayStart();
   watchdog.reset();
   startCrowd(G.map.id);
 }
@@ -237,7 +240,7 @@ seg('segQuality', v => {
 // (Android browsers honour this; iPhone Safari doesn't allow it, where "Add to Home Screen" does the job.)
 const coarse = matchMedia('(pointer: coarse)').matches;
 function goFullscreen() {
-  if (!coarse || document.fullscreenElement) return;
+  if (!coarse || document.fullscreenElement || onPortal()) return; // the games site provides its own fullscreen
   const el = document.documentElement, req = el.requestFullscreen || el.webkitRequestFullscreen;
   if (!req) return;
   try {
@@ -247,14 +250,15 @@ function goFullscreen() {
 }
 ['goBtn', 'againBtn', 'hostBtn', 'joinBtn', 'startBtn'].forEach(id => { const b = $(id); if (b) b.addEventListener('click', goFullscreen); });
 $('goBtn').addEventListener('click', soloStart);
+// between battles is the one place a games-site ad may play (off during a Basic Launch; see portal.js)
 $('againBtn').addEventListener('click', () => {
   initAudio();
-  if (isHost()) { showLobby(); return; }
-  soloStart();
+  if (isHost()) { portal.midgameAd(() => showLobby()); return; }
+  portal.midgameAd(() => soloStart());
 });
 $('menuBtn').addEventListener('click', () => {
-  if (session.NET) { netLeave(); return; }
-  G.state = 'title'; resetSolo(); newTip(); clearCritters(); $('ovEnd').hidden = true; $('hudWrap').hidden = true; $('ovTitle').hidden = false; seedDemo();
+  if (session.NET) { portal.gameplayStop(); netLeave(); return; }
+  portal.midgameAd(() => { G.state = 'title'; resetSolo(); newTip(); clearCritters(); $('ovEnd').hidden = true; $('hudWrap').hidden = true; $('ovTitle').hidden = false; seedDemo(); });
 });
 
 // ---------- frame-rate watchdog: steps graphics down if the first seconds of a battle run slowly ----------
@@ -293,7 +297,10 @@ function nickFor(ti) {
   const p = peers.find(x => x.peer === peer); return p && p.presence && p.presence.nick ? String(p.presence.nick).slice(0, 16) : null;
 }
 let hudT = 0, last = performance.now(), fpsAvg = 60;
+// frozen while a games-site ad plays
+let paused = false;
 function loop(now) {
+  if (paused) { last = now; requestAnimationFrame(loop); return; }
   const raw = (now - last) / 1000; let dt = Math.min(.05, raw); last = now;
   if (hitstop > 0) { hitstop -= raw; dt *= .06; }
   if (raw > 0) fpsAvg += (1 / raw - fpsAvg) * .05;
@@ -347,3 +354,5 @@ function onResize() { resize(); resizeOverlay(); }
 addEventListener('resize', onResize);
 pressSeg('segFaction', prefs.faction); pressSeg('segColor', prefs.color); resetSolo();
 applyShadowQuality(); onResize(); updateDesc(); updateQualityNote(); seedDemo(); requestAnimationFrame(loop);
+// the games site (if we're on one): its SDK, its mute setting, and our pause during its ads
+portalInit({ mute: m => setMuted(m), pause: p => { paused = p; } }).then(() => { portal.loadingStart(); requestAnimationFrame(() => portal.loadingStop()); });

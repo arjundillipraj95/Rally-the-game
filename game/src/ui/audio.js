@@ -20,7 +20,7 @@ export function initAudio() {
     // limiter -> speakers; a short outdoor reverb shared by everything
     const lim = ac.createDynamicsCompressor();
     lim.threshold.value = -10; lim.knee.value = 6; lim.ratio.value = 12; lim.attack.value = .003; lim.release.value = .2;
-    out = ac.createGain(); out.gain.value = .9; out.connect(lim).connect(ac.destination);
+    out = ac.createGain(); out.gain.value = muted ? 0 : .9; out.connect(lim).connect(ac.destination);
     verb = ac.createConvolver(); verb.buffer = impulse(1.7, 3.2); const vg = ac.createGain(); vg.gain.value = .55; verb.connect(vg).connect(out);
     loadBank();
   } catch (e) { ac = null; }
@@ -44,9 +44,12 @@ function loadBank() {
     fetch(`sfx/${k}${i}.mp3`).then(r => r.ok ? r.arrayBuffer() : Promise.reject()).then(decode).then(b => { (bufs[k] = bufs[k] || []).push(b); }).catch(() => {});
   }
 }
+// Silence everything (the games site's mute setting, or while an ad plays).
+let muted = false;
+export function setMuted(m) { muted = !!m; if (out && ac) out.gain.setTargetAtTime(muted ? 0 : .9, ac.currentTime, .05); }
 export const audioReady = () => !!ac && Object.keys(bufs).length > 0;
 // for automated checks: what loaded, how many sounds are playing right now, the battle's heat
-export const audioStats = () => ({ state: ac && ac.state, banks: Object.fromEntries(Object.entries(bufs).map(([k, v]) => [k, v.length])), voices, heat: +(amb.heat || 0).toFixed(2), near: amb.near || 0, far: amb.far || 0 });
+export const audioStats = () => ({ state: ac && ac.state, muted, banks: Object.fromEntries(Object.entries(bufs).map(([k, v]) => [k, v.length])), voices, heat: +(amb.heat || 0).toFixed(2), near: amb.near || 0, far: amb.far || 0 });
 export function gateS(n, ms) { const t = performance.now(); if (lastS[n] && t - lastS[n] < ms) return false; lastS[n] = t; return true; }
 
 // ---------- where a sound is, from the listener ----------
