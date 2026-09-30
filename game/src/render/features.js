@@ -11,7 +11,7 @@ import { quality } from './quality.js';
 
 const lam = (color, map, extra = {}) => new THREE.MeshLambertMaterial(Object.assign({ color, map: map || null }, extra));
 const M = {
-  marble: lam(0xf2ede2, stoneTex()), marbleDark: lam(0xd8d0c0, stoneTex()), plaster: lam(0xeadfc6), roof: lam(0xb4553a),
+  marble: lam(0xf2ede2, stoneTex()), marbleDark: lam(0xd8d0c0, stoneTex()), polished: lam(0xf4f0e8), polishedDark: lam(0xddd5c6), plaster: lam(0xeadfc6), roof: lam(0xb4553a),
   sand: lam(0xe0bf8c, stoneTex()), sandDark: lam(0xc9a672, stoneTex()), wood: lam(0x7a5a3a, woodTex()), log: lam(0x6a4b33, woodTex()),
   thatch: lam(0xb89650), dark: lam(0x2a2018), bronze: new THREE.MeshPhongMaterial({ color: 0xc8903c, shininess: 60, specular: 0x665533 }),
   palmTrunk: lam(0x8a6a44, woodTex()), palmLeaf: lam(0x4a7430, null, { side: THREE.DoubleSide }), iron: lam(0x3a3a3e),
@@ -37,24 +37,43 @@ export function buildFeatures(L, world) {
   const id = L.mapId;
   // ---------- columns (temples and the colonnade) ----------
   if (L.columns.length) {
-    world.add(shadowy(instanced(new THREE.CylinderGeometry(1, 1.08, 1, 12), M.marble, L.columns, (m, i, c) => place(m, i, c.x, c.y + c.h / 2, c.z, 0, 0, 0, c.r, c.h, c.r))));
-    world.add(shadowy(instanced(new THREE.BoxGeometry(1, 1, 1), M.marbleDark, L.columns, (m, i, c) => place(m, i, c.x, c.y + c.h + .15, c.z, 0, 0, 0, c.r * 2.6, .3, c.r * 2.6))));
-    world.add(shadowy(instanced(new THREE.BoxGeometry(1, 1, 1), M.marbleDark, L.columns, (m, i, c) => place(m, i, c.x, c.y + .12, c.z, 0, 0, 0, c.r * 2.6, .24, c.r * 2.6))));
+    // fluted shafts of polished marble: every other edge of the cylinder pressed in a touch
+    const shaft = new THREE.CylinderGeometry(1, 1.08, 1, 24, 1); { const p = shaft.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i), z = p.getZ(i), a = Math.atan2(z, x), k = Math.round(a / (Math.PI * 2) * 24) % 2 ? .9 : 1; if (Math.hypot(x, z) > .5) { p.setX(i, x * k); p.setZ(i, z * k); } } shaft.computeVertexNormals(); }
+    world.add(shadowy(instanced(shaft, M.polished, L.columns, (m, i, c) => place(m, i, c.x, c.y + c.h / 2, c.z, 0, 0, 0, c.r, c.h, c.r))));
+    const capital = new THREE.CylinderGeometry(.62, .45, 1, 16);
+    world.add(shadowy(instanced(capital, M.polishedDark, L.columns, (m, i, c) => place(m, i, c.x, c.y + c.h - .05, c.z, 0, 0, 0, c.r * 2.4, .45, c.r * 2.4))));
+    world.add(shadowy(instanced(new THREE.BoxGeometry(1, 1, 1), M.polishedDark, L.columns, (m, i, c) => place(m, i, c.x, c.y + c.h + .3, c.z, 0, 0, 0, c.r * 2.7, .3, c.r * 2.7))));
+    world.add(shadowy(instanced(new THREE.CylinderGeometry(.6, .66, 1, 16), M.polishedDark, L.columns, (m, i, c) => place(m, i, c.x, c.y + .15, c.z, 0, 0, 0, c.r * 2.4, .3, c.r * 2.4))));
   }
   // ---------- statues on pedestals ----------
   for (const st of L.statues) {
     const g = new THREE.Group(), k = st.big ? 1.6 : 1;
-    const ped = new THREE.Mesh(new THREE.BoxGeometry(1.6 * k, 1.4 * k, 1.6 * k), M.marbleDark); ped.position.y = .7 * k; g.add(ped);
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(.35 * k, .5 * k, 1.7 * k, 10), st.big ? M.bronze : M.marble); body.position.y = 2.25 * k; g.add(body);
-    const head = new THREE.Mesh(new THREE.SphereGeometry(.3 * k, 10, 8), st.big ? M.bronze : M.marble); head.position.y = 3.35 * k; g.add(head);
-    const arm = new THREE.Mesh(new THREE.CylinderGeometry(.09 * k, .09 * k, 1.3 * k, 6), st.big ? M.bronze : M.marble); arm.position.set(.45 * k, 3.1 * k, 0); arm.rotation.z = -.5; g.add(arm);
+    const sm = st.big ? M.bronze : M.polished;
+    const ped = new THREE.Mesh(new THREE.BoxGeometry(1.6 * k, 1.4 * k, 1.6 * k), M.polishedDark); ped.position.y = .7 * k; g.add(ped);
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(1.8 * k, .2 * k, 1.8 * k), M.polishedDark); cap.position.y = 1.5 * k; g.add(cap);
+    const robe = new THREE.Mesh(new THREE.CylinderGeometry(.34 * k, .62 * k, 1.9 * k, 12), sm); robe.position.y = 2.55 * k; g.add(robe);
+    const chest = new THREE.Mesh(new THREE.SphereGeometry(.42 * k, 12, 8), sm); chest.scale.set(1, .9, .8); chest.position.y = 3.45 * k; g.add(chest);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(.27 * k, 12, 9), sm); head.position.y = 4.05 * k; g.add(head);
+    const wreath = new THREE.Mesh(new THREE.TorusGeometry(.25 * k, .05 * k, 5, 12).rotateX(Math.PI / 2), st.big ? M.bronze : lam(0xc8b04a)); wreath.position.y = 4.15 * k; g.add(wreath);
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(.08 * k, .09 * k, 1.2 * k, 8), sm); arm.position.set(.5 * k, 4.1 * k, .1 * k); arm.rotation.set(.2, 0, -.35); g.add(arm);
+    const drape = new THREE.Mesh(new THREE.BoxGeometry(.2 * k, 1.3 * k, .5 * k), sm); drape.position.set(-.45 * k, 3 * k, 0); drape.rotation.z = .12; g.add(drape);
     g.position.set(st.x, groundY(st.x, st.z), st.z); g.rotation.y = Math.atan2(-st.x, -st.z);
     world.add(shadowy(g));
   }
   // ---------- houses, tents and huts ----------
   const houses = L.buildings.filter(b => b.kind === 'house'), tents = L.buildings.filter(b => b.kind === 'tent'), huts = L.buildings.filter(b => b.kind === 'hut');
   if (houses.length) {
-    world.add(shadowy(instanced(new THREE.BoxGeometry(1, 1, 1), M.plaster, houses, (m, i, b) => place(m, i, b.x, b.h / 2, b.z, 0, b.rot, 0, b.w, b.h, b.d))));
+    const tints = [0xf2e8d2, 0xe8c9a0, 0xe7b48f, 0xf0dcae, 0xdcae8c, 0xefe2c8].map(c => new THREE.Color(c));
+    world.add(shadowy(instanced(new THREE.BoxGeometry(1, 1, 1), lam(0xffffff), houses, (m, i, b) => { place(m, i, b.x, b.h / 2, b.z, 0, b.rot, 0, b.w, b.h, b.d); m.setColorAt(i, tints[(Math.abs(b.x * 3 + b.z * 7) | 0) % tints.length]); })));
+    world.add(shadowy(instanced(new THREE.BoxGeometry(1, 1, 1), lam(0xa89274, stoneTex()), houses, (m, i, b) => place(m, i, b.x, .45, b.z, 0, b.rot, 0, b.w + .12, .9, b.d + .12))));
+    world.add(shadowy(instanced(new THREE.BoxGeometry(1, 1, 1), M.polishedDark, houses, (m, i, b) => place(m, i, b.x, b.h - .1, b.z, 0, b.rot, 0, b.w + .35, .25, b.d + .35))));
+    const doors = []; for (const b of houses) for (const [fx, fz] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) if ((Math.abs(b.x + fx * 5 + b.z * 3 + fz * 11) | 0) % 3 !== 0) doors.push({ x: b.x + fx * (b.w / 2 + .03), z: b.z + fz * (b.d / 2 + .03), ry: fx ? Math.PI / 2 : 0 });
+    world.add(instanced(new THREE.PlaneGeometry(1.1, 2), lam(0x4a2e1c, woodTex()), doors, (m, i, h) => place(m, i, h.x, 1, h.z, 0, h.ry, 0, 1, 1, 1)));
+    const shut = []; for (const b of houses) for (const [fx, fz] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) for (const t of [-.28, .28]) for (const sd of [-1, 1]) {
+      const ox = fz ? t * b.w + sd * .62 : 0, oz = fx ? t * b.d + sd * .62 : 0;
+      shut.push({ x: b.x + fx * (b.w / 2 + .04) + ox, z: b.z + fz * (b.d / 2 + .04) + oz, y: b.h * .62, ry: fx ? Math.PI / 2 : 0 });
+    }
+    world.add(instanced(new THREE.PlaneGeometry(.34, 1.25), lam(0x4f6a3a, woodTex(), { side: THREE.DoubleSide }), shut, (m, i, h) => place(m, i, h.x, h.y, h.z, 0, h.ry, 0, 1, 1, 1)));
     const roofGeo = new THREE.ConeGeometry(Math.SQRT1_2, 1, 4); roofGeo.rotateY(Math.PI / 4); roofGeo.translate(0, .5, 0);
     world.add(shadowy(instanced(roofGeo, M.roof, houses, (m, i, b) => place(m, i, b.x, b.h, b.z, 0, b.rot, 0, b.w * 1.12, 2.2, b.d * 1.12))));
     // dark doors and windows along the street sides

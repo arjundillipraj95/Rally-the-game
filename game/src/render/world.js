@@ -12,6 +12,7 @@ import { inside, nearObstacles } from '../core/nav.js';
 import { buildValley, updateValley, clearValley, valleyGround, fieldAt } from './valley.js';
 import { buildFrost, updateFrost, clearFrost, frostGround, onPond } from './frost.js';
 import { buildDesert, updateDesert, clearDesert, desertGround } from './desert.js';
+import { buildForum, forumGround } from './forum.js';
 
 let world = null;
 export let castleObjs = [];
@@ -61,6 +62,7 @@ export function buildWorldView(L) {
     }
     if (M.id === 'frost' && r < 96) frostGround(c, x, z);
     if (M.id === 'desert' && r < 96) desertGround(c, x, z);
+    if (M.id === 'forum') forumGround(c, x, z);
     if (M.id === 'wooden' && (Math.abs(x) < 2.6 || Math.abs(z) < 2.6) && r > 8 && r < 80) c.lerp(mud, .45);
     cols.push(c.r, c.g, c.b);
   }
@@ -147,6 +149,7 @@ export function buildWorldView(L) {
   if (M.id === 'valley') buildValley(world);
   if (M.id === 'frost') buildFrost(world);
   if (M.id === 'desert') buildDesert(world, L);
+  if (M.id === 'forum') buildForum(world, L);
   buildGrass(L, LK);
 }
 
