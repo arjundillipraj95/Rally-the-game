@@ -3,7 +3,7 @@
 // how many soldiers are alive — capped well under that even at a full 8-army Duo match — sent
 // about 12 times a second).
 import { TEAMS, MAPS, KINDS, STATS, RECRUITS, FACTIONS, factionFromCode, ORDERS, ORDER_NAMES, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT } from '../config.js';
-import { G, bus, colorOf } from '../core/state.js';
+import { G, bus, colorOf, isEnemyTi } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn } from '../core/world.js';
 import { buildNav, syncGates } from '../core/nav.js';
 import { newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainJump, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
@@ -16,6 +16,7 @@ import { floatText } from '../render/effects.js';
 import { cam, CAM_PITCH } from '../render/camera.js';
 
 export const C = {}; // client-side state
+if (import.meta.env.DEV) window.__netC = C; // dev-only: lets tests watch the client's snapshots
 const r1 = v => Math.round(v * 10) / 10, r2 = v => Math.round(v * 100) / 100;
 const b36 = n => Math.max(0, Math.round(n)).toString(36);
 const p36 = s => parseInt(s, 36);
@@ -56,15 +57,20 @@ function encodeSnap() {
   }).filter(Boolean).join(';');
   return [Math.round(G.T * 10), teams, us.join(';'), ars.join(';'), hs.join(';'), fl, pl, G.bounty].join('|');
 }
+// a remote player's blow landing (or landing on them) goes out at once rather than waiting for the
+// next regular snapshot, so their hits register as quickly as the network allows
+bus.on('netFlush', () => { if (session.NET) session.NET.flush = true; });
 export function netHostTick() {
-  if (performance.now() - (session.NET.lastSend || 0) < 80) return;
+  const since = performance.now() - (session.NET.lastSend || 0);
+  if (since < 80 && !(session.NET.flush && since > 25)) return;
+  session.NET.flush = false;
   netHostSend(false);
 }
 export function netHostSend() {
   const NET = session.NET; if (!NET) return;
   NET.lastSend = performance.now();
   const pres = { role: 'host', ph: G.state === 'end' ? 'end' : 'play', seed: G.seed, mode: G.mode, map: G.map.id, diff: G.diff, len: G.len, al: G.ALLY.join(''), duo: G.duo.map(d => d ? 1 : 0).join(''), seats: NET.seats, nick: session.myNick || 'Host', fa: G.factions.map(f => (FACTIONS[f] || FACTIONS.roman).code).join(''), cr: Array.from({ length: 8 }, (_, i) => (G.crests && G.crests[i]) | 0).join(''), n: ++NET.snapN, s: encodeSnap(), m: NET.msgs };
-  if (G.state === 'end' && G.endInfo) pres.res = [G.endInfo.w, G.endInfo.why];
+  if (G.state === 'end' && G.endInfo) { pres.res = [G.endInfo.w, G.endInfo.why]; pres.kl = G.teams.map(t => t.kills | 0).join(','); }
   let json = JSON.stringify(pres);
   while (json.length > 3900) { // trim arrows first, then messages
     const parts = pres.s.split('|'), a = parts[3].split(';');
@@ -125,7 +131,7 @@ export function clientStart(hp) {
   G.flag = G.mode === 'ctf' ? { state: 'home', x: 0, z: 0, carrier: null, dropT: 0 } : null;
   G.ctrlPoints = G.mode === 'ctrl' ? makeCtrlPoints(G.layout) : null;
   Object.assign(C, { byId: new Map(), lastN: -1, lastMsgN: (hp.m && hp.m.length) ? hp.m[hp.m.length - 1][0] : 0, meId: null, meInit: false, kickN: 0, localCd: 0, lastSnapAt: performance.now(),
-    inp: { atk: 0, ride: 0, vly: 0, rec: [0, 0, 0], up: [0, 0, 0, 0, 0], ord: 'follow', hold: null, face: 0 }, sendAt: 0, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
+    inp: { atk: 0, ride: 0, vly: 0, rec: [0, 0, 0], up: [0, 0, 0, 0, 0], ord: 'follow', hold: null, face: 0 }, sendAt: 0, sendNow: false, pred: null, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
   G.player = null;
   cam.yaw = Math.atan2(-TEAMS[colorOf(G.myTi)].pos[0], -TEAMS[colorOf(G.myTi)].pos[1]); cam.pitch = CAM_PITCH;
   G.state = 'play';
@@ -181,11 +187,13 @@ function clientApply(hp) {
     u.hp = hpq / 35 * u.max;
     if (oldHp - u.hp > u.max * .3) u.bigHitT = performance.now();
     if (u.hp < oldHp - .5 && id !== myId) {
-      bus.emit('spark', { x: u.x, y: u.y + 1.2, z: u.z, c: (fl & 4) ? '#fff3b0' : TEAMS[colorOf(u.ti)].css, n: 5 });
-      if (fl & 4) sfx.clang(u.x, u.z);
-      else { sfx.hit(u.x, u.z);
+      const shown = performance.now() - (u.predHitAt || 0) < 600; // this client already showed the impact
+      u.predHitAt = 0;
+      if (!shown) bus.emit('spark', { x: u.x, y: u.y + 1.2, z: u.z, c: (fl & 4) ? '#fff3b0' : TEAMS[colorOf(u.ti)].css, n: 5 });
+      if (fl & 4) { if (!shown) sfx.clang(u.x, u.z); }
+      else { if (!shown) sfx.hit(u.x, u.z);
         const me = G.player; // a client's own blows landing: the same hit-stop the host gets
-        if (me && performance.now() - (C.lastAtkAt || 0) < 700 && Math.hypot(u.x - me.x, u.z - me.z) < 5) { bus.emit('hitstop', .05); cam.shake = Math.max(cam.shake, .15); }
+        if (!shown && me && performance.now() - (C.lastAtkAt || 0) < 700 && Math.hypot(u.x - me.x, u.z - me.z) < 5) { bus.emit('hitstop', .05); cam.shake = Math.max(cam.shake, .15); }
         if (Math.random() < .35) bus.emit('splat', { x: u.x + rnd(-.4, .4), z: u.z + rnd(-.4, .4), s: rnd(.6, 1.1), ti: u.ti }); }
     }
     if ((fl & 1) && u.swing <= 0 && id !== myId) { u.swing = .38; sfx.swing(u.x, u.z); }
@@ -247,6 +255,7 @@ export function clientTick(dt) {
     const hp = hostP.presence || {};
     if (hp.ph === 'lobby') { hooks.onLobby(); return false; }
     if (hp.seed === G.seed && (hp.ph === 'play' || hp.ph === 'end')) clientApply(hp);
+    if (hp.ph === 'end' && hp.kl) G.kills = +String(hp.kl).split(',')[G.myTi] || 0; // your captain's kills, as the host counted them
     if (hp.ph === 'end' && G.state === 'play' && Array.isArray(hp.res)) bus.emit('hostEnd', hp.res);
   }
   if (G.state !== 'play' && G.state !== 'end') return false;
@@ -264,9 +273,19 @@ export function clientTick(dt) {
     me.r = me.mounted ? .95 : STATS.captain.r;
     regenJavs(me, dt);
     if (C.atkBuf > 0) C.atkBuf -= dt;
+    if (C.pred && performance.now() >= C.pred.at) {
+      const { tg: t, reach } = C.pred; C.pred = null;
+      if (t && !t.dead && isEnemyTi(t.ti, me.ti) && Math.hypot(t.x - me.x, t.z - me.z) <= me.r + t.r + reach + .5) {
+        const hx = (me.x + t.x) / 2, hz = (me.z + t.z) / 2;
+        bus.emit('spark', { x: hx, y: (me.y + t.y) / 2 + 1.2, z: hz, c: t.blockT > 0 ? '#fff3b0' : TEAMS[colorOf(t.ti)].css, n: 5 });
+        if (t.blockT > 0) sfx.clang(hx, hz); else sfx.hit(hx, hz);
+        bus.emit('hitstop', .055); cam.shake = Math.max(cam.shake, .15);
+        t.predHitAt = performance.now();
+      }
+    }
     if ((inp.attackHeld || C.atkBuf > 0) && C.localCd <= 0) actions.attack();
   }
-  const k = Math.min(1, dt * 10);
+  const k = Math.min(1, dt * 15);
   for (const u of G.units) { // everyone else glides toward the host's positions
     if (u.dead) { fallStep(u, dt); continue; }
     if (u === me) continue;
@@ -289,8 +308,8 @@ export function clientTick(dt) {
   C.leaving = C.leaving.filter(h => h.t < 3);
   arrowsTick(dt, false);
   // send my captain and my buttons
-  if (performance.now() - C.sendAt > 66 && G.state === 'play') {
-    C.sendAt = performance.now();
+  if ((performance.now() - C.sendAt > 66 || C.sendNow) && G.state === 'play') {
+    C.sendAt = performance.now(); C.sendNow = false;
     const pres = { role: 'player', nick: session.myNick || 'Captain', ph: 'play', seed: G.seed, atk: C.inp.atk, ride: C.inp.ride, vly: C.inp.vly, rec: C.inp.rec, up: C.inp.up, ord: C.inp.ord, hold: C.inp.hold, face: C.inp.face, blk: inp.blockHeld ? 1 : 0 };
     if (me && !me.dead) pres.cap = [me.id, r2(me.x), r2(me.z), r2(me.face), r1(me.vx), r1(me.vz), r2(me.jy || 0), Math.max(0, WEAPONS.indexOf(me.weapon || 'sword'))];
     NET.room.presence(pres).catch(() => {});
@@ -326,6 +345,9 @@ function predictAttack(p) {
     p.face = ang;
     if (d > p.r + best.r + 1.3 + (spear ? CC.spear.reachB : 0) - .2) { p.vx += Math.sin(ang) * 4; p.vz += Math.cos(ang) * 4; }
   }
+  // the host lands the blow ~.12s into the swing; show the impact here at the same moment instead of
+  // waiting for the host's word (the damage itself still comes from the host)
+  if (best) C.pred = { at: performance.now() + 120, tg: best, reach: STATS.captain.reach + (spear ? CC.spear.reachB : 0) };
   if (spear) { C.localCd = CC.spear.cd; p.swingKind = 3; p.combo = 0; }
   else {
     const combo = performance.now() / 1000 - p.lastSwingT < CC.sword.window ? (p.combo + 1) % 3 : 0;
@@ -344,7 +366,7 @@ export const actions = {
       if (C.localCd > 0 || p.stun > 0) { C.atkBuf = .4; return; }
       C.atkBuf = 0; predictAttack(p);
       p.swing = .38; sfx.swing(p.x, p.z);
-      C.inp.atk++; C.inp.face = r2(p.face); C.lastAtkAt = performance.now();
+      C.inp.atk++; C.inp.face = r2(p.face); C.lastAtkAt = performance.now(); C.sendNow = true;
       return;
     }
     captainAttack(p);
@@ -367,14 +389,14 @@ export const actions = {
         if (p.horseCd > 0) { showMsg('rideNo', [G.myTi, 'rest', Math.ceil(p.horseCd)]); return; }
         sfx.neigh();
       }
-      C.inp.ride++; return;
+      C.inp.ride++; C.sendNow = true; return;
     }
     toggleHorseFor(p);
   },
   // squad-wide "fire at will": every ready archer/javelin-thrower shoots at once, shared cooldown
   volley() {
     const p = G.player; if (G.state !== 'play' || !p || p.dead) return;
-    if (isClient()) { C.inp.vly++; return; }
+    if (isClient()) { C.inp.vly++; C.sendNow = true; return; }
     orderVolley(G.myTi);
   },
   // no argument: step to the next order; with one: set it

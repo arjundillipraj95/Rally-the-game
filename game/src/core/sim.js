@@ -301,6 +301,7 @@ function hit(a, b, mult = 1, extra) {
     if (b.isMe) { fx('shake', .35); fx('buzz', 35); }
   }
   b.hp -= dmg;
+  if (a.remote || b.remote) fx('netFlush');
   if (a.isMe) { // your own blows: a beat of hit-stop, longer for heavy hits and kills, and a deeper thud
     const heavy = !blocked && (mult >= 1.35 || b.hp <= 0);
     fx('hitstop', blocked ? .03 : heavy ? .1 : .055);
@@ -383,7 +384,8 @@ function die(u, killer, ang, launch = 0) {
     const bounty = G.mode === 'dm' && u.leader && u.ti === G.bounty;
     const reward = u.leader ? (bounty ? 50 : 25) : 8;
     G.teams[killer.ti].gold += reward;
-    if (killer.human && killer.ti === G.myTi) G.kills++;
+    // every player captain's kills are counted on the host; clients get theirs at the final whistle
+    if (killer.human) { G.teams[killer.ti].kills = (G.teams[killer.ti].kills | 0) + 1; if (killer.ti === G.myTi) G.kills++; }
     if (killer.human) say('gold', killer.ti, Math.round(u.x * 10) / 10, Math.round(u.z * 10) / 10, reward);
     if (bounty) say('bountyClaimed', killer.ti);
     if (u.leader) say('capDown', u.ti, killer.ti);

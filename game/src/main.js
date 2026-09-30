@@ -312,7 +312,7 @@ function drawMatch(dt) {
   updateSeeThrough(dt, camera.position, camTarget());
   drawAura(G.player, auraRange(G.myTi), grassTime());
   const tg = camTarget(); followSun(tg ? tg.x : 0, tg ? tg.z : 0, grassTime());
-  renderer.render(scene, camera);
+  if (!(import.meta.env.DEV && window.__noRender)) renderer.render(scene, camera); // (dev: network tests skip drawing)
   drawOverlay({ joy: inp.joy, nickFor });
 }
 function nickFor(ti) {
