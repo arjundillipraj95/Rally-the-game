@@ -11,6 +11,7 @@ import { seeThrough, clearSeeThrough } from './seethrough.js';
 import { inside, nearObstacles } from '../core/nav.js';
 import { buildValley, updateValley, clearValley, valleyGround, fieldAt } from './valley.js';
 import { buildFrost, updateFrost, clearFrost, frostGround, onPond } from './frost.js';
+import { buildDesert, updateDesert, clearDesert, desertGround } from './desert.js';
 
 let world = null;
 export let castleObjs = [];
@@ -35,7 +36,7 @@ export function buildWorldView(L) {
   if (world) dispose(world);
   if (fort) scene.remove(fort.banner);
   world = new THREE.Group(); scene.add(world);
-  castleObjs = []; fort = null; clearSeeThrough(); clearValley(); clearFrost();
+  castleObjs = []; fort = null; clearSeeThrough(); clearValley(); clearFrost(); clearDesert();
   const M = G.map, LK = lookFor(M.id);
   setLook(M);
   // ground: map colors per vertex, fine detail from a tiling texture
@@ -59,6 +60,7 @@ export function buildWorldView(L) {
       valleyGround(c, x, z);
     }
     if (M.id === 'frost' && r < 96) frostGround(c, x, z);
+    if (M.id === 'desert' && r < 96) desertGround(c, x, z);
     if (M.id === 'wooden' && (Math.abs(x) < 2.6 || Math.abs(z) < 2.6) && r > 8 && r < 80) c.lerp(mud, .45);
     cols.push(c.r, c.g, c.b);
   }
@@ -144,6 +146,7 @@ export function buildWorldView(L) {
   buildFeatures(L, world);
   if (M.id === 'valley') buildValley(world);
   if (M.id === 'frost') buildFrost(world);
+  if (M.id === 'desert') buildDesert(world, L);
   buildGrass(L, LK);
 }
 
@@ -278,6 +281,7 @@ export function updateWorldView(dt, fxHook) {
   updateFeatures(dt, grassU.time.value);
   updateValley(dt, grassU.time.value);
   updateFrost(dt, grassU.time.value);
+  updateDesert(dt, grassU.time.value);
   updateControlPoints();
   TEAMS.forEach((t, i) => {
     const s = G.teams[i], co = castleObjs[i]; if (!co || !s) return;

@@ -18,6 +18,8 @@ export const TEMPLES = [[0, 50], [50, 0], [0, -50], [-50, 0]].map(([x, z]) => { 
 export const TEMPLE = { hw: 9, front: -6, back: 6, steps: 3, h: 1.8 };
 // Desert Fort: a sand-walled fortress on a plateau, ramps up through four gates on the axes.
 export const DESERT = { r: 17.5, wall: 18.4, ramp: 25, h: 2.4, lane: 3 };
+// Desert Fort's two oases, on the open sand between neighbouring castles
+export const OASES = [{ x: 76, z: 0, r: 7 }, { x: -76, z: 0, r: 7 }];
 // Grass Valley: four rounded hills between neighbouring castles.
 export const VALLEY_HILLS = [[0, 46], [46, 0], [0, -46], [-46, 0]];
 // Colosseum: the arena wall and an inner ring whose four gates open on a timer.
@@ -228,8 +230,12 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
     L.rings.push({ r: DESERT.wall, h: 4.2, gaps: AXES, gapW: (DESERT.lane + .4) / DESERT.wall, towersAt: DIAG });
     for (const a of DIAG) { const x = Math.cos(a) * DESERT.wall, z = Math.sin(a) * DESERT.wall; L.obstacles.push({ x, z, r: 2.6 }); L.blockers.push({ x, z, r: 2.6, h: 7 }); L.towers.push({ x, z, r: 2.4, h: 7.5, kind: 'sand' }); }
     // palms, tents and rocks outside
-    for (let i = 0; i < 40; i++) { const x = r(-80, 80), z = r(-80, 80); if (!clearOf(x, z, 2) || Math.hypot(x, z) < 30) continue; L.palms.push({ x, z, s: r(.9, 1.3), lean: r(-.25, .25), rot: r(0, 6.28) }); L.obstacles.push({ x, z, r: .5 }); }
-    for (let i = 0; i < 10; i++) { const x = r(-70, 70), z = r(-70, 70); if (!clearOf(x, z, 3) || Math.hypot(x, z) < 32) continue; box(L, x, z, 1.8, 1.4, r(0, 3), 2.4, 'tent'); }
+    const nearOasis = (x, z, pad) => OASES.some(o => Math.hypot(x - o.x, z - o.z) < o.r + pad);
+    for (const o of OASES) for (let k = 0; k < 7; k++) { const a = k / 7 * Math.PI * 2 + r(-.3, .3), d = o.r + r(1, 2.8), x = o.x + Math.cos(a) * d, z = o.z + Math.sin(a) * d; L.palms.push({ x, z, s: r(1, 1.35), lean: r(-.3, .3), rot: r(0, 6.28) }); L.obstacles.push({ x, z, r: .5 }); }
+    // market stalls at the foot of the fort, between the ramps
+    for (const a of DIAG) { const x = Math.cos(a) * 29, z = Math.sin(a) * 29; box(L, x, z, 1.6, 1.1, -a + Math.PI / 2, 2.6, 'stall'); }
+    for (let i = 0; i < 40; i++) { const x = r(-80, 80), z = r(-80, 80); if (!clearOf(x, z, 2) || Math.hypot(x, z) < 30 || nearOasis(x, z, 3)) continue; L.palms.push({ x, z, s: r(.9, 1.3), lean: r(-.25, .25), rot: r(0, 6.28) }); L.obstacles.push({ x, z, r: .5 }); }
+    for (let i = 0; i < 10; i++) { const x = r(-70, 70), z = r(-70, 70); if (!clearOf(x, z, 3) || Math.hypot(x, z) < 32 || nearOasis(x, z, 5)) continue; box(L, x, z, 1.8, 1.4, r(0, 3), 2.4, 'tent'); }
     scatterRocks(12, (x, z) => clearOf(x, z) && Math.hypot(x, z) > 28);
   }
 
