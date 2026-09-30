@@ -11,6 +11,7 @@ import { scene, shadowsOn, camera } from './scene.js';
 import { camTarget } from './camera.js';
 import { trail } from './effects.js';
 import { groundY } from '../core/world.js';
+import { quality } from './quality.js';
 
 const MAX_UNITS = 320;
 
@@ -20,31 +21,38 @@ const MAX_UNITS = 320;
 const scutum = (() => { const g = new THREE.CylinderGeometry(1, 1, 1.15, 14, 1, true, -.42, .84); g.translate(0, 0, -1); return g; })();
 const hoplon = (() => { const g = new THREE.SphereGeometry(.95, 24, 8, 0, Math.PI * 2, 0, .7); g.rotateX(Math.PI / 2); g.translate(0, 0, -.95 * Math.cos(.7)); g.scale(1, 1, .6); return g; })();
 const roundShield = (() => { const g = new THREE.CylinderGeometry(.5, .5, .08, 22); g.rotateX(Math.PI / 2); return g; })();
+// Everything soft and round: capsule limbs, bean-shaped bodies, pebble boots and egg-shaped crests,
+// so the soldiers read as chunky toys rather than stacked boxes.
+const ellip = (rx, ry, rz, w = 10, h = 7) => { const g = new THREE.SphereGeometry(1, w, h); g.scale(rx, ry, rz); return g; };
+const lathe = (pts, seg = 14) => new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), seg);
+const capsule = (r, len, cap = 3, seg = 8) => new THREE.CapsuleGeometry(r, len, cap, seg);
 const GEO = {
-  leg: new THREE.CylinderGeometry(.15, .13, .7, 9),
-  boot: new THREE.BoxGeometry(.2, .14, .32),
-  greave: new THREE.CylinderGeometry(.16, .15, .32, 10),
-  torso: new THREE.CylinderGeometry(.42, .36, .78, 16),
-  skirt: new THREE.CylinderGeometry(.43, .52, .32, 16),
-  belt: new THREE.CylinderGeometry(.44, .44, .14, 16),
-  head: new THREE.SphereGeometry(.4, 18, 12),
-  helm: new THREE.SphereGeometry(.44, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2),
-  corinth: new THREE.SphereGeometry(.47, 18, 12, 0, Math.PI * 2, 0, Math.PI * .52),
+  leg: capsule(.15, .44, 2, 7),
+  boot: (() => { const g = ellip(.13, .1, .19, 8, 6); g.translate(0, .02, .03); return g; })(),
+  greave: capsule(.17, .16, 2, 7),
+  // a rounded barrel: narrow waist, full chest, soft shoulders
+  torso: lathe([[0, -.42], [.3, -.41], [.4, -.33], [.45, -.14], [.47, .06], [.45, .22], [.39, .34], [.26, .42], [0, .45]]),
+  skirt: lathe([[.4, .17], [.45, .1], [.52, -.08], [.54, -.14], [.5, -.18], [.4, -.19], [.36, -.14], [.4, .17]]),
+  belt: (() => { const g = new THREE.TorusGeometry(.43, .07, 5, 14); g.rotateX(Math.PI / 2); return g; })(),
+  head: new THREE.SphereGeometry(.4, 16, 12),
+  helm: new THREE.SphereGeometry(.44, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+  corinth: new THREE.SphereGeometry(.47, 16, 10, 0, Math.PI * 2, 0, Math.PI * .52),
   cone: new THREE.ConeGeometry(.44, .7, 16),
-  hood: new THREE.SphereGeometry(.45, 16, 10, 0, Math.PI * 2, 0, Math.PI * .6),
-  brim: new THREE.CylinderGeometry(.66, .66, .05, 20),
-  crest: new THREE.BoxGeometry(.1, .22, .62),
-  cheek: new THREE.BoxGeometry(.08, .3, .24),
-  neckGuard: new THREE.BoxGeometry(.56, .08, .22),
-  pauldron: new THREE.BoxGeometry(.22, .16, .24),
-  nose: new THREE.BoxGeometry(.07, .24, .05),
-  knob: new THREE.SphereGeometry(.08, 10, 8),
-  hair: new THREE.SphereGeometry(.45, 16, 10, 0, Math.PI * 2, 0, Math.PI * .55),
-  beard: new THREE.BoxGeometry(.44, .3, .2),
+  hood: new THREE.SphereGeometry(.45, 18, 10, 0, Math.PI * 2, 0, Math.PI * .6),
+  brim: new THREE.CylinderGeometry(.62, .66, .05, 22),
+  // a horsehair brush: the top half of an egg, sitting flat on the helmet
+  crest: (() => { const g = new THREE.SphereGeometry(1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2); g.scale(.06, .24, .33); g.translate(0, -.11, 0); return g; })(),
+  cheek: ellip(.05, .16, .13, 8, 6),
+  pauldron: (() => { const g = new THREE.SphereGeometry(.17, 12, 8, 0, Math.PI * 2, 0, Math.PI * .55); g.scale(1, .8, 1.1); return g; })(),
+  nose: capsule(.04, .16, 3, 6),
+  knob: new THREE.SphereGeometry(.09, 10, 8),
+  hair: new THREE.SphereGeometry(.45, 18, 10, 0, Math.PI * 2, 0, Math.PI * .55),
+  beard: ellip(.23, .17, .12),
+  hand: new THREE.SphereGeometry(.12, 8, 6),
   circlet: new THREE.TorusGeometry(.42, .045, 8, 22),
-  mantle: new THREE.CylinderGeometry(.58, .5, .26, 16),
+  mantle: (() => { const g = new THREE.TorusGeometry(.42, .14, 6, 14); g.rotateX(Math.PI / 2); return g; })(),
   face: new THREE.PlaneGeometry(.58, .3),
-  arm: new THREE.CylinderGeometry(.11, .1, .55, 8),
+  arm: capsule(.12, .34, 2, 7),
   blade: new THREE.BoxGeometry(.07, .07, 1.0),
   gladius: new THREE.BoxGeometry(.09, .06, .72),
   guard: new THREE.BoxGeometry(.32, .06, .06),
@@ -53,11 +61,11 @@ const GEO = {
   shaft: new THREE.CylinderGeometry(.04, .04, 3.0, 7),
   tip: new THREE.ConeGeometry(.09, .35, 7),
   bow: new THREE.TorusGeometry(.6, .035, 6, 18, Math.PI),
-  quiver: new THREE.CylinderGeometry(.13, .11, .7, 8),
+  quiver: capsule(.12, .5, 2, 7),
   scutum, hoplon, roundShield,
   rim: new THREE.TorusGeometry(.6, .05, 8, 28),
   woodRim: new THREE.TorusGeometry(.5, .04, 8, 24),
-  boss: new THREE.SphereGeometry(.12, 10, 8),
+  boss: new THREE.SphereGeometry(.13, 12, 8),
   shadow: new THREE.CircleGeometry(.62, 18),
   ring: new THREE.RingGeometry(.8, 1.0, 28),
   cape: new THREE.PlaneGeometry(.9, 1.1),
@@ -94,10 +102,12 @@ const EXPRS = Object.keys(FACES);
 if (import.meta.env.DEV) window.__faces = FACES; // dev-only: lets tests look at the expressions
 
 // White materials take their color from each instance (skin, team color, wood, bronze...).
+// Cloth and skin use soft two-tone cartoon shading; metal keeps a shine so helmets still gleam.
+const TOON = (() => { const d = new Uint8Array([150, 150, 150, 255, 215, 215, 215, 255, 255, 255, 255, 255]); const t = new THREE.DataTexture(d, 3, 1); t.magFilter = t.minFilter = THREE.NearestFilter; t.needsUpdate = true; return t; })();
 export const MAT = {
-  plain: new THREE.MeshLambertMaterial({ color: 0xffffff }),
-  plain2: new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide }),
-  metal: new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 110, specular: 0x9a9a9a }),
+  plain: new THREE.MeshToonMaterial({ color: 0xffffff, gradientMap: TOON }),
+  plain2: new THREE.MeshToonMaterial({ color: 0xffffff, gradientMap: TOON, side: THREE.DoubleSide }),
+  metal: new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 80, specular: 0x8a8a8a }),
   shadow: new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: .28, depthWrite: false }),
   ring: new THREE.MeshBasicMaterial({ color: 0xffcf3a, transparent: true, opacity: .8, side: THREE.DoubleSide, depthWrite: false }),
   ringAlly: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .45, side: THREE.DoubleSide, depthWrite: false }),
@@ -171,8 +181,8 @@ const PARTS = [
   { bone: 'body', geo: 'nose', mat: 'metal', m: e(0, 1.74, .45), f: F('greek'), k: HELMED, col: () => C.bronze },
   { bone: 'body', geo: 'cheek', mat: 'metal', m: e(.33, 1.62, .18, 0, 0, .1), f: F('greek'), k: HELMED, col: () => C.bronze },
   { bone: 'body', geo: 'cheek', mat: 'metal', m: e(-.33, 1.62, .18, 0, 0, -.1), f: F('greek'), k: HELMED, col: () => C.bronze },
-  { bone: 'body', geo: 'crest', mat: 'plain', m: e(0, 2.5, -.04, 0, 0, 0, 1.2, 2.3, 1.6), f: F('greek'), k: K('foot', 'spear'), col: team },
-  { bone: 'body', geo: 'crest', mat: 'plain', m: e(0, 2.58, -.04, 0, 0, 0, 1.4, 2.8, 1.9), f: F('greek'), k: K('captain'), col: crestCol },
+  { bone: 'body', geo: 'crest', mat: 'plain', m: e(0, 2.4, -.04, 0, 0, 0, 1.3, 1.6, 1.3), f: F('greek'), k: K('foot', 'spear'), col: team },
+  { bone: 'body', geo: 'crest', mat: 'plain', m: e(0, 2.42, -.04, 0, 0, 0, 1.45, 1.7, 1.35), f: F('greek'), k: K('captain'), col: crestCol },
   // barbarians: hair, beards, a gold circlet and fur mantle for the chief
   { bone: 'body', geo: 'hair', mat: 'plain', m: e(0, 1.82, -.03), f: F('barbarian'), k: HELMED, col: hairOf },
   { bone: 'body', geo: 'beard', mat: 'plain', m: e(0, 1.55, .3, .15), f: F('barbarian'), k: HELMED, col: hairOf },
@@ -183,6 +193,8 @@ const PARTS = [
   // arms
   { bone: 'sArm', geo: 'arm', mat: 'plain', m: e(0, -.22, 0), col: skinOf },
   { bone: 'wArm', geo: 'arm', mat: 'plain', m: e(0, -.22, 0), col: skinOf },
+  { bone: 'sArm', geo: 'hand', mat: 'plain', m: e(0, -.5, .02), col: skinOf },
+  { bone: 'wArm', geo: 'hand', mat: 'plain', m: e(0, -.5, .02), col: skinOf },
   // shields (on their own bone so they face forward)
   { bone: 'shield', geo: 'scutum', mat: 'plain2', m: e(0, 0, 0), f: F('roman'), k: MELEE, col: team },
   { bone: 'shield', geo: 'boss', mat: 'metal', m: e(0, 0, .05), f: F('roman'), k: MELEE, col: u => u.leader ? crestCol(u) : C.steel },
@@ -209,6 +221,22 @@ const PARTS = [
   { bone: 'wArm', geo: 'guard', mat: 'metal', m: e(0, -.5, .3), k: K('arch'), t: marksman, col: () => C.steel },
 ];
 
+// A bigger head (and everything worn on it) for chunkier, friendlier proportions: every body part
+// above the shoulders is scaled up around the head's centre.
+const HEAD_S = 1.16, HEAD_C = new THREE.Vector3(0, 1.74, 0);
+const headUp = new THREE.Matrix4().makeTranslation(HEAD_C.x, HEAD_C.y, HEAD_C.z)
+  .multiply(new THREE.Matrix4().makeScale(HEAD_S, HEAD_S, HEAD_S)).multiply(new THREE.Matrix4().makeTranslation(-HEAD_C.x, -HEAD_C.y, -HEAD_C.z));
+for (const p of PARTS) if (p.bone === 'body' && p.m.elements[13] >= 1.5) p.m.premultiply(headUp);
+
+// Closed, chunky shapes get an ink outline (open shells and flat planes would show their insides).
+const OUTLINED = new Set(['leg', 'torso', 'skirt', 'head', 'arm', 'beard', 'roundShield', 'mantle', 'quiver', 'greave']);
+MAT.outline = new THREE.MeshBasicMaterial({ color: 0x1b1512, side: THREE.BackSide });
+MAT.outline.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  transformed += normalize(normal) * .035;'); };
+MAT.outline.customProgramCacheKey = () => 'soldier-outline';
+
+// small bits that don't need to cast a shadow of their own
+const TINY = new Set(['hand', 'boot', 'belt', 'cheek', 'nose', 'knob', 'guard', 'boss']);
+
 // One InstancedMesh per (geometry, material) pair.
 const batches = new Map();
 for (const p of PARTS) {
@@ -223,9 +251,15 @@ for (const b of batches.values()) {
   m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   if (TINTED.has(b.mat)) { m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3); m.instanceColor.setUsage(THREE.DynamicDrawUsage); }
   m.frustumCulled = false; m.count = 0;
-  m.castShadow = !NO_SHADOW.has(b.mat); m.receiveShadow = !NO_SHADOW.has(b.mat);
+  m.castShadow = !NO_SHADOW.has(b.mat) && !TINY.has(b.geo); m.receiveShadow = !NO_SHADOW.has(b.mat);
   if (b.mat === 'shadow' || b.mat.startsWith('ring')) m.renderOrder = 1;
   scene.add(m); b.mesh = m;
+  // a thin dark outline: the same instances drawn again, puffed out a touch, back faces only
+  if (OUTLINED.has(b.geo)) {
+    const o = new THREE.InstancedMesh(GEO[b.geo], MAT.outline, cap);
+    o.instanceMatrix = m.instanceMatrix; o.frustumCulled = false; o.count = 0; o.castShadow = o.receiveShadow = false;
+    scene.add(o); b.outline = o;
+  }
 }
 // ---------- helmets that pop off and go bouncing across the field ----------
 const HELM_GEOS = new Set(['helm', 'corinth', 'crest', 'cheek', 'nose', 'knob', 'circlet']);
@@ -499,7 +533,7 @@ function bones(u, a) {
 // Poses and draws every soldier in the list.
 export function drawSoldiers(units, dt) {
   for (const b of batches.values()) b.n = 0;
-  const blob = !shadowsOn();
+  const blob = !shadowsOn(), outlines = quality.level !== 'low';
   let drawn = 0;
   // Friendly soldiers standing between the camera and your captain step out of the picture, so
   // you can always see yourself and who you're fighting. Enemies are never hidden.
@@ -544,6 +578,7 @@ export function drawSoldiers(units, dt) {
   drawProps(dt);
   for (const b of batches.values()) {
     b.mesh.count = b.n;
+    if (b.outline) b.outline.count = outlines ? b.n : 0;
     if (!b.n) continue;
     // upload only the instances in use, not the whole buffer
     const im = b.mesh.instanceMatrix; im.clearUpdateRanges(); im.addUpdateRange(0, b.n * 16); im.needsUpdate = true;
