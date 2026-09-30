@@ -265,9 +265,9 @@ export function clientTick(dt) {
   const me = G.player;
   if (me && !me.dead && G.state === 'play') {
     me.stun -= dt;
-    driveCaptain(me, readMove(dt), dt);
+    driveCaptain(me, import.meta.env.DEV && window.__moveOverride ? window.__moveOverride() : readMove(dt), dt);
     for (const o of G.units) { // stay out of other soldiers
-      if (o === me || o.dead) continue;
+      if (o === me || o.dead || !isEnemyTi(o.ti, me.ti)) continue; // (your own men make way; the host moves them)
       const dx = me.x - o.x, dz = me.z - o.z, min = me.r + o.r; if (Math.abs(dx) > min || Math.abs(dz) > min) continue;
       const d = Math.hypot(dx, dz) || .01; if (d < min) { me.x += dx / d * (min - d) * .7; me.z += dz / d * (min - d) * .7; }
     }

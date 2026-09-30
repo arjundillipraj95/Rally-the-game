@@ -1091,6 +1091,8 @@ export function update(dt, input) {
       const d = Math.hypot(dx, dz) || .01; if (d >= min) continue;
       const ov = (min - d) / 2, nx = dx / d, nz = dz / d;
       let wa = a.remote ? 0 : a.human || a.mounted ? .4 : 1, wb = b.remote ? 0 : b.human || b.mounted ? .4 : 1;
+      // a captain's own side never slows him down: his men step aside as he rides or runs through them
+      if (a.leader !== b.leader && !isEnemy(a, b)) { if (a.leader) wa = 0; else wb = 0; }
       if (wa === 0) wb = 2; if (wb === 0) wa = 2;
       a.x -= nx * ov * wa; a.z -= nz * ov * wa; b.x += nx * ov * wb; b.z += nz * ov * wb;
     }
