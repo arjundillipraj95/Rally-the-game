@@ -1,9 +1,9 @@
 // Navigation for walled maps: a walkable grid, straight-line checks and A* paths,
 // plus a bucket grid so collision only looks at nearby obstacles. Pure data, no engine code.
 import { G } from './state.js';
-import { inRiver, inFord, onBridge, arenaGatesOpen } from './world.js';
+import { inRiver, inFord, onBridge, arenaGatesOpen, W } from './world.js';
 
-const CS = 1.5, HALF = 90, N = Math.ceil(HALF * 2 / CS), INFL = .55; // cell size, half-extent, cells per side, unit radius
+const CS = 1.5, HALF = 122, N = Math.ceil(HALF * 2 / CS), INFL = .55; // cell size, half-extent, cells per side, unit radius
 const BS = 6, BN = Math.ceil(HALF * 2 / BS);                         // obstacle buckets
 let blocked = new Uint8Array(N * N), buckets = [], blockBuckets = [], gateCells = [], gatesOpen = true;
 
@@ -41,7 +41,7 @@ export function buildNav(L) {
   // deep water is not walkable (bridges and the ford are)
   if (L.mapId === 'river') for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const x = cx(i), z = cx(j); if (inRiver(x, z) && !inFord(x, z) && !onBridge(x) && Math.abs(z) < 4.5) blocked[j * N + i]++; }
   // every battlefield is round (the arena's wall, or the hills at the edge): nothing past it
-  { const R = (L.round || 91) - 1; for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) if (Math.hypot(cx(i), cx(j)) > R) blocked[j * N + i]++; }
+  { const R = (L.round || W.R) - 1; for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) if (Math.hypot(cx(i), cx(j)) > R) blocked[j * N + i]++; }
   gatesOpen = true;
   syncGates();
 }
@@ -85,7 +85,7 @@ function pop() {
   heap.a[i] = la; heap.f[i] = lf; return top;
 }
 const DIRS = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.414], [1, -1, 1.414], [-1, 1, 1.414], [-1, -1, 1.414]];
-export function findPath(x0, z0, x1, z1, maxNodes = 3000) {
+export function findPath(x0, z0, x1, z1, maxNodes = 6000) {
   let si = ci(x0), sj = ci(z0); const ti = ci(x1), tj = ci(z1);
   if (!free(ti, tj)) return null;
   if (!free(si, sj)) { // standing in a blocked cell (pushed against a wall): start from the nearest open cell on our side

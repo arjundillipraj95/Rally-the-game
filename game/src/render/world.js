@@ -2,7 +2,8 @@
 import * as THREE from 'three';
 import { TEAMS, CASTLE_R, CTRL } from '../config.js';
 import { G } from '../core/state.js';
-import { groundY, terrainMeshY, mulberry } from '../core/world.js';
+import { groundY, terrainMeshY, mulberry, W, distToLine } from '../core/world.js';
+import { buildRidges } from './ridges.js';
 import { scene, setLook } from './scene.js';
 import { quality } from './quality.js';
 import { lookFor, groundTex, stoneTex, woodTex, uvScale } from './look.js';
@@ -41,27 +42,30 @@ export function buildWorldView(L) {
   const M = G.map, LK = lookFor(M.id);
   setLook(M);
   // ground: map colors per vertex, fine detail from a tiling texture
-  const g = new THREE.PlaneGeometry(420, 420, 220, 220); g.rotateX(-Math.PI / 2);
+  const seg = W.S > 1 ? 250 : 220; // (finer on the big maps, for the ridges; under 65k vertices keeps 16-bit indices)
+  const g = new THREE.PlaneGeometry(420, 420, seg, seg); g.rotateX(-Math.PI / 2);
   uvScale(g, 64, 64);
-  const pos = g.attributes.position, cols = [];
+  const pos = g.attributes.position, cols = [], RR = W.R;
+  // roads trace the routes on the big maps: a quick box test first, then the distance to each
+  const roads = (L.roads || []).map(p => { let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; for (const [x, z] of p) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); } return { p, x0: x0 - 4, x1: x1 + 4, z0: z0 - 4, z1: z1 + 4 }; });
+  const roadD = (x, z) => { let d = 9; for (const r of roads) if (x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1) d = Math.min(d, distToLine(r.p, x, z)); return d; };
   const meadowLight = new THREE.Color(0xb6cf62), meadowDark = new THREE.Color(0x5f8a38);
   const c1 = new THREE.Color(LK.g1 ?? M.g1), c2 = new THREE.Color(LK.g2 ?? M.g2), c3 = new THREE.Color(LK.g3 ?? M.g3), mud = new THREE.Color(0x7a6a4c);
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), z = pos.getZ(i), r = Math.hypot(x, z);
     pos.setY(i, terrainMeshY(x, z));
     const t = (Math.sin(x * .11 + z * .07) + 1) / 2, t2 = (Math.sin(x * .031 - z * .043) + 1) / 2;
-    const c = c1.clone().lerp(c2, t * .7 + t2 * .3); if (r > 92) c.lerp(c3, Math.min(1, (r - 92) / 40));
+    const c = c1.clone().lerp(c2, t * .7 + t2 * .3); if (r > RR + 1) c.lerp(c3, Math.min(1, (r - RR - 1) / 40));
     if (M.id === 'river' && Math.abs(z) < 6.5 && Math.hypot(x, z) >= 7.5) c.lerp(mud, .6);
     if (M.id === 'valley') {
       // meadow: sunny and shady drifts, then the dirt road (with worn wheel ruts) and the wheat fields
       const m = Math.sin(x * .045 + 2) * Math.cos(z * .05 - 1) + Math.sin((x + z) * .02) * .6;
       if (m > .55) c.lerp(meadowLight, Math.min(.5, (m - .55) * 1.2)); else if (m < -.6) c.lerp(meadowDark, Math.min(.45, (-.6 - m) * 1.1));
-      const road = Math.abs(x - z) / Math.SQRT2;
-      if (road < 2.6 && r < 95) c.lerp(mud, road < .5 || Math.abs(road - 1.5) < .35 ? .8 : .6);
       valleyGround(c, x, z);
     }
-    if (M.id === 'frost' && r < 96) frostGround(c, x, z);
-    if (M.id === 'desert' && r < 96) desertGround(c, x, z);
+    if (roads.length && r < RR + 4) { const road = roadD(x, z); if (road < 2.6) c.lerp(LK.road ? new THREE.Color(LK.road) : mud, road < .5 || Math.abs(road - 1.5) < .35 ? .8 : .6); }
+    if (M.id === 'frost' && r < RR + 5) frostGround(c, x, z);
+    if (M.id === 'desert' && r < RR + 5) desertGround(c, x, z);
     if (M.id === 'forum') forumGround(c, x, z);
     if (M.id === 'wooden' && (Math.abs(x) < 2.6 || Math.abs(z) < 2.6) && r > 8 && r < 80) c.lerp(mud, .45);
     cols.push(c.r, c.g, c.b);
@@ -142,11 +146,12 @@ export function buildWorldView(L) {
     const mm = new THREE.Mesh(geo, rockMat);
     mm.position.set(r.x, terrainMeshY(r.x, r.z) + r.r * (r.big ? .55 : .4), r.z); mm.rotation.set(r.rx, r.ry, 0); if (r.big) mm.scale.set(1, 1.35, 1); world.add(shadowy(mm));
   }
+  if (L.ridges && L.ridges.length) buildRidges(world, L);
   TEAMS.forEach((t, i) => castleObjs.push(buildCastle(t, i)));
   if (L.withFort) buildFort(L);
   ctrlObjs = L.ctrlSpots && L.ctrlSpots.length ? buildControlPoints(L) : [];
   buildFeatures(L, world);
-  if (M.id === 'valley') buildValley(world);
+  if (M.id === 'valley') buildValley(world, L);
   if (M.id === 'frost') buildFrost(world);
   if (M.id === 'desert') buildDesert(world, L);
   if (M.id === 'forum') buildForum(world, L);
@@ -254,8 +259,8 @@ function buildGrass(L, LK) {
   let k = 0, tries = 0;
   while (k < n && tries < n * 6) {
     tries++;
-    const x = (R() - .5) * 220, z = (R() - .5) * 220;
-    if (patch(x, z) < -.2 + R() * .6 || blocked(x, z) || (nWheat && fieldAt(x, z)) || (G.map.id === 'frost' && onPond(x, z))) continue;
+    const x = (R() - .5) * 220 * W.S, z = (R() - .5) * 220 * W.S;
+    if (patch(x, z) < -.2 + R() * .6 || blocked(x, z) || (L.roads.length && L.roads.some(p => distToLine(p, x, z) < 1.6)) || (nWheat && fieldAt(x, z)) || (G.map.id === 'frost' && onPond(x, z))) continue;
     const sz = .75 + R() * .7;
     e.set(0, R() * 6.28, 0); q.setFromEuler(e);
     mx.compose(v.set(x, terrainMeshY(x, z), z), q, s.set(sz, sz * (.8 + R() * .5), sz));

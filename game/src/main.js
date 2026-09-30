@@ -376,7 +376,7 @@ window.__fb = {
   ride() { if (G.player) { G.player.lastHit = -9; actions.ride(); } },
   volley(pt) { actions.volley(pt); },
   attack() { actions.attack(); }, jump() { actions.jump(); }, weapon(w) { actions.weapon(w); },
-  G, cam, audio: () => audioStats(),
+  G, cam, scene, audio: () => audioStats(),
 };
 
 function onResize() { resize(); resizeOverlay(); }

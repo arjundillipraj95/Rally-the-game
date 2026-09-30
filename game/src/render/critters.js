@@ -3,7 +3,7 @@
 // trot off when someone is practically on top of them. Worked out on each device, never sent online.
 import * as THREE from 'three';
 import { G, bus } from '../core/state.js';
-import { groundY, mulberry } from '../core/world.js';
+import { groundY, mulberry, W } from '../core/world.js';
 import { walkable } from '../core/nav.js';
 import { scene } from './scene.js';
 import { spark } from './effects.js';
@@ -103,7 +103,7 @@ export function updateCritters(dt) {
     if (c.scare > 0) c.scare -= dt;
     c.spd += (c.want - c.spd) * Math.min(1, dt * (c.scare > 0 ? 8 : 3));
     const nx = c.x + Math.sin(c.h) * c.spd * dt, nz = c.z + Math.cos(c.h) * c.spd * dt;
-    if (walkable(nx, nz) && Math.hypot(nx, nz) < 86) { c.x = nx; c.z = nz; } else { c.h += Math.PI * (.5 + Math.random()); }
+    if (walkable(nx, nz) && Math.hypot(nx, nz) < W.R - 5) { c.x = nx; c.z = nz; } else { c.h += Math.PI * (.5 + Math.random()); }
     c.walk += dt * c.spd * (chick ? 9 : 5);
     if (c.hop > 0) c.hop -= dt;
     c.y = groundY(c.x, c.z) + (chick && c.scare > 0 ? Math.abs(Math.sin(c.walk * .6)) * .14 : 0) + (c.hop > 0 ? Math.sin(c.hop / .5 * Math.PI) * .6 : 0);

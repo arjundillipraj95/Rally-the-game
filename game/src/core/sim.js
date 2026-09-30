@@ -2,7 +2,7 @@
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
 import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, rules, matchTime } from './state.js';
-import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn } from './world.js';
+import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable } from './nav.js';
 
 // ---------- announcements & effects (presentation listens) ----------
@@ -153,7 +153,7 @@ function summonHorse(u) {
   if (u.mounted || u.summon || u.horseCd > 0 || u.dead || u.carrying) return false;
   if (G.T - u.lastHit < 2) return false;
   const back = u.face + Math.PI + rnd(-.6, .6);
-  const hx = clamp(u.x + Math.sin(back) * 14, -86, 86), hz = clamp(u.z + Math.cos(back) * 14, -86, 86);
+  const hx = clamp(u.x + Math.sin(back) * 14, -W.R + 5, W.R - 5), hz = clamp(u.z + Math.cos(back) * 14, -W.R + 5, W.R - 5);
   const h = { id: ++G.horseN, x: hx, z: hz, face: Math.atan2(u.x - hx, u.z - hz), state: 'coming', rider: u, t: 0, spd: 0, ti: u.ti, fall: 1 };
   G.horses.push(h); u.summon = h;
   if (u.isMe) sound('neigh');
@@ -897,7 +897,6 @@ function aiPick(ti) {
 }
 
 // ---------- physics ----------
-const EDGE_R = 91;
 export function integrate(u, dt, pz) {
   u.x += u.vx * dt; u.z += u.vz * dt;
   for (const o of nearObstacles(u.x, u.z)) {
@@ -917,12 +916,12 @@ export function integrate(u, dt, pz) {
     if (d < min && d > 0) { u.x = o.x + dx / d * min; u.z = o.z + dz / d * min; }
   }
   // every battlefield is round: just inside where the ground starts rising into the hills at the edge
-  { const d = Math.hypot(u.x, u.z), m = (G.layout.round || EDGE_R) - u.r; if (d > m) { u.x *= m / d; u.z *= m / d; } }
+  { const d = Math.hypot(u.x, u.z), m = (G.layout.round || W.R) - u.r; if (d > m) { u.x *= m / d; u.z *= m / d; } }
   if (G.map.id === 'river') {
     if (inRiver(u.x, u.z) && !onBridge(u.x) && Math.abs(u.x) >= 14) u.z = (pz >= 0 ? 1 : -1) * 5.05;
     if (Math.abs(u.z) < 5 && onBridge(u.x) && Math.abs(u.x) > 20) { const bx = u.x < 0 ? -32 : 32; u.x = clamp(u.x, bx - 2.1, bx + 2.1); }
   }
-  u.x = clamp(u.x, -WORLD_LIMIT, WORLD_LIMIT); u.z = clamp(u.z, -WORLD_LIMIT, WORLD_LIMIT);
+  u.x = clamp(u.x, -W.R + 3, W.R - 3); u.z = clamp(u.z, -W.R + 3, W.R - 3);
   u.y = groundY(u.x, u.z) + (u.jy || 0);
 }
 // Drives a captain from a move vector in world space (the joystick, already turned by the camera).
@@ -1151,7 +1150,7 @@ export function arrowsTick(dt, authoritative) {
     const t = Math.min(1, a.t);
     const x = a.x0 + (a.x1 - a.x0) * t, z = a.z0 + (a.z1 - a.z0) * t, y = a.y0 + (a.y1 - a.y0) * t + a.peak * 4 * t * (1 - t);
     a.px = a.x; a.py = a.y; a.pz = a.z; a.x = x; a.y = y; a.z = z;
-    if (y < 8 && a.t > .12) { // trees, walls and buildings stop arrows
+    if (y < 15 && a.t > .12) { // trees, walls, buildings and ridges stop arrows
       for (const tr of nearBlockers(x, z)) {
         if (y > tr.h + groundY(tr.x, tr.z) || (tr.gate && !gateShut(tr))) continue;
         if (Math.abs(tr.x - x) < tr.r && Math.abs(tr.z - z) < tr.r && Math.hypot(tr.x - x, tr.z - z) < tr.r) { a.stuck = true; a.life = 2; sound('thud', x, z); spark(x, y, z, '#8a7a62', 3); break; }

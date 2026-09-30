@@ -12,6 +12,18 @@ export const rnd = (a, b) => a + Math.random() * (b - a);
 export const angDiff = (a, b) => { let d = b - a; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d; };
 export const turn = (a, b, m) => a + clamp(angDiff(a, b), -m, m);
 
+// ---------- battlefield size ----------
+// The featured maps are larger than the rest (castles further out), and carved into routes by ridges.
+// W holds the live size for the map being played; every edge and rim distance reads it.
+const BIG = new Set(['valley']);
+TEAMS.forEach(t => { t.pos0 = t.pos.slice(); });
+export const W = { R: 91, S: 1 };
+export function sizeWorld(mapId) {
+  W.S = BIG.has(mapId) ? 1.3 : 1; W.R = Math.round(91 * W.S);
+  TEAMS.forEach(t => { t.pos[0] = t.pos0[0] * W.S; t.pos[1] = t.pos0[1] * W.S; });
+}
+export const isBig = id => BIG.has(id);
+
 // ---------- fixed map features (the same every match) ----------
 // Forum: four temples on raised platforms between neighbouring castles, steps facing the centre.
 export const TEMPLES = [[0, 50], [50, 0], [0, -50], [-50, 0]].map(([x, z]) => { const d = Math.hypot(x, z); return { x, z, vx: x / d, vz: z / d, rot: Math.atan2(x / d, z / d) }; });
@@ -21,7 +33,7 @@ export const DESERT = { r: 17.5, wall: 18.4, ramp: 25, h: 2.4, lane: 3 };
 // Desert Fort's two oases, on the open sand between neighbouring castles
 export const OASES = [{ x: 76, z: 0, r: 7 }, { x: -76, z: 0, r: 7 }];
 // Grass Valley: four rounded hills between neighbouring castles.
-export const VALLEY_HILLS = [[0, 46], [46, 0], [0, -46], [-46, 0]];
+export const VALLEY_HILLS = [[0, 30], [30, 0], [0, -30], [-30, 0]]; // in the middle, each one overlooking the mouths of two lanes
 // Colosseum: the arena wall and an inner ring whose four gates open on a timer.
 export const ARENA = { r: 86, inner: 24, gateW: 3.4, cycle: 60, open: 40 };
 export const arenaGatesOpen = t => (t % ARENA.cycle) < ARENA.open;
@@ -57,7 +69,34 @@ function desertDunes(x, z) {
   const n = Math.sin(x * .07) * Math.cos(z * .05) + Math.sin(x * .023 + z * .031) * 1.4;
   return Math.max(0, n) * Math.min(1, (r - 30) / 20) * 1.2;
 }
-export function groundY(x, z) {
+// Ridge heights on the big maps, baked into a 1 m grid when the layout is made (groundY runs for
+// every unit every frame, so it reads the grid rather than walking the ridge lines).
+let RH = null;
+export function ridgeH(x, z) {
+  if (!RH) return 0;
+  const fx = (x + RH.half) / RH.cs, fz = (z + RH.half) / RH.cs, i = Math.floor(fx), j = Math.floor(fz);
+  if (i < 0 || j < 0 || i >= RH.n - 1 || j >= RH.n - 1) return 0;
+  const tx = fx - i, tz = fz - j, g = RH.g, n = RH.n, k = j * n + i;
+  return (g[k] * (1 - tx) + g[k + 1] * tx) * (1 - tz) + (g[k + n] * (1 - tx) + g[k + n + 1] * tx) * tz;
+}
+function bakeRidges(L) {
+  if (!L.ridges.length) { RH = null; return; }
+  const cs = 1, half = W.R + 14, n = Math.ceil(half * 2 / cs) + 1, g = new Float32Array(n * n);
+  for (const r of L.ridges) {
+    const reach = r.w + r.flank; let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
+    for (const [x, z] of r.pts) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
+    const i0 = Math.max(0, Math.floor((x0 - reach + half) / cs)), i1 = Math.min(n - 1, Math.ceil((x1 + reach + half) / cs));
+    const j0 = Math.max(0, Math.floor((z0 - reach + half) / cs)), j1 = Math.min(n - 1, Math.ceil((z1 + reach + half) / cs));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      const x = -half + i * cs, z = -half + j * cs, d = distToLine(r.pts, x, z); if (d >= reach) continue;
+      const c = Math.cos(Math.PI / 2 * d / reach), h = r.H * c * c * (.78 + .22 * Math.sin(x * .11 + 1) * Math.cos(z * .09 - 2) + .15 * Math.sin((x + z) * .23));
+      if (h > g[j * n + i]) g[j * n + i] = h;
+    }
+  }
+  RH = { g, n, half, cs };
+}
+export function groundY(x, z) { return groundBase(x, z) + ridgeH(x, z); }
+function groundBase(x, z) {
   switch (G.map.id) {
     case 'frost': return hill(x, z);
     case 'river': return (Math.abs(z) < 5.5 && Math.hypot(x, z) >= 7) ? (onBridge(x) ? .38 : -.45) : 0;
@@ -73,7 +112,7 @@ export function terrainMeshY(x, z) {
   const n = Math.sin(x * .07) * Math.cos(z * .05) + Math.sin(x * .023 + z * .031) * 1.4;
   let y = G.map.id === 'river' ? 0 : groundY(x, z);
   if (G.map.id === 'river') { const az = Math.abs(z); if (az < 7 && Math.hypot(x, z) >= 7.5) y = az < 5 ? -.95 : -.95 * (7 - az) / 2; }
-  if (r > 92) y += (r - 92) * .25 + Math.max(0, n) * ((r - 92) * .18);
+  const e = W.R + 1; if (r > e) y += (r - e) * .25 + Math.max(0, n) * ((r - e) * .18);
   return y;
 }
 
@@ -109,6 +148,60 @@ function box(L, x, z, hw, hd, rot, h, kind) {
   if (kind) L.buildings.push({ x, z, w: hw * 2, d: hd * 2, rot, h, kind });
   return b;
 }
+// A ridge: an impassable, arrow-stopping line of rock (or trees, or walls) along a polyline.
+// The ground rises into it from `flank` metres out to a crest of height H; the core (w either side of
+// the line) can't be walked, but the slopes can: archers who climb them shoot farther.
+function ridge(L, pts, w, h, kind, H = 5, flank = 7) {
+  L.ridges.push({ pts, w, h, kind, H, flank });
+  for (let i = 0; i < pts.length - 1; i++) wallLine(L, pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], w, h, { ridge: true });
+}
+// polar point at angle a (radians, 0 = +x axis) and distance d
+const P = (a, d) => [Math.cos(a) * d, Math.sin(a) * d];
+// Distance from (x,z) to a polyline.
+export function distToLine(pts, x, z) {
+  let best = 1e9;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ax, az] = pts[i], [bx, bz] = pts[i + 1], dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1;
+    const t = clamp(((x - ax) * dx + (z - az) * dz) / l2, 0, 1), px = ax + dx * t - x, pz = az + dz * t - z;
+    const d = px * px + pz * pz; if (d < best) best = d;
+  }
+  return Math.sqrt(best);
+}
+// Smooths a coarse polyline (Chaikin) so roads and ridges curve.
+function smooth(pts, n = 2) {
+  for (let k = 0; k < n; k++) {
+    const o = [pts[0]];
+    for (let i = 0; i < pts.length - 1; i++) { const [ax, az] = pts[i], [bx, bz] = pts[i + 1]; o.push([ax * .75 + bx * .25, az * .75 + bz * .25], [ax * .25 + bx * .75, az * .25 + bz * .75]); }
+    o.push(pts[pts.length - 1]); pts = o;
+  }
+  return pts;
+}
+// The big maps' shared shape. Each castle's corner is closed toward the middle by a curved ridge,
+// so the way in is by one of two lanes round its ends; ridges along the axes wall the corners off
+// from each other, with one pass each on the outside (to a neighbour) and open ground in the middle.
+// Roads trace the routes so they read from the saddle.
+export const ROUTES = { axIn: 44, axOut0: 69, axOut1: 86, pass: 77.5, arcR: 60, arcSpan: .5 };
+function carveRoutes(L, R, opt = {}) {
+  const w = opt.w || 3, h = opt.h || 3, H = opt.H || 6.5, wob = (a, d) => { const k = (R() - .5) * 2.4; return P(a + k / d, d + (R() - .5) * 2); };
+  const kindA = opt.axis || 'rock', kindB = opt.arc || kindA;
+  for (const a of AXES) {
+    const inner = [], outer = [];
+    for (let d = ROUTES.axIn; d <= ROUTES.axOut0 + .1; d += 6.25) inner.push(wob(a, d));
+    for (let d = ROUTES.axOut1; d <= W.R + 8; d += 8) outer.push(wob(a, d));
+    ridge(L, inner, w, h, kindA, H, 9); ridge(L, outer, w, h, kindA, H, 9);
+    L.passes.push({ a, x: Math.cos(a) * ROUTES.pass, z: Math.sin(a) * ROUTES.pass });
+  }
+  for (const a of DIAG) {
+    const pts = []; for (let k = -4; k <= 4; k++) pts.push(wob(a + k / 4 * ROUTES.arcSpan, ROUTES.arcR + Math.abs(k) * .6));
+    ridge(L, smooth(pts, 1), w * 1.15, h * 1.1, kindB, H * 1.15, 10);
+    // roads: from the gate round each end of the arc into the middle, and out through the passes
+    const jit = pts => pts.map(([x, z], i) => i === 0 || i === pts.length - 1 ? [x, z] : [x + (R() - .5) * 5, z + (R() - .5) * 5]);
+    for (const s of [-1, 1]) {
+      L.roads.push(smooth(jit([P(a, 90), P(a, 80), P(a + s * .4, 71), P(a + s * .64, 58), P(a + s * .55, 44), P(a + s * .25, 26), P(a + s * .08, 12)]), 3));
+      L.roads.push(smooth(jit([P(a + s * .4, 71), P(a + s * .55, 76), P(a + s * Math.PI / 4, ROUTES.pass)]), 3));
+    }
+  }
+}
 const angNear = (a, targets, w) => targets.some(t => Math.abs(angDiff(a, t)) < w);
 const DIAG = [Math.PI / 4, 3 * Math.PI / 4, -3 * Math.PI / 4, -Math.PI / 4], AXES = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
 
@@ -129,17 +222,18 @@ function findClearSpot(L, x, z) {
   return [x, z];
 }
 function makeCtrlSpots(L) {
-  const base = [[0, 0], [42, 0], [-42, 0], [0, 42], [0, -42]];
+  const base = L.passes.length ? [[0, 0], ...L.passes.map(p => [p.x, p.z])] : [[0, 0], [42, 0], [-42, 0], [0, 42], [0, -42]]; // (big maps: hold the passes)
   return base.map(([x, z], i) => { const [gx, gz] = findClearSpot(L, x, z); return { id: i, letter: CTRL_LETTERS[i], x: gx, z: gz }; });
 }
 
 export function makeLayout(mapId, withFort, withCtrl, seed) {
-  const R = mulberry(seed | 0), r = (a, b) => a + R() * (b - a);
-  const L = { mapId, withFort, hills: [], palisades: [], rocks: [], trees: [], stones: [], obstacles: [], blockers: [], fortSegments: [],
+  sizeWorld(mapId);
+  const R = mulberry(seed | 0), r = (a, b) => a + R() * (b - a), S = W.S;
+  const L = { mapId, withFort, ridges: [], roads: [], passes: [], hills: [], palisades: [], rocks: [], trees: [], stones: [], obstacles: [], blockers: [], fortSegments: [],
     buildings: [], columns: [], towers: [], rings: [], gates: [], palms: [], huts: [], statues: [] };
   const nearCastle = (x, z, pad) => TEAMS.some(t => Math.hypot(t.pos[0] - x, t.pos[1] - z) < 20 + pad);
   const clearOf = (x, z, pad = 0) => !nearCastle(x, z, pad) && Math.hypot(x, z) > (withFort ? 12 : 8) + pad && !(mapId === 'river' && Math.abs(z) < 9);
-  for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2 + r(-.1, .1); L.hills.push({ a, d: r(150, 185), rad: r(18, 34), sy: r(.35, .6) }); }
+  for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2 + r(-.1, .1); L.hills.push({ a, d: r(150, 185) * S, rad: r(18, 34) * S, sy: r(.35, .6) }); }
   const scatterRocks = (n, ok = clearOf) => {
     for (let i = 0; i < n; i++) {
       const x = r(-80, 80), z = r(-80, 80), rad = r(.6, 1.7), rx = r(0, 3), ry = r(0, 3);
@@ -148,7 +242,7 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
       if (rad > 1.1) L.obstacles.push({ x, z, r: rad * .9 });
     }
   };
-  const trees = (x, z, s) => { L.trees.push({ x, z, s }); if (Math.hypot(x, z) < 90) { L.obstacles.push({ x, z, r: .7 * s }); L.blockers.push({ x, z, r: 1.4 * s, h: 7 }); } };
+  const trees = (x, z, s) => { L.trees.push({ x, z, s }); if (Math.hypot(x, z) < W.R - 1) { L.obstacles.push({ x, z, r: .7 * s }); L.blockers.push({ x, z, r: 1.4 * s, h: 7 }); } };
 
   if (mapId === 'dunes') {
     const spots = [[-18, 6, .4], [16, -8, -.3], [0, 24, 1.57], [0, -26, 1.57], [-30, -8, .9], [30, 10, .9], [-8, -40, 0], [10, 40, 0]];
@@ -173,7 +267,7 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
       const n = 5 + Math.floor(R() * 6);
       for (let i = 0; i < n; i++) { const x = cx + r(-6, 6), z = cz + r(-6, 6), s = r(.85, 1.35); if (clearOf(x, z)) trees(x, z, s); }
     }
-    for (let i = 0; i < 40; i++) { const a = r(0, 6.28), d = r(95, 130); L.trees.push({ x: Math.cos(a) * d, z: Math.sin(a) * d, s: r(1, 1.6) }); }
+    for (let i = 0; i < 40; i++) { const a = r(0, 6.28), d = r(95, 130) * S; L.trees.push({ x: Math.cos(a) * d, z: Math.sin(a) * d, s: r(1, 1.6) }); }
     scatterRocks(10);
   }
   if (mapId === 'frost') {
@@ -184,7 +278,7 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
       if (!clearOf(cx, cz, 4)) continue;
       for (let i = 0; i < 4; i++) { const x = cx + r(-5, 5), z = cz + r(-5, 5); if (clearOf(x, z)) trees(x, z, r(.85, 1.25)); }
     }
-    for (let i = 0; i < 60; i++) { const a = r(0, 6.28), d = r(96, 135); L.trees.push({ x: Math.cos(a) * d, z: Math.sin(a) * d, s: r(1, 1.7) }); }
+    for (let i = 0; i < 60; i++) { const a = r(0, 6.28), d = r(96, 135) * S; L.trees.push({ x: Math.cos(a) * d, z: Math.sin(a) * d, s: r(1, 1.7) }); }
   }
 
   if (mapId === 'forum') {
@@ -255,21 +349,28 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
       box(L, x, z, 2.2, 1.8, r(0, 3), 3.5, 'hut');
     }
     for (let c = 0; c < 8; c++) { const cx = r(-80, 80), cz = r(-80, 80); if (!clearOf(cx, cz, 8) || Math.hypot(cx, cz) < 38) continue; for (let i = 0; i < 5; i++) { const x = cx + r(-5, 5), z = cz + r(-5, 5); if (clearOf(x, z, 4)) trees(x, z, r(.9, 1.3)); } }
-    for (let i = 0; i < 40; i++) { const a = r(0, 6.28), d = r(95, 130); L.trees.push({ x: Math.cos(a) * d, z: Math.sin(a) * d, s: r(1, 1.6) }); }
+    for (let i = 0; i < 40; i++) { const a = r(0, 6.28), d = r(95, 130) * S; L.trees.push({ x: Math.cos(a) * d, z: Math.sin(a) * d, s: r(1, 1.6) }); }
   }
 
   if (mapId === 'valley') {
-    // a ring of rocky outcrops around the middle with eight passes (the choke points)
-    const passes = [...AXES, ...DIAG], rr = 31;
-    const n = Math.ceil(Math.PI * 2 * rr / 2.6);
-    for (let i = 0; i < n; i++) {
-      const a = i / n * Math.PI * 2; if (angNear(a, passes, 4.2 / rr)) continue;
-      const d = rr + r(-1.5, 1.5), x = Math.cos(a) * d, z = Math.sin(a) * d, rad = r(1.6, 2.6);
-      L.rocks.push({ x, z, r: rad, rx: r(0, 3), ry: r(0, 3), big: true }); L.obstacles.push({ x, z, r: rad * .95 }); L.blockers.push({ x, z, r: rad, h: rad * 1.6 });
+    carveRoutes(L, R);
+    const onRoad = (x, z, pad) => L.roads.some(p => distToLine(p, x, z) < pad);
+    const nearRidge = (x, z, pad) => L.ridges.some(g => distToLine(g.pts, x, z) < g.w + pad);
+    const ok = (x, z, pad = 0) => clearOf(x, z, pad) && !onRoad(x, z, 5 + pad) && !nearRidge(x, z, 2 + pad) && !L.passes.some(p => Math.hypot(x - p.x, z - p.z) < 14) && Math.hypot(x, z) < W.R - 4;
+    // copses of oak in each corner, tucked against the ridges (cover beside the lanes, never in them)
+    for (let c = 0; c < 60; c++) { const cx = r(-110, 110), cz = r(-110, 110); if (!ok(cx, cz, 2)) continue; const n = 3 + (R() * 4 | 0); for (let i = 0; i < n; i++) { const x = cx + r(-5, 5), z = cz + r(-5, 5); if (ok(x, z, 0)) trees(x, z, r(.8, 1.25)); } }
+    // a ring of old standing stones in the middle: cover to fight round, never a wall
+    if (!withFort) for (let k = 0; k < 9; k++) {
+      if (k % 3 === 1) continue;
+      const a = k / 9 * Math.PI * 2 + .2, x = Math.cos(a) * 9, z = Math.sin(a) * 9;
+      L.stones2 = L.stones2 || []; L.stones2.push({ x, z, a, h: r(2.6, 3.6) });
+      L.obstacles.push({ x, z, r: .9 }); L.blockers.push({ x, z, r: .9, h: 3.2 });
     }
-    for (let c = 0; c < 10; c++) { const cx = r(-80, 80), cz = r(-80, 80); if (!clearOf(cx, cz, 6) || Math.abs(Math.hypot(cx, cz) - rr) < 8) continue; for (let i = 0; i < 4; i++) { const x = cx + r(-4, 4), z = cz + r(-4, 4); if (clearOf(x, z, 4)) trees(x, z, r(.8, 1.2)); } }
-    for (let i = 0; i < 40; i++) { const a = r(0, 6.28), d = r(95, 130); L.trees.push({ x: Math.cos(a) * d, z: Math.sin(a) * d, s: r(1, 1.6) }); }
-    scatterRocks(14, (x, z) => clearOf(x, z) && Math.abs(Math.hypot(x, z) - rr) > 6);
+    for (let i = 0; i < 50; i++) { const a = r(0, 6.28), d = r(95, 130) * S; L.trees.push({ x: Math.cos(a) * d, z: Math.sin(a) * d, s: r(1, 1.6) }); }
+    for (let i = 0; i < 26; i++) {
+      const x = r(-110, 110), z = r(-110, 110), rad = r(.6, 1.7);
+      if (!ok(x, z)) continue; L.rocks.push({ x, z, r: rad, rx: r(0, 3), ry: r(0, 3) }); if (rad > 1.1) L.obstacles.push({ x, z, r: rad * .9 });
+    }
   }
 
   for (const t of TEAMS) L.obstacles.push({ x: t.pos[0], z: t.pos[1], r: CASTLE_R, castle: true });
@@ -281,6 +382,7 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
       L.obstacles.push({ x, z, r: 1.3 });
     }
   }
+  bakeRidges(L);
   L.ctrlSpots = withCtrl ? makeCtrlSpots(L) : [];
   return L;
 }

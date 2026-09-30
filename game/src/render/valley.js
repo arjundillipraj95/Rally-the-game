@@ -2,12 +2,12 @@
 // a farmstead with hay bales, dry-stone walls framing the battlefield, and birds wheeling overhead.
 // All of it is scenery only: nothing here blocks soldiers or arrows.
 import * as THREE from 'three';
-import { terrainMeshY, mulberry } from '../core/world.js';
+import { terrainMeshY, mulberry, W, ROUTES } from '../core/world.js';
 import { quality } from './quality.js';
 import { stoneTex, woodTex, uvScale } from './look.js';
 
-// four wheat fields on the open ground between neighbouring castles (long side along the rim)
-export const FIELDS = [0, Math.PI / 2, Math.PI, Math.PI * 1.5].map(a => ({ x: Math.cos(a) * 73, z: Math.sin(a) * 73, a, hw: 12, hd: 6.5 }));
+// four wheat fields, one in each pass between neighbouring corners (long side along the way through)
+export const FIELDS = [0, Math.PI / 2, Math.PI, Math.PI * 1.5].map(a => ({ x: Math.cos(a) * ROUTES.pass, z: Math.sin(a) * ROUTES.pass, a, hw: 12, hd: 6.5 }));
 export function fieldAt(x, z) {
   for (const f of FIELDS) {
     const dx = x - f.x, dz = z - f.z, t = -Math.sin(f.a) * dx + Math.cos(f.a) * dz, n = Math.cos(f.a) * dx + Math.sin(f.a) * dz;
@@ -32,14 +32,14 @@ const M = {
 const shadowy = o => { o.traverse(m => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } }); return o; };
 let anim = null;
 
-export function buildValley(world) {
+export function buildValley(world, L) {
   const R = mulberry(4242);
   anim = { sails: null, birds: [] };
   const face = (x, z) => Math.atan2(-x, -z); // turned to look at the middle of the field
 
   // ---- the windmill on the south rim ----
   {
-    const x = 0, z = -99, g = new THREE.Group(), y = terrainMeshY(x, z) - .3;
+    const x = Math.sin(-.2) * W.R * 1.08, z = -Math.cos(-.2) * W.R * 1.08, g = new THREE.Group(), y = terrainMeshY(x, z) - .3;
     g.position.set(x, y, z); g.rotation.y = face(x, z); g.scale.setScalar(1.35);
     const tower = new THREE.Mesh(uvScale(new THREE.CylinderGeometry(2.1, 2.8, 9, 14), 4, 3), M.stone); tower.position.y = 4.5; g.add(tower);
     const cap = new THREE.Mesh(new THREE.ConeGeometry(2.7, 3, 14), M.thatch); cap.position.y = 10.4; g.add(cap);
@@ -59,7 +59,7 @@ export function buildValley(world) {
 
   // ---- an old watchtower, half fallen, on the north rim ----
   {
-    const x = 0, z = 99, g = new THREE.Group(), y = terrainMeshY(x, z) - .4;
+    const x = Math.sin(.2) * W.R * 1.08, z = Math.cos(.2) * W.R * 1.08, g = new THREE.Group(), y = terrainMeshY(x, z) - .4;
     g.position.set(x, y, z); g.rotation.y = face(x, z); g.scale.setScalar(1.3);
     const body = new THREE.Mesh(uvScale(new THREE.CylinderGeometry(3, 3.4, 8, 12, 1, true), 5, 3), M.stoneDark); body.position.y = 4; g.add(body);
     const inner = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.6, 7.8, 12, 1, true), lam(0x6d665a, null, { side: THREE.BackSide })); inner.position.y = 4; g.add(inner);
@@ -84,10 +84,11 @@ export function buildValley(world) {
     const door = new THREE.Mesh(new THREE.BoxGeometry(1, 1.7, .1), M.woodDark); door.position.set(0, .85, d / 2 + .05); g.add(door);
     world.add(shadowy(g));
   };
-  building(-15, -97, 7, 5, 3.4, M.plaster, M.roof, .15);
-  building(15, -98, 9, 6, 4.2, M.wood, M.thatch, -.12);
-  building(96, 16, 6, 4.5, 3.2, M.plaster, M.roof, Math.PI / 2 + .3);
-  building(-97, -14, 6, 4.5, 3.2, M.plaster, M.thatch, -Math.PI / 2 + .2);
+  const S = W.R / 91;
+  building(-40 * S, -97 * S, 7, 5, 3.4, M.plaster, M.roof, .35);
+  building(-26 * S, -100 * S, 9, 6, 4.2, M.wood, M.thatch, .12);
+  building(97 * S, 22 * S, 6, 4.5, 3.2, M.plaster, M.roof, Math.PI / 2 + .3);
+  building(-97 * S, -22 * S, 6, 4.5, 3.2, M.plaster, M.thatch, -Math.PI / 2 + .2);
   // hay bales around the fields (round ones lying on their sides)
   const baleGeo = new THREE.CylinderGeometry(.8, .8, 1.2, 12).rotateZ(Math.PI / 2), bales = [];
   for (const f of FIELDS) for (let k = 0; k < 5; k++) {
@@ -100,11 +101,11 @@ export function buildValley(world) {
 
   // ---- dry-stone walls along the rim, framing the field (gaps where the castles sit) ----
   const wallGeo = uvScale(new THREE.BoxGeometry(5.6, 1.1, .9), 2, .4), cap = new THREE.BoxGeometry(5.8, .25, 1.05), walls = [];
-  for (let a = 0; a < Math.PI * 2; a += 6.2 / 94) {
+  for (let a = 0; a < Math.PI * 2; a += 6.2 / (W.R + 3)) {
     const nearCastle = [1, 3, 5, 7].some(k => Math.abs(((a - k * Math.PI / 4 + Math.PI * 3) % (Math.PI * 2)) - Math.PI) < .2);
     const nearLandmark = [0, 2, 4, 6].some(k => Math.abs(((a - k * Math.PI / 4 + Math.PI * 3) % (Math.PI * 2)) - Math.PI) < .13);
     if (nearCastle || nearLandmark || R() < .12) continue;
-    walls.push([Math.cos(a) * 94, Math.sin(a) * 94, -a + Math.PI / 2]);
+    walls.push([Math.cos(a) * (W.R + 3), Math.sin(a) * (W.R + 3), -a + Math.PI / 2]);
   }
   const wi = new THREE.InstancedMesh(wallGeo, M.stoneDark, walls.length), ci = new THREE.InstancedMesh(cap, M.stone, walls.length);
   walls.forEach(([x, z, r], i) => {
@@ -122,8 +123,8 @@ export function buildValley(world) {
     const petal = new THREE.CircleGeometry(.13, 5); petal.rotateX(-Math.PI / 2);
     const fl = new THREE.InstancedMesh(petal, lam(0xffffff, null, { side: THREE.DoubleSide }), nFl);
     let k = 0;
-    for (let p = 0; p < 400 && k < nFl; p++) {
-      const cx = (R() - .5) * 176, cz = (R() - .5) * 176; if (Math.hypot(cx, cz) > 88 || fieldAt(cx, cz)) continue;
+    for (let p = 0; p < 600 && k < nFl; p++) {
+      const cx = (R() - .5) * W.R * 2, cz = (R() - .5) * W.R * 2; if (Math.hypot(cx, cz) > W.R - 3 || fieldAt(cx, cz)) continue;
       const col = cols[(R() * cols.length) | 0], n = 6 + (R() * 12 | 0);
       for (let j = 0; j < n && k < nFl; j++) {
         const x = cx + (R() - .5) * 5, z = cz + (R() - .5) * 5, sc = .8 + R() * .6;
@@ -132,6 +133,12 @@ export function buildValley(world) {
       }
     }
     fl.count = k; fl.frustumCulled = false; world.add(fl);
+  }
+
+  // ---- standing stones in the middle, leaning a little with age ----
+  for (const st of (L && L.stones2) || []) {
+    const g = new THREE.Mesh(uvScale(new THREE.BoxGeometry(1.5, st.h, .8), .6, st.h / 2.5), M.stoneDark);
+    g.position.set(st.x, terrainMeshY(st.x, st.z) + st.h / 2 - .2, st.z); g.rotation.set((R() - .5) * .12, -st.a, (R() - .5) * .15); world.add(shadowy(g));
   }
 
   // ---- birds wheeling high over the valley ----

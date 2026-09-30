@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { TEAMS } from '../config.js';
 import { G, isEnemyTi, isFfa, colorOf } from '../core/state.js';
-import { groundY, clamp } from '../core/world.js';
+import { groundY, clamp, W } from '../core/world.js';
 import { camera, view } from './scene.js';
 import { cam } from './camera.js';
 import { parts, floats, pows } from './effects.js';
@@ -171,7 +171,7 @@ function buildMiniLayer(S, k) {
 }
 function drawMini() {
   if (G.state !== 'play') return;
-  const S = mini.width, k = S / 190, o = S / 2;
+  const S = mini.width, k = S / (W.R * 2 + 8), o = S / 2;
   mctx.clearRect(0, 0, S, S);
   mctx.save(); mctx.translate(o, o); mctx.rotate(cam.yaw + Math.PI);
   const id = G.map.id;
