@@ -6,7 +6,7 @@ import { G, isEnemyTi, isFfa, colorOf } from '../core/state.js';
 import { groundY, clamp } from '../core/world.js';
 import { camera, view } from './scene.js';
 import { cam } from './camera.js';
-import { parts, floats } from './effects.js';
+import { parts, floats, pows } from './effects.js';
 import { bubbles } from './banter.js';
 
 const fx = document.getElementById('fx'), ctx = fx.getContext('2d');
@@ -34,6 +34,7 @@ export function drawOverlay(opts) {
     ctx.globalAlpha = 1 - f.t / 1.3; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.strokeText(f.text, sx, sy); ctx.fillStyle = f.color; ctx.fillText(f.text, sx, sy);
   }
   ctx.globalAlpha = 1;
+  drawPows();
   const player = G.player;
   if (G.state === 'play') {
     for (const u of G.units) {
@@ -67,6 +68,24 @@ export function drawOverlay(opts) {
   }
   if (G.state === 'play' && (!player || player.dead)) { ctx.fillStyle = 'rgba(120,0,0,.18)'; ctx.fillRect(0, 0, W, H); }
   drawMini();
+}
+
+// Comic sound words: a spiky burst that pops in big, settles, then fades.
+function drawPows() {
+  for (const p of pows) {
+    const [sx, sy, ok] = proj(p.x, p.y + p.t * .8, p.z); if (!ok) continue;
+    const pop = p.t < .09 ? .4 + .9 * (p.t / .09) : p.t < .16 ? 1.3 - .3 * ((p.t - .09) / .07) : 1;
+    ctx.save(); ctx.translate(sx, sy); ctx.rotate(p.rot); ctx.scale(pop, pop);
+    ctx.globalAlpha = p.t > .5 ? Math.max(0, 1 - (p.t - .5) / .25) : 1;
+    ctx.font = 'italic 26px Bangers, Impact, sans-serif';
+    const w = ctx.measureText(p.text).width, rx = w * .62 + 10, ry = 24;
+    ctx.beginPath();
+    for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2, r = i % 2 ? .78 : 1.08 + (i % 4 ? 0 : .12); ctx.lineTo(Math.cos(a) * rx * r, Math.sin(a) * ry * r); }
+    ctx.closePath(); ctx.fillStyle = p.color; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#1b1512'; ctx.stroke();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 5; ctx.strokeStyle = '#1b1512'; ctx.strokeText(p.text, 0, 1); ctx.fillStyle = '#fff'; ctx.fillText(p.text, 0, 1);
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1; ctx.textBaseline = 'alphabetic';
 }
 
 // Speech bubbles over soldiers' heads: white, rounded, a little tail, popping in and fading out.

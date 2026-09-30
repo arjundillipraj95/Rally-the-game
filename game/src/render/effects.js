@@ -29,6 +29,57 @@ export function dust(x, z) {
   for (let i = 0; i < 3; i++) puff({ x: x + rnd(-.4, .4), y, z: z + rnd(-.4, .4), vx: rnd(-1, 1), vy: rnd(.8, 1.6), vz: rnd(-1, 1), life: rnd(.5, .8), c, s: rnd(5.5, 8) });
 }
 export function floatText(x, y, z, text, color) { floats.push({ x, y, z, text, color, t: 0 }); }
+// Comic-book sound words on the big blows near you ("WHACK!", "BONK!"), drawn as a burst on the 2D layer.
+export let pows = [];
+export function pow(x, y, z, text, color = '#ffd23a') { if (pows.length < 4) pows.push({ x, y, z, text, color, t: 0, rot: rnd(-.25, .25) }); }
+
+// ---------- swing arcs: a crescent swoosh through the path of each blade stroke ----------
+const MAX_SLASH = 24;
+// a flat arc in the XZ plane, sweeping from the left (trailing edge, uv.x 0) to the right (leading edge)
+const slashGeo = (() => {
+  const seg = 18, pos = [], uv = [], idx = [];
+  for (let i = 0; i <= seg; i++) {
+    const t = i / seg, a = -1.3 + 2.6 * t;
+    for (const [r, v] of [[.3, 0], [1, 1]]) { pos.push(Math.sin(a) * r, 0, Math.cos(a) * r); uv.push(t, v); }
+    if (i < seg) { const b = i * 2; idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2); }
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('aSl', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
+  return g;
+})();
+const slashAlpha = new THREE.InstancedBufferAttribute(new Float32Array(MAX_SLASH), 1);
+slashGeo.setAttribute('aAlpha', slashAlpha);
+// drawn over everything, like a comic swoosh, so the stroke still reads through a crowd
+// (a white stroke with a thin ink edge, solid at the leading end and thinning away behind it)
+const slashMat = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, depthTest: false, side: THREE.DoubleSide });
+slashMat.onBeforeCompile = sh => {
+  sh.vertexShader = 'attribute float aAlpha;\nattribute vec2 aSl;\nvarying float vAlpha;\nvarying vec2 vSl;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvAlpha = aAlpha; vSl = aSl;');
+  sh.fragmentShader = 'varying float vAlpha;\nvarying vec2 vSl;\n' + sh.fragmentShader.replace('#include <map_fragment>',
+    '#include <map_fragment>\nfloat slRim = smoothstep(.74, .84, vSl.y) * (1. - smoothstep(.96, 1., vSl.y)), slBody = smoothstep(0., .3, vSl.y) * (1. - smoothstep(.8, .86, vSl.y));\n' +
+    'diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.11, .08, .07), slRim);\ndiffuseColor.a *= vAlpha * smoothstep(0., .6, vSl.x) * max(slBody * .92, slRim);');
+};
+slashMat.customProgramCacheKey = () => 'slash';
+const slashMesh = new THREE.InstancedMesh(slashGeo, slashMat, MAX_SLASH);
+slashMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_SLASH * 3), 3);
+slashMesh.frustumCulled = false; slashMesh.count = 0; slashMesh.renderOrder = 5;
+scene.add(slashMesh);
+let slashes = [];
+if (import.meta.env.DEV) window.__slashN = () => slashes.length;
+const SLASH_LIFE = .22, slashC = new THREE.Color(), grow = new THREE.Matrix4();
+// m: where the arc sits (world matrix, arc in its local XZ plane); c: tint
+export function slash(m, c = '#ffffff', strength = 1) {
+  if (slashes.length >= MAX_SLASH) slashes.shift();
+  slashes.push({ m: m.clone(), c: new THREE.Color(c), t: 0, a: strength });
+}
+function drawSlashes() {
+  slashes.forEach((s, i) => {
+    const k = s.t / SLASH_LIFE, g = 1 + .18 * k;
+    slashMesh.setMatrixAt(i, grow.makeScale(g, 1, g).premultiply(s.m));
+    slashMesh.setColorAt(i, slashC.copy(s.c));
+    slashAlpha.array[i] = s.a * (k < .1 ? k / .1 : 1 - Math.pow((k - .1) / .9, 1.5));
+  });
+  slashMesh.count = slashes.length;
+  slashMesh.instanceMatrix.needsUpdate = true; slashMesh.instanceColor.needsUpdate = true; slashAlpha.needsUpdate = true;
+}
 
 // Smoke from a failing castle, rubble when it falls.
 export function castleFx(kind, pos) {
@@ -80,11 +131,16 @@ export function effectsTick(dt) {
   parts = parts.filter(p => p.life > 0 && p.y > -1);
   for (const f of floats) { f.t += dt; f.y += dt * 1.2; }
   floats = floats.filter(f => f.t < 1.3);
+  for (const p of pows) p.t += dt;
+  pows = pows.filter(p => p.t < .75);
+  for (const sl of slashes) sl.t += dt;
+  slashes = slashes.filter(sl => sl.t < SLASH_LIFE);
   for (const d of decals) d.t += dt;
   decals = decals.filter(d => d.t < 30);
 }
 
 export function drawEffects() {
+  drawSlashes();
   // splats
   decals.forEach((d, i) => {
     eu.set(-Math.PI / 2, 0, d.rot); q.setFromEuler(eu);
@@ -107,7 +163,7 @@ export function drawEffects() {
   arrowMesh.count = n; arrowMesh.instanceMatrix.needsUpdate = true;
 }
 
-export function clearEffects() { parts = []; floats = []; decals = []; }
+export function clearEffects() { parts = []; floats = []; decals = []; pows = []; slashes = []; }
 
 // ---------- the captain's aura: a faint ring on the ground around your captain ----------
 const auraMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .22, depthWrite: false, side: THREE.DoubleSide });

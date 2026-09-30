@@ -10,7 +10,7 @@ import { cam, camTarget } from '../render/camera.js';
 let ac = null, out = null, verb = null, nb = null;
 const lastS = {}, bufs = {};
 // sample banks: name -> number of variants (public/sfx/<name><n>.mp3)
-const BANK = { swing: 6, hit: 8, heavy: 5, clang: 12, wall: 5, thud: 5, fall: 4, bow: 1, draw: 5, cloth: 4, coins: 2, step: 5, scream: 6 };
+const BANK = { swing: 6, hit: 8, heavy: 5, clang: 12, wall: 5, thud: 5, fall: 4, bow: 1, draw: 5, cloth: 4, coins: 2, step: 5, scream: 6, grunt: 6 };
 
 export function initAudio() {
   if (ac) { if (ac.state === 'suspended') ac.resume(); return; }
@@ -183,15 +183,39 @@ export function audioTick(dt) {
 const at = (x, z) => place(x, z);
 export const sfx = {
   swing(x, z) { if (gateS('sw', 45)) play('swing', x, z, { vol: .45, rate: 1.05, jit: .12, send: .12 }) || noise(.14, 1800, 1, .12, 'bandpass', 600, at(x, z)); },
+  // a blow landing on a body: the punch, a heavier impact under it and a low thump for weight; up close,
+  // now and then a comic touch on top (a pained grunt, or a hollow "bonk" off a helmet)
   hit(x, z) {
     if (!gateS('hi', 40)) return;
-    if (!play('hit', x, z, { vol: .8, jit: .1, send: .18 })) noise(.12, 380, 1, .4, 'lowpass', 0, at(x, z));
+    const pl = at(x, z);
+    if (!play('hit', x, z, { vol: .6, jit: .1, send: .18 })) noise(.12, 380, 1, .4, 'lowpass', 0, pl);
+    play('heavy', x, z, { vol: .38, rate: 1.2, jit: .08, send: .15 });
+    tone(120, .16, .3, 'sine', 50, 0, pl, .2);
     if (Math.random() < .35) play('cloth', x, z, { vol: .25, delay: .02 });
+    if (pl.v > .75) {
+      const r = Math.random();
+      if (r < .3 && gateS('gr', 260)) play('grunt', x, z, { vol: .5, rate: 1, jit: .12, delay: .04, send: .15 });
+      else if (r > .86 && gateS('bk2', 700)) sfx.bonk(x, z);
+    }
   },
-  clang(x, z) { // steel on a shield or armour: a recorded strike with a thin ring on top
+  // steel on a wooden shield: a solid knock with a short bite of metal (no ringing bells)
+  clang(x, z) {
     if (!gateS('cl', 45)) return;
-    if (!play('clang', x, z, { vol: .7, jit: .1, send: .3 })) noise(.08, 3400, 7, .22, 'bandpass', 0, at(x, z));
-    const pl = at(x, z); tone(2200 + Math.random() * 900, .35, .025, 'sine', 0, 0, pl, .4); tone(3700 + Math.random() * 700, .22, .014, 'sine', 0, 0, pl, .4);
+    const pl = at(x, z);
+    if (!play('thud', x, z, { vol: .75, rate: .8, jit: .1, send: .2 })) noise(.08, 700, 2, .3, 'bandpass', 0, pl);
+    play('clang', x, z, { vol: .32, rate: .82, jit: .1, send: .22 });
+    tone(190, .1, .18, 'triangle', 110, 0, pl, .2);
+  },
+  // the cartoon layer: a hollow wood-block "bonk" with a quick pitch drop
+  bonk(x, z) {
+    if (!ac) return; const pl = at(x, z); if (pl.v < .2) return;
+    tone(720, .16, .22, 'sine', 330, 0, pl, .15); tone(1450, .06, .08, 'triangle', 700, 0, pl, .15);
+    noise(.02, 2400, 3, .12, 'bandpass', 0, pl, 0, .1);
+  },
+  // a helmet knocked clean off: a bright little bell
+  ding(x, z) {
+    if (!ac || !gateS('dg', 150)) return; const pl = at(x, z); if (pl.v < .2) return;
+    tone(1568, .7, .09, 'sine', 0, 0, pl, .3); tone(2350, .5, .045, 'sine', 0, 0, pl, .3); tone(3136, .3, .02, 'sine', 0, 0, pl, .3);
   },
   heavy(x, z) { if (!gateS('hv', 80)) return; play('heavy', x, z, { vol: 1, jit: .06, send: .25 }); tone(85, .28, .35, 'sine', 38, 0, at(x, z), .3); },
   die(x, z) { if (!gateS('di', 90)) return; play('fall', x, z, { vol: .75, delay: .18, rate: .9 }); play('cloth', x, z, { vol: .3, delay: .1 }); },

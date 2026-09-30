@@ -4,7 +4,7 @@ no free recording of a man being launched into the air was to hand.
 Source-filter synthesis: a glottal pulse train (with the pitch wobble, jitter, shimmer and rough
 period-doubling that make a yell sound strained rather than sung) plus breath noise, shaped by
 four vocal-tract resonances (formants) for an open "ah", gliding to an "r" for the arghs.
-Writes 16-bit WAVs; the build step encodes them to MP3 into public/sfx/scream<n>.mp3.
+Also renders short grunts for when a blow lands (grunt<n>). Writes 16-bit WAVs; the build step encodes them to MP3 into public/sfx/scream<n>.mp3.
 
     python3 scripts/screams.py <outdir>
 """
@@ -72,6 +72,37 @@ def scream(dur, f_start, f_end, vowel='ah', rough=.25, growl=0.0, breath=.18, ri
     return y / np.abs(y).max() * .89
 
 
+def grunt(dur, f_start, f_end, vowel='uh', rough=.35, tail=0.0, breath=.3):
+    """A short pained grunt when a blow lands ("Oof!", "Ugh!", "Hngh!"): a clipped, low, rough
+    voice with a puff of air on the attack, and for "oof" a breathy "f" trailing off."""
+    n = int(dur * SR); t = np.arange(n) / SR; u = t / dur
+    f0 = (f_start + (f_end - f_start) * u ** .7) * (1 + rng.normal(0, .02, n))
+    src = glottal(f0, rough)
+    noise = lfilter([1, -.95], [1], rng.normal(0, 1, n)) * .09
+    x = src + noise * (breath + 2.2 * np.exp(-t / .02))
+    F = {'uh': [(640, 110), (1190, 120), (2390, 180), (3400, 260)],
+         'oo': [(360, 90), (800, 110), (2300, 170), (3300, 250)],
+         'eh': [(560, 100), (1700, 130), (2500, 180), (3500, 260)]}[vowel]
+    y = sum(g * resonator(x, f, b) for (f, b), g in zip(F, [1.0, .9, .7, .45]))
+    env = np.minimum(1, t / .012) * np.exp(-np.clip(u - .25, 0, 1) * 4.5)
+    y = np.tanh(y / (np.abs(y).max() + 1e-9) * 2.2) * env
+    if tail:  # the "f" of "oof": a hiss of air as the lips close
+        m = int(tail * SR); tt = np.arange(m) / SR
+        hiss = lfilter([1, -1], [1], rng.normal(0, 1, m)); hiss = lfilter([.3], [1, -.6], hiss)
+        hiss *= .22 * np.minimum(1, tt / .015) * np.exp(-tt / (tail * .45))
+        y = np.concatenate([y * np.linspace(1, .6, n) ** 2, hiss])
+    return y / np.abs(y).max() * .89
+
+
+GRUNTS = [
+    dict(dur=.24, f_start=165, f_end=115, vowel='uh', rough=.35),
+    dict(dur=.18, f_start=150, f_end=110, vowel='oo', rough=.3, tail=.12),
+    dict(dur=.26, f_start=190, f_end=125, vowel='eh', rough=.4),
+    dict(dur=.2, f_start=135, f_end=95, vowel='uh', rough=.45, breath=.4),
+    dict(dur=.16, f_start=175, f_end=120, vowel='oo', rough=.25, tail=.1),
+    dict(dur=.3, f_start=210, f_end=140, vowel='uh', rough=.3),
+]
+
 VARIANTS = [
     dict(dur=.95, f_start=420, f_end=250, vowel='ah', rough=.22),
     dict(dur=.85, f_start=360, f_end=220, vowel='argh', rough=.3, growl=.35),
@@ -89,3 +120,9 @@ if __name__ == '__main__':
             w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR)
             w.writeframes((y * 32767).astype(np.int16).tobytes())
         print('wrote', f'scream{i}.wav', f'{len(y) / SR:.2f}s')
+    for i, v in enumerate(GRUNTS, 1):
+        y = grunt(**v)
+        with wave.open(f'{out}/grunt{i}.wav', 'wb') as w:
+            w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR)
+            w.writeframes((y * 32767).astype(np.int16).tobytes())
+        print('wrote', f'grunt{i}.wav', f'{len(y) / SR:.2f}s')

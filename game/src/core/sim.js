@@ -283,7 +283,7 @@ function hit(a, b, mult = 1, extra) {
   b.lastHit = G.T;
   const spearedHorse = (a.kind === 'foot' && a.tier >= 1) || (a.leader && a.weapon === 'spear');
   if (b.mounted && (spearedHorse || Math.random() < .5)) { horseDamage(b, dmg * (spearedHorse ? 3 : 1)); return; }
-  let kb = (a.leader ? (a.mounted ? 9 : 7) : 4.5) * (extra && extra.kb || 1);
+  let kb = (a.leader ? (a.mounted ? 10 : 8) : 5) * (extra && extra.kb || 1);
   const frontal = Math.abs(angDiff(b.face, Math.atan2(a.x - b.x, a.z - b.z))) < 1.1;
   let blocked = false;
   if (frontal && b.stun <= 0 && !b.mounted && !b.carrying && !(extra && extra.unblockable)) {

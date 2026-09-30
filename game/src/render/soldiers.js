@@ -9,7 +9,7 @@ import { G, isEnemyTi, isFfa, colorOf, bus } from '../core/state.js';
 import { braced } from '../core/sim.js';
 import { scene, shadowsOn, camera } from './scene.js';
 import { camTarget } from './camera.js';
-import { trail } from './effects.js';
+import { trail, slash, pow, dust } from './effects.js';
 import { groundY } from '../core/world.js';
 import { quality } from './quality.js';
 
@@ -275,6 +275,7 @@ function popHelmet(u) {
   const geo = fac === 'roman' ? 'helm' : fac === 'greek' ? 'corinth' : u.kind === 'captain' ? 'circlet' : null;
   if (!geo) { u.helmOff = false; return; } // barbarian footmen fight bareheaded anyway
   if (props.length >= PROP_MAX) props.shift();
+  if (nearCam(u, 16)) { bus.emit('sfx', { name: 'ding', x: u.x, z: u.z }); if (powCd <= 0) { pow(u.x, u.y + 2.6 * s, u.z, 'DING!', '#fff3b0'); powCd = .5; } }
   const R = (lo, hi) => lo + Math.random() * (hi - lo);
   props.push({ geo, s, col: geo === 'helm' ? C.steel : geo === 'corinth' ? C.bronze : crestCol(u),
     x: u.x, y: u.y + 1.9 * s, z: u.z, vx: u.vx * .6 + R(-2, 2), vy: R(6, 9) + Math.max(0, u.vy) * .4, vz: u.vz * .6 + R(-2, 2),
@@ -308,6 +309,12 @@ export function clearProps() { props.length = 0; for (const g in propMesh) propM
 
 export const drawCalls = () => [...batches.values()].filter(b => b.mesh.count > 0).length;
 
+// ---------- the comic layer on big moments near your captain ----------
+let powCd = 0;
+const nearCam = (u, r) => { const t = camTarget(); return !!t && Math.hypot(u.x - t.x, u.z - t.z) < r; };
+const pick = a => a[(Math.random() * a.length) | 0];
+const HIT_WORDS = ['WHACK!', 'THWACK!', 'WHAM!', 'SMACK!', 'BAM!'], KO_WORDS = ['KAPOW!', 'WALLOP!', 'KA-BONK!', 'BOOM!'];
+
 // ---------- per-unit animation state ----------
 const anim = new WeakMap();
 function exprOf(u) { const a = anim.get(u); return (a && a.expr) || 'normal'; }
@@ -336,6 +343,7 @@ function ragdoll(u, a, dt) {
       arms: [R(-3, -.3), R(-3, -.3), R(-1.3, -.2)], legs: [R(-.7, .7), R(-.7, .7), R(.05, .5)],
       // launched: tumble head over heels (sometimes sideways too), limbs windmilling
       flip: u.launch ? dir * R(9, 15) : 0, twirl: u.launch ? R(-8, 8) : 0, cart: u.launch && Math.random() < .35 ? R(8, 12) * (Math.random() < .5 ? -1 : 1) : 0, fl: 0 };
+    if (nearCam(u, 14) && powCd <= 0 && (u.launch || Math.random() < .5)) { pow(u.x, u.y + 2.2, u.z, pick(KO_WORDS), '#ff7a3a'); powCd = .7; }
     // helmets come off on the big ones (and occasionally on an ordinary fall)
     if (u.kind !== 'arch' && (u.launch ? Math.random() < .8 : Math.random() < .12)) { u.helmOff = true; popHelmet(u); }
   }
@@ -388,10 +396,17 @@ function pose(u, dt) {
   a.idle = (a.idle || 0) + dt;
   // got hit: flash toward white and get knocked back on a spring that overshoots and settles
   if (a.hp != null && u.hp < a.hp - .5) {
-    const sev = Math.min(1, (a.hp - u.hp) / 18);
+    const dmg = a.hp - u.hp, sev = Math.min(1, dmg / 18), blocked = u.blockT > 0 || (u.human && u.blocking);
     a.flash = Math.min(1, Math.max(a.flash || 0, sev));
-    if (a.hp - u.hp > u.max * .3 && Math.random() < .35) a.dizzy = 1.4; // a real clout (a third of his health) leaves him seeing stars
-    a.stagV = (a.stagV || 0) - (3 + 6 * sev); a.stagYV = (a.stagYV || 0) + (Math.random() < .5 ? -1 : 1) * 4 * sev; // (a kick to the spring)
+    if (dmg > u.max * .3 && Math.random() < .35) a.dizzy = 1.4; // a real clout (a third of his health) leaves him seeing stars
+    a.stagV = (a.stagV || 0) - (blocked ? 2 + 3 * sev : 4 + 9 * sev); a.stagYV = (a.stagYV || 0) + (Math.random() < .5 ? -1 : 1) * 5 * sev; // (a kick to the spring)
+    // a proper clout: he stumbles back a step, arms thrown up, and kicks up dust
+    if (!blocked && dmg >= 20 && !u.mounted) { a.stumble = .4; dust(u.x, u.z); }
+    if (!blocked && dmg >= 26 && powCd <= 0 && nearCam(u, 12)) {
+      const bonk = Math.random() < .25; powCd = .55;
+      pow(u.x, u.y + 2.5, u.z, bonk ? 'BONK!' : pick(HIT_WORDS));
+      if (bonk) bus.emit('sfx', { name: 'bonk', x: u.x, z: u.z });
+    }
   }
   a.hp = u.hp; if (a.flash > 0) a.flash = Math.max(0, a.flash - dt * 6);
   a.stag = a.stag || 0; a.stagY = a.stagY || 0; a.stagV = a.stagV || 0; a.stagYV = a.stagYV || 0;
@@ -488,6 +503,12 @@ function pose(u, dt) {
     if (blocking) { a.bodyY -= .05; a.bodyRX += .08; } // brace behind the shield
   }
   if (air && !u.mounted && t < 0 && u.weapon !== 'jav') a.sArmX = near(a.sArmX, -1.1, k12); // arms up on the rise
+  if (a.stumble > 0) { // reeling back from a big hit: a step back, leaning away, arms thrown up
+    a.stumble -= dt;
+    const s = Math.sin(Math.PI * Math.max(0, a.stumble) / .4);
+    if (!u.mounted) { a.legL[0] += .55 * s; a.legR[0] -= .25 * s; a.bodyRX -= .3 * s; a.bodyY -= .06 * s; }
+    if (t < 0) { a.sArmX = near(a.sArmX, -1.9, k12 * s); a.wArmX = near(a.wArmX, -2.1, k12 * s); a.wArmZ = near(a.wArmZ, -.4, k12 * s); }
+  }
   // the battle's over: winners jump about with their arms in the air, everyone else runs for it
   if (G.state === 'end' && G.endInfo && G.endInfo.w >= 0 && !u.mounted) {
     const ph = a.idle * 7 + (u.id % 7);
@@ -507,7 +528,7 @@ function pose(u, dt) {
 // ---------- bones ----------
 const M = { root: new THREE.Matrix4(), hips: new THREE.Matrix4(), body: new THREE.Matrix4(), legL: new THREE.Matrix4(), legR: new THREE.Matrix4(), sArm: new THREE.Matrix4(), wArm: new THREE.Matrix4(), spear: new THREE.Matrix4(), shield: new THREE.Matrix4() };
 const flashC = new THREE.Color(), WHITE = new THREE.Color(1, 1, 1);
-const tmp = new THREE.Matrix4(), out = new THREE.Matrix4(), eu = new THREE.Euler(), qq = new THREE.Quaternion(), vp = new THREE.Vector3(), vs = new THREE.Vector3(), tipV = new THREE.Vector3();
+const tmp = new THREE.Matrix4(), slashM = new THREE.Matrix4(), out = new THREE.Matrix4(), eu = new THREE.Euler(), qq = new THREE.Quaternion(), vp = new THREE.Vector3(), vs = new THREE.Vector3(), tipV = new THREE.Vector3();
 function local(x, y, z, rx, ry, rz) { eu.set(rx, ry, rz); qq.setFromEuler(eu); return tmp.compose(vp.set(x, y, z), qq, vs.set(1, 1, 1)); }
 function bones(u, a) {
   const s = u.kind === 'captain' ? 1.18 : 1;
@@ -534,6 +555,7 @@ function bones(u, a) {
 export function drawSoldiers(units, dt) {
   for (const b of batches.values()) b.n = 0;
   const blob = !shadowsOn(), outlines = quality.level !== 'low';
+  powCd -= dt;
   let drawn = 0;
   // Friendly soldiers standing between the camera and your captain step out of the picture, so
   // you can always see yourself and who you're fighting. Enemies are never hidden.
@@ -561,7 +583,21 @@ export function drawSoldiers(units, dt) {
     if (u.swing > 0 && !u.dead && (u.kind === 'foot' || u.kind === 'captain')) {
       if (spearOut(u)) tipV.set(0, 0, 2.1).applyMatrix4(M.spear); else tipV.set(0, -.4, 1.0).applyMatrix4(M.wArm);
       trail(tipV.x, tipV.y, tipV.z, '#eef2f5');
+      // the moment the blade starts through: a crescent swoosh along its path (near your captain only)
+      const a = anim.get(u), st = 1 - u.swing / .38;
+      if (a && !a.slashed && st >= .17 && st < .4 && !spearOut(u) && u.weapon !== 'jav' && nearCam(u, 22)) {
+        a.slashed = true;
+        const kind = u.mounted ? 0 : u.swingKind | 0, s = u.kind === 'captain' ? 1.18 : 1, R = u.mounted ? 2.3 : 2;
+        eu.set(0, u.face, 0); qq.setFromEuler(eu);
+        slashM.compose(vp.set(u.x, u.y + a.lift + (u.mounted ? 2.2 : 1.25 + a.bodyY) * s, u.z), qq, vs.set(1, 1, 1));
+        // (tilted so the follow camera, behind and above, sees the face of the arc rather than its edge)
+        if (kind === 2) { slashM.multiply(tmp.makeRotationY(.6)); slashM.multiply(tmp.makeRotationZ(Math.PI / 2)); slashM.multiply(tmp.makeScale(-1, 1, 1)); } // overhead: top to bottom
+        else { if (kind === 1) slashM.multiply(tmp.makeScale(-1, 1, 1)); slashM.multiply(tmp.makeRotationX(-.4)).multiply(tmp.makeRotationZ(-.2)); } // backhand: the other way round
+        slashM.multiply(tmp.makeScale(R * s, 1, R * s));
+        slash(slashM, u.leader ? '#fff6d8' : '#ffffff', u.leader ? 1 : .55);
+      }
     }
+    if (u.swing <= 0) { const a = anim.get(u); if (a) a.slashed = false; }
     const ring = ringFor(u), fac = factionOf(u);
     for (const p of PARTS) {
       if (p.k && !p.k.has(u.kind)) continue;
