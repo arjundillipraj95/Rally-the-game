@@ -7,7 +7,7 @@ import '@fontsource/barlow-semi-condensed/latin-800-italic.css';
 import './style.css';
 import { TEAMS, MODES, MAPS, PRESETS, RANKS, CRESTS, QUIPS, TIPS } from './config.js';
 import { G, bus, colorOf, rules, matchTime, modeDesc } from './core/state.js';
-import { startMatch, mkUnit, newTeams, update, fallStep, endMatch, auraRange, endStep } from './core/sim.js';
+import { startMatch, mkUnit, newTeams, update, fallStep, endMatch, auraRange, endStep, setOrder } from './core/sim.js';
 import { makeLayout, gatePos, groundY } from './core/world.js';
 import { buildNav } from './core/nav.js';
 import { renderer, scene, camera, resize, applyPixelRatio, applyShadowQuality, followSun } from './render/scene.js';
@@ -17,6 +17,7 @@ import { drawSoldiers, drawCalls, clearProps } from './render/soldiers.js';
 import { banterTick, clearBanter } from './render/banter.js';
 import { updateSeeThrough } from './render/seethrough.js';
 import { drawVolleyAim } from './ui/volleyaim.js';
+import { drawHoldAim } from './ui/holdaim.js';
 import { spawnCritters, updateCritters, clearCritters } from './render/critters.js';
 import { drawHorses, clearHorses } from './render/horses.js';
 import { spark, splat, dust, drawAura, floatText, castleFx, effectsTick, drawEffects, clearEffects } from './render/effects.js';
@@ -313,7 +314,7 @@ function drawMatch(dt) {
   if (import.meta.env.DEV && window.__camAt) { const c = window.__camAt; camera.position.set(c[0], c[1], c[2]); camera.lookAt(c[3], c[4], c[5]); } // (dev: fixed shots of the scenery)
   updateSeeThrough(dt, camera.position, camTarget());
   drawAura(G.player, auraRange(G.myTi), grassTime());
-  drawVolleyAim(grassTime());
+  drawVolleyAim(grassTime()); drawHoldAim(grassTime());
   const tg = camTarget(); followSun(tg ? tg.x : 0, tg ? tg.z : 0, grassTime());
   if (!(import.meta.env.DEV && window.__noRender)) renderer.render(scene, camera); // (dev: network tests skip drawing)
   drawOverlay({ joy: inp.joy, nickFor });
@@ -374,9 +375,9 @@ window.__fb = {
   // drive: also run the player captain with an idle stick (or a given one), so jumps and buffered attacks advance
   step(n, dt = 1 / 30, drive) { const inp = drive ? Object.assign({ wx: 0, wz: 0, mag: 0, block: false, attackHeld: false, camYaw: 0 }, drive === true ? {} : drive) : null; for (let i = 0; i < n && G.state === 'play'; i++) update(dt, inp); },
   ride() { if (G.player) { G.player.lastHit = -9; actions.ride(); } },
-  volley(pt) { actions.volley(pt); },
+  volley(pt) { actions.volley(pt); }, order(o, pt) { actions.order(o, pt); },
   attack() { actions.attack(); }, jump() { actions.jump(); }, weapon(w) { actions.weapon(w); },
-  G, cam, scene, audio: () => audioStats(),
+  setOrder, G, cam, scene, audio: () => audioStats(),
 };
 
 function onResize() { resize(); resizeOverlay(); }

@@ -7,6 +7,7 @@ import { cam } from '../render/camera.js';
 import { initAudio } from './audio.js';
 import { floatText } from '../render/effects.js';
 import { aimStart, aimMove, aimEnd, aimCancel } from './volleyaim.js';
+import { holdStart, holdMove, holdEnd, holdCancel } from './holdaim.js';
 
 const $ = id => document.getElementById(id);
 export const inp = { joy: { active: false, id: null, ox: 0, oy: 0, x: 0, y: 0 }, look: { id: null, lx: 0, ly: 0 }, keys: {}, attackHeld: false, blockHeld: false, trayIsOpen: false, upIsOpen: false };
@@ -19,6 +20,10 @@ let wheelT = 0;
 function volleyTip() {
   let n = 0; try { n = +localStorage.getItem('rally-volley-tip') || 0; localStorage.setItem('rally-volley-tip', n + 1); } catch (_) { n = 9; }
   if (n < 2 && G.player) floatText(G.player.x, G.player.y + 3.4, G.player.z, 'Tip: hold Volley and slide to aim', '#ffcf3a');
+}
+function holdTip() {
+  let n = 0; try { n = +localStorage.getItem('rally-hold-tip') || 0; localStorage.setItem('rally-hold-tip', n + 1); } catch (_) { n = 9; }
+  if (n < 2 && G.player) floatText(G.player.x, G.player.y + 3.4, G.player.z, 'Tip: press Order and drag to place the line', '#ffcf3a');
 }
 const mouse = { x: 0, y: 0 };
 export function wheelOpen(on) {
@@ -123,7 +128,22 @@ export function bindInput(actions) {
   vly.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); A.volley(); } });
   // keyboard: hold V and point with the mouse
   addEventListener('pointermove', e => { mouse.x = e.clientX; mouse.y = e.clientY; if (e.pointerType === 'mouse' && inp.keys.KeyV) aimMove(e.clientX, e.clientY, false); });
-  tapBtn($('cmdBtn'), () => A.order());
+  // Order: tap to step to the next order; press and drag to place a held line where you point
+  const cmd = $('cmdBtn'); let cmdPtr = null;
+  cmd.addEventListener('pointerdown', e => {
+    e.preventDefault(); e.stopPropagation(); initAudio();
+    if (!holdStart(e.clientX, e.clientY)) { A.order(); return; }
+    cmdPtr = e.pointerId; cmd.classList.add('held'); try { cmd.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  cmd.addEventListener('pointermove', e => { if (e.pointerId === cmdPtr) holdMove(e.clientX, e.clientY, e.pointerType !== 'mouse'); });
+  const cmdUp = e => {
+    if (e.pointerId !== cmdPtr) return; cmdPtr = null; cmd.classList.remove('held');
+    if (e.type !== 'pointerup') { holdCancel(); return; }
+    const pt = holdEnd();
+    if (pt) A.order('hold', pt); else { A.order(); if (G.teams[G.myTi] && G.teams[G.myTi].order === 'hold') holdTip(); }
+  };
+  cmd.addEventListener('pointerup', cmdUp); cmd.addEventListener('pointercancel', cmdUp);
+  cmd.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); A.order(); } });
   tapBtn($('recBtn'), () => trayOpen(!inp.trayIsOpen));
   document.querySelectorAll('#tray button').forEach(b => tapBtn(b, () => A.recruit(b.dataset.kind)));
   tapBtn($('upBtn'), () => upOpen(!inp.upIsOpen));

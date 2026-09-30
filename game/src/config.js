@@ -83,6 +83,9 @@ export const JAVELIN = { dmg: 24, range: 10, cd: 6.5 };
 // individual archer/javelin cooldowns so it stays a burst rather than a free DPS button.
 export const VOLLEY = { cd: 9, spread: 2.6 }; // spread: how far an aimed volley scatters around the mark
 // Horse charge: a burst of speed that bowls over everyone in front (braced spears still stop it)
+// A held line: footmen in their places take this share of the damage and knockback from the front,
+// and a charge into them stalls, hurting the horse.
+export const HOLD = { dmg: .7, kb: .3, horse: 30 };
 export const CHARGE = { dur: 2.2, cd: 12, spd: 1.45, dmg: 32, kb: 15 };
 // The player captain's three weapons, switched with one button. The sword chains a 3-hit combo
 // (the 3rd hit cleaves), the spear trades speed for reach and pierces a second man, javelins are

@@ -97,7 +97,7 @@ export function netHostReadInputs() {
     const ti = NET.seats[p.peer]; if (ti === undefined) continue;
     const pr = p.presence || {}; if (pr.seed !== G.seed || pr.ph !== 'play') continue;
     const s = G.teams[ti], L = s.leader; if (!s.human) continue;
-    const last = NET.inp[ti] || (NET.inp[ti] = { atk: 0, chg: 0, ride: 0, vly: 0, rec: [0, 0, 0], up: [0, 0, 0, 0, 0] });
+    const last = NET.inp[ti] || (NET.inp[ti] = { atk: 0, chg: 0, ride: 0, vly: 0, hold: '', rec: [0, 0, 0], up: [0, 0, 0, 0, 0] });
     if (L && !L.dead && Array.isArray(pr.cap) && pr.cap[0] === L.id) {
       L.x = +pr.cap[1]; L.z = +pr.cap[2]; L.face = +pr.cap[3]; L.vx = +pr.cap[4]; L.vz = +pr.cap[5];
       L.blocking = !!pr.blk; L.jy = Math.max(0, +pr.cap[6] || 0);
@@ -108,9 +108,10 @@ export function netHostReadInputs() {
     if (typeof pr.chg === 'number' && pr.chg > last.chg) { if (L && !L.dead) captainCharge(L); last.chg = pr.chg; }
     if (typeof pr.vly === 'number' && pr.vly > last.vly) { orderVolley(ti, Array.isArray(pr.vat) ? { x: +pr.vat[0], z: +pr.vat[1] } : null); last.vly = pr.vly; }
     if (Array.isArray(pr.up)) for (let k = 0; k < UPGRADES.length; k++) while ((pr.up[k] | 0) > last.up[k]) { last.up[k]++; buyUpgrade(ti, UPGRADES[k].id); }
-    if (pr.ord && pr.ord !== s.order && ORDERS.includes(pr.ord)) {
-      s.order = pr.ord;
-      if (pr.ord === 'hold') { const h = Array.isArray(pr.hold) ? pr.hold : [L.x, L.z, L.face]; s.holdPt = { x: +h[0], z: +h[1], face: +h[2], isFront: true }; }
+    const holdKey = pr.ord === 'hold' && Array.isArray(pr.hold) ? pr.hold.join(',') : '';
+    if (pr.ord && ORDERS.includes(pr.ord) && (pr.ord !== s.order || holdKey !== last.hold)) { // (a hold moved to a new spot counts as a new order)
+      s.order = pr.ord; last.hold = holdKey;
+      if (pr.ord === 'hold') setOrder(ti, 'hold', Array.isArray(pr.hold) ? { x: +pr.hold[0], z: +pr.hold[1], face: +pr.hold[2] } : null);
     }
     if (Array.isArray(pr.rec)) for (let k = 0; k < 3; k++) while ((pr.rec[k] | 0) > last.rec[k]) { last.rec[k]++; recruit(ti, RECRUITS[k]); }
   }
@@ -411,13 +412,16 @@ export const actions = {
     orderVolley(G.myTi, pt || null);
   },
   // no argument: step to the next order; with one: set it
-  order(want) {
+  // pt (hold only): where to put the line, {x, z, face}; without one it forms in front of the captain
+  order(want, pt) {
     const p = G.player; if (G.state !== 'play' || !p || p.dead) return;
     const cur = G.teams[G.myTi].order || 'follow';
     const o = ORDERS.includes(want) ? want : ORDERS[(ORDERS.indexOf(cur) + 1) % ORDERS.length];
     if (o === cur && o !== 'hold') return;
-    if (isClient()) { G.teams[G.myTi].order = o; C.inp.ord = o; if (o === 'hold') C.inp.hold = [r1(p.x), r1(p.z), r2(p.face)]; }
-    else setOrder(G.myTi, o);
+    if (isClient()) {
+      const me = G.teams[G.myTi]; me.order = o; C.inp.ord = o;
+      if (o === 'hold') { setOrder(G.myTi, 'hold', pt); const h = me.holdPt; C.inp.hold = [r1(h.x), r1(h.z), r2(h.face)]; C.sendNow = true; } // (kept locally too, for the marker)
+    } else setOrder(G.myTi, o, pt);
     sfx.order(); bus.emit('shout', { u: p, kind: o }); // your captain bellows it
     bus.emit('hud');
   },

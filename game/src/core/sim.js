@@ -1,6 +1,6 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
-import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT } from '../config.js';
+import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, rules, matchTime } from './state.js';
 import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W, groundSlow, onIce } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable } from './nav.js';
@@ -63,10 +63,12 @@ export function startMatch(humans, active = [1, 1, 1, 1, 0, 0, 0, 0]) {
   say('start');
 }
 
-export function setOrder(ti, o) {
+// Hold: pt is where the front rank stands and which way it faces ({x, z, face}); without one, the
+// line forms a couple of paces in front of the captain, facing where he faces.
+export function setOrder(ti, o, pt) {
   const s = G.teams[ti]; s.order = o;
   const cap = s.leader;
-  if (o === 'hold' && cap) s.holdPt = { x: cap.x, z: cap.z, face: cap.face, isFront: true };
+  if (o === 'hold') s.holdPt = pt ? { x: +pt.x, z: +pt.z, face: +pt.face } : cap ? { x: cap.x + Math.sin(cap.face) * 2.5, z: cap.z + Math.cos(cap.face) * 2.5, face: cap.face } : null;
 }
 export function canRecruit(ti) { const s = G.teams[ti]; return G.mode === 'conquest' ? G.teams[colorOf(ti)].alive : G.mode === 'dm' ? s.tickets > 0 : true; }
 export function recruit(ti, kind) {
@@ -131,7 +133,7 @@ export function buyUpgrade(ti, id) {
   return true;
 }
 // What a team's soldiers are doing: the human's order, or the computer's choice.
-export const orderOf = ti => { const s = G.teams[ti], L = s.leader, up = L && !L.dead; return s.human ? (s.order || 'follow') : s.shieldwallT > 0 && up ? 'shieldwall' : up ? 'follow' : 'charge'; };
+export const orderOf = ti => { const s = G.teams[ti], L = s.leader, up = L && !L.dead; return s.human ? (s.order || 'follow') : s.shieldwallT > 0 && up ? 'shieldwall' : s.aiHold && s.holdPt && up ? 'hold' : up ? 'follow' : 'charge'; };
 export function canRespawn(ti) { const s = G.teams[ti]; return G.mode === 'conquest' ? G.teams[colorOf(ti)].alive : G.mode === 'dm' ? s.tickets > 0 : true; }
 function push(u, vx, vz, stun) {
   if (u.remote) { u.kick.vx += vx; u.kick.vz += vz; u.kick.st = Math.max(u.kick.st, stun || 0); u.kick.dirty = true; }
@@ -285,11 +287,13 @@ function hit(a, b, mult = 1, extra) {
   if (b.mounted && (spearedHorse || Math.random() < .5)) { horseDamage(b, dmg * (spearedHorse ? 3 : 1)); return; }
   let kb = (a.leader ? (a.mounted ? 10 : 8) : 5) * (extra && extra.kb || 1);
   const frontal = Math.abs(angDiff(b.face, Math.atan2(a.x - b.x, a.z - b.z))) < 1.1;
+  const held = frontal && b.holding && !b.human; // a footman standing his place in a held line
   let blocked = false;
   if (frontal && b.stun <= 0 && !b.mounted && !b.carrying && !(extra && extra.unblockable)) {
     if (b.human) blocked = b.blocking;
-    else if (Math.random() < (b.block || 0) + (b.aura ? auraBonus(b.ti) : 0) + (b.shieldwall && b.kind === 'foot' ? .3 : 0)) { blocked = true; b.blockT = .45; }
+    else if (Math.random() < (b.block || 0) + (b.aura ? auraBonus(b.ti) : 0) + (b.shieldwall && b.kind === 'foot' ? .3 : 0) + (held ? .15 : 0)) { blocked = true; b.blockT = .45; }
   }
+  if (held) { dmg *= HOLD.dmg; kb *= HOLD.kb; }
   const hx = (a.x + b.x) / 2, hz = (a.z + b.z) / 2, hy = (a.y + b.y) / 2 + 1.2;
   if (blocked) {
     dmg *= b.human ? .12 : .25; kb *= .4;
@@ -788,9 +792,23 @@ function aiCaptainFight(u, foe, fd, dt) {
   }
   if (fd < reach && u.cd <= 0 && u.stun <= 0) { captainAttack(u); if (!war) u.cd += .2; }
 }
+// Computer captains hold a line too: across the front of the gate when defending with enemies
+// close, and on a control point they own when an enemy army comes for it. (Not on Recruit.)
+function aiHold(u, s) {
+  s.aiHold = false;
+  if (G.diff < 1 || squadOf(u.ti).length < 5) return;
+  const p = s.plan; let spot = null;
+  if (p && p.kind === 'defend') spot = gatePos(TEAMS[colorOf(u.ti)], u.ti >= 4 ? 9 : 0, 3);
+  else if (p && p.kind === 'point') { const pt = G.ctrlPoints && G.ctrlPoints[p.id]; if (pt && pt.owner === u.ti) spot = [pt.x, pt.z]; }
+  if (!spot || Math.hypot(u.x - spot[0], u.z - spot[1]) > 10) return;
+  const [f] = nearestFoe({ x: spot[0], z: spot[1], ti: u.ti }, 34, o => !o.dead);
+  if (!f) return;
+  const face = Math.atan2(f.x - spot[0], f.z - spot[1]);
+  s.aiHold = true; s.holdPt = { x: spot[0] + Math.sin(face) * 2, z: spot[1] + Math.cos(face) * 2, face };
+}
 function thinkLeader(u, s, dt) {
   s.thinkT -= dt;
-  if (s.thinkT <= 0 || !s.plan) { s.thinkT = rnd(1.2, 2.4); planLeader(u, s); }
+  if (s.thinkT <= 0 || !s.plan) { s.thinkT = rnd(1.2, 2.4); planLeader(u, s); aiHold(u, s); }
   const foe = u.foe, fd = u.fd;
   if (foe && fd < (u.mounted ? 12 : 10) && !u.carrying && !(s.plan && s.plan.kind === 'escort' && fd > 5)) {
     if (u.mounted) {
@@ -818,6 +836,14 @@ function slotPos(anchor, front, idx, isArch, meleeN) {
   const f = anchor.face, fx = Math.sin(f), fz = Math.cos(f), rx = Math.cos(f), rz = -Math.sin(f);
   return [anchor.x - fx * back + rx * lat, anchor.z - fz * back + rz * lat];
 }
+// A held line: footmen shoulder to shoulder across the spot, seven to a rank, archers two paces behind.
+export const HOLD_W = 7;
+export function holdPos(a, idx, isArch, meleeN, archN = HOLD_W) {
+  const rows = Math.ceil(meleeN / HOLD_W), row = Math.floor(idx / HOLD_W), inRow = Math.max(1, Math.min(HOLD_W, (isArch ? archN : meleeN) - row * HOLD_W));
+  const lat = (idx % HOLD_W - (inRow - 1) / 2) * 1.3, back = isArch ? rows * 1.35 + 1.6 + row * 1.5 : row * 1.35;
+  const f = a.face, fx = Math.sin(f), fz = Math.cos(f), rx = Math.cos(f), rz = -Math.sin(f);
+  return [a.x - fx * back + rx * lat, a.z - fz * back + rz * lat];
+}
 // Shieldwall: a tight forward-facing line (9 wide) just ahead of a human captain (behind a
 // computer one), rather than a deep huddled block — footmen up front, archers a rank behind.
 function shieldwallPos(anchor, front, idx) {
@@ -825,6 +851,31 @@ function shieldwallPos(anchor, front, idx) {
   const back = front ? -(1.6 + row * 1.1) : 1.6 + row * 1.1;
   const f = anchor.face, fx = Math.sin(f), fz = Math.cos(f), rx = Math.cos(f), rz = -Math.sin(f);
   return [anchor.x - fx * back + rx * lat, anchor.z - fz * back + rz * lat];
+}
+// Holding a line: nobody chases. Footmen strike whatever reaches them, stepping at most a pace out
+// of their place; archers shoot from theirs. A footman standing in his place braces (see hit()).
+function holdPlace(u, H, dt, range) {
+  const [gx, gz] = holdPos(H, u.slot || 0, u.kind === 'arch', u.meleeN || 0, u.archN || 0), off = Math.hypot(gx - u.x, gz - u.z);
+  const foe = u.foe, fd = u.fd, reach = foe ? u.r + foe.r + u.reach : 0;
+  if (u.kind === 'arch') {
+    if (foe && fd < reach) { startSwing(u, foe); faceTo(u, foe.x, foe.z, dt); moveToward(u, u.x, u.z, 0, dt); return; }
+    if (foe && fd <= range && off < 2.5) {
+      u.aim = true; moveToward(u, u.x, u.z, 0, dt); faceTo(u, foe.x, foe.z, dt, 8);
+      if (u.shootCd <= 0 && u.stun <= 0 && Math.abs(angDiff(u.face, Math.atan2(foe.x - u.x, foe.z - u.z))) < .3) { shoot(u, foe); u.shootCd = u.shootBase * rnd(.85, 1.2); }
+      return;
+    }
+  } else if (foe && fd < reach + 1.4 && Math.hypot(foe.x - gx, foe.z - gz) < 4.5) {
+    if (off < 1.3 && fd > reach * .8) moveToward(u, foe.x, foe.z, speedOf(u) * .6, dt, reach * .7); else moveToward(u, gx, gz, speedOf(u), dt, .15);
+    faceTo(u, foe.x, foe.z, dt); if (fd < reach) startSwing(u, foe);
+    u.holding = off < 1.6; return;
+  } else if (u.javelin && u.javCd <= 0 && foe && fd < JAVELIN.range && fd > reach + .3 && !foe.mounted && off < 1.2) {
+    moveToward(u, u.x, u.z, 0, dt); faceTo(u, foe.x, foe.z, dt, 8);
+    if (Math.abs(angDiff(u.face, Math.atan2(foe.x - u.x, foe.z - u.z))) < .3) throwJavelin(u, foe);
+    u.holding = true; return;
+  }
+  const d = go(u, gx, gz, speedOf(u) * (off > 6 ? 1.15 : 1), dt, .15);
+  if (d < 1) u.face = turn(u.face, H.face, dt * 6);
+  u.holding = u.kind === 'foot' && d < 1.6;
 }
 function thinkSoldier(u, dt) {
   const s = G.teams[u.ti], L = s.leader, leaderUp = L && !L.dead;
@@ -839,11 +890,12 @@ function thinkSoldier(u, dt) {
     return;
   }
   const range = u.kind === 'arch' ? u.range * (u.y > 2.2 ? 1.3 : 1) : 0; // archers on high ground shoot farther
-  u.aim = false;
+  u.aim = false; u.holding = false;
   if (u.kind === 'foot' && u.tier >= 1 && myOrder !== 'charge') {
     const [rider, rd] = nearestFoe(u, 9, o => o.mounted);
-    if (rider) { moveToward(u, u.x, u.z, 0, dt); faceTo(u, rider.x, rider.z, dt, 10); if (rd < u.r + rider.r + u.reach) startSwing(u, rider); return; }
+    if (rider) { moveToward(u, u.x, u.z, 0, dt); faceTo(u, rider.x, rider.z, dt, 10); if (rd < u.r + rider.r + u.reach) startSwing(u, rider); u.holding = myOrder === 'hold'; return; }
   }
+  if (myOrder === 'hold' && s.holdPt) { holdPlace(u, s.holdPt, dt, range); return; }
   const engage = myOrder === 'charge' ? 45 : u.kind === 'arch' ? range : myOrder === 'hold' ? 8 : 10;
   const foe = u.foe, fd = u.fd;
   const leash = myOrder === 'follow' && leaderUp && foe && Math.hypot(foe.x - L.x, foe.z - L.z) > 18;
@@ -999,11 +1051,11 @@ export function update(dt, input) {
   for (const s of G.teams) { const L = s.leader; if (L && L.human && !L.dead) { if (L.atkBuf > 0) { L.atkBuf -= dt; if (L.remote && L.cd <= 0 && L.stun <= 0) captainAttack(L); } regenJavs(L, dt); } }
   for (const s of G.teams) { const L = s.leader; if (L && L.human && !L.dead) { const [f] = nearestFoe(L, 12); if (!f && L.hp < L.max) L.hp = Math.min(L.max, L.hp + dt * 6); } }
 
-  const slotIdx = [0, 0, 0, 0, 0, 0, 0, 0], archIdx = [0, 0, 0, 0, 0, 0, 0, 0], meleeN = [0, 0, 0, 0, 0, 0, 0, 0], tIdx = [0, 0, 0, 0, 0, 0, 0, 0];
+  const slotIdx = [0, 0, 0, 0, 0, 0, 0, 0], archIdx = [0, 0, 0, 0, 0, 0, 0, 0], meleeN = [0, 0, 0, 0, 0, 0, 0, 0], archN = [0, 0, 0, 0, 0, 0, 0, 0], tIdx = [0, 0, 0, 0, 0, 0, 0, 0];
   const ords = G.teams.map((_, i) => orderOf(i)), rng = G.teams.map((_, i) => auraRange(i) ** 2);
   for (const u of G.units) {
     if (u.dead || u.leader) continue;
-    if (u.kind !== 'arch') meleeN[u.ti]++;
+    if (u.kind !== 'arch') meleeN[u.ti]++; else archN[u.ti]++;
     const L = G.teams[u.ti].leader, dx = L ? L.x - u.x : 0, dz = L ? L.z - u.z : 0;
     u.aura = !!L && !L.dead && dx * dx + dz * dz < rng[u.ti];
     u.shieldwall = ords[u.ti] === 'shieldwall';
@@ -1025,7 +1077,7 @@ export function update(dt, input) {
     if (u.foe) u.fd = Math.hypot(u.foe.x - u.x, u.foe.z - u.z);
     if (u.human || u.dead) continue;
     if (u.leader) { stepJump(u, dt); regenJavs(u, dt); thinkLeader(u, G.teams[u.ti], dt); }
-    else { u.slot = u.kind === 'arch' ? archIdx[u.ti]++ : slotIdx[u.ti]++; u.meleeN = meleeN[u.ti]; thinkSoldier(u, dt); }
+    else { u.slot = u.kind === 'arch' ? archIdx[u.ti]++ : slotIdx[u.ti]++; u.meleeN = meleeN[u.ti]; u.archN = archN[u.ti]; thinkSoldier(u, dt); }
   }
 
   for (const h of G.horses) {
@@ -1053,6 +1105,15 @@ export function update(dt, input) {
         horseDamage(r, 55); if (r.mounted) dismount(r, true);
         spark(o.x, o.y + 1.5, o.z, '#fff3b0', 8); sound('clang', o.x, o.z);
         fx('float', { x: o.x, y: o.y + 2.8, z: o.z, text: 'Spear wall!', color: TEAMS[colorOf(o.ti)].css });
+        break;
+      }
+      // a charge into a held line stalls on it: the horse is hurt and pulls up, the line stands
+      if (r.charge > 0 && o.holding && d < o.r + r.r + 1.1 && Math.abs(angDiff(o.face, Math.atan2(r.x - o.x, r.z - o.z))) < 1.1) {
+        r.charge = 0; horseDamage(r, HOLD.horse); push(r, -Math.sin(r.face) * 6, -Math.cos(r.face) * 6, .5);
+        spark(o.x, o.y + 1.5, o.z, '#fff3b0', 8); sound('clang', o.x, o.z);
+        fx('float', { x: o.x, y: o.y + 2.8, z: o.z, text: 'The line holds!', color: TEAMS[colorOf(o.ti)].css });
+        if (r.isMe) { fx('shake', .4); fx('buzz', 40); }
+        if (r.remote || o.remote) fx('netFlush');
         break;
       }
       // charging: everyone in front of the horse is bowled over (once each)
