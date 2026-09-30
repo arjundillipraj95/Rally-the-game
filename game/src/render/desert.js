@@ -36,10 +36,10 @@ export function buildDesert(world, L) {
 
   // ---- oases ----
   for (const o of OASES) {
-    const y = terrainMeshY(o.x, o.z);
-    const w = new THREE.Mesh(new THREE.CircleGeometry(o.r, 40), M.water); w.rotation.x = -Math.PI / 2; w.position.set(o.x, y + .08, o.z); world.add(w); anim.water.push(w);
+    const y = terrainMeshY(o.x, o.z + o.r + 1.5) - .12; // the level of the basin (the ground dips under the water)
+    const w = new THREE.Mesh(new THREE.CircleGeometry(o.r + .3, 40), M.water); w.rotation.x = -Math.PI / 2; w.position.set(o.x, y, o.z); world.add(w); anim.water.push(w);
     const reeds = new THREE.InstancedMesh(new THREE.ConeGeometry(.06, 1.4, 4), M.reed, 60), mx = new THREE.Matrix4();
-    for (let k = 0; k < 60; k++) { const a = R() * Math.PI * 2, d = o.r - .3 + R() * 1.2, x = o.x + Math.cos(a) * d, z = o.z + Math.sin(a) * d; mx.makeRotationZ((R() - .5) * .4); mx.setPosition(x, y + .6, z); reeds.setMatrixAt(k, mx); }
+    for (let k = 0; k < 60; k++) { const a = R() * Math.PI * 2, d = o.r - .3 + R() * 1.2, x = o.x + Math.cos(a) * d, z = o.z + Math.sin(a) * d; mx.makeRotationZ((R() - .5) * .4); mx.setPosition(x, y + .5, z); reeds.setMatrixAt(k, mx); }
     world.add(reeds);
   }
 

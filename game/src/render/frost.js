@@ -1,14 +1,12 @@
 // Frost Hill's dressing: falling snow, two frozen ponds with snowmen standing guard, log cabins with
 // smoking chimneys on the rim, and bare rock showing through the snow. Scenery only.
 import * as THREE from 'three';
-import { terrainMeshY, mulberry, W, ROUTES } from '../core/world.js';
+import { terrainMeshY, mulberry, W, ROUTES, PONDS, onPond } from '../core/world.js';
 import { camera } from './scene.js';
 import { quality } from './quality.js';
 import { woodTex, stoneTex, uvScale } from './look.js';
 
-// two frozen ponds, filling the passes on the z axis: slippery ground to hold or to cross
-export const PONDS = [{ x: 0, z: ROUTES.pass, r: 8 }, { x: 0, z: -ROUTES.pass, r: 8 }];
-export const onPond = (x, z) => PONDS.some(p => Math.hypot(x - p.x, z - p.z) < p.r + 1.5);
+export { PONDS, onPond };
 // ground colour hook: blue shade on the hill's far side from the sun, bare rock and earth in patches
 const shade = new THREE.Color(0xaebfd6), rock = new THREE.Color(0x8b8a86), earth = new THREE.Color(0x9a8c7a), ice = new THREE.Color(0xd8ecf6);
 export function frostGround(c, x, z) {

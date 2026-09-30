@@ -2,19 +2,11 @@
 // a farmstead with hay bales, dry-stone walls framing the battlefield, and birds wheeling overhead.
 // All of it is scenery only: nothing here blocks soldiers or arrows.
 import * as THREE from 'three';
-import { terrainMeshY, mulberry, W, ROUTES } from '../core/world.js';
+import { terrainMeshY, mulberry, W, FIELDS, fieldAt } from '../core/world.js';
 import { quality } from './quality.js';
 import { stoneTex, woodTex, uvScale } from './look.js';
 
-// four wheat fields, one in each pass between neighbouring corners (long side along the way through)
-export const FIELDS = [0, Math.PI / 2, Math.PI, Math.PI * 1.5].map(a => ({ x: Math.cos(a) * ROUTES.pass, z: Math.sin(a) * ROUTES.pass, a, hw: 12, hd: 6.5 }));
-export function fieldAt(x, z) {
-  for (const f of FIELDS) {
-    const dx = x - f.x, dz = z - f.z, t = -Math.sin(f.a) * dx + Math.cos(f.a) * dz, n = Math.cos(f.a) * dx + Math.sin(f.a) * dz;
-    if (Math.abs(t) < f.hw && Math.abs(n) < f.hd) return { f, t, n };
-  }
-  return null;
-}
+export { FIELDS, fieldAt };
 // ground colour hook: golden stubble in the fields, with furrows
 const wheat = new THREE.Color(0xcfae5a), wheatDark = new THREE.Color(0xa88a3e);
 export function valleyGround(c, x, z) {

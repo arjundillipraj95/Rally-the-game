@@ -24,6 +24,29 @@ export function sizeWorld(mapId) {
 }
 export const isBig = id => BIG.has(id);
 
+// ---------- ground that changes how you move (big maps) ----------
+// Grass Valley: a wheat field fills each pass (long side along the way through); wading it is slow.
+export const FIELDS = [0, Math.PI / 2, Math.PI, Math.PI * 1.5].map(a => ({ x: Math.cos(a) * 77.5, z: Math.sin(a) * 77.5, a, hw: 12, hd: 6.5 }));
+export function fieldAt(x, z) {
+  for (const f of FIELDS) {
+    const dx = x - f.x, dz = z - f.z, t = -Math.sin(f.a) * dx + Math.cos(f.a) * dz, n = Math.cos(f.a) * dx + Math.sin(f.a) * dz;
+    if (Math.abs(t) < f.hw && Math.abs(n) < f.hd) return { f, t, n };
+  }
+  return null;
+}
+// Frost Hill: two frozen ponds fill the passes on the z axis; on the ice nobody can stop or turn quickly.
+export const PONDS = [{ x: 0, z: 77.5, r: 8 }, { x: 0, z: -77.5, r: 8 }];
+export const onPond = (x, z) => PONDS.some(p => Math.hypot(x - p.x, z - p.z) < p.r + 1.5);
+export const onIce = (x, z) => G.map.id === 'frost' && PONDS.some(p => Math.hypot(x - p.x, z - p.z) < p.r);
+// speed multiplier for the ground at (x, z)
+export function groundSlow(x, z) {
+  const id = G.map.id;
+  if (id === 'river') return inFord(x, z) ? .6 : 1;
+  if (id === 'valley') return fieldAt(x, z) ? .72 : 1;
+  if (id === 'desert') return OASES.some(o => Math.hypot(x - o.x, z - o.z) < o.r) ? .6 : 1;
+  return 1;
+}
+
 // ---------- fixed map features (the same every match) ----------
 // Forum: four temples on raised platforms between neighbouring castles, steps facing the centre.
 export const TEMPLES = [[0, 50], [50, 0], [0, -50], [-50, 0]].map(([x, z]) => { const d = Math.hypot(x, z); return { x, z, vx: x / d, vz: z / d, rot: Math.atan2(x / d, z / d) }; });
@@ -103,7 +126,8 @@ export function groundY(x, z) {
   let y = groundBase(x, z) + ridgeH(x, z);
   for (const f of FLATS) {
     const dx = x - f.x, dz = z - f.z; if (Math.abs(dx) > f.r + 5 || Math.abs(dz) > f.r + 5) continue;
-    const t = Math.min(1, Math.max(0, (Math.hypot(dx, dz) - f.r) / 5)); y = f.y + (y - f.y) * t * t * (3 - 2 * t);
+    const d = Math.hypot(dx, dz), t = Math.min(1, Math.max(0, (d - f.r) / 5)); y = f.y + (y - f.y) * t * t * (3 - 2 * t);
+    if (f.dip && d < f.dipR) { const k = Math.min(1, (f.dipR - d) / 1.5); y -= f.dip * k * k * (3 - 2 * k); } // (knee-deep water)
   }
   return y;
 }
@@ -370,7 +394,7 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
     for (const a of DIAG) { const x = Math.cos(a) * DESERT.wall, z = Math.sin(a) * DESERT.wall; L.obstacles.push({ x, z, r: 2.6 }); L.blockers.push({ x, z, r: 2.6, h: 7 }); L.towers.push({ x, z, r: 2.4, h: 7.5, kind: 'sand' }); }
     // sandstone mesas carve the sands into routes; the oases sit in two of the passes
     carveRoutes(L, R, { axis: 'sand', arc: 'sand', H: 7 });
-    for (const o of OASES) L.flats.push({ x: o.x, z: o.z, r: o.r + 1.5 });
+    for (const o of OASES) L.flats.push({ x: o.x, z: o.z, r: o.r + 1.5, dip: .5, dipR: o.r });
     const nearOasis = (x, z, pad) => OASES.some(o => Math.hypot(x - o.x, z - o.z) < o.r + pad);
     // palms round the oases, leaving the way through the pass open along it
     for (const o of OASES) for (let k = 0; k < 9; k++) { const a = k / 9 * Math.PI * 2 + r(-.2, .2); if (Math.abs(Math.sin(a)) > .75) continue; const d = o.r + r(1, 2.5), x = o.x + Math.cos(a) * d, z = o.z + Math.sin(a) * d; L.palms.push({ x, z, s: r(1, 1.35), lean: r(-.3, .3), rot: r(0, 6.28) }); L.obstacles.push({ x, z, r: .5 }); }

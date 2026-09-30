@@ -2,7 +2,7 @@
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
 import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, rules, matchTime } from './state.js';
-import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W } from './world.js';
+import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W, groundSlow, onIce } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable } from './nav.js';
 
 // ---------- announcements & effects (presentation listens) ----------
@@ -145,7 +145,7 @@ export function speedOf(u) {
   if (u.mounted) s *= 1.8 * (1 + .05 * lvl(u.ti, 'horse')) * (u.charge > 0 ? CHARGE.spd : 1);
   if (!u.leader) { if (u.aura) s *= 1 + auraBonus(u.ti) * .5; if (u.shieldwall) s *= .55; }
   if (u.carrying) s *= .7;
-  if (inFord(u.x, u.z)) s *= .6;
+  s *= groundSlow(u.x, u.z); // (a ford, a wheat field, an oasis)
   if (u.human && u.blocking && !u.mounted) s *= .5;
   return s;
 }
@@ -689,7 +689,7 @@ export function moveToward(u, gx, gz, spd, dt, stopAt = .3) {
   const dx = gx - u.x, dz = gz - u.z, d = Math.hypot(dx, dz);
   let tvx = 0, tvz = 0;
   if (d > stopAt) { const s = spd * Math.min(1, (d - stopAt) / 1.2 + .2); tvx = dx / d * s; tvz = dz / d * s; }
-  const k = u.stun > 0 ? 1.5 : u.charge > 0 ? 7 : u.mounted ? 4 : 10;
+  const k = (u.stun > 0 ? 1.5 : u.charge > 0 ? 7 : u.mounted ? 4 : 10) * (onIce(u.x, u.z) ? .18 : 1); // (on ice you slide)
   u.vx += (tvx - u.vx) * Math.min(1, dt * k); u.vz += (tvz - u.vz) * Math.min(1, dt * k);
   return d;
 }
