@@ -3,7 +3,7 @@
 // large, and tumbleweeds bowling across the sand. Scenery only (the stalls and oasis palms are solid,
 // and set out in the layout).
 import * as THREE from 'three';
-import { terrainMeshY, mulberry, OASES } from '../core/world.js';
+import { terrainMeshY, mulberry, OASES, W } from '../core/world.js';
 import { stoneTex, woodTex, uvScale } from './look.js';
 
 // ground colour hook: grass round the oases, gravel and pale salt in patches
@@ -57,7 +57,7 @@ export function buildDesert(world, L) {
   });
 
   // ---- pyramids on the southern horizon ----
-  for (const [x, z, s] of [[-40, -150, 44], [8, -168, 60], [52, -146, 30]]) {
+  for (const [x0, z0, s] of [[-40, -150, 44], [8, -168, 60], [52, -146, 30]]) { const x = x0 * W.S, z = z0 * W.S;
     const p = new THREE.Mesh(uvScale(new THREE.ConeGeometry(s * .75, s * .72, 4), 6, 4), M.sandstone);
     p.position.set(x, s * .36 - 2, z); p.rotation.y = Math.PI / 4 + .1; world.add(p);
     const cap = new THREE.Mesh(new THREE.ConeGeometry(s * .075, s * .072, 4), lam(0xe8c65a)); cap.position.set(x, s * .72 - s * .036 - 2 + .02, z); cap.rotation.y = p.rotation.y; world.add(cap);
@@ -65,7 +65,7 @@ export function buildDesert(world, L) {
 
   // ---- a toppled colossus on the north rim: two legs on a plinth, the head face-down in the sand ----
   {
-    const x = 0, z = 104, g = new THREE.Group(); g.position.set(x, terrainMeshY(x, z) - .5, z); g.rotation.y = Math.PI; g.scale.setScalar(1.4);
+    const x = Math.sin(.26) * (W.R + 8), z = Math.cos(.26) * (W.R + 8), g = new THREE.Group(); g.position.set(x, terrainMeshY(x, z) - .5, z); g.rotation.y = Math.PI + .26; g.scale.setScalar(1.4);
     const plinth = new THREE.Mesh(uvScale(new THREE.BoxGeometry(9, 2.2, 5), 3, .8), M.sandDark); plinth.position.y = 1.1; g.add(plinth);
     for (const s of [-1, 1]) {
       const shin = new THREE.Mesh(new THREE.CylinderGeometry(.75, 1.05, 4.2, 9), M.carved); shin.position.set(s * 2, 4.3, 0); g.add(shin);
@@ -88,7 +88,7 @@ export function buildDesert(world, L) {
 
   // ---- the ribs of some great beast, bleaching on the western dunes ----
   {
-    const g = new THREE.Group(), x = -82, z = 34; g.position.set(x, terrainMeshY(x, z) - .3, z); g.rotation.y = .7;
+    const g = new THREE.Group(), x = -Math.cos(.4) * (W.R + 7), z = Math.sin(.4) * (W.R + 7); g.position.set(x, terrainMeshY(x, z) - .3, z); g.rotation.y = .7;
     const spine = new THREE.Mesh(new THREE.CylinderGeometry(.22, .18, 11, 8).rotateX(Math.PI / 2), M.bone); spine.position.y = 3.6; g.add(spine);
     for (let k = 0; k < 7; k++) {
       const rib = new THREE.Mesh(new THREE.TorusGeometry(3.2 - Math.abs(k - 3) * .25, .13, 6, 18, Math.PI * .85), M.bone);
@@ -101,8 +101,8 @@ export function buildDesert(world, L) {
   // ---- tumbleweeds, bowling along on the wind ----
   for (let k = 0; k < 5; k++) {
     const m = new THREE.Mesh(new THREE.IcosahedronGeometry(.55 + R() * .3, 1), M.weed); world.add(m);
-    const side = R() < .5 ? -1 : 1; // (they roll either side of the fort, never through it)
-    anim.weeds.push({ m, x: (R() - .5) * 150, z: side * (34 + R() * 45), side, sp: 2.5 + R() * 2, ph: R() * 6, r: .55 });
+    const side = R() < .5 ? -1 : 1; // (they roll through the passes on the z axis, never into the fort or a mesa)
+    anim.weeds.push({ m, x: (R() - .5) * 100, z: side * (72 + R() * 10), side, sp: 2.5 + R() * 2, ph: R() * 6, r: .55 });
   }
 }
 
@@ -110,8 +110,8 @@ export function updateDesert(dt, t) {
   if (!anim) return;
   for (const w of anim.weeds) {
     w.x += w.sp * dt; w.z += Math.sin(t * .6 + w.ph) * .8 * dt;
-    if (w.x > 90) { w.x = -90; w.z = w.side * (34 + Math.random() * 45); }
-    if (Math.abs(w.z) < 32) w.z = w.side * 32;
+    if (w.x > 50) { w.x = -50; w.z = w.side * (72 + Math.random() * 10); }
+    if (Math.abs(w.z) < 71) w.z = w.side * 71; if (Math.abs(w.z) > 84) w.z = w.side * 84;
     const hop = Math.abs(Math.sin(t * 3 + w.ph)) * .5;
     w.m.position.set(w.x, terrainMeshY(w.x, w.z) + w.r + hop, w.z);
     w.m.rotation.z -= w.sp * dt / w.r; w.m.rotation.x += dt * .4;

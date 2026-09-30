@@ -1,13 +1,13 @@
 // Frost Hill's dressing: falling snow, two frozen ponds with snowmen standing guard, log cabins with
 // smoking chimneys on the rim, and bare rock showing through the snow. Scenery only.
 import * as THREE from 'three';
-import { terrainMeshY, mulberry } from '../core/world.js';
+import { terrainMeshY, mulberry, W, ROUTES } from '../core/world.js';
 import { camera } from './scene.js';
 import { quality } from './quality.js';
 import { woodTex, stoneTex, uvScale } from './look.js';
 
-// two frozen ponds on the flat ground between neighbouring castles
-export const PONDS = [{ x: 0, z: 76, r: 9 }, { x: 0, z: -76, r: 9 }];
+// two frozen ponds, filling the passes on the z axis: slippery ground to hold or to cross
+export const PONDS = [{ x: 0, z: ROUTES.pass, r: 8 }, { x: 0, z: -ROUTES.pass, r: 8 }];
 export const onPond = (x, z) => PONDS.some(p => Math.hypot(x - p.x, z - p.z) < p.r + 1.5);
 // ground colour hook: blue shade on the hill's far side from the sun, bare rock and earth in patches
 const shade = new THREE.Color(0xaebfd6), rock = new THREE.Color(0x8b8a86), earth = new THREE.Color(0x9a8c7a), ice = new THREE.Color(0xd8ecf6);
@@ -65,8 +65,9 @@ export function buildFrost(world) {
     const crown = new THREE.Mesh(new THREE.CylinderGeometry(.27, .29, .45, 14), M.hat); crown.position.y = 3.05; g.add(crown);
     world.add(shadowy(g));
   };
-  snowman(11, 78, Math.PI + .3, 0); snowman(-11.5, 74, Math.PI - .4, .12);
-  snowman(-10.5, -78, .2, 0); snowman(12, -73, -.3, -.1);
+  const pz = ROUTES.pass;
+  snowman(10.5, pz + 1, Math.PI + .3, 0); snowman(-11, pz - 3, Math.PI - .4, .12);
+  snowman(-10, -pz - 1, .2, 0); snowman(11.5, -pz + 3, -.3, -.1);
 
   // ---- log cabins on the east and west rim, chimneys smoking ----
   const cabin = (x, z, ry) => {
@@ -85,7 +86,7 @@ export function buildFrost(world) {
     world.add(shadowy(g));
     g.updateMatrixWorld(true); anim.chimneys.push(new THREE.Vector3(2.2, h + 2.8, -.8).applyMatrix4(g.matrixWorld));
   };
-  cabin(-97, 6, Math.PI / 2 + .1); cabin(97, -8, -Math.PI / 2 + .15);
+  const cr = W.R + 5; cabin(-Math.cos(.24) * cr, Math.sin(.24) * cr, Math.PI / 2 + .1); cabin(Math.cos(.24) * cr, -Math.sin(.24) * cr, -Math.PI / 2 + .15);
   const puffMat = new THREE.MeshLambertMaterial({ color: 0xcfd4da, transparent: true, opacity: .55, depthWrite: false });
   for (let k = 0; k < 16; k++) { const p = new THREE.Mesh(new THREE.IcosahedronGeometry(.6, 1), puffMat.clone()); p.userData = { c: k % 2, t: k / 8 * 4 }; world.add(p); anim.smoke.push(p); }
 

@@ -1,7 +1,7 @@
 // The Forum's dressing: an aqueduct striding along the northern horizon, cypress trees, washing
 // strung between the houses, awnings, amphorae and potted plants in the streets. Scenery only.
 import * as THREE from 'three';
-import { terrainMeshY, mulberry } from '../core/world.js';
+import { terrainMeshY, mulberry, W } from '../core/world.js';
 import { stoneTex, uvScale } from './look.js';
 
 // ground colour hook: pale marble in the forum square, warm cobbles in the streets, dusty beyond
@@ -9,8 +9,8 @@ const square = new THREE.Color(0xf1ebde), street = new THREE.Color(0xc9ab84), du
 export function forumGround(c, x, z) {
   const r = Math.hypot(x, z);
   if (r < 17.5) c.lerp(square, .6);
-  else if (r > 62) c.lerp(dust, Math.min(.6, (r - 62) / 12));
-  else if (Math.abs(x) < 4 || Math.abs(z) < 4 || Math.abs(Math.abs(x) - Math.abs(z)) < 4) c.lerp(street, .35);
+  else if (r > W.R - 2) c.lerp(dust, Math.min(.6, (r - W.R + 2) / 12));
+  else c.lerp(street, .12); // (the roads, painted after, trace the streets)
 }
 
 const lam = (color, map, extra = {}) => new THREE.MeshLambertMaterial(Object.assign({ color, map: map || null }, extra));
@@ -34,8 +34,8 @@ export function buildForum(world, L) {
 
   // ---- the aqueduct: two tiers of arches running across the northern skyline ----
   {
-    const Z = 112, top = 17, span = 7, piers = [], upper = [], lintels = [];
-    for (let x = -126; x <= 126; x += span) {
+    const Z = 112 * W.S, top = 17, span = 7, piers = [], upper = [], lintels = [];
+    for (let x = -126 * W.S; x <= 126 * W.S; x += span) {
       const gy = terrainMeshY(x, Z) - 1, h = top - gy - 7; if (h < 1) continue;
       piers.push([x, gy + h / 2, h]); upper.push([x, top - 3.5]); lintels.push(x);
     }
@@ -47,14 +47,14 @@ export function buildForum(world, L) {
     const arch = new THREE.TorusGeometry(span / 2 - .6, .55, 6, 12, Math.PI);
     const ai = new THREE.InstancedMesh(arch, M.brickDark, lintels.length * 2);
     lintels.forEach((x, i) => { put(ai, i * 2, x + span / 2, top - 7.2, Z, 0, 1, 1, 1.8); put(ai, i * 2 + 1, x + span / 2, top - 1.2, Z, 0, 1, .8, 1.5); });
-    const channel = new THREE.Mesh(uvScale(new THREE.BoxGeometry(252, 1.4, 2.6), 60, 1), M.brickDark); channel.position.set(0, top + .7, Z);
-    const deck = new THREE.Mesh(new THREE.BoxGeometry(252, .7, 2.4), M.brick); deck.position.set(0, top - 7 + .35 + 0, Z);
+    const channel = new THREE.Mesh(uvScale(new THREE.BoxGeometry(252 * W.S, 1.4, 2.6), 60, 1), M.brickDark); channel.position.set(0, top + .7, Z);
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(252 * W.S, .7, 2.4), M.brick); deck.position.set(0, top - 7 + .35 + 0, Z);
     world.add(shadowy(pi), shadowy(ui), shadowy(ai), shadowy(channel), shadowy(deck));
   }
 
   // ---- cypresses: an avenue round the edge of the city, and a few by the temples ----
   const cyp = [];
-  for (let k = 0; k < 44; k++) { const a = k / 44 * Math.PI * 2 + R() * .05, d = 96 + R() * 6; cyp.push([Math.cos(a) * d, Math.sin(a) * d, 1 + R() * .5]); }
+  for (let k = 0; k < 44; k++) { const a = k / 44 * Math.PI * 2 + R() * .05, d = (96 + R() * 6) * W.S; cyp.push([Math.cos(a) * d, Math.sin(a) * d, 1 + R() * .5]); }
   for (const [tx, tz] of [[0, 50], [50, 0], [0, -50], [-50, 0]]) for (const sd of [-1, 1]) {
     const px = tz ? sd * 12.5 : tx * 1.14, pz = tx ? sd * 12.5 : tz * 1.14; cyp.push([px, pz, .9 + R() * .3]);
   }

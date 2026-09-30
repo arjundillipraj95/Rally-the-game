@@ -56,7 +56,11 @@ export function buildRidges(world, L) {
       const im = new THREE.InstancedMesh(geo, mat, mine.length);
       mine.forEach(([x, z, w, h, ry], i) => {
         e.set((R() - .5) * .25, ry, (R() - .5) * .25); q.setFromEuler(e);
-        mx.compose(v.set(x, terrainMeshY(x, z) + h * .25, z), q, s.set(w, h * .72, w * (.85 + R() * .3))); im.setMatrixAt(i, mx);
+        // sit on the lowest ground under the rock, and reach up past the highest, so none float on a slope
+        const yc = terrainMeshY(x, z); let lo = yc, hi = yc;
+        for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2, y2 = terrainMeshY(x + Math.cos(a) * w * .8, z + Math.sin(a) * w * .8); lo = Math.min(lo, y2); hi = Math.max(hi, y2); }
+        const sy = h * .72 + (hi - lo) * .55;
+        mx.compose(v.set(x, lo + sy * .35, z), q, s.set(w, sy, w * (.85 + R() * .3))); im.setMatrixAt(i, mx);
         im.setColorAt(i, tint.setScalar(.86 + R() * .2));
       });
       im.castShadow = true; im.receiveShadow = true; world.add(im);

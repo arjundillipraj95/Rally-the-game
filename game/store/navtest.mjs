@@ -24,7 +24,7 @@ const res = await page.evaluate(async ([secs]) => {
       const L = G.teams[u.ti].leader, p = prev.get(u);
       const busy = u.foe && u.fd < 12;
       if (busy) fighting++;
-      if (p && !busy && !u.leader && L && !L.dead && Math.hypot(L.x - u.x, L.z - u.z) > 14 && Math.hypot(u.x - p[0], u.z - p[1]) < 1.5) stuck++;
+      if (p && !busy && !u.leader && L && !L.dead && Math.hypot(L.x - u.x, L.z - u.z) > 14 && Math.hypot(u.x - p[0], u.z - p[1]) < 1.5) { stuck++; (window.__stuckAt = window.__stuckAt || []).push([s + 5, Math.round(u.x), Math.round(u.z), Math.round(L.x), Math.round(L.z), u.ti, G.teams[u.ti].order, u.nav && u.nav.pts ? 'path' : 'nopath', u.nav && u.nav.direct ? 'direct' : '']); }
       if (p && !busy && u.leader && Math.hypot(u.x - p[0], u.z - p[1]) < 1.5 && G.teams[u.ti].plan && !['defend'].includes(G.teams[u.ti].plan.kind)) stuck++;
       prev.set(u, [u.x, u.z]);
     }
@@ -32,7 +32,7 @@ const res = await page.evaluate(async ([secs]) => {
     stuckMax = Math.max(stuckMax, stuck); stuckSum += stuck; samples++;
     if (s % 30 === 25) out.push(`t=${s + 5}s units=${G.units.filter(u => !u.dead).length} fighting=${fighting} stuck=${stuck} plans=${G.teams.filter(t => t.active).map(t => t.plan && t.plan.kind).join(',')} pts=${G.teams.map(t => Math.round(t.points)).join(',')}`);
   }
-  return { out, firstFight, stuckMax, stuckAvg: +(stuckSum / Math.max(1, samples)).toFixed(1), ms: Math.round(performance.now() - t0) };
+  return { stuckAt: (window.__stuckAt || []).slice(0, 30).map(a => a.join(' ')), out, firstFight, stuckMax, stuckAvg: +(stuckSum / Math.max(1, samples)).toFixed(1), ms: Math.round(performance.now() - t0) };
 }, [+secs]);
 console.log(JSON.stringify(res, null, 1));
 await browser.close();
