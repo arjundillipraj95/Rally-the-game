@@ -9,6 +9,7 @@ import { lookFor, groundTex, stoneTex, woodTex, uvScale } from './look.js';
 import { buildFeatures, updateFeatures } from './features.js';
 import { seeThrough, clearSeeThrough } from './seethrough.js';
 import { inside, nearObstacles } from '../core/nav.js';
+import { buildValley, updateValley, clearValley, valleyGround, fieldAt } from './valley.js';
 
 let world = null;
 export let castleObjs = [];
@@ -33,13 +34,14 @@ export function buildWorldView(L) {
   if (world) dispose(world);
   if (fort) scene.remove(fort.banner);
   world = new THREE.Group(); scene.add(world);
-  castleObjs = []; fort = null; clearSeeThrough();
+  castleObjs = []; fort = null; clearSeeThrough(); clearValley();
   const M = G.map, LK = lookFor(M.id);
   setLook(M);
   // ground: map colors per vertex, fine detail from a tiling texture
   const g = new THREE.PlaneGeometry(420, 420, 220, 220); g.rotateX(-Math.PI / 2);
   uvScale(g, 64, 64);
   const pos = g.attributes.position, cols = [];
+  const meadowLight = new THREE.Color(0xb6cf62), meadowDark = new THREE.Color(0x5f8a38);
   const c1 = new THREE.Color(LK.g1 ?? M.g1), c2 = new THREE.Color(LK.g2 ?? M.g2), c3 = new THREE.Color(LK.g3 ?? M.g3), mud = new THREE.Color(0x7a6a4c);
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), z = pos.getZ(i), r = Math.hypot(x, z);
@@ -47,7 +49,14 @@ export function buildWorldView(L) {
     const t = (Math.sin(x * .11 + z * .07) + 1) / 2, t2 = (Math.sin(x * .031 - z * .043) + 1) / 2;
     const c = c1.clone().lerp(c2, t * .7 + t2 * .3); if (r > 92) c.lerp(c3, Math.min(1, (r - 92) / 40));
     if (M.id === 'river' && Math.abs(z) < 6.5 && Math.hypot(x, z) >= 7.5) c.lerp(mud, .6);
-    if (M.id === 'valley' && Math.abs(x - z) < 3.2 && r < 95) c.lerp(mud, .55);                // dirt road through the valley
+    if (M.id === 'valley') {
+      // meadow: sunny and shady drifts, then the dirt road (with worn wheel ruts) and the wheat fields
+      const m = Math.sin(x * .045 + 2) * Math.cos(z * .05 - 1) + Math.sin((x + z) * .02) * .6;
+      if (m > .55) c.lerp(meadowLight, Math.min(.5, (m - .55) * 1.2)); else if (m < -.6) c.lerp(meadowDark, Math.min(.45, (-.6 - m) * 1.1));
+      const road = Math.abs(x - z) / Math.SQRT2;
+      if (road < 2.6 && r < 95) c.lerp(mud, road < .5 || Math.abs(road - 1.5) < .35 ? .8 : .6);
+      valleyGround(c, x, z);
+    }
     if (M.id === 'wooden' && (Math.abs(x) < 2.6 || Math.abs(z) < 2.6) && r > 8 && r < 80) c.lerp(mud, .45);
     cols.push(c.r, c.g, c.b);
   }
@@ -80,30 +89,57 @@ export function buildWorldView(L) {
     const stoneM = lam(0x9a9b94, stoneTex());
     for (const s of L.stones) { const st = new THREE.Mesh(new THREE.DodecahedronGeometry(s.s), stoneM); st.position.set(s.x, -.15, s.z); world.add(shadowy(st)); }
   }
-  if (L.trees.length) {
-    const n = L.trees.length;
+  // Grass Valley: most trees are broad oaks, the rest pines
+  const isOak = t => M.id === 'valley' && ((Math.abs(t.x * 13 + t.z * 7) | 0) % 5) < 3;
+  const oaks = L.trees.filter(isOak);
+  if (oaks.length) {
+    const n = oaks.length, cols = [0x4f7f33, 0x5d8c3a, 0x6b9640, 0x46742e].map(c => new THREE.Color(c));
+    const trunk = new THREE.InstancedMesh(uvScale(new THREE.CylinderGeometry(.3, .45, 3, 7), 1, 2), lam(0x5a3e28, woodTex()), n);
+    const crown = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(2.2, 1), lam(0xffffff, null, { flatShading: true }), n);
+    const crown2 = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1.5, 1), lam(0xffffff, null, { flatShading: true }), n);
+    oaks.forEach((t, i) => {
+      const gy = terrainMeshY(t.x, t.z) - .1, s = t.s, rot = (t.x * 3.1 + t.z) % 6.28, col = cols[(Math.abs(t.x * 7 - t.z * 3) | 0) % cols.length];
+      mx.makeScale(s, s, s); mx.setPosition(t.x, gy + 1.5 * s, t.z); trunk.setMatrixAt(i, mx);
+      mx.makeRotationY(rot).scale(sc.set(s * 1.1, s * .85, s * 1.1)); mx.setPosition(t.x, gy + 4 * s, t.z); crown.setMatrixAt(i, mx); crown.setColorAt(i, col);
+      mx.makeRotationY(rot).scale(sc.set(s, s * .9, s)); mx.setPosition(t.x + Math.cos(rot) * 1.1 * s, gy + 5.2 * s, t.z + Math.sin(rot) * 1.1 * s); crown2.setMatrixAt(i, mx); crown2.setColorAt(i, col.clone().multiplyScalar(1.12));
+    });
+    world.add(shadowy(trunk), shadowy(crown), shadowy(crown2));
+    const anchors = oaks.map(t => ({ x: t.x, z: t.z, r: 2.3 * t.s }));
+    for (const m of [trunk, crown, crown2]) seeThrough(m, anchors);
+  }
+  const pines = L.trees.filter(t => !isOak(t));
+  if (pines.length) {
+    const n = pines.length;
     const trunk = new THREE.InstancedMesh(uvScale(new THREE.CylinderGeometry(.25, .35, 2.4, 7), 1, 2), lam(0x5a3e28, woodTex()), n);
     const leaf1 = new THREE.InstancedMesh(new THREE.ConeGeometry(2.1, 4.2, 9), lam(0x2c5530), n);
     const leaf2 = new THREE.InstancedMesh(new THREE.ConeGeometry(1.5, 3.2, 9), lam(0x376a3a), n);
-    L.trees.forEach((t, i) => {
+    pines.forEach((t, i) => {
       const gy = terrainMeshY(t.x, t.z) - .1;
       mx.makeScale(t.s, t.s, t.s); mx.setPosition(t.x, gy + 1.2 * t.s, t.z); trunk.setMatrixAt(i, mx);
       mx.makeScale(t.s, t.s, t.s); mx.setPosition(t.x, gy + 3.6 * t.s, t.z); leaf1.setMatrixAt(i, mx);
       mx.makeScale(t.s, t.s, t.s); mx.setPosition(t.x, gy + 5.4 * t.s, t.z); leaf2.setMatrixAt(i, mx);
     });
     world.add(shadowy(trunk), shadowy(leaf1), shadowy(leaf2));
-    const anchors = L.trees.map(t => ({ x: t.x, z: t.z, r: 2 * t.s }));
+    const anchors = pines.map(t => ({ x: t.x, z: t.z, r: 2 * t.s }));
     for (const m of [trunk, leaf1, leaf2]) seeThrough(m, anchors);
   }
-  const rockMat = lam(M.rock, stoneTex());
+  const mossy = M.id === 'valley', rockMat = mossy ? lam(0xffffff, stoneTex(), { vertexColors: true }) : lam(M.rock, stoneTex());
+  const rockCol = new THREE.Color(0xb3ad9e), moss = new THREE.Color(0x6e913f);
   for (const r of L.rocks) {
-    const mm = new THREE.Mesh(new THREE.DodecahedronGeometry(r.r), rockMat);
+    const geo = new THREE.DodecahedronGeometry(r.r);
+    if (mossy) { // moss on the upward faces, weathered stone below
+      const n = geo.attributes.normal, p = geo.attributes.position, cs = [], c = new THREE.Color();
+      for (let i = 0; i < n.count; i++) { const up = n.getY(i) + Math.sin(p.getX(i) * 3 + p.getZ(i) * 2) * .15; c.copy(rockCol).lerp(moss, up > .45 ? Math.min(1, (up - .45) * 3) : 0); c.multiplyScalar(.92 + ((i * 37) % 10) / 60); cs.push(c.r, c.g, c.b); }
+      geo.setAttribute('color', new THREE.Float32BufferAttribute(cs, 3));
+    }
+    const mm = new THREE.Mesh(geo, rockMat);
     mm.position.set(r.x, terrainMeshY(r.x, r.z) + r.r * (r.big ? .55 : .4), r.z); mm.rotation.set(r.rx, r.ry, 0); if (r.big) mm.scale.set(1, 1.35, 1); world.add(shadowy(mm));
   }
   TEAMS.forEach((t, i) => castleObjs.push(buildCastle(t, i)));
   if (L.withFort) buildFort(L);
   ctrlObjs = L.ctrlSpots && L.ctrlSpots.length ? buildControlPoints(L) : [];
   buildFeatures(L, world);
+  if (M.id === 'valley') buildValley(world);
   buildGrass(L, LK);
 }
 
@@ -198,7 +234,8 @@ grassMat.onBeforeCompile = sh => {
 function buildGrass(L, LK) {
   const n = Math.round(quality.cfg.grass * LK.grass);
   if (!n) return;
-  const R = mulberry((G.seed | 0) + 11), inst = new THREE.InstancedMesh(tuftGeo, grassMat, n);
+  const nWheat = G.map.id === 'valley' ? Math.min(3200, Math.round(n * .9)) : 0; // Grass Valley: standing wheat in the fields
+  const R = mulberry((G.seed | 0) + 11), inst = new THREE.InstancedMesh(tuftGeo, grassMat, n + nWheat);
   const c1 = new THREE.Color(LK.grassCol[0]), c2 = new THREE.Color(LK.grassCol[1]), col = new THREE.Color();
   const mx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), s = new THREE.Vector3();
   const blocked = (x, z) => TEAMS.some(t => Math.hypot(t.pos[0] - x, t.pos[1] - z) < CASTLE_R + 1.5) || (L.withFort && Math.hypot(x, z) < 7.5)
@@ -208,12 +245,24 @@ function buildGrass(L, LK) {
   while (k < n && tries < n * 6) {
     tries++;
     const x = (R() - .5) * 220, z = (R() - .5) * 220;
-    if (patch(x, z) < -.2 + R() * .6 || blocked(x, z)) continue;
+    if (patch(x, z) < -.2 + R() * .6 || blocked(x, z) || (nWheat && fieldAt(x, z))) continue;
     const sz = .75 + R() * .7;
     e.set(0, R() * 6.28, 0); q.setFromEuler(e);
     mx.compose(v.set(x, terrainMeshY(x, z), z), q, s.set(sz, sz * (.8 + R() * .5), sz));
     inst.setMatrixAt(k, mx); inst.setColorAt(k, col.copy(c1).lerp(c2, R()));
     k++;
+  }
+  if (nWheat) {
+    const w1 = new THREE.Color(0xb8923e), w2 = new THREE.Color(0xf2d98a);
+    for (let j = 0, t = 0; j < nWheat && t < nWheat * 4; t++) {
+      const x = (R() - .5) * 200, z = (R() - .5) * 200, f = fieldAt(x, z);
+      if (!f || Math.abs(f.n) > f.f.hd - .4 || Math.abs(f.t) > f.f.hw - .4) continue;
+      const sz = .95 + R() * .35;
+      e.set(0, R() * 6.28, 0); q.setFromEuler(e);
+      mx.compose(v.set(x, terrainMeshY(x, z), z), q, s.set(sz, sz * (1.5 + R() * .4), sz));
+      inst.setMatrixAt(k, mx); inst.setColorAt(k, col.copy(w1).lerp(w2, R()));
+      k++; j++;
+    }
   }
   inst.count = k; inst.receiveShadow = true; inst.frustumCulled = false;
   world.add(inst);
@@ -223,6 +272,7 @@ function buildGrass(L, LK) {
 export function updateWorldView(dt, fxHook) {
   grassU.time.value += dt;
   updateFeatures(dt, grassU.time.value);
+  updateValley(dt, grassU.time.value);
   updateControlPoints();
   TEAMS.forEach((t, i) => {
     const s = G.teams[i], co = castleObjs[i]; if (!co || !s) return;

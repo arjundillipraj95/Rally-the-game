@@ -310,6 +310,7 @@ function drawMatch(dt) {
   effectsTick(dt);
   drawEffects();
   followCamera(dt);
+  if (import.meta.env.DEV && window.__camAt) { const c = window.__camAt; camera.position.set(c[0], c[1], c[2]); camera.lookAt(c[3], c[4], c[5]); } // (dev: fixed shots of the scenery)
   updateSeeThrough(dt, camera.position, camTarget());
   drawAura(G.player, auraRange(G.myTi), grassTime());
   drawVolleyAim(grassTime());
