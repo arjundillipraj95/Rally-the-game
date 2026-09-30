@@ -21,7 +21,7 @@ const STEPS = [
     done: p => p.combo === 2 && G.T - p.lastSwingT < 1 },
   { t: 'Jump, then attack in mid-air', s: touch ? 'A slam that hits everyone in front of you' : 'C, then Space: slams everyone in front of you', hi: 'jmp',
     start: (p, c) => { c.n = p.leaps || 0; }, done: (p, c) => (p.leaps || 0) > c.n },
-  { t: 'Switch weapon', s: touch ? 'Sword → Spear → Javelins' : 'R: Sword → Spear → Javelins', hi: 'wpn',
+  { t: 'Pick a weapon', s: touch ? 'Press the weapon button and slide onto Spear or Javelins' : 'R: Sword → Spear → Javelins', hi: 'wpn',
     start: (p, c) => { c.w = p.weapon; }, done: (p, c) => p.weapon !== c.w },
   { t: 'Give your squad an order', s: touch ? 'The Follow button: Follow, Hold, Charge, Shieldwall' : 'Q follow · F hold · E charge · T shieldwall', hi: 'cmdBtn',
     start: (p, c) => { c.o = G.teams[G.myTi].order; }, done: (p, c) => G.teams[G.myTi].order !== c.o },

@@ -12,8 +12,8 @@
 <link rel="icon" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <title>Rally</title>
-  <script type="module" crossorigin src="./assets/index-BNmvc4NT.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-C_Dubn6x.css">
+  <script type="module" crossorigin src="./assets/index-DeKIxCox.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-CRVtQ-Ay.css">
 </head>
 <body>
 <div id="app">
@@ -42,12 +42,15 @@
           <button type="button" data-kind="arch"><b>Archer</b><em>50g</em><span>Ranged, damage by hit location</span></button>
         </div>
         <div class="tray up" id="upTray" hidden>
-          <button type="button" data-up="foot1"><b>Arms</b><i class="lv"></i><em></em></button>
-          <button type="button" data-up="foot2"><b>Armor</b><i class="lv"></i><em></em></button>
-          <button type="button" data-up="arch1"><b>Training</b><i class="lv"></i><em></em></button>
-          <button type="button" data-up="arch2"><b>Marksman</b><i class="lv"></i><em></em></button>
-          <button type="button" data-up="aura"><b>Aura</b><i class="lv"></i><em></em></button>
-          <button type="button" data-up="horse"><b>Horse</b><i class="lv"></i><em></em></button>
+          <div class="ucol"><h4>Footmen</h4>
+            <button type="button" data-up="foot1"><b>Arms</b><span>Spears &amp; javelins</span><i class="lv"></i><em></em></button>
+            <button type="button" data-up="foot2"><b>Armor</b><span>Heavy armor, more HP</span><i class="lv"></i><em></em></button></div>
+          <div class="ucol"><h4>Archers</h4>
+            <button type="button" data-up="arch1"><b>Training</b><span>Shoot faster &amp; harder</span><i class="lv"></i><em></em></button>
+            <button type="button" data-up="arch2"><b>Marksman</b><span>Longer range, headshots</span><i class="lv"></i><em></em></button></div>
+          <div class="ucol"><h4>Captain</h4>
+            <button type="button" data-up="aura"><b>Aura</b><span>Men near you fight harder</span><i class="lv"></i><em></em></button>
+            <button type="button" data-up="horse"><b>Horse</b><span>Tougher, faster horse</span><i class="lv"></i><em></em></button></div>
         </div>
       <div id="squadBox" aria-label="Squad size"><span id="squadN">6</span><small id="squadMix">F5 A1</small></div>
       <button class="sbtn" id="recBtn" type="button" data-key="1 · 2"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7.5" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6M19 8v6M16 11h6"/></svg><span>Recruit</span></button>
@@ -59,7 +62,12 @@
     <!-- the captain: a big controller-style thumb pad around Attack -->
     <div class="ctl" id="ctl">
       <div class="pad">
-        <button class="rbtn" id="wpn" type="button" data-key="R" aria-label="Switch weapon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h14l-3-3M20 16H6l3 3"/></svg><small class="lbl" id="wpnS">Sword</small></button>
+        <div class="wheel" id="wheel" hidden>
+          <button type="button" data-w="sword" aria-label="Sword"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></svg><small>Sword</small></button>
+          <button type="button" data-w="spear" aria-label="Spear"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></svg><small>Spear</small></button>
+          <button type="button" data-w="jav" aria-label="Javelins"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></svg><small>Javelin</small></button>
+        </div>
+        <button class="rbtn" id="wpn" type="button" data-key="R" aria-label="Choose weapon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h14l-3-3M20 16H6l3 3"/></svg><small class="lbl" id="wpnS">Sword</small></button>
         <button class="rbtn" id="jmp" type="button" data-key="C" aria-label="Jump"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 14l7-7 7 7M5 20l7-7 7 7"/></svg><small class="lbl">Jump</small></button>
         <button class="rbtn" id="blk" type="button" data-key="Shift" aria-label="Block"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 20 5v7c0 5-3.6 8.4-8 10-4.4-1.6-8-5-8-10V5z"/></svg><small class="lbl">Block</small></button>
         <button class="rbtn" id="atk" type="button" data-key="Space" aria-label="Attack"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" id="atkIc"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2"/></svg></button>

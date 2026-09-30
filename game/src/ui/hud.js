@@ -62,7 +62,8 @@ export function updateHud(lastSnapAt) {
     const l = me.up ? me.up[id] : 0, cost = upgradeCost(G.myTi, id);
     const locked = (id === 'foot2' && !(me.up && me.up.foot1)) || (id === 'arch2' && !(me.up && me.up.arch1));
     b.querySelector('.lv').dataset.pips = '●'.repeat(l) + '○'.repeat(Math.max(0, max - l));
-    b.querySelector('em').textContent = cost == null ? 'Max' : (locked ? 'Locked' : cost + 'g');
+    b.querySelector('em').textContent = cost == null ? 'Maxed' : locked ? (id === 'foot2' ? 'Needs Arms first' : 'Needs Training first') : cost + 'g';
+    b.dataset.state = cost == null ? 'max' : locked ? 'locked' : gold < cost ? 'poor' : 'ok';
     b.setAttribute('aria-disabled', (cost == null || gold < cost || locked) ? 'true' : 'false');
   });
   // Ride: lit while mounted, a countdown badge while the horse rests
@@ -73,7 +74,7 @@ export function updateHud(lastSnapAt) {
   $('blk').classList.toggle('dim', !p || p.mounted);
   $('atk').classList.toggle('dim', !p || p.carrying);
   const w = (p && p.weapon) || 'sword';
-  if (atkIcon !== w) { atkIcon = w; $('atkIc').innerHTML = ICONS[w]; }
+  if (atkIcon !== w) { atkIcon = w; $('atkIc').innerHTML = ICONS[w]; document.querySelectorAll('#wheel button').forEach(b => { b.classList.toggle('cur', b.dataset.w === w); const s = b.querySelector('svg'); if (!s.innerHTML) s.innerHTML = ICONS[b.dataset.w]; }); }
   const mx = javMax(G.myTi), am = p ? Math.min(mx, p.javAmmo | 0) : 0;
   $('wpnS').textContent = w === 'jav' ? 'Javelin' : WEAPON_NAMES[w];
   $('jmp').classList.toggle('dim', !p || p.mounted || p.carrying);

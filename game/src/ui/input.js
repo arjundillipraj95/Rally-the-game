@@ -12,6 +12,14 @@ let A = { attack() {}, ride() {}, order() {}, recruit() {}, upgrade() {}, volley
 
 export function trayOpen(on) { inp.trayIsOpen = on; $('tray').hidden = !on; $('recBtn').classList.toggle('open', on); if (on) upOpen(false); }
 export function upOpen(on) { inp.upIsOpen = on; $('upTray').hidden = !on; $('upBtn').classList.toggle('open', on); if (on) trayOpen(false); }
+// the weapon wheel: open around the Weapon button; closes by itself if left alone
+let wheelT = 0;
+export function wheelOpen(on) {
+  inp.wheelIsOpen = on; const w = $('wheel'); $('wpn').classList.toggle('open', on);
+  clearTimeout(wheelT);
+  if (on) { w.hidden = false; requestAnimationFrame(() => w.classList.add('show')); }
+  else { w.classList.remove('show'); w.hidden = true; w.querySelectorAll('.hot').forEach(b => b.classList.remove('hot')); }
+}
 export function releaseAll() { inp.keys = {}; inp.attackHeld = inp.blockHeld = false; inp.joy.active = false; inp.joy.x = inp.joy.y = 0; inp.look.id = null; }
 
 export function readMove(dt) {
@@ -29,7 +37,7 @@ export function bindInput(actions) {
   A = actions;
   const touch = $('touch'), { joy, look } = inp;
   touch.addEventListener('pointerdown', e => {
-    if (G.state !== 'play') return; initAudio(); e.preventDefault(); trayOpen(false); upOpen(false);
+    if (G.state !== 'play') return; initAudio(); e.preventDefault(); trayOpen(false); upOpen(false); if (inp.wheelIsOpen) wheelOpen(false);
     if (e.clientX < view.W * .42 && !joy.active) {
       joy.active = true; joy.id = e.pointerId; joy.ox = e.clientX; joy.oy = e.clientY; joy.x = joy.y = 0; $('joyhint').style.opacity = 0;
     } else if (look.id === null) { look.id = e.pointerId; look.lx = e.clientX; look.ly = e.clientY; }
@@ -61,7 +69,34 @@ export function bindInput(actions) {
   holdBtn($('blk'), () => { inp.blockHeld = true; }, () => { inp.blockHeld = false; });
   tapBtn($('mnt'), () => A.ride());
   tapBtn($('jmp'), () => A.jump());
-  tapBtn($('wpn'), () => A.weapon());
+  // Weapon: press opens the wheel; slide onto a weapon and let go to take it, or let go on the button
+  // and tap one. Either way it's one quick gesture, not cycling through the ones you don't want.
+  const wpn = $('wpn'), chips = [...document.querySelectorAll('#wheel button')];
+  // the chip nearest the finger, if it's on or close to one (a little generous: thumbs are fat)
+  const chipAt = (x, y) => {
+    let best = null, bd = 1e9;
+    for (const b of chips) { const r = b.getBoundingClientRect(), d = Math.hypot(x - (r.x + r.width / 2), y - (r.y + r.height / 2)); if (d < r.width * .75 && d < bd) { bd = d; best = b; } }
+    return best;
+  };
+  let wheelDrag = null;
+  wpn.addEventListener('pointerdown', e => {
+    e.preventDefault(); e.stopPropagation(); initAudio();
+    if (inp.wheelIsOpen) { wheelOpen(false); return; }
+    wheelOpen(true); wheelDrag = e.pointerId; try { wpn.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  wpn.addEventListener('pointermove', e => {
+    if (e.pointerId !== wheelDrag) return;
+    const c = chipAt(e.clientX, e.clientY); chips.forEach(b => b.classList.toggle('hot', b === c));
+  });
+  const wpnUp = e => {
+    if (e.pointerId !== wheelDrag) return; wheelDrag = null;
+    const c = e.type === 'pointerup' ? chipAt(e.clientX, e.clientY) : null;
+    if (c) { A.weapon(c.dataset.w); wheelOpen(false); }
+    else if (inp.wheelIsOpen) { clearTimeout(wheelT); wheelT = setTimeout(() => wheelOpen(false), 3000); } // left open for a tap: tidy it away if unused
+  };
+  wpn.addEventListener('pointerup', wpnUp); wpn.addEventListener('pointercancel', wpnUp);
+  wpn.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); wheelOpen(!inp.wheelIsOpen); } });
+  chips.forEach(b => tapBtn(b, () => { A.weapon(b.dataset.w); wheelOpen(false); }));
   tapBtn($('vly'), () => A.volley());
   tapBtn($('cmdBtn'), () => A.order());
   tapBtn($('recBtn'), () => trayOpen(!inp.trayIsOpen));
