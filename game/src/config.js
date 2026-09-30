@@ -90,7 +90,7 @@ export const WEAPON_NAMES = { sword: 'Sword', spear: 'Spear', jav: 'Javelins' };
 export const CAPTAIN_COMBAT = {
   sword: { cd: .36, finisherCd: .62, window: .85, mult: 1, finisherMult: 1.5, aim: 3.6 },
   spear: { cd: .66, reachB: 1.1, mult: 1.15, pierce: .7, aim: 4.6 },
-  jav: { cd: .5, dmg: 30, range: 16, ammo: 3, regen: 4 },
+  jav: { cd: .8, dmg: 30, range: 16, ammo: Infinity, regen: 4 }, // unlimited: the gap between throws is the limit
   jump: { v: 7.6, g: 22, cd: .3 },
   leap: { mult: 1.4, range: 3, arc: 1.3, stun: .6, cd: .7 },
 };

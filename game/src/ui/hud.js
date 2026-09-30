@@ -75,7 +75,7 @@ export function updateHud(lastSnapAt) {
   const w = (p && p.weapon) || 'sword';
   if (atkIcon !== w) { atkIcon = w; $('atkIc').innerHTML = ICONS[w]; }
   const mx = javMax(G.myTi), am = p ? Math.min(mx, p.javAmmo | 0) : 0;
-  $('wpnS').textContent = w === 'jav' ? `Jav ${am}` : WEAPON_NAMES[w];
+  $('wpnS').textContent = w === 'jav' ? 'Javelin' : WEAPON_NAMES[w];
   $('jmp').classList.toggle('dim', !p || p.mounted || p.carrying);
   $('vlyT').textContent = me.volleyCd > 0 ? Math.ceil(me.volleyCd) + 's' : 'Volley';
   $('vly').classList.toggle('dim', !p || p.dead || me.volleyCd > 0);

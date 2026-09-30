@@ -40,8 +40,8 @@ export function buildNav(L) {
   for (const b of L.blockers) bucket(b, blockBuckets);
   // deep water is not walkable (bridges and the ford are)
   if (L.mapId === 'river') for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const x = cx(i), z = cx(j); if (inRiver(x, z) && !inFord(x, z) && !onBridge(x) && Math.abs(z) < 4.5) blocked[j * N + i]++; }
-  // round arena: nothing past the wall
-  if (L.round) for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) if (Math.hypot(cx(i), cx(j)) > L.round - 1) blocked[j * N + i]++;
+  // every battlefield is round (the arena's wall, or the hills at the edge): nothing past it
+  { const R = (L.round || 91) - 1; for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) if (Math.hypot(cx(i), cx(j)) > R) blocked[j * N + i]++; }
   gatesOpen = true;
   syncGates();
 }

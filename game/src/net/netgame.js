@@ -52,7 +52,7 @@ function encodeSnap() {
   const pl = G.teams.map((s, i) => {
     if (!s.human || i === G.myTi) return ''; const L = s.leader, k = L.kick;
     if (k.dirty) { k.n++; k.dirty = false; k.lvx = k.vx; k.lvz = k.vz; k.lst = k.st; k.vx = 0; k.vz = 0; k.st = 0; }
-    return [i, b36(L.id), L.dead ? 1 : 0, Math.round(L.horseHp), Math.ceil(L.horseCd), L.summon ? 1 : 0, k.n, r1(k.lvx || 0), r1(k.lvz || 0), r2(k.lst || 0), Math.round(L.hp), L.javAmmo | 0].join(',');
+    return [i, b36(L.id), L.dead ? 1 : 0, Math.round(L.horseHp), Math.ceil(L.horseCd), L.summon ? 1 : 0, k.n, r1(k.lvx || 0), r1(k.lvz || 0), r2(k.lst || 0), Math.round(L.hp)].join(',');
   }).filter(Boolean).join(';');
   return [Math.round(G.T * 10), teams, us.join(';'), ars.join(';'), hs.join(';'), fl, pl, G.bounty].join('|');
 }
@@ -207,7 +207,6 @@ function clientApply(hp) {
     if (C.meId !== myId) { C.meId = myId; C.meInit = true; G.player = me; cam.yaw = me.face; C.kickN = C.meInfo ? C.meInfo.kn : 0; }
     G.player = me;
     me.horseHp = C.meInfo.horseHp; me.horseCd = C.meInfo.horseCd; me.summon = !!C.meInfo.summon; me.hp = C.meInfo.hp;
-    if (C.meInfo.jav != null && performance.now() - (C.javLocalAt || 0) > 900) me.javAmmo = C.meInfo.jav;
     if (C.meInfo.kn !== C.kickN) {
       C.kickN = C.meInfo.kn; me.vx += C.meInfo.kvx; me.vz += C.meInfo.kvz; me.stun = Math.max(me.stun, C.meInfo.kst);
       if (C.meInfo.kvx || C.meInfo.kvz) { cam.shake = .35; buzz(30); bus.emit('spark', { x: me.x, y: me.y + 1.2, z: me.z, c: TEAMS[colorOf(me.ti)].css, n: 5 }); sfx.hit(me.x, me.z); }
@@ -357,7 +356,7 @@ export const actions = {
   weapon(w) {
     const p = G.player; if (G.state !== 'play' || !p || p.dead) return;
     const nw = switchWeapon(p, w); if (!nw) return;
-    sfx.draw(); floatText(p.x, p.y + 3.2, p.z, nw === 'jav' ? `Javelins ${p.javAmmo | 0}` : WEAPON_NAMES[nw], '#fff');
+    sfx.draw(); floatText(p.x, p.y + 3.2, p.z, WEAPON_NAMES[nw], '#fff');
     bus.emit('hud');
   },
   ride() {

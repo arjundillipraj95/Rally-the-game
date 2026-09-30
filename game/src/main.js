@@ -270,7 +270,7 @@ $('goBtn').addEventListener('click', soloStart);
 // army, colour and difficulty. The menu shows what was picked, so "Fight again" repeats it.
 $('quickBtn').addEventListener('click', () => {
   const pick = a => a[(Math.random() * a.length) | 0];
-  const mode = pick(Object.keys(MODES)), map = pick(Object.keys(MAPS));
+  const mode = pick(Object.keys(MODES)), map = pick(['forum', 'valley', 'desert', 'frost']); // the four featured maps
   G.mode = mode; G.map = MAPS[map]; G.len = 'quick'; preset = 'ffa';
   pressSeg('segMode', mode); pressSeg('segMap', map); pressSeg('segLen', 'quick'); pressSeg('segTeams', 'ffa');
   updateDesc(); soloStart();

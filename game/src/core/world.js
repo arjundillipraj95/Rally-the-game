@@ -49,12 +49,18 @@ function desertY(x, z) {
 }
 function valleyY(x, z) { let y = 0; for (const [hx, hz] of VALLEY_HILLS) { const dx = x - hx, dz = z - hz; if (Math.abs(dx) < 30 && Math.abs(dz) < 30) y += 4.5 * Math.exp(-(dx * dx + dz * dz) / (2 * 9.5 * 9.5)); } return y; }
 
+// the rolling dunes outside the Desert Fort's plateau: part of the ground everyone stands on
+function desertDunes(x, z) {
+  const r = Math.hypot(x, z); if (r <= 30) return 0;
+  const n = Math.sin(x * .07) * Math.cos(z * .05) + Math.sin(x * .023 + z * .031) * 1.4;
+  return Math.max(0, n) * Math.min(1, (r - 30) / 20) * 1.2;
+}
 export function groundY(x, z) {
   switch (G.map.id) {
     case 'frost': return hill(x, z);
     case 'river': return (Math.abs(z) < 5.5 && Math.hypot(x, z) >= 7) ? (onBridge(x) ? .38 : -.45) : 0;
     case 'forum': return templeY(x, z);
-    case 'desert': return desertY(x, z);
+    case 'desert': return desertY(x, z) + desertDunes(x, z);
     case 'valley': return valleyY(x, z);
   }
   return 0;
@@ -65,7 +71,6 @@ export function terrainMeshY(x, z) {
   const n = Math.sin(x * .07) * Math.cos(z * .05) + Math.sin(x * .023 + z * .031) * 1.4;
   let y = G.map.id === 'river' ? 0 : groundY(x, z);
   if (G.map.id === 'river') { const az = Math.abs(z); if (az < 7 && Math.hypot(x, z) >= 7.5) y = az < 5 ? -.95 : -.95 * (7 - az) / 2; }
-  if (G.map.id === 'desert' && r > 30) y += Math.max(0, n) * Math.min(1, (r - 30) / 20) * 1.2;
   if (r > 92) y += (r - 92) * .25 + Math.max(0, n) * ((r - 92) * .18);
   return y;
 }

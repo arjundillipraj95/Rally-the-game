@@ -871,6 +871,7 @@ function aiPick(ti) {
 }
 
 // ---------- physics ----------
+const EDGE_R = 91;
 export function integrate(u, dt, pz) {
   u.x += u.vx * dt; u.z += u.vz * dt;
   for (const o of nearObstacles(u.x, u.z)) {
@@ -889,7 +890,8 @@ export function integrate(u, dt, pz) {
     const d = Math.hypot(dx, dz);
     if (d < min && d > 0) { u.x = o.x + dx / d * min; u.z = o.z + dz / d * min; }
   }
-  if (G.layout.round) { const d = Math.hypot(u.x, u.z), m = G.layout.round - u.r; if (d > m) { u.x *= m / d; u.z *= m / d; } }
+  // every battlefield is round: just inside where the ground starts rising into the hills at the edge
+  { const d = Math.hypot(u.x, u.z), m = (G.layout.round || EDGE_R) - u.r; if (d > m) { u.x *= m / d; u.z *= m / d; } }
   if (G.map.id === 'river') {
     if (inRiver(u.x, u.z) && !onBridge(u.x) && Math.abs(u.x) >= 14) u.z = (pz >= 0 ? 1 : -1) * 5.05;
     if (Math.abs(u.z) < 5 && onBridge(u.x) && Math.abs(u.x) > 20) { const bx = u.x < 0 ? -32 : 32; u.x = clamp(u.x, bx - 2.1, bx + 2.1); }
