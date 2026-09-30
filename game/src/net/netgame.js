@@ -6,7 +6,7 @@ import { TEAMS, MAPS, KINDS, STATS, RECRUITS, FACTIONS, factionFromCode, ORDERS,
 import { G, bus, colorOf, isEnemyTi } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn } from '../core/world.js';
 import { buildNav, syncGates } from '../core/nav.js';
-import { newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainJump, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
+import { newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainJump, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
 import { session, isClient, isHost } from './session.js';
 import { showMsg } from '../ui/messages.js';
 import { sfx, buzz, gateS } from '../ui/audio.js';
@@ -41,7 +41,7 @@ function encodeSnap() {
   for (const u of G.units) {
     if (u.dead) continue;
     const kt = KINDS.indexOf(u.kind) * 8 + u.ti;
-    const fl = (u.swing > 0 ? 1 : 0) | (u.mounted ? 2 : 0) | ((u.blockT > 0 || (u.human && u.blocking)) ? 4 : 0) | (u.carrying ? 8 : 0) | (u.stun > 0 ? 16 : 0) | (u.aim ? 32 : 0) | (u.shieldwall ? 64 : 0) | (u.weapon === 'spear' ? 128 : u.weapon === 'jav' ? 256 : u.weapon === 'sword' ? 512 : 0);
+    const fl = (u.swing > 0 ? 1 : 0) | (u.mounted ? 2 : 0) | ((u.blockT > 0 || (u.human && u.blocking)) ? 4 : 0) | (u.carrying ? 8 : 0) | (u.stun > 0 ? 16 : 0) | (u.aim ? 32 : 0) | (u.shieldwall ? 64 : 0) | (u.weapon === 'spear' ? 128 : u.weapon === 'jav' ? 256 : u.weapon === 'sword' ? 512 : 0) | (u.charge > 0 ? 1024 : 0);
     const row = [b36(u.id), kt.toString(16), encX(u.x), encX(u.z), encF(u.face), b36(clamp(u.hp / u.max, 0, 1) * 35), b36(fl)];
     if (u.jy > .05) row.push(b36(u.jy * 10));
     us.push(row.join(','));
@@ -97,7 +97,7 @@ export function netHostReadInputs() {
     const ti = NET.seats[p.peer]; if (ti === undefined) continue;
     const pr = p.presence || {}; if (pr.seed !== G.seed || pr.ph !== 'play') continue;
     const s = G.teams[ti], L = s.leader; if (!s.human) continue;
-    const last = NET.inp[ti] || (NET.inp[ti] = { atk: 0, ride: 0, vly: 0, rec: [0, 0, 0], up: [0, 0, 0, 0, 0] });
+    const last = NET.inp[ti] || (NET.inp[ti] = { atk: 0, chg: 0, ride: 0, vly: 0, rec: [0, 0, 0], up: [0, 0, 0, 0, 0] });
     if (L && !L.dead && Array.isArray(pr.cap) && pr.cap[0] === L.id) {
       L.x = +pr.cap[1]; L.z = +pr.cap[2]; L.face = +pr.cap[3]; L.vx = +pr.cap[4]; L.vz = +pr.cap[5];
       L.blocking = !!pr.blk; L.jy = Math.max(0, +pr.cap[6] || 0);
@@ -105,7 +105,8 @@ export function netHostReadInputs() {
     }
     if (typeof pr.atk === 'number' && pr.atk > last.atk) { if (L && !L.dead) { if (typeof pr.face === 'number') L.face = pr.face; captainAttack(L); } last.atk = pr.atk; }
     if (typeof pr.ride === 'number' && pr.ride > last.ride) { if (L) toggleHorseFor(L); last.ride = pr.ride; }
-    if (typeof pr.vly === 'number' && pr.vly > last.vly) { orderVolley(ti); last.vly = pr.vly; }
+    if (typeof pr.chg === 'number' && pr.chg > last.chg) { if (L && !L.dead) captainCharge(L); last.chg = pr.chg; }
+    if (typeof pr.vly === 'number' && pr.vly > last.vly) { orderVolley(ti, Array.isArray(pr.vat) ? { x: +pr.vat[0], z: +pr.vat[1] } : null); last.vly = pr.vly; }
     if (Array.isArray(pr.up)) for (let k = 0; k < UPGRADES.length; k++) while ((pr.up[k] | 0) > last.up[k]) { last.up[k]++; buyUpgrade(ti, UPGRADES[k].id); }
     if (pr.ord && pr.ord !== s.order && ORDERS.includes(pr.ord)) {
       s.order = pr.ord;
@@ -131,7 +132,7 @@ export function clientStart(hp) {
   G.flag = G.mode === 'ctf' ? { state: 'home', x: 0, z: 0, carrier: null, dropT: 0 } : null;
   G.ctrlPoints = G.mode === 'ctrl' ? makeCtrlPoints(G.layout) : null;
   Object.assign(C, { byId: new Map(), lastN: -1, lastMsgN: (hp.m && hp.m.length) ? hp.m[hp.m.length - 1][0] : 0, meId: null, meInit: false, kickN: 0, localCd: 0, lastSnapAt: performance.now(),
-    inp: { atk: 0, ride: 0, vly: 0, rec: [0, 0, 0], up: [0, 0, 0, 0, 0], ord: 'follow', hold: null, face: 0 }, sendAt: 0, sendNow: false, pred: null, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
+    inp: { atk: 0, ride: 0, vly: 0, chg: 0, vat: null, rec: [0, 0, 0], up: [0, 0, 0, 0, 0], ord: 'follow', hold: null, face: 0 }, sendAt: 0, sendNow: false, pred: null, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
   G.player = null;
   cam.yaw = Math.atan2(-TEAMS[colorOf(G.myTi)].pos[0], -TEAMS[colorOf(G.myTi)].pos[1]); cam.pitch = CAM_PITCH;
   G.state = 'play';
@@ -203,6 +204,7 @@ function clientApply(hp) {
       u.blockT = (fl & 4) ? .2 : 0; u.stun = (fl & 16) ? .1 : 0; u.aim = !!(fl & 32);
       if (kind === 'captain') u.weapon = (fl & 128) ? 'spear' : (fl & 256) ? 'jav' : (fl & 512) ? 'sword' : undefined;
       u.jyT = f[7] ? p36(f[7]) / 10 : 0;
+      u.charge = (fl & 1024) ? 1 : 0;
     }
     if (id !== myId) {
       u.tx = x; u.tz = z; u.tface = face;
@@ -271,7 +273,7 @@ export function clientTick(dt) {
     }
     integrate(me, dt, me.z);
     me.r = me.mounted ? .95 : STATS.captain.r;
-    regenJavs(me, dt);
+    regenJavs(me, dt); chargeTimers(me, dt);
     if (C.atkBuf > 0) C.atkBuf -= dt;
     if (C.pred && performance.now() >= C.pred.at) {
       const { tg: t, reach } = C.pred; C.pred = null;
@@ -310,7 +312,7 @@ export function clientTick(dt) {
   // send my captain and my buttons
   if ((performance.now() - C.sendAt > 66 || C.sendNow) && G.state === 'play') {
     C.sendAt = performance.now(); C.sendNow = false;
-    const pres = { role: 'player', nick: session.myNick || 'Captain', ph: 'play', seed: G.seed, atk: C.inp.atk, ride: C.inp.ride, vly: C.inp.vly, rec: C.inp.rec, up: C.inp.up, ord: C.inp.ord, hold: C.inp.hold, face: C.inp.face, blk: inp.blockHeld ? 1 : 0 };
+    const pres = { role: 'player', nick: session.myNick || 'Captain', ph: 'play', seed: G.seed, atk: C.inp.atk, ride: C.inp.ride, vly: C.inp.vly, vat: C.inp.vat, chg: C.inp.chg, rec: C.inp.rec, up: C.inp.up, ord: C.inp.ord, hold: C.inp.hold, face: C.inp.face, blk: inp.blockHeld ? 1 : 0 };
     if (me && !me.dead) pres.cap = [me.id, r2(me.x), r2(me.z), r2(me.face), r1(me.vx), r1(me.vz), r2(me.jy || 0), Math.max(0, WEAPONS.indexOf(me.weapon || 'sword'))];
     NET.room.presence(pres).catch(() => {});
   }
@@ -371,8 +373,15 @@ export const actions = {
     }
     captainAttack(p);
   },
+  // Jump on foot; on horseback the same button is the charge
   jump() {
     const p = G.player; if (G.state !== 'play' || !p || p.dead) return;
+    if (p.mounted) {
+      if (!captainCharge(p)) return; // a client runs its own gallop; the host does the bowling over
+      cam.shake = Math.max(cam.shake, .35); buzz(40); bus.emit('hud');
+      if (isClient()) { C.inp.chg++; C.sendNow = true; }
+      return;
+    }
     captainJump(p); // clients jump locally; the host reads the height off their captain
   },
   weapon(w) {
@@ -394,10 +403,12 @@ export const actions = {
     toggleHorseFor(p);
   },
   // squad-wide "fire at will": every ready archer/javelin-thrower shoots at once, shared cooldown
-  volley() {
+  // pt: where you aimed it ({x, z}); without one, everyone picks their own nearest target
+  volley(pt) {
     const p = G.player; if (G.state !== 'play' || !p || p.dead) return;
-    if (isClient()) { C.inp.vly++; C.sendNow = true; return; }
-    orderVolley(G.myTi);
+    if (pt && pt.ok === false) { floatText(p.x, p.y + 3.2, p.z, 'Too far for your archers', '#fff'); return; } // (the ring was grey)
+    if (isClient()) { C.inp.vly++; C.inp.vat = pt ? [r1(pt.x), r1(pt.z)] : null; C.sendNow = true; return; }
+    orderVolley(G.myTi, pt || null);
   },
   // no argument: step to the next order; with one: set it
   order(want) {

@@ -16,6 +16,7 @@ import { buildWorldView, updateWorldView, grassTime } from './render/world.js';
 import { drawSoldiers, drawCalls, clearProps } from './render/soldiers.js';
 import { banterTick, clearBanter } from './render/banter.js';
 import { updateSeeThrough } from './render/seethrough.js';
+import { drawVolleyAim } from './ui/volleyaim.js';
 import { spawnCritters, updateCritters, clearCritters } from './render/critters.js';
 import { drawHorses, clearHorses } from './render/horses.js';
 import { spark, splat, dust, drawAura, floatText, castleFx, effectsTick, drawEffects, clearEffects } from './render/effects.js';
@@ -311,6 +312,7 @@ function drawMatch(dt) {
   followCamera(dt);
   updateSeeThrough(dt, camera.position, camTarget());
   drawAura(G.player, auraRange(G.myTi), grassTime());
+  drawVolleyAim(grassTime());
   const tg = camTarget(); followSun(tg ? tg.x : 0, tg ? tg.z : 0, grassTime());
   if (!(import.meta.env.DEV && window.__noRender)) renderer.render(scene, camera); // (dev: network tests skip drawing)
   drawOverlay({ joy: inp.joy, nickFor });
@@ -371,7 +373,7 @@ window.__fb = {
   // drive: also run the player captain with an idle stick (or a given one), so jumps and buffered attacks advance
   step(n, dt = 1 / 30, drive) { const inp = drive ? Object.assign({ wx: 0, wz: 0, mag: 0, block: false, attackHeld: false, camYaw: 0 }, drive === true ? {} : drive) : null; for (let i = 0; i < n && G.state === 'play'; i++) update(dt, inp); },
   ride() { if (G.player) { G.player.lastHit = -9; actions.ride(); } },
-  volley() { actions.volley(); },
+  volley(pt) { actions.volley(pt); },
   attack() { actions.attack(); }, jump() { actions.jump(); }, weapon(w) { actions.weapon(w); },
   G, cam, audio: () => audioStats(),
 };

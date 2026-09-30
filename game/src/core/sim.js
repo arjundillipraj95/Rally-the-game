@@ -1,6 +1,6 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
-import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT } from '../config.js';
+import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, rules, matchTime } from './state.js';
 import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable } from './nav.js';
@@ -142,7 +142,7 @@ function push(u, vx, vz, stun) {
 // ---------- horses ----------
 export function speedOf(u) {
   let s = u.spd;
-  if (u.mounted) s *= 1.8 * (1 + .05 * lvl(u.ti, 'horse'));
+  if (u.mounted) s *= 1.8 * (1 + .05 * lvl(u.ti, 'horse')) * (u.charge > 0 ? CHARGE.spd : 1);
   if (!u.leader) { if (u.aura) s *= 1 + auraBonus(u.ti) * .5; if (u.shieldwall) s *= .55; }
   if (u.carrying) s *= .7;
   if (inFord(u.x, u.z)) s *= .6;
@@ -166,7 +166,7 @@ function mountUp(u, h) {
 }
 export function dismount(u, thrown) {
   if (!u.mounted) return;
-  const h = u.horse; u.mounted = false; u.horse = null; u.r = STATS.captain.r;
+  const h = u.horse; u.mounted = false; u.horse = null; u.r = STATS.captain.r; u.charge = 0;
   if (thrown) {
     h.state = 'dead'; h.t = 0; h.fall = Math.random() < .5 ? 1 : -1;
     u.horseCd = horseCooldown(u.ti); u.horseHp = horseMax(u.ti);
@@ -523,6 +523,18 @@ const CC = CAPTAIN_COMBAT;
 export const javMax = ti => CC.jav.ammo + footTier(ti);
 export const airborne = p => (p.jy || 0) > .25;
 export const aimRange = p => (p.weapon === 'spear' ? CC.spear.aim : CC.sword.aim);
+// The horse charge: a couple of seconds at full gallop that sends everyone in front flying.
+export function captainCharge(p) {
+  if (!p || p.dead || !p.mounted || p.carrying || (p.chargeCd || 0) > 0) return false;
+  p.charge = CHARGE.dur; p.chargeCd = CHARGE.cd; p.chargeHit = new Set();
+  sound('charge', p.x, p.z); fx('shout', { u: p, kind: 'charge' });
+  if (p.isMe) fx('shake', .35);
+  return true;
+}
+export function chargeTimers(u, dt) {
+  if (u.charge > 0) { u.charge -= dt; if (!u.mounted) u.charge = 0; }
+  if (u.chargeCd > 0) u.chargeCd -= dt;
+}
 export function captainJump(p) {
   if (!p || p.dead || p.mounted || p.stun > 0 || p.jy > 0 || p.jvy > 0 || p.jumpCd > 0 || p.carrying) return false;
   p.jvy = CC.jump.v; p.jy = .001; sound('jump', p.x, p.z);
@@ -618,13 +630,25 @@ export function captainAttack(p) {
   p.lastSwingT = G.T;
 }
 // Missile volley: every archer with a target in range fires immediately, and every javelin-ready
-// footman (tier 1+) throws immediately, together, on a shared team cooldown.
-export function orderVolley(ti) {
+// footman (tier 1+) throws immediately, together, on a shared team cooldown. Aimed (pt = {x, z}):
+// everyone who can reach the mark rains it there, scattered a little around it.
+export function orderVolley(ti, pt) {
   const s = G.teams[ti];
   if (!s || !s.active || s.volleyCd > 0) return false;
   let fired = false;
   for (const u of G.units) {
     if (u.dead || u.ti !== ti || u.stun > 0) continue;
+    if (pt) {
+      const d = Math.hypot(pt.x - u.x, pt.z - u.z), a = rnd(0, Math.PI * 2), r = Math.sqrt(Math.random()) * VOLLEY.spread;
+      const mark = { x: pt.x + Math.sin(a) * r, z: pt.z + Math.cos(a) * r, vx: 0, vz: 0 };
+      if (u.kind === 'arch' && d <= u.range * (u.y > 2.2 ? 1.3 : 1) * 1.1) {
+        u.face = Math.atan2(pt.x - u.x, pt.z - u.z); const j = u.jitter; u.jitter = .3; shoot(u, mark); u.jitter = j;
+        u.shootCd = u.shootBase * rnd(.85, 1.2); fired = true;
+      } else if (u.kind === 'foot' && u.javelin && u.javCd <= 0 && d <= JAVELIN.range * 1.2) {
+        u.face = Math.atan2(pt.x - u.x, pt.z - u.z); throwJavelin(u, mark); fired = true;
+      }
+      continue;
+    }
     if (u.kind === 'arch') {
       const range = u.range * (u.y > 2.2 ? 1.3 : 1);
       const [foe] = nearestFoe(u, range);
@@ -665,7 +689,7 @@ export function moveToward(u, gx, gz, spd, dt, stopAt = .3) {
   const dx = gx - u.x, dz = gz - u.z, d = Math.hypot(dx, dz);
   let tvx = 0, tvz = 0;
   if (d > stopAt) { const s = spd * Math.min(1, (d - stopAt) / 1.2 + .2); tvx = dx / d * s; tvz = dz / d * s; }
-  const k = u.stun > 0 ? 1.5 : u.mounted ? 4 : 10;
+  const k = u.stun > 0 ? 1.5 : u.charge > 0 ? 7 : u.mounted ? 4 : 10;
   u.vx += (tvx - u.vx) * Math.min(1, dt * k); u.vz += (tvz - u.vz) * Math.min(1, dt * k);
   return d;
 }
@@ -908,6 +932,9 @@ export function driveCaptain(p, input, dt) {
   p.blocking = !!input.block && !p.mounted && !air;
   const swinging = p.swing > 0 && !p.mounted;
   const spd = speedOf(p) * (swinging ? .85 : 1);
+  if (p.charge > 0) { // charging: full tilt, straight on unless steered
+    input = Object.assign({}, input, input.mag < .3 ? { wx: Math.sin(p.face), wz: Math.cos(p.face) } : {}, { mag: 1 });
+  }
   if (air) {
     const k = Math.min(1, dt * 2.5);
     p.vx += (input.wx * spd * input.mag - p.vx) * k; p.vz += (input.wz * spd * input.mag - p.vz) * k;
@@ -991,6 +1018,7 @@ export function update(dt, input) {
     if (u.dead) continue;
     u.cd -= dt; u.shootCd -= dt; u.javCd -= dt; u.stun -= dt; u.blockT -= dt; u.rt -= dt; u.trampleT -= dt;
     if (u.horseCd > 0) u.horseCd -= dt;
+    if (u.leader) chargeTimers(u, dt);
     if (u.swing > 0) u.swing -= dt;
     if (u.pending) { u.pending.t -= dt; if (u.pending.t <= 0) resolveSwing(u); }
     if (u.rt <= 0) { u.rt = rnd(.25, .4); [u.foe, u.fd] = nearestFoe(u, 50); }
@@ -1027,6 +1055,19 @@ export function update(dt, input) {
         spark(o.x, o.y + 1.5, o.z, '#fff3b0', 8); sound('clang', o.x, o.z);
         fx('float', { x: o.x, y: o.y + 2.8, z: o.z, text: 'Spear wall!', color: TEAMS[colorOf(o.ti)].css });
         break;
+      }
+      // charging: everyone in front of the horse is bowled over (once each)
+      if (r.charge > 0 && sp > 7 && d < o.r + r.r + 1.1 && Math.abs(angDiff(r.face, Math.atan2(dx, dz))) < 1.2 && !(r.chargeHit && r.chargeHit.has(o))) {
+        if (r.chargeHit) r.chargeHit.add(o);
+        o.trampleT = 1; o.lastHit = G.T;
+        const ang = Math.atan2(dx, dz), side = angDiff(r.face, ang) > 0 ? 1 : -1, out = r.face + side * .9; // thrown forward and out to the side
+        push(o, Math.sin(out) * CHARGE.kb + r.vx * .3, Math.cos(out) * CHARGE.kb + r.vz * .3, .9);
+        o.hp -= CHARGE.dmg * aiDmg(r.ti);
+        spark(o.x, o.y + 1.2, o.z, TEAMS[colorOf(o.ti)].css, 8); sound('trample', o.x, o.z); sound('hit', o.x, o.z);
+        if (r.isMe) { fx('hitstop', .045); fx('shake', .3); }
+        if (r.remote || o.remote) fx('netFlush');
+        if (o.hp <= 0) die(o, r, out, 1);
+        continue;
       }
       if (sp > 6 && d < o.r + r.r + .3 && o.trampleT <= 0) {
         o.trampleT = .8; o.lastHit = G.T;

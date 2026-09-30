@@ -81,7 +81,9 @@ export const CAPTAIN_TIERS = [
 export const JAVELIN = { dmg: 24, range: 10, cd: 6.5 };
 // Missile volley: a squad-wide "fire at will" command on its own team cooldown, separate from
 // individual archer/javelin cooldowns so it stays a burst rather than a free DPS button.
-export const VOLLEY = { cd: 9 };
+export const VOLLEY = { cd: 9, spread: 2.6 }; // spread: how far an aimed volley scatters around the mark
+// Horse charge: a burst of speed that bowls over everyone in front (braced spears still stop it)
+export const CHARGE = { dur: 2.2, cd: 12, spd: 1.45, dmg: 32, kb: 15 };
 // The player captain's three weapons, switched with one button. The sword chains a 3-hit combo
 // (the 3rd hit cleaves), the spear trades speed for reach and pierces a second man, javelins are
 // a limited, regenerating ranged burst. Attacking in mid-air is a leap slam that hits a whole arc.

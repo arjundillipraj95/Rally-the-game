@@ -436,7 +436,7 @@ function pose(u, dt) {
   if (u.mounted) {
     a.bodyY = 1.02 + .03 * Math.sin(a.walk * 2);
     a.legL[0] = -.9; a.legL[1] = 0; a.legL[2] = .55; a.legR[0] = -.9; a.legR[1] = 0; a.legR[2] = -.55;
-    a.bodyRX = 0; a.bodyRY = .35 * P;
+    a.bodyRX = u.charge > 0 ? .32 : 0; a.bodyRY = .35 * P; // (charging: low over the horse's neck)
     a.walk += dt * sp * .9;
   } else {
     a.walk += dt * sp * 2.2;
@@ -579,6 +579,7 @@ export function drawSoldiers(units, dt) {
     drawn++;
     const a = pose(u, dt);
     bones(u, a);
+    if (u.mounted && u.charge > 0 && Math.random() < dt * 16) dust(u.x - Math.sin(u.face) * 1.4, u.z - Math.cos(u.face) * 1.4); // a charge kicks up a trail
     // a brief streak off the blade/spear tip while mid-swing, so a fast hit reads as motion
     if (u.swing > 0 && !u.dead && (u.kind === 'foot' || u.kind === 'captain')) {
       if (spearOut(u)) tipV.set(0, 0, 2.1).applyMatrix4(M.spear); else tipV.set(0, -.4, 1.0).applyMatrix4(M.wArm);

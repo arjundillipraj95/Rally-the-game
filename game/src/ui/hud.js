@@ -24,7 +24,8 @@ const ICONS = {
   spear: '<path d="M4 20 16.5 7.5"/><path d="M14 4.5 20.5 3.5 19.5 10z" fill="#fff"/><path d="M6.5 15.5l2 2"/>',
   jav: '<path d="M3 18 16 8"/><path d="M14 5.5 21 4 18.5 10.5z" fill="#fff"/><path d="M3 12h5M5 21.5h5"/>',
 };
-let atkIcon = null, cmdIcon = null;
+let atkIcon = null, cmdIcon = null, jmpMode = null;
+const JUMP_IC = '<path d="M5 14l7-7 7 7M5 20l7-7 7 7"/>', CHARGE_IC = '<path d="M3 12h11M10 7l5 5-5 5"/><path d="M16 6l5 6-5 6"/>';
 const ORDER_SHORT = { follow: 'Follow', hold: 'Hold', charge: 'Charge', shieldwall: 'Wall' };
 // the squad order button shows the order in force as an icon (tap cycles; the name pops up in the world)
 const ORDER_ICONS = {
@@ -77,7 +78,16 @@ export function updateHud(lastSnapAt) {
   if (atkIcon !== w) { atkIcon = w; $('atkIc').innerHTML = ICONS[w]; document.querySelectorAll('#wheel button').forEach(b => { b.classList.toggle('cur', b.dataset.w === w); const s = b.querySelector('svg'); if (!s.innerHTML) s.innerHTML = ICONS[b.dataset.w]; }); }
   const mx = javMax(G.myTi), am = p ? Math.min(mx, p.javAmmo | 0) : 0;
   $('wpnS').textContent = w === 'jav' ? 'Javelin' : WEAPON_NAMES[w];
-  $('jmp').classList.toggle('dim', !p || p.mounted || p.carrying);
+  // on horseback the Jump button becomes the charge
+  const mounted = !!(p && p.mounted), jk = mounted ? (p.chargeCd > 0 ? 'cd' : 'charge') : 'jump';
+  if (jmpMode !== jk + (jk === 'cd' ? Math.ceil(p.chargeCd) : '')) {
+    jmpMode = jk + (jk === 'cd' ? Math.ceil(p.chargeCd) : '');
+    $('jmpIc').innerHTML = mounted ? CHARGE_IC : JUMP_IC;
+    $('jmpL').textContent = jk === 'jump' ? 'Jump' : jk === 'charge' ? 'Charge' : Math.ceil(p.chargeCd) + 's';
+    $('jmp').setAttribute('aria-label', mounted ? 'Charge' : 'Jump');
+  }
+  $('jmp').classList.toggle('dim', !p || p.carrying || (mounted && p.chargeCd > 0));
+  $('jmp').classList.toggle('on', mounted && p.charge > 0);
   $('vlyT').textContent = me.volleyCd > 0 ? Math.ceil(me.volleyCd) + 's' : 'Volley';
   $('vly').classList.toggle('dim', !p || p.dead || me.volleyCd > 0);
   const o = me.order || 'follow';

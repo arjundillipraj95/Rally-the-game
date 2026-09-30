@@ -5,6 +5,8 @@ import { clamp } from '../core/world.js';
 import { view } from '../render/scene.js';
 import { cam } from '../render/camera.js';
 import { initAudio } from './audio.js';
+import { floatText } from '../render/effects.js';
+import { aimStart, aimMove, aimEnd, aimCancel } from './volleyaim.js';
 
 const $ = id => document.getElementById(id);
 export const inp = { joy: { active: false, id: null, ox: 0, oy: 0, x: 0, y: 0 }, look: { id: null, lx: 0, ly: 0 }, keys: {}, attackHeld: false, blockHeld: false, trayIsOpen: false, upIsOpen: false };
@@ -14,6 +16,11 @@ export function trayOpen(on) { inp.trayIsOpen = on; $('tray').hidden = !on; $('r
 export function upOpen(on) { inp.upIsOpen = on; $('upTray').hidden = !on; $('upBtn').classList.toggle('open', on); if (on) trayOpen(false); }
 // the weapon wheel: open around the Weapon button; closes by itself if left alone
 let wheelT = 0;
+function volleyTip() {
+  let n = 0; try { n = +localStorage.getItem('rally-volley-tip') || 0; localStorage.setItem('rally-volley-tip', n + 1); } catch (_) { n = 9; }
+  if (n < 2 && G.player) floatText(G.player.x, G.player.y + 3.4, G.player.z, 'Tip: hold Volley and slide to aim', '#ffcf3a');
+}
+const mouse = { x: 0, y: 0 };
 export function wheelOpen(on) {
   inp.wheelIsOpen = on; const w = $('wheel'); $('wpn').classList.toggle('open', on);
   clearTimeout(wheelT);
@@ -97,7 +104,25 @@ export function bindInput(actions) {
   wpn.addEventListener('pointerup', wpnUp); wpn.addEventListener('pointercancel', wpnUp);
   wpn.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); wheelOpen(!inp.wheelIsOpen); } });
   chips.forEach(b => tapBtn(b, () => { A.weapon(b.dataset.w); wheelOpen(false); }));
-  tapBtn($('vly'), () => A.volley());
+  // Volley: tap to loose at will; hold and slide to put the target ring where you want it, let go to fire
+  const vly = $('vly'); let vlyPtr = null;
+  vly.addEventListener('pointerdown', e => {
+    e.preventDefault(); e.stopPropagation(); initAudio();
+    if (!aimStart(e.clientX, e.clientY)) { A.volley(); return; } // (on cooldown: the button just says so)
+    vlyPtr = e.pointerId; vly.classList.add('held'); try { vly.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  vly.addEventListener('pointermove', e => { if (e.pointerId === vlyPtr) aimMove(e.clientX, e.clientY, e.pointerType !== 'mouse'); });
+  const vlyUp = e => {
+    if (e.pointerId !== vlyPtr) return; vlyPtr = null; vly.classList.remove('held');
+    if (e.type === 'pointerup') {
+      const pt = aimEnd(); if (pt !== undefined) A.volley(pt);
+      if (pt === null) volleyTip(); // a plain tap: mention, once or twice, that it can be aimed
+    } else aimCancel();
+  };
+  vly.addEventListener('pointerup', vlyUp); vly.addEventListener('pointercancel', vlyUp);
+  vly.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); A.volley(); } });
+  // keyboard: hold V and point with the mouse
+  addEventListener('pointermove', e => { mouse.x = e.clientX; mouse.y = e.clientY; if (e.pointerType === 'mouse' && inp.keys.KeyV) aimMove(e.clientX, e.clientY, false); });
   tapBtn($('cmdBtn'), () => A.order());
   tapBtn($('recBtn'), () => trayOpen(!inp.trayIsOpen));
   document.querySelectorAll('#tray button').forEach(b => tapBtn(b, () => A.recruit(b.dataset.kind)));
@@ -114,7 +139,7 @@ export function bindInput(actions) {
     if (e.code === 'KeyF') A.order('hold');
     if (e.code === 'KeyE') A.order('charge');
     if (e.code === 'KeyT') A.order('shieldwall');
-    if (e.code === 'KeyV') A.volley();
+    if (e.code === 'KeyV') { if (aimStart(mouse.x, mouse.y)) aimMove(mouse.x, mouse.y, false, true); else A.volley(); } // aims at the mouse
     if (e.code === 'KeyC') A.jump();
     if (e.code === 'KeyR') A.weapon();
     if (e.code === 'KeyU') upOpen(!inp.upIsOpen);
@@ -123,6 +148,7 @@ export function bindInput(actions) {
     if (e.code === 'KeyH') A.ride();
     if (e.code === 'Digit1') A.recruit('foot'); if (e.code === 'Digit2') A.recruit('arch');
   });
-  addEventListener('keyup', e => { inp.keys[e.code] = false; if (e.code === 'Space') inp.attackHeld = false; if (e.code.startsWith('Shift')) inp.blockHeld = false; });
+  addEventListener('keyup', e => { if (e.code === 'KeyV') { const pt = aimEnd(); if (pt !== undefined) A.volley(pt); }
+    inp.keys[e.code] = false; if (e.code === 'Space') inp.attackHeld = false; if (e.code.startsWith('Shift')) inp.blockHeld = false; });
   addEventListener('blur', releaseAll);
 }

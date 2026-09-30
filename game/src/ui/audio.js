@@ -254,6 +254,12 @@ export const sfx = {
     const gn = route(bp, 1, pl, .2); gn.gain.setValueAtTime(.0001, t); gn.gain.exponentialRampToValueAtTime(.12 * pl.v, t + .05); gn.gain.exponentialRampToValueAtTime(.0001, t + .65);
     o.start(t); o.stop(t + .7); lfo.start(t); lfo.stop(t + .7);
   },
+  // the horse charge: a quick horn call over a burst of galloping hooves
+  charge(x, z) {
+    if (!gateS('cg', 400)) return;
+    brass(220, .3, .08); brass(294, .55, .09, .18);
+    for (let i = 0; i < 8; i++) play('step', x, z, { vol: .6 - i * .04, rate: .6, jit: .1, delay: i * .09 + (i % 2) * .035 });
+  },
   thump(x, z) { if (gateS('tp', 70)) play('fall', x, z, { vol: .7, rate: .85 }); },
   uiClick() { if (gateS('ui', 45)) tone(620, .04, .04, 'triangle', 480); },
 };
