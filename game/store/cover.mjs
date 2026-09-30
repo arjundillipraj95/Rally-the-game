@@ -4,7 +4,7 @@ const [w, h, name] = [+process.argv[2], +process.argv[3], process.argv[4]];
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const page = await open(browser, w, h);
 await page.evaluate(([k, tn, fl]) => { window.__yawK = k; window.__turn = tn; window.__flank = fl === '1'; }, [process.argv[6] || '.62', process.argv[7] || '0', process.argv[9] || '0']);
-await page.click('#segMap button[data-v="valley"]');
+await page.click(`#segMap button[data-v="${process.env.MAP || 'valley'}"]`);
 await page.click('#goBtn'); await frames(page, 20);
 await page.evaluate(({ w, h }) => {
   const F = window.__fb, G = F.G, p = G.player;

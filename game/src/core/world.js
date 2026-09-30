@@ -174,7 +174,16 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
     for (let i = 0; i < 40; i++) { const a = r(0, 6.28), d = r(95, 130); L.trees.push({ x: Math.cos(a) * d, z: Math.sin(a) * d, s: r(1, 1.6) }); }
     scatterRocks(10);
   }
-  if (mapId === 'frost') scatterRocks(20);
+  if (mapId === 'frost') {
+    scatterRocks(20);
+    // snowy pine groves on the lower slopes (cover for archers), and a dark forest beyond the rim
+    for (let c = 0; c < 8; c++) {
+      const a = c / 8 * Math.PI * 2 + r(-.25, .25), d = r(40, 70), cx = Math.cos(a) * d, cz = Math.sin(a) * d;
+      if (!clearOf(cx, cz, 4)) continue;
+      for (let i = 0; i < 4; i++) { const x = cx + r(-5, 5), z = cz + r(-5, 5); if (clearOf(x, z)) trees(x, z, r(.85, 1.25)); }
+    }
+    for (let i = 0; i < 60; i++) { const a = r(0, 6.28), d = r(96, 135); L.trees.push({ x: Math.cos(a) * d, z: Math.sin(a) * d, s: r(1, 1.7) }); }
+  }
 
   if (mapId === 'forum') {
     // temples: platform with steps at the front, the cella on the back half, columns across the front

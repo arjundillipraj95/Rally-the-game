@@ -10,6 +10,7 @@ import { buildFeatures, updateFeatures } from './features.js';
 import { seeThrough, clearSeeThrough } from './seethrough.js';
 import { inside, nearObstacles } from '../core/nav.js';
 import { buildValley, updateValley, clearValley, valleyGround, fieldAt } from './valley.js';
+import { buildFrost, updateFrost, clearFrost, frostGround, onPond } from './frost.js';
 
 let world = null;
 export let castleObjs = [];
@@ -34,7 +35,7 @@ export function buildWorldView(L) {
   if (world) dispose(world);
   if (fort) scene.remove(fort.banner);
   world = new THREE.Group(); scene.add(world);
-  castleObjs = []; fort = null; clearSeeThrough(); clearValley();
+  castleObjs = []; fort = null; clearSeeThrough(); clearValley(); clearFrost();
   const M = G.map, LK = lookFor(M.id);
   setLook(M);
   // ground: map colors per vertex, fine detail from a tiling texture
@@ -57,6 +58,7 @@ export function buildWorldView(L) {
       if (road < 2.6 && r < 95) c.lerp(mud, road < .5 || Math.abs(road - 1.5) < .35 ? .8 : .6);
       valleyGround(c, x, z);
     }
+    if (M.id === 'frost' && r < 96) frostGround(c, x, z);
     if (M.id === 'wooden' && (Math.abs(x) < 2.6 || Math.abs(z) < 2.6) && r > 8 && r < 80) c.lerp(mud, .45);
     cols.push(c.r, c.g, c.b);
   }
@@ -111,8 +113,9 @@ export function buildWorldView(L) {
   if (pines.length) {
     const n = pines.length;
     const trunk = new THREE.InstancedMesh(uvScale(new THREE.CylinderGeometry(.25, .35, 2.4, 7), 1, 2), lam(0x5a3e28, woodTex()), n);
-    const leaf1 = new THREE.InstancedMesh(new THREE.ConeGeometry(2.1, 4.2, 9), lam(0x2c5530), n);
-    const leaf2 = new THREE.InstancedMesh(new THREE.ConeGeometry(1.5, 3.2, 9), lam(0x376a3a), n);
+    const snowy = M.id === 'frost';
+    const leaf1 = new THREE.InstancedMesh(new THREE.ConeGeometry(2.1, 4.2, 9), lam(snowy ? 0x2a4a3c : 0x2c5530), n);
+    const leaf2 = new THREE.InstancedMesh(new THREE.ConeGeometry(1.5, 3.2, 9), lam(snowy ? 0xeef4f8 : 0x376a3a), n); // (Frost Hill: a cap of snow on top)
     pines.forEach((t, i) => {
       const gy = terrainMeshY(t.x, t.z) - .1;
       mx.makeScale(t.s, t.s, t.s); mx.setPosition(t.x, gy + 1.2 * t.s, t.z); trunk.setMatrixAt(i, mx);
@@ -140,6 +143,7 @@ export function buildWorldView(L) {
   ctrlObjs = L.ctrlSpots && L.ctrlSpots.length ? buildControlPoints(L) : [];
   buildFeatures(L, world);
   if (M.id === 'valley') buildValley(world);
+  if (M.id === 'frost') buildFrost(world);
   buildGrass(L, LK);
 }
 
@@ -245,7 +249,7 @@ function buildGrass(L, LK) {
   while (k < n && tries < n * 6) {
     tries++;
     const x = (R() - .5) * 220, z = (R() - .5) * 220;
-    if (patch(x, z) < -.2 + R() * .6 || blocked(x, z) || (nWheat && fieldAt(x, z))) continue;
+    if (patch(x, z) < -.2 + R() * .6 || blocked(x, z) || (nWheat && fieldAt(x, z)) || (G.map.id === 'frost' && onPond(x, z))) continue;
     const sz = .75 + R() * .7;
     e.set(0, R() * 6.28, 0); q.setFromEuler(e);
     mx.compose(v.set(x, terrainMeshY(x, z), z), q, s.set(sz, sz * (.8 + R() * .5), sz));
@@ -273,6 +277,7 @@ export function updateWorldView(dt, fxHook) {
   grassU.time.value += dt;
   updateFeatures(dt, grassU.time.value);
   updateValley(dt, grassU.time.value);
+  updateFrost(dt, grassU.time.value);
   updateControlPoints();
   TEAMS.forEach((t, i) => {
     const s = G.teams[i], co = castleObjs[i]; if (!co || !s) return;
