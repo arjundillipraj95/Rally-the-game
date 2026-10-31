@@ -17,7 +17,7 @@ import { drawSoldiers, drawCalls, clearProps } from './render/soldiers.js';
 import { banterTick, clearBanter } from './render/banter.js';
 import { updateSeeThrough } from './render/seethrough.js';
 import { drawVolleyAim } from './ui/volleyaim.js';
-import { drawHoldAim, drawJavAim } from './ui/holdaim.js';
+import { drawHoldAim, drawJavAim, drawRideAim } from './ui/holdaim.js';
 import './ui/fighttips.js';
 import { spawnCritters, updateCritters, clearCritters } from './render/critters.js';
 import { drawHorses, clearHorses } from './render/horses.js';
@@ -67,13 +67,21 @@ bus.on('hitstop', t => { hitstop = Math.max(hitstop, t); });
 bus.on('buzz', ms => buzz(ms));
 // the big moments of a fight: a parry, a guard smashed open, a rider skewered or knocked off his horse.
 // (On the host these come straight from the rules; on a joining player's phone, with the next snapshot.)
-const FIGHT_POW = { fxparry: ['PARRY!', '#ffffff'], fxbreak: ['GUARD BROKEN!', '#ff8a3a'], fximpale: ['SKEWERED!', '#ffd23a'], fxunhorse: ['UNHORSED!', '#ffd23a'], fxint: ['STAGGERED!', '#ffd23a'] };
+const FIGHT_POW = { fxride: ['', ''], fxjoust: ['JOUSTED!', '#ffd23a'], fxparry: ['PARRY!', '#ffffff'], fxbreak: ['GUARD BROKEN!', '#ff8a3a'], fximpale: ['SKEWERED!', '#ffd23a'], fxunhorse: ['UNHORSED!', '#ffd23a'], fxint: ['STAGGERED!', '#ffd23a'] };
 bus.on('fxmsg', d => {
   const u = d.u, me = G.player; if (!u || !FIGHT_POW[d.k]) return;
   const near = me && Math.hypot(u.x - me.x, u.z - me.z) < 22, mine = u === me;
   if (!near && !mine && d.a !== me) return;
+  if (d.k === 'fxride') { // your ride-by blow: how well you timed it
+    if (d.a !== me) return;
+    const R = { perfect: ['PERFECT!', '#ffd23a'], good: ['HIT!', '#ffffff'], graze: ['TOO LATE', '#c9c2b2'], miss: ['TOO EARLY', '#c9c2b2'] }[d.q] || ['', ''];
+    const at = d.q === 'miss' || u === me ? me : u; pow(at.x, at.y + 3.1, at.z, R[0], R[1]);
+    if (d.q === 'perfect') { sfx.heavy(u.x, u.z); buzz(40); }
+    return;
+  }
   const [txt, col] = FIGHT_POW[d.k];
   if (d.k !== 'fxint' || mine || near) pow(u.x, u.y + 2.9, u.z, txt, col);
+  if (d.k === 'fxjoust') { sfx.heavy(u.x, u.z); cam.shake = Math.max(cam.shake, .45); if (d.a === me) buzz(60); }
   if (d.k === 'fxparry') {
     spark(u.x + Math.sin(u.face) * .8, u.y + 1.6, u.z + Math.cos(u.face) * .8, '#ffffff', 16); sfx.parry(u.x, u.z);
     // the two men in it move in slow motion for a beat (the rules slow them on the host; this slows how they're drawn everywhere)
@@ -334,7 +342,7 @@ function drawMatch(dt) {
   if (import.meta.env.DEV && window.__camAt) { const c = window.__camAt; camera.position.set(c[0], c[1], c[2]); camera.lookAt(c[3], c[4], c[5]); } // (dev: fixed shots of the scenery)
   updateSeeThrough(dt, camera.position, camTarget());
   drawAura(G.player, auraRange(G.myTi), grassTime());
-  drawVolleyAim(grassTime()); drawHoldAim(grassTime()); drawJavAim();
+  drawVolleyAim(grassTime()); drawHoldAim(grassTime()); drawJavAim(); drawRideAim();
   const tg = camTarget(); followSun(tg ? tg.x : 0, tg ? tg.z : 0, grassTime());
   if (!(import.meta.env.DEV && window.__noRender)) renderer.render(scene, camera); // (dev: network tests skip drawing)
   drawOverlay({ joy: inp.joy, nickFor });

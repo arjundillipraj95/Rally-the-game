@@ -103,6 +103,15 @@ export const HEAVY = { windup: [.95, .8, .68], chance: [.22, .32, .4], vetChance
 // heavy blow; the spear is planted (braced) and skewers whoever runs or rides onto it; javelins are
 // drawn back for a harder, longer throw that can knock a rider off his horse.
 export const HOLD_ATK = { sword: .38, swordFull: .7, brace: .28, braceCd: .65, braceSlow: .15, jav: .22, javFull: .85, javMult: .75, javRange: 9, unhorse: .7 };
+// Fighting on horseback. Riding straight builds a gallop (gallop: seconds from a trot to full speed);
+// turning hard loses it. Hold Attack to lock onto whoever is ahead (within lockR, inside lockCone of
+// straight on): a ring closes on him as you come in. Let go as it meets his inner ring (turns gold)
+// and the ride-by blow lands in full, harder the faster you're going. perfect/good: how far off the
+// strike distance (m) still counts; remote: extra for a joining player's release crossing the network.
+// at: the strike distance for each weapon; mult: its power. A tap (shorter than `tap` s) is a weak swipe.
+// ai: how often a computer rider times it perfectly / well, per difficulty (the rest only graze).
+export const RIDE = { gallop: 1.6, turnLoss: 1.1, lockR: 16, lockCone: .9, perfect: 1.2, good: 2.6, remote: .9, tap: .2, tapMult: .55,
+  sword: { at: 2.6, mult: 1.45 }, spear: { at: 3.6, mult: 1.65 }, perfectX: 1.7, goodX: 1.0, grazeX: .45, ai: { perfect: [.2, .4, .6], good: [.45, .4, .3] } };
 // A held line: footmen in their places take this share of the damage and knockback from the front,
 // and a charge into them stalls, hurting the horse.
 export const HOLD = { dmg: .7, kb: .3, horse: 30 };

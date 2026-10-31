@@ -1,6 +1,6 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
-import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, HOLD_ATK, GUARD, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT } from '../config.js';
+import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, HOLD_ATK, GUARD, RIDE, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, rules, matchTime } from './state.js';
 import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W, groundSlow, onIce } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable } from './nav.js';
@@ -144,7 +144,7 @@ function push(u, vx, vz, stun) {
 // ---------- horses ----------
 export function speedOf(u) {
   let s = u.spd;
-  if (u.mounted) s *= 1.8 * (1 + .05 * lvl(u.ti, 'horse')) * (u.charge > 0 ? CHARGE.spd : 1);
+  if (u.mounted) s *= 1.8 * (1 + .05 * lvl(u.ti, 'horse')) * (u.charge > 0 ? CHARGE.spd : 1) * (u.human ? .8 + .35 * (u.gallop || 0) : 1); // (a human rider's gallop builds on the straight)
   if (!u.leader) { if (u.aura) s *= 1 + auraBonus(u.ti) * .5; if (u.shieldwall) s *= .55; }
   if (u.carrying) s *= .7;
   s *= groundSlow(u.x, u.z); // (a ford, a wheat field, an oasis)
@@ -286,7 +286,7 @@ function hit(a, b, mult = 1, extra) {
   if (a.ripN > 0 && a.riposteT > G.T) { a.ripN--; mult *= PARRY.riposteMult; extra = Object.assign({}, extra, { unblockable: true }); }
   const heavy = !!(extra && extra.heavy);
   // a captain's Block tapped just before the blow lands turns it aside
-  if (b.human && !b.mounted && b.stun <= 0 && !b.carrying && G.T - (b.parryT ?? -9) <= (heavy ? PARRY.window : PARRY.light) + (b.remote ? PARRY.remote : 0)
+  if (b.human && !b.mounted && b.stun <= 0 && !b.carrying && G.T - (b.parryT ?? -9) <= (heavy || (extra && extra.shown) ? PARRY.window : PARRY.light) + (b.remote ? PARRY.remote : 0)
     && Math.abs(angDiff(b.face, Math.atan2(a.x - b.x, a.z - b.z))) < 1.5 && !(extra && extra.unparryable)) { parry(b, a, heavy); return; }
   // a computer captain on guard turns most light blows from another captain aside
   const onGuard = !b.human && b.guardT > 0 && b.stun <= 0 && !b.mounted && Math.abs(angDiff(b.face, Math.atan2(a.x - b.x, a.z - b.z))) < 1.2;
@@ -336,6 +336,72 @@ function hit(a, b, mult = 1, extra) {
   // heavy blows, slams and captains' finishers launch the body; now and then any captain's kill does
   if (b.hp <= 0) die(b, a, ang, mult >= 1.35 || (extra && extra.unblockable) || (a.leader && Math.random() < .18) ? 1 : 0);
 }
+// ---------- fighting on horseback ----------
+const rideW = u => (u.weapon === 'spear' ? 'spear' : 'sword');
+export const strikeAt = (u, tg) => RIDE[rideW(u)].at + (tg ? tg.r * .5 : 0);
+const inLock = (p, o) => { const d = Math.hypot(o.x - p.x, o.z - p.z); return d <= RIDE.lockR && Math.abs(angDiff(p.face, Math.atan2(o.x - p.x, o.z - p.z))) <= RIDE.lockCone * (d < 4 ? 1.6 : 1); };
+// whoever is ahead to ride at: the nearest enemy roughly in front
+export function rideLock(p) {
+  let best = null, bs = 1e9;
+  for (const o of G.units) {
+    if (o.dead || !isEnemy(o, p) || !inLock(p, o)) continue;
+    const d = Math.hypot(o.x - p.x, o.z - p.z), sc = d + Math.abs(angDiff(p.face, Math.atan2(o.x - p.x, o.z - p.z))) * 8 + (o.leader ? -3 : 0);
+    if (sc < bs) { bs = sc; best = o; }
+  }
+  return best;
+}
+// how well a release at this moment is timed: 'perfect' / 'good' near the strike distance, 'miss' too far
+// out, 'graze' too close (or already passing)
+export function rideQuality(p, tg) {
+  if (!tg || tg.dead) return 'miss';
+  const d = Math.hypot(tg.x - p.x, tg.z - p.z), ahead = Math.abs(angDiff(p.face, Math.atan2(tg.x - p.x, tg.z - p.z)));
+  if (ahead > 1.4) return d < 4 ? 'graze' : 'miss';
+  const slack = p.remote ? RIDE.remote : 0, err = d - strikeAt(p, tg) + (p.remote ? Math.hypot(p.vx, p.vz) * .06 : 0); // (a joining player's release arrives a beat late: count from a little further out)
+  return Math.abs(err) <= RIDE.perfect + slack ? 'perfect' : Math.abs(err) <= RIDE.good + slack ? 'good' : err > 0 ? 'miss' : 'graze';
+}
+// letting go of Attack on horseback
+export function rideRelease(p, w, t) {
+  p.rideReady = false;
+  if (!p || p.dead || !p.mounted || p.cd > 0 || p.stun > 0) { p.rideTg = null; return; }
+  if (w === 'jav') { javThrow(p, t > HOLD_ATK.jav ? Math.min(1, (t - HOLD_ATK.jav) / (HOLD_ATK.javFull - HOLD_ATK.jav)) : 0); return; }
+  if (t < RIDE.tap) { startSweep(p); if (p.pending) p.pending.mult = RIDE.tapMult; p.rideTg = null; return; } // a tap: a weak swipe at whatever's close
+  const tg = p.rideTg && !p.rideTg.dead ? p.rideTg : rideLock(p); p.rideTg = null;
+  rideStrike(p, tg, rideQuality(p, tg));
+}
+// the ride-by blow: its worth set by the timing and how fast the horse is going
+function rideStrike(p, tg, q) {
+  const w = rideW(p), sf = clamp(Math.hypot(p.vx, p.vz) / 10, .4, 1.3);
+  p.swing = .38; p.swingKind = 0; p.cd = .7; p.lastSwingT = G.T; sound('swing', p.x, p.z);
+  if (p.human) fx('fxmsg', { k: 'fxride', u: tg || p, a: p, q });
+  if (!tg || q === 'miss') return;
+  const ang = Math.atan2(tg.x - p.x, tg.z - p.z); p.face = turn(p.face, ang, .5);
+  const mult = RIDE[w].mult * (q === 'perfect' ? RIDE.perfectX : q === 'good' ? RIDE.goodX : RIDE.grazeX) * (.5 + .6 * sf);
+  if (q === 'perfect' && w === 'spear' && tg.mounted) { horseDamage(tg, 999); if (tg.mounted) dismount(tg, true); fx('fxmsg', { k: 'fxjoust', u: tg, a: p }); } // a lance square on another rider: off he goes
+  hit(p, tg, mult, { heavy: q !== 'graze', shown: true, kb: q === 'perfect' ? 2.2 : 1.2, stun: q === 'perfect' ? 1 : .4 }); // (shown: a rider's blow is always announced, so always parryable on the glint)
+  if (q === 'perfect') {
+    p.slowT = Math.max(p.slowT || 0, .3); tg.slowT = Math.max(tg.slowT || 0, .3); // (the moment has weight: the two of them, in slow motion)
+    if (w === 'sword') { let n = 0; for (const o of G.units) { // a sabre pass cuts through to the men beside him
+      if (o === tg || o.dead || !isEnemy(o, p) || o.mounted) continue;
+      if (Math.hypot(o.x - tg.x, o.z - tg.z) > 2.4) continue; hit(p, o, mult * .55, { kb: 1.4 }); if (++n >= 2) break;
+    } }
+    if (p.isMe) { fx('hitstop', .08); fx('shake', .4); }
+  }
+}
+// a computer rider: lines up on a target, lowers his weapon (a red "!"), glints just before the blow
+// (the moment for a man on foot to parry), and strikes with a timing that depends on the difficulty
+function aiRide(u, foe, fd) {
+  const ahead = Math.abs(angDiff(u.face, Math.atan2(foe.x - u.x, foe.z - u.z))) < .8, at = strikeAt(u, foe);
+  if (!ahead || u.cd > 0 || u.stun > 0 || fd > 11) { if (fd > 11 || u.stun > 0) { u.couch = false; u.glint = false; } return; }
+  if (!u.couch) {
+    u.couch = true; const r = Math.random(), P = RIDE.ai.perfect[G.diff], Gd = RIDE.ai.good[G.diff];
+    u.rideAt = r < P ? at : r < P + Gd ? at - (RIDE.perfect + .6) * (Math.random() < .5 ? 1 : -1) : at - RIDE.good - .8;
+  }
+  // the glint comes about a parry-window before the blow, judged by how fast he's actually closing on you
+  const closing = ((foe.x - u.x) * u.vx + (foe.z - u.z) * u.vz) / Math.max(fd, .1) - ((foe.x - u.x) * foe.vx + (foe.z - u.z) * foe.vz) / Math.max(fd, .1);
+  if (!u.glint && fd - u.rideAt < Math.max(1.5, closing) * PARRY.window * .85) u.glint = true; // (seen and heard via the renderer, on every phone)
+  if (fd <= u.rideAt || fd < 1.6) { const q = Math.abs(fd - at) <= RIDE.perfect ? 'perfect' : Math.abs(fd - at) <= RIDE.good ? 'good' : 'graze'; u.couch = false; u.glint = false; rideStrike(u, foe, q); }
+}
+
 // ---------- parries, heavy blows and held attacks ----------
 function parry(b, a, heavy, byAI) {
   b.parryT = -9; b.lastBlow = null; b.cd = 0; b.stun = 0;
@@ -368,7 +434,6 @@ function startHeavy(u, tg, windup) {
   if (u.cd > 0 || u.stun > 0 || u.windup > 0 || u.mounted) return false;
   u.windup = windup; u.glint = false; u.heavyTg = tg; u.cd = windup + .55; u.swingKind = 5;
   u.face = Math.atan2(tg.x - u.x, tg.z - u.z);
-  sound('windup', u.x, u.z); fx('fxmsg', { k: 'fxwind', u });
   return true;
 }
 function heavyTick(u, dt) {
@@ -377,7 +442,7 @@ function heavyTick(u, dt) {
   const tg = u.heavyTg;
   if (tg && !tg.dead) u.face = turn(u.face, Math.atan2(tg.x - u.x, tg.z - u.z), dt * 3); // (it tracks you, but slowly: step aside late and it still finds you)
   u.windup -= dt;
-  if (!u.glint && u.windup <= PARRY.window) { u.glint = true; sound('glint', u.x, u.z); }
+  if (!u.glint && u.windup <= PARRY.window) u.glint = true; // (seen and heard via the renderer, on every phone)
   if (u.windup > 0) return;
   u.glint = false; u.swing = .38;
   if (tg && !tg.dead && Math.hypot(tg.x - u.x, tg.z - u.z) <= u.r + tg.r + u.reach + HEAVY.reach && Math.abs(angDiff(u.face, Math.atan2(tg.x - u.x, tg.z - u.z))) < 1.1) {
@@ -389,8 +454,19 @@ function heavyTick(u, dt) {
 // on release the held time decides what happens (also given directly for a joining player, whose
 // release arrives as one event with the time they held it).
 export function attackHold(p, held, dt, remote) {
-  if (!p || p.dead || p.mounted || p.carrying) { p.ahT = 0; p.heavyCharge = 0; p.bracing = false; p.javDraw = 0; return; }
+  if (!p || p.dead || p.carrying) { p.ahT = 0; p.heavyCharge = 0; p.bracing = false; p.javDraw = 0; p.rideReady = false; return; }
   const w = p.weapon || 'sword';
+  if (p.mounted) { // on horseback: lock on and time the pass (sword, spear), or draw a javelin
+    p.heavyCharge = 0; p.bracing = false;
+    if (held) p.ahT = (p.ahT || 0) + dt;
+    const t = held ? p.ahT : 0;
+    p.javDraw = w === 'jav' && t > HOLD_ATK.jav ? Math.min(1, (t - HOLD_ATK.jav) / (HOLD_ATK.javFull - HOLD_ATK.jav)) : 0;
+    p.rideReady = w !== 'jav' && t > RIDE.tap;
+    if (p.rideReady) { if (!p.rideTg || p.rideTg.dead || !inLock(p, p.rideTg)) p.rideTg = rideLock(p); } else p.rideTg = null;
+    if (!held && p.ahT > 0) { const ht = p.ahT; p.ahT = 0; p.rideReady = false; if (!remote) rideRelease(p, w, ht); }
+    return;
+  }
+  p.rideReady = false; p.rideTg = null;
   if (held && p.stun > 0 && w === 'sword') p.ahT = 0; // (knocked about: the wind-up starts over)
   else if (held) p.ahT = (p.ahT || 0) + dt;
   const t = held ? p.ahT : 0;
@@ -661,7 +737,7 @@ export const aimRange = p => (p.weapon === 'spear' ? CC.spear.aim : CC.sword.aim
 // The horse charge: a couple of seconds at full gallop that sends everyone in front flying.
 export function captainCharge(p) {
   if (!p || p.dead || !p.mounted || p.carrying || (p.chargeCd || 0) > 0) return false;
-  p.charge = CHARGE.dur; p.chargeCd = CHARGE.cd; p.chargeHit = new Set();
+  p.charge = CHARGE.dur; p.chargeCd = CHARGE.cd; p.chargeHit = new Set(); p.gallop = 1;
   sound('charge', p.x, p.z); fx('shout', { u: p, kind: 'charge' });
   if (p.isMe) fx('shake', .35);
   return true;
@@ -727,6 +803,7 @@ export function captainAttack(p) {
   p.atkBuf = 0;
   const wpn = p.weapon || 'sword';
   if (p.mounted) {
+    if (p.human) return; // (a captain on horseback strikes when Attack is let go: a tap swipes, a hold times a ride-by)
     if (wpn === 'jav' && throwCaptainJav(p)) return;
     startSweep(p);
     if (p.pending && wpn === 'spear') { p.pending.mult = 1.3; p.pending.reachB = .8; }
@@ -968,7 +1045,7 @@ function thinkLeader(u, s, dt) {
       if (spearNear(u, 7)) dismount(u, false);
       const inv = 1 / Math.max(fd, .1);
       go(u, foe.x + (foe.x - u.x) * inv * 4, foe.z + (foe.z - u.z) * inv * 4, speedOf(u), dt, .1);
-      if (fd < 3) startSweep(u);
+      aiRide(u, foe, fd);
     } else if (G.diff >= 1) aiCaptainFight(u, foe, fd, dt);
     else if (u.windup > 0) moveToward(u, u.x, u.z, 0, dt);
     else if (aiGuard(u, foe, fd, dt)) {}
@@ -1149,7 +1226,12 @@ export function driveCaptain(p, input, dt) {
     const k = Math.min(1, dt * 2.5);
     p.vx += (input.wx * spd * input.mag - p.vx) * k; p.vz += (input.wz * spd * input.mag - p.vz) * k;
   } else moveToward(p, p.x + input.wx * 3, p.z + input.wz * 3, spd * input.mag, dt, .05);
+  const face0 = p.face;
   if (input.mag > .15) p.face = turn(p.face, Math.atan2(input.wx, input.wz), dt * (p.mounted ? 4.5 : p.blocking ? 5 : swinging ? 6 : 12));
+  if (p.mounted) { // the gallop: built riding straight on, lost turning hard or reining in
+    const tr = Math.abs(angDiff(face0, p.face)) / Math.max(dt, 1e-3), straight = input.mag > .7 && tr < 1;
+    p.gallop = clamp((p.gallop || 0) + (p.charge > 0 ? 1 : straight ? dt / RIDE.gallop : -dt * (tr > 2 ? RIDE.turnLoss : input.mag < .3 ? .8 : .3)), 0, 1);
+  } else p.gallop = 0;
   if (p.blocking && input.mag < .15) p.face = turn(p.face, input.camYaw, dt * 6);
   stepJump(p, dt);
 }
@@ -1211,7 +1293,7 @@ export function update(dt, input) {
     driveCaptain(p, input, pdt);
     if (input.block && !p.blkPrev) blockPress(p); p.blkPrev = !!input.block;
     attackHold(p, !!input.attackHeld, pdt);
-    if (((input.attackHeld && p.mounted) || p.atkBuf > 0) && p.cd <= 0 && p.stun <= 0) captainAttack(p);
+    if (p.atkBuf > 0 && p.cd <= 0 && p.stun <= 0 && !p.mounted) captainAttack(p);
   }
   for (const s of G.teams) { const L = s.leader; if (L && L.human && !L.dead && L.remote) attackHold(L, !!L.ahHeld, dt, true); }
   for (const s of G.teams) { const L = s.leader; if (L && L.human && !L.dead) { if (L.atkBuf > 0) { L.atkBuf -= dt; if (L.remote && L.cd <= 0 && L.stun <= 0) captainAttack(L); } regenJavs(L, dt); } }

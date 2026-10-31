@@ -518,6 +518,15 @@ function pose(u, dt) {
     if (spearArmed) { a.spearRX = -.7; a.spearZ = -.5; }
     if (!a.wound) { a.wound = true; if (nearCam(u, 26)) { pow(u.x, u.y + 3.3, u.z, '!', '#ff4a3a'); bus.emit('sfx', { name: 'windup', x: u.x, z: u.z }); } const me = G.player; if (me && !me.dead && Math.hypot(me.x - u.x, me.z - u.z) < 5 && isEnemyTi(u.ti, me.ti)) bus.emit('fighttip', 'parry'); }
   } else a.wound = false;
+  // a rider lowering his weapon to ride at someone: lance couched level, or sabre raised; a red "!" when
+  // a computer rider commits to a pass at your side
+  if (u.mounted && t < 0 && (u.couch || u.rideReady)) {
+    if (spearArmed) { a.wArmX = near(a.wArmX, -1.5, k12); a.spearRX = 1.55; a.spearZ = .7; }
+    else { a.wArmX = near(a.wArmX, -2.7, k12); a.wArmZ = near(a.wArmZ, -.5, k12); }
+    a.bodyRX += .22; a.expr = 'yell';
+  }
+  if (u.couch && !u.human && !a.couched) { a.couched = true; const me = G.player; if (nearCam(u, 30)) { pow(u.x, u.y + 4.2, u.z, '!', '#ff4a3a'); bus.emit('sfx', { name: 'windup', x: u.x, z: u.z }); } if (me && !me.dead && !me.mounted && isEnemyTi(u.ti, me.ti) && Math.hypot(me.x - u.x, me.z - u.z) < 12) bus.emit('fighttip', 'rider'); }
+  if (!u.couch) a.couched = false;
   if (u.glint && !a.glinted) { a.glinted = true; if (nearCam(u, 26)) { spark(u.x - Math.sin(u.face) * .3, u.y + 3, u.z - Math.cos(u.face) * .3, '#ffffff', 14); bus.emit('sfx', { name: 'glint', x: u.x, z: u.z }); } }
   if (!u.glint) a.glinted = false;
   if (!u.mounted && t < 0) {

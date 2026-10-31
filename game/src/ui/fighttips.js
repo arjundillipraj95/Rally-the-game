@@ -10,9 +10,11 @@ const TIPS = {
   spear: 'Hold Attack to plant the spear: riders who charge you are thrown',
   jav: 'Hold Attack to draw back: a full draw knocks riders off their horses',
   guard: "He's on guard: hold Attack for a heavy blow to smash it",
+  ride: 'Hold Attack as you ride at someone. Let go when the ring turns gold',
+  rider: 'A rider is coming! Tap Block as his weapon glints, or plant a spear',
 };
 let lastAt = 0; const shown = new Set(); // (each tip at most once a match; the parry ones jump the queue)
-const URGENT = new Set(['parry', 'break', 'guard']);
+const URGENT = new Set(['parry', 'break', 'guard', 'rider']);
 bus.on('msg', m => { if (m && m.k === 'start') shown.clear(); });
 export function fightTip(k) {
   const p = G.player, text = TIPS[k]; if (!p || p.dead || !text || G.state !== 'play' || shown.has(k)) return;
@@ -28,6 +30,8 @@ bus.on('fighttip', fightTip);
 
 // the sword's held blow: mentioned the first couple of times you're in a fight with a sword in hand
 setInterval(() => {
-  const p = G.player; if (!p || p.dead || p.mounted || G.state !== 'play' || (p.weapon || 'sword') !== 'sword') return;
+  const p = G.player; if (!p || p.dead || G.state !== 'play') return;
+  if (p.mounted) { if ((p.weapon || 'sword') !== 'jav') fightTip('ride'); return; }
+  if ((p.weapon || 'sword') !== 'sword') return;
   if (G.units.some(o => !o.dead && o.ti !== p.ti && Math.hypot(o.x - p.x, o.z - p.z) < 5 && G.ALLY[o.ti % 4] !== G.ALLY[p.ti % 4])) fightTip('sword');
 }, 1500);

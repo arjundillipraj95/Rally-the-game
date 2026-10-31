@@ -6,8 +6,8 @@ import { G } from '../core/state.js';
 import { groundY } from '../core/world.js';
 import { scene } from '../render/scene.js';
 import { screenToGround } from './volleyaim.js';
-import { HOLD_W, javTarget } from '../core/sim.js';
-import { CAPTAIN_COMBAT, HOLD_ATK } from '../config.js';
+import { HOLD_W, javTarget, strikeAt, rideQuality } from '../core/sim.js';
+import { CAPTAIN_COMBAT, HOLD_ATK, RIDE } from '../config.js';
 
 export const hold = { on: false, moved: false, x: 0, z: 0, face: 0, sx: 0, sy: 0, t0: 0 };
 const FINGER_LIFT = 70, SHOW_AFTER = 220; // (ms: a quick tap never flashes the bar)
@@ -66,4 +66,20 @@ export function drawJavAim() {
   const t = javTarget(p, CAPTAIN_COMBAT.jav.range + HOLD_ATK.javRange * p.javDraw);
   jRing.visible = true; jRing.position.set(t.x, groundY(t.x, t.z) + .15, t.z); jRing.scale.setScalar(.8 + .6 * p.javDraw);
   jRingMat.color.setHex(p.javDraw >= HOLD_ATK.unhorse ? 0xffd23a : 0xffffff);
+}
+
+// riding at someone with Attack held: a fixed ring round him, and a second ring closing in as you come;
+// they meet at the strike distance, where both turn gold. Let go then.
+const rMat = () => new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .9, depthWrite: false, depthTest: false, side: THREE.DoubleSide });
+const rInner = new THREE.Mesh(new THREE.RingGeometry(.95, 1.2, 40), rMat()), rOuter = new THREE.Mesh(new THREE.RingGeometry(.95, 1.12, 40), rMat());
+for (const m of [rInner, rOuter]) { m.rotation.x = -Math.PI / 2; m.renderOrder = 3; m.visible = false; scene.add(m); }
+export function drawRideAim() {
+  const p = G.player, tg = p && p.rideTg; rInner.visible = rOuter.visible = false;
+  if (!p || p.dead || !p.mounted || !p.rideReady || !tg || tg.dead || G.state !== 'play') return;
+  const d = Math.hypot(tg.x - p.x, tg.z - p.z), gap = d - strikeAt(p, tg), q = rideQuality(p, tg);
+  const y = groundY(tg.x, tg.z) + .2;
+  rInner.visible = rOuter.visible = true; rInner.position.set(tg.x, y, tg.z); rOuter.position.set(tg.x, y, tg.z);
+  rOuter.scale.setScalar(1 + Math.max(0, gap) * .45);
+  const col = q === 'perfect' ? 0xffd23a : q === 'good' ? 0xffffff : q === 'graze' ? 0xff6a4a : 0xb8b8b8;
+  rInner.material.color.setHex(col); rOuter.material.color.setHex(col);
 }

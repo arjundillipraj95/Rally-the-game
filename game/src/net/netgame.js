@@ -6,7 +6,7 @@ import { TEAMS, MAPS, KINDS, STATS, RECRUITS, FACTIONS, factionFromCode, ORDERS,
 import { G, bus, colorOf, isEnemyTi } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn } from '../core/world.js';
 import { buildNav, syncGates } from '../core/nav.js';
-import { blockPress, attackHold, attackRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainJump, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
+import { blockPress, attackHold, attackRelease, rideRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainJump, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
 import { session, isClient, isHost } from './session.js';
 import { showMsg } from '../ui/messages.js';
 import { sfx, buzz, gateS } from '../ui/audio.js';
@@ -36,7 +36,7 @@ bus.on('msg', m => {
 // fight moments ride along with the announcements, by unit id, to be shown on every phone
 bus.on('fxmsg', d => {
   const NET = session.NET;
-  if (isHost() && NET.msgs && d.u && !d.fromNet) { NET.msgs.push([++NET.msgN, d.k, d.u.id, d.heavy ? 1 : 0, d.a ? d.a.id : -1, d.byAI ? 1 : 0]); if (NET.msgs.length > 8) NET.msgs.shift(); }
+  if (isHost() && NET.msgs && d.u && !d.fromNet) { NET.msgs.push([++NET.msgN, d.k, d.u.id, d.heavy ? 1 : 0, d.a ? d.a.id : -1, d.byAI ? 1 : 0, d.q || '']); if (NET.msgs.length > 8) NET.msgs.shift(); }
 });
 
 // ---------- host ----------
@@ -48,7 +48,7 @@ function encodeSnap() {
     if (u.dead) continue;
     const kt = KINDS.indexOf(u.kind) * 8 + u.ti;
     const fl = (u.swing > 0 ? 1 : 0) | (u.mounted ? 2 : 0) | ((u.blockT > 0 || (u.human && u.blocking)) ? 4 : 0) | (u.carrying ? 8 : 0) | (u.stun > 0 ? 16 : 0) | (u.aim ? 32 : 0) | (u.shieldwall ? 64 : 0) | (u.weapon === 'spear' ? 128 : u.weapon === 'jav' ? 256 : u.weapon === 'sword' ? 512 : 0) | (u.charge > 0 ? 1024 : 0)
-      | (u.windup > 0 ? 2048 : 0) | (u.glint ? 4096 : 0) | (u.heavyCharge > 0 ? 8192 : 0) | (u.bracing ? 16384 : 0) | (u.javDraw > 0 ? 32768 : 0);
+      | (u.windup > 0 ? 2048 : 0) | (u.glint ? 4096 : 0) | (u.heavyCharge > 0 ? 8192 : 0) | (u.bracing ? 16384 : 0) | (u.javDraw > 0 ? 32768 : 0) | (u.couch || u.rideReady ? 65536 : 0);
     const row = [b36(u.id), kt.toString(16), encX(u.x), encX(u.z), encF(u.face), b36(clamp(u.hp / u.max, 0, 1) * 35), b36(fl)];
     if (u.jy > .05) row.push(b36(u.jy * 10));
     us.push(row.join(','));
@@ -111,7 +111,7 @@ export function netHostReadInputs() {
       const w = WEAPONS[pr.cap[7] | 0]; if (w && L.weapon !== w) { L.weapon = w; s.weapon = w; }
     }
     if (typeof pr.par === 'number' && pr.par > last.par) { if (L && !L.dead) blockPress(L); last.par = pr.par; } // Block pressed: a parry window
-    if (typeof pr.ahN === 'number' && pr.ahN > last.ahN) { if (L && !L.dead) { if (typeof pr.face === 'number') L.face = pr.face; attackRelease(L, L.weapon || 'sword', +pr.ahD || 0); } last.ahN = pr.ahN; } // Attack let go after a hold
+    if (typeof pr.ahN === 'number' && pr.ahN > last.ahN) { if (L && !L.dead) { if (typeof pr.face === 'number') L.face = pr.face; if (L.mounted) rideRelease(L, L.weapon || 'sword', +pr.ahD || 0); else attackRelease(L, L.weapon || 'sword', +pr.ahD || 0); } last.ahN = pr.ahN; } // Attack let go after a hold
     if (typeof pr.atk === 'number' && pr.atk > last.atk) { if (L && !L.dead) { if (typeof pr.face === 'number') L.face = pr.face; captainAttack(L); } last.atk = pr.atk; }
     if (typeof pr.ride === 'number' && pr.ride > last.ride) { if (L) toggleHorseFor(L); last.ride = pr.ride; }
     if (typeof pr.chg === 'number' && pr.chg > last.chg) { if (L && !L.dead) captainCharge(L); last.chg = pr.chg; }
@@ -216,7 +216,7 @@ function clientApply(hp) {
       u.jyT = f[7] ? p36(f[7]) / 10 : 0;
       u.charge = (fl & 1024) ? 1 : 0;
       u.windup = (fl & 2048) ? 1 : 0; u.glint = !!(fl & 4096);
-      u.heavyCharge = (fl & 8192) ? 1 : 0; u.bracing = !!(fl & 16384); u.javDraw = (fl & 32768) ? .7 : 0;
+      u.heavyCharge = (fl & 8192) ? 1 : 0; u.bracing = !!(fl & 16384); u.javDraw = (fl & 32768) ? .7 : 0; u.couch = !!(fl & 65536);
     }
     if (id !== myId) {
       u.tx = x; u.tz = z; u.tface = face;
@@ -256,7 +256,7 @@ function clientApply(hp) {
   }
   for (const m of (hp.m || [])) if (m[0] > C.lastMsgN) {
     C.lastMsgN = m[0];
-    if (typeof m[1] === 'string' && m[1].startsWith('fx')) { const u = G.units.find(x => x.id === m[2]), a = G.units.find(x => x.id === m[4]); if (u) bus.emit('fxmsg', { k: m[1], u, a, heavy: !!m[3], byAI: !!m[5], fromNet: true }); }
+    if (typeof m[1] === 'string' && m[1].startsWith('fx')) { const u = G.units.find(x => x.id === m[2]), a = G.units.find(x => x.id === m[4]); if (u) bus.emit('fxmsg', { k: m[1], u, a, heavy: !!m[3], byAI: !!m[5], q: m[6], fromNet: true }); }
     else showMsg(m[1], m.slice(2));
   }
 }
@@ -286,7 +286,7 @@ export function clientTick(dt) {
     driveCaptain(me, mv, me.slowT > 0 ? dt * PARRY.slow : dt);
     if (mv.block && !C.blkPrev && !me.mounted) { C.inp.par++; C.sendNow = true; } C.blkPrev = !!mv.block; // (a Block press: the host opens a parry window)
     // holding Attack: shown here at once (sword raised, spear planted, javelin drawn); the host acts on the release
-    const held = !!mv.attackHeld && !me.mounted;
+    const held = !!mv.attackHeld;
     if (held) C.ahT = (C.ahT || 0) + dt;
     else if (C.ahT > 0) { C.inp.ahN++; C.inp.ahD = r2(C.ahT); C.inp.face = r2(me.face); C.sendNow = true; predictRelease(me, C.ahT); C.ahT = 0; }
     attackHold(me, held, dt, true);
@@ -310,7 +310,7 @@ export function clientTick(dt) {
         t.predHitAt = performance.now();
       }
     }
-    if (((inp.attackHeld && me.mounted) || C.atkBuf > 0) && C.localCd <= 0) actions.attack();
+    if (C.atkBuf > 0 && C.localCd <= 0 && !me.mounted) actions.attack();
   }
   const k = Math.min(1, dt * 15);
   for (const u of G.units) { // everyone else glides toward the host's positions
@@ -354,6 +354,7 @@ export function clientHorses() {
 // Attack let go after holding it: the sword's heavy blow, or a javelin (drawn back for t seconds)
 function predictRelease(p, t) {
   const w = p.weapon || 'sword';
+  if (p.mounted && w !== 'jav') { if (C.localCd <= 0) { p.swing = .38; p.swingKind = 0; sfx.swing(p.x, p.z); C.localCd = .7; C.lastAtkAt = performance.now(); } return; }
   if (w === 'sword' && t >= HOLD_ATK.sword + .12) { p.swing = .38; p.swingKind = 5; sfx.swing(p.x, p.z); C.localCd = .7; C.lastAtkAt = performance.now(); }
   if (w === 'jav' && p.javAmmo >= 1 && C.localCd <= 0) {
     const k = t > HOLD_ATK.jav ? Math.min(1, (t - HOLD_ATK.jav) / (HOLD_ATK.javFull - HOLD_ATK.jav)) : 0;
@@ -395,6 +396,7 @@ const orderName = o => ORDER_NAMES[o] || ORDER_NAMES.follow;
 export const actions = {
   attack() {
     const p = G.player; if (!p || p.dead || G.state !== 'play') return;
+    if (p.mounted) return; // (on horseback the blow comes when Attack is let go)
     if (p.carrying) { if (gateS('carryhint', 1500)) floatText(p.x, p.y + 3.2, p.z, 'Hands full: carry it home', '#fff'); return; }
     if (isClient()) {
       if (C.localCd > 0 || p.stun > 0) { C.atkBuf = .4; return; }
