@@ -4,7 +4,7 @@
 // about 12 times a second).
 import { TEAMS, MAPS, KINDS, STATS, RECRUITS, FACTIONS, factionFromCode, ORDERS, ORDER_NAMES, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT, HOLD_ATK, PARRY } from '../config.js';
 import { G, bus, colorOf, isEnemyTi, activeFrom, ARMIES } from '../core/state.js';
-import { makeLayout, groundY, clamp, rnd, turn } from '../core/world.js';
+import { makeLayout, groundY, clamp, rnd, turn, angDiff } from '../core/world.js';
 import { buildNav, syncGates } from '../core/nav.js';
 import { rallyCry, blockPress, attackHold, attackRelease, rideRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainJump, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
 import { session, isClient, isHost } from './session.js';
@@ -36,7 +36,7 @@ bus.on('msg', m => {
 // fight moments ride along with the announcements, by unit id, to be shown on every phone
 bus.on('fxmsg', d => {
   const NET = session.NET;
-  if (isHost() && NET.msgs && d.u && !d.fromNet) { NET.msgs.push([++NET.msgN, d.k, d.u.id, d.heavy ? 1 : 0, d.a ? d.a.id : -1, d.byAI ? 1 : 0, d.q || '']); if (NET.msgs.length > 8) NET.msgs.shift(); }
+  if (isHost() && NET.msgs && d.u && !d.fromNet && (d.k !== 'fxopen' || (d.a && d.a.human))) { NET.msgs.push([++NET.msgN, d.k, d.u.id, d.heavy ? 1 : 0, d.a ? d.a.id : -1, d.byAI ? 1 : 0, d.q || '']); if (NET.msgs.length > 8) NET.msgs.shift(); }
 });
 
 // ---------- host ----------
@@ -304,12 +304,14 @@ export function clientTick(dt) {
     regenJavs(me, dt); chargeTimers(me, dt);
     if (C.atkBuf > 0) C.atkBuf -= dt;
     if (C.pred && performance.now() >= C.pred.at) {
-      const { tg: t, reach } = C.pred; C.pred = null;
-      if (t && !t.dead && isEnemyTi(t.ti, me.ti) && Math.hypot(t.x - me.x, t.z - me.z) <= me.r + t.r + reach + .5) {
+      const { tg: t, reach, spear } = C.pred; C.pred = null;
+      if (t && !t.dead && isEnemyTi(t.ti, me.ti) && Math.hypot(t.x - me.x, t.z - me.z) <= me.r + t.r + reach + .9) {
         const hx = (me.x + t.x) / 2, hz = (me.z + t.z) / 2;
-        bus.emit('spark', { x: hx, y: (me.y + t.y) / 2 + 1.2, z: hz, c: t.blockT > 0 ? '#fff3b0' : TEAMS[colorOf(t.ti)].css, n: 5 });
-        if (t.blockT > 0) sfx.clang(hx, hz); else sfx.hit(hx, hz);
-        bus.emit('hitstop', .055); cam.shake = Math.max(cam.shake, .15);
+        const shield = t.blockT > 0 && Math.abs(angDiff(t.face, Math.atan2(me.x - t.x, me.z - t.z))) < 1.1; // (a raised shield only stops what comes from the front)
+        bus.emit('spark', { x: hx, y: (me.y + t.y) / 2 + 1.2, z: hz, c: shield ? '#fff3b0' : TEAMS[colorOf(t.ti)].css, n: 5 });
+        if (shield) sfx.clang(hx, hz); else sfx.hit(hx, hz);
+        // (a raised shield shows on every phone, so a clang here is the clang the host rolls too)
+        bus.emit('hitstop', shield ? .03 : spear ? .075 : .055); if (!shield) cam.shake = Math.max(cam.shake, spear ? .16 : .1);
         t.predHitAt = performance.now();
       }
     }
@@ -385,8 +387,8 @@ function predictAttack(p) {
   }
   // the host lands the blow ~.12s into the swing; show the impact here at the same moment instead of
   // waiting for the host's word (the damage itself still comes from the host)
-  if (best) C.pred = { at: performance.now() + 120, tg: best, reach: STATS.captain.reach + (spear ? CC.spear.reachB : 0) };
-  if (spear) { C.localCd = CC.spear.cd; p.swingKind = 3; p.combo = 0; }
+  if (best) C.pred = { at: performance.now() + 120, tg: best, reach: STATS.captain.reach + (spear ? CC.spear.reachB : 0), spear };
+  if (spear) { C.localCd = CC.spear.cd; p.swingKind = 3; p.combo = 0; p.vx += Math.sin(p.face) * CC.spear.lunge; p.vz += Math.cos(p.face) * CC.spear.lunge; }
   else {
     const combo = performance.now() / 1000 - p.lastSwingT < CC.sword.window ? (p.combo + 1) % 3 : 0;
     p.combo = combo; p.swingKind = combo; C.localCd = combo === 2 ? CC.sword.finisherCd : CC.sword.cd;

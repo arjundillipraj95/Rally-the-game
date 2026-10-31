@@ -69,7 +69,9 @@ bus.on('buzz', ms => buzz(ms));
 // (On the host these come straight from the rules; on a joining player's phone, with the next snapshot.)
 const FIGHT_POW = { fxcapkill: ['CAPTAIN SLAIN!', '#ffd23a'], fxrally: ['RALLY!', '#ffd23a'], fxrout: ['', ''], fxride: ['', ''], fxjoust: ['JOUSTED!', '#ffd23a'], fxparry: ['PARRY!', '#ffffff'], fxbreak: ['GUARD BROKEN!', '#ff8a3a'], fximpale: ['SKEWERED!', '#ffd23a'], fxunhorse: ['UNHORSED!', '#ffd23a'], fxint: ['STAGGERED!', '#ffd23a'] };
 bus.on('fxmsg', d => {
-  const u = d.u, me = G.player; if (!u || !FIGHT_POW[d.k]) return;
+  const u = d.u, me = G.player;
+  if (d.k === 'fxopen') { if (u && d.a === me) bus.emit('fighttip', 'shield'); return; } // (your blow knocked his shield aside)
+  if (!u || !FIGHT_POW[d.k]) return;
   const near = me && Math.hypot(u.x - me.x, u.z - me.z) < (d.k === 'fxrally' || d.k === 'fxrout' || d.k === 'fxcapkill' ? 40 : 22), mine = u === me;
   if (!near && !mine && d.a !== me) return;
   if (d.k === 'fxrally') { // a captain sounds the rally: a ring of gold rolls out from him, and the horn
@@ -441,7 +443,7 @@ window.__fb = {
   ride() { if (G.player) { G.player.lastHit = -9; actions.ride(); } },
   volley(pt) { actions.volley(pt); }, order(o, pt) { actions.order(o, pt); }, rally() { actions.rally(); },
   attack() { actions.attack(); }, jump() { actions.jump(); }, weapon(w) { actions.weapon(w); },
-  setOrder, G, cam, scene, audio: () => audioStats(),
+  setOrder, mkUnit, G, cam, scene, audio: () => audioStats(),
 };
 
 function onResize() { resize(); resizeOverlay(); }

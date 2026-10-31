@@ -1,6 +1,6 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
-import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT } from '../config.js';
+import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, activeFrom, gateOff, ARMIES, rules, matchTime } from './state.js';
 import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W, groundSlow, onIce } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable } from './nav.js';
@@ -244,7 +244,7 @@ export function nearestEnemyCastle(u) {
 }
 const aiDmg = ti => G.teams[ti] && G.teams[ti].human ? 1 : DIFF[G.diff].dmg;
 function startSwing(u, target) {
-  if (u.cd > 0 || u.stun > 0 || u.dead || u.carrying) return false;
+  if (u.cd > 0 || u.stun > 0 || u.dead || u.carrying || u.guardUp) return false;
   u.swing = .38; u.cd = (u.leader ? (u.mounted ? .8 : .6) : STATS[u.kind].cd) * rnd(.9, 1.15);
   u.pending = { t: .15, target };
   sound('swing', u.x, u.z);
@@ -253,6 +253,20 @@ function startSwing(u, target) {
 function startSweep(u) {
   if (u.cd > 0 || u.stun > 0 || u.dead) return;
   u.swing = .38; u.cd = .8; u.pending = { t: .15, sweep: true }; sound('swing', u.x, u.z);
+}
+// A footman facing a captain: shield up for part of each cycle, down (and swinging) for the rest.
+// The raised shield shows on every phone (it's the block pose), so what you see is what you get.
+function shieldTick(u, dt) {
+  if (u.leader || u.kind !== 'foot' || u.mounted) { u.guardUp = false; return; }
+  let cap = false;
+  for (const s of G.teams) { const L = s.leader; if (L && !L.dead && isEnemy(L, u) && Math.hypot(L.x - u.x, L.z - u.z) < SHIELD.r) { cap = true; break; } }
+  if (!cap || u.stun > 0) { u.guardUp = false; if (!cap) u.gT = rnd(0, .8); return; }
+  u.gT = (u.gT || 0) - dt;
+  if (u.gT <= 0) {
+    const P = rnd(...SHIELD.cycle), share = Math.min(.85, SHIELD.share[u.tier | 0] + (u.shieldwall ? SHIELD.wall : 0) + (u.holding ? SHIELD.held : 0));
+    u.guardUp = !u.guardUp; u.gT = P * (u.guardUp ? share : 1 - share);
+  }
+  if (u.guardUp) u.blockT = Math.max(u.blockT, .1);
 }
 function resolveSwing(u) {
   const pend = u.pending, tg = pend.target; u.pending = null;
@@ -277,9 +291,11 @@ function resolveSwing(u) {
     if (s.points <= 0) destroyCastle(tg.castle, u.ti);
     return;
   }
-  const reach = u.reach + (pend.reachB || 0), ex = pend.kb || pend.heavy ? { kb: pend.kb || 1, heavy: !!pend.heavy } : undefined;
+  const reach = u.reach + (pend.reachB || 0), ex = pend.kb || pend.heavy || pend.stun ? { kb: pend.kb || 1, heavy: !!pend.heavy, stun: pend.stun, shove: pend.shove } : undefined;
   let landed = false;
-  if (tg && !tg.dead && Math.hypot(tg.x - u.x, tg.z - u.z) <= u.r + tg.r + reach + .5) { hit(u, tg, mult, ex); landed = true; }
+  const slack = u.human ? .9 : .5; // (a player's blow at a man who has just stepped back still connects)
+  if (tg && !tg.dead && Math.hypot(tg.x - u.x, tg.z - u.z) <= u.r + tg.r + reach + slack) { hit(u, tg, mult, ex); landed = true; }
+  else if (u.isMe && G.capStats && tg && tg.castle === undefined) G.capStats.outOfReach++;
   // sword finisher: the heavy third hit also catches up to two more men beside the target
   if (pend.cleave) {
     let n = 0;
@@ -291,12 +307,13 @@ function resolveSwing(u) {
     }
   }
   // spear thrust: runs through to the man standing right behind the target
+  let pn = 0;
   if (pend.pierce && landed) {
     for (const o of G.units) {
       if (o === tg || o.dead || !isEnemy(o, u)) continue;
-      if (Math.hypot(o.x - u.x, o.z - u.z) > u.r + o.r + reach + 1.3) continue;
-      if (Math.abs(angDiff(u.face, Math.atan2(o.x - u.x, o.z - u.z))) > .35) continue;
-      hit(u, o, mult * pend.pierce, ex); break;
+      if (Math.hypot(o.x - u.x, o.z - u.z) > u.r + o.r + reach + 2.4) continue;
+      if (Math.abs(angDiff(u.face, Math.atan2(o.x - u.x, o.z - u.z))) > .4) continue;
+      hit(u, o, mult * pend.pierce, ex); if (++pn >= (pend.pierceN || 1)) break;
     }
   }
 }
@@ -320,11 +337,12 @@ function hit(a, b, mult = 1, extra) {
   if (a.ripN > 0 && a.riposteT > G.T) { a.ripN--; mult *= PARRY.riposteMult; extra = Object.assign({}, extra, { unblockable: true }); }
   const heavy = !!(extra && extra.heavy);
   // a captain's Block tapped just before the blow lands turns it aside
+  if (a.isMe && G.capStats) G.capStats.blows++;
   if (b.human && !b.mounted && b.stun <= 0 && !b.carrying && G.T - (b.parryT ?? -9) <= (heavy || (extra && extra.shown) ? PARRY.window : PARRY.light) + (b.remote ? PARRY.remote : 0)
     && Math.abs(angDiff(b.face, Math.atan2(a.x - b.x, a.z - b.z))) < 1.5 && !(extra && extra.unparryable)) { parry(b, a, heavy); return; }
   // a computer captain on guard turns most light blows from another captain aside
   const onGuard = !b.human && b.guardT > 0 && b.stun <= 0 && !b.mounted && Math.abs(angDiff(b.face, Math.atan2(a.x - b.x, a.z - b.z))) < 1.2;
-  if (onGuard && a.leader && !heavy && !(extra && (extra.unblockable || extra.unparryable)) && Math.random() < GUARD.parry) { parry(b, a, false, true); return; }
+  if (onGuard && a.leader && !heavy && !(extra && (extra.unblockable || extra.unparryable)) && Math.random() < GUARD.parry) { if (a.isMe && G.capStats) G.capStats.parried++; parry(b, a, false, true); return; }
   if (b.heavyCharge > 0 || b.ahT > 0) b.chargeBrokeT = G.T; // (hit while winding up a heavy blow: it's lost)
   let dmg = a.dmg * rnd(.8, 1.2) * mult * aiDmg(a.ti);
   if (!a.leader && a.aura) dmg *= 1 + auraBonus(a.ti);
@@ -340,6 +358,8 @@ function hit(a, b, mult = 1, extra) {
   let blocked = onGuard;
   if (frontal && b.stun <= 0 && !b.mounted && !b.carrying && !(extra && extra.unblockable)) {
     if (b.human) blocked = b.blocking;
+    else if (a.leader && b.kind === 'foot') blocked = !!b.guardUp; // (against a captain: exactly when his shield is up)
+    else if (a.leader && b.leader) blocked = onGuard; // (a captain against a captain: only his guard, which shows, stops a blow)
     else if (Math.random() < (b.block || 0) + (b.aura ? auraBonus(b.ti) : 0) + (b.shieldwall && b.kind === 'foot' ? .3 : 0) + (held ? .15 : 0)) { blocked = true; b.blockT = .45; }
   }
   if (held) { dmg *= HOLD.dmg; kb *= HOLD.kb; }
@@ -349,8 +369,11 @@ function hit(a, b, mult = 1, extra) {
   // a heavy blow (or any big hit) knocks a man out of his own wind-up
   if (b.windup > 0 && (heavy || mult >= 1.35 || (extra && extra.unblockable))) { b.windup = 0; b.glint = false; b.stun = Math.max(b.stun, .5); fx('fxmsg', { k: 'fxint', u: b }); }
   const hx = (a.x + b.x) / 2, hz = (a.z + b.z) / 2, hy = (a.y + b.y) / 2 + 1.2;
+  const shove = !!(extra && extra.shove);
   if (blocked) {
-    dmg *= b.human ? .12 : .25; kb *= .4;
+    dmg *= b.human ? .12 : shove ? CC.spear.shieldDmg : .25; kb *= shove ? 1 : .4; // (a spear thrust into a shield still drives him back)
+    // a captain's sword on a raised shield knocks it aside: he's open for a moment, the next blow lands
+    if (a.leader && b.guardUp && !shove && !b.human) { b.guardUp = false; b.gT = SHIELD.open; b.stun = Math.max(b.stun, SHIELD.openStun); b.blockT = 0; fx('fxmsg', { k: 'fxopen', u: b, a }); }
     spark(hx, hy, hz, '#fff3b0', 7); sound('clang', hx, hz); b.blockT = Math.max(b.blockT, .2);
     if (b.isMe) fx('buzz', 15);
   } else {
@@ -359,16 +382,18 @@ function hit(a, b, mult = 1, extra) {
     if (b.isMe) { fx('shake', .35); fx('buzz', 35); }
   }
   b.hp -= dmg;
+  if (a.isMe && G.capStats) { G.capStats[blocked ? 'blocked' : 'landed']++; G.capStats.dmg += dmg; if (b.hp <= 0 && !b.dead) G.capStats.kills++; }
   if (b.human && b.remote && !blocked) b.lastBlow = { a, dmg, heavy, t: G.T }; // (their parry press may still be on its way)
   if (broke) { gainRally(a, RALLY.guardBreak); b.stun = Math.max(b.stun, onGuard ? GUARD.broken : HEAVY.guardBreak); if (onGuard) { b.guardT = 0; b.guardCd = 2; } fx('fxmsg', { k: 'fxbreak', u: b }); }
   if (a.remote || b.remote) fx('netFlush');
   if (a.isMe) { // your own blows: a beat of hit-stop, longer for heavy hits and kills, and a deeper thud
     const heavy = !blocked && (mult >= 1.35 || b.hp <= 0);
-    fx('hitstop', blocked ? .03 : heavy ? .1 : .055);
+    fx('hitstop', blocked ? .03 : heavy ? .1 : shove ? .075 : .055);
+    if (!blocked) fx('shake', heavy ? .22 : shove ? .16 : .1);
     if (heavy) sound('heavy', hx, hz);
   }
   const ang = Math.atan2(b.x - a.x, b.z - a.z);
-  push(b, Math.sin(ang) * kb, Math.cos(ang) * kb, blocked ? 0 : broke ? HEAVY.guardBreak : (extra && extra.stun) || .22);
+  push(b, Math.sin(ang) * kb, Math.cos(ang) * kb, blocked ? (shove ? .25 : 0) : broke ? HEAVY.guardBreak : (extra && extra.stun) || .22);
   // heavy blows, slams and captains' finishers launch the body; now and then any captain's kill does
   if (b.hp <= 0) die(b, a, ang, mult >= 1.35 || (extra && extra.unblockable) || (a.leader && Math.random() < .18) ? 1 : 0);
 }
@@ -768,7 +793,8 @@ export function softAim(p, range = 3.4) {
   for (const o of G.units) {
     if (o.dead || !isEnemy(o, p)) continue;
     const d = Math.hypot(o.x - p.x, o.z - p.z); if (d > range) continue;
-    const score = d + Math.abs(angDiff(p.face, Math.atan2(o.x - p.x, o.z - p.z))) * 1.5;
+    const front = Math.abs(angDiff(o.face, Math.atan2(p.x - o.x, p.z - o.z))) < 1.1;
+    const score = d + Math.abs(angDiff(p.face, Math.atan2(o.x - p.x, o.z - p.z))) * 1.5 + (o.blockT > 0 && front && !o.leader ? 1.6 : 0); // (a man with his shield down is the better target)
     if (score < bs) { bs = score; best = o; }
   }
   return best;
@@ -861,6 +887,7 @@ export function captainAttack(p) {
   }
   const spear = p.weapon === 'spear', S = CC.sword;
   const best = softAim(p, spear ? CC.spear.aim : S.aim);
+  if (p.isMe && G.capStats) { G.capStats.press++; if (!best) G.capStats.noTarget++; }
   let target = best;
   if (!best) {
     const [ci, cd] = nearestEnemyCastle(p);
@@ -876,11 +903,12 @@ export function captainAttack(p) {
     if (d > edge) { p.vx += Math.sin(ang) * 4; p.vz += Math.cos(ang) * 4; }
   }
   if (spear) {
-    Object.assign(p.pending, { mult: CC.spear.mult, reachB: CC.spear.reachB, pierce: CC.spear.pierce, kb: .8 });
+    Object.assign(p.pending, { mult: CC.spear.mult, reachB: CC.spear.reachB, pierce: CC.spear.pierce, pierceN: CC.spear.pierceN, kb: CC.spear.kb, stun: CC.spear.stun, shove: true });
+    p.vx += Math.sin(p.face) * CC.spear.lunge; p.vz += Math.cos(p.face) * CC.spear.lunge; // (the whole body goes into the thrust)
     p.cd = CC.spear.cd; p.combo = 0; p.swingKind = 3;
   } else {
     const combo = G.T - p.lastSwingT < S.window ? (p.combo + 1) % 3 : 0, fin = combo === 2;
-    Object.assign(p.pending, { mult: fin ? S.finisherMult : S.mult, cleave: fin, kb: fin ? 1.25 : .4 }); // light hits keep him in reach, the finisher launches
+    Object.assign(p.pending, { mult: fin ? S.finisherMult : S.mult, cleave: fin, kb: fin ? 1.25 : .25 }); // light hits keep him in reach, the finisher launches
     p.cd = fin ? S.finisherCd : S.cd; p.combo = combo; p.swingKind = combo;
   }
   p.lastSwingT = G.T;
@@ -1397,7 +1425,7 @@ export function update(dt, input) {
     if (u.guardT > 0) u.guardT -= dt; if (u.guardCd > 0) u.guardCd -= dt; if (u.rallyT > 0) u.rallyT -= dt;
     if (u.horseCd > 0) u.horseCd -= dt;
     if (u.leader) chargeTimers(u, dt);
-    heavyTick(u, dt); if (u.human) braceTick(u, dt);
+    heavyTick(u, dt); if (u.human) braceTick(u, dt); if (!u.leader) shieldTick(u, dt);
     if (u.swing > 0) u.swing -= dt;
     if (u.pending) { u.pending.t -= dt; if (u.pending.t <= 0) resolveSwing(u); }
     if (u.rt <= 0) { u.rt = rnd(.25, .4); [u.foe, u.fd] = nearestFoe(u, 50); }

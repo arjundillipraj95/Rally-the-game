@@ -134,6 +134,12 @@ const e = (x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1) =>
 const K = (...ks) => new Set(ks), F = (...fs) => new Set(fs);
 // a captain's crest colour: the one their player picked (unlocked by rank); computer captains wear gold
 const CREST_C = CRESTS.map(c => new THREE.Color(c.hex));
+// A footman with his shield up against your captain (he'll block whatever you swing at his front):
+// the shield's rim and boss go bright and its face lightens, so you can read the fight at a glance.
+const SH_GLINT = new THREE.Color(0xfff0b8), SH_TMP = new THREE.Color(), SH_WHITE = new THREE.Color(0xffffff);
+const guarding = u => !u.leader && u.kind === 'foot' && u.blockT > 0 && G.player && !G.player.dead && Math.hypot(u.x - G.player.x, u.z - G.player.z) < 6;
+const shFace = f => u => guarding(u) ? SH_TMP.copy(f(u)).lerp(SH_WHITE, .32) : f(u);
+const shRim = f => u => guarding(u) ? SH_GLINT : f(u);
 const crestCol = u => CREST_C[(G.crests && G.crests[u.ti]) || 0] || CREST_C[0];
 const MELEE = K('foot', 'captain'), HELMED = K('foot', 'captain');
 const armed = u => u.tier >= 1; // Footman/captain Arms upgrade: spear + javelin
@@ -195,14 +201,14 @@ const PARTS = [
   { bone: 'wArm', geo: 'arm', mat: 'plain', m: e(0, -.22, 0), col: skinOf },
   { bone: 'sArm', geo: 'hand', mat: 'plain', m: e(0, -.5, .02), col: skinOf },
   { bone: 'wArm', geo: 'hand', mat: 'plain', m: e(0, -.5, .02), col: skinOf },
-  // shields (on their own bone so they face forward)
-  { bone: 'shield', geo: 'scutum', mat: 'plain2', m: e(0, 0, 0), f: F('roman'), k: MELEE, col: team },
-  { bone: 'shield', geo: 'boss', mat: 'metal', m: e(0, 0, .05), f: F('roman'), k: MELEE, col: u => u.leader ? crestCol(u) : C.steel },
-  { bone: 'shield', geo: 'hoplon', mat: 'plain2', m: e(0, 0, 0), f: F('greek'), k: MELEE, col: team },
-  { bone: 'shield', geo: 'rim', mat: 'metal', m: e(0, 0, 0), f: F('greek'), k: MELEE, col: u => u.leader ? crestCol(u) : C.bronze },
-  { bone: 'shield', geo: 'roundShield', mat: 'plain', m: e(0, 0, 0), f: F('barbarian'), k: MELEE, col: team },
-  { bone: 'shield', geo: 'woodRim', mat: 'plain', m: e(0, 0, 0), f: F('barbarian'), k: MELEE, col: () => C.wood },
-  { bone: 'shield', geo: 'boss', mat: 'metal', m: e(0, 0, .06), f: F('barbarian'), k: MELEE, col: u => u.leader ? crestCol(u) : C.steel },
+  // shields (on their own bone so they face forward); one raised against your captain catches the light
+  { bone: 'shield', geo: 'scutum', mat: 'plain2', m: e(0, 0, 0), f: F('roman'), k: MELEE, col: shFace(team) },
+  { bone: 'shield', geo: 'boss', mat: 'metal', m: e(0, 0, .05), f: F('roman'), k: MELEE, col: shRim(u => u.leader ? crestCol(u) : C.steel) },
+  { bone: 'shield', geo: 'hoplon', mat: 'plain2', m: e(0, 0, 0), f: F('greek'), k: MELEE, col: shFace(team) },
+  { bone: 'shield', geo: 'rim', mat: 'metal', m: e(0, 0, 0), f: F('greek'), k: MELEE, col: shRim(u => u.leader ? crestCol(u) : C.bronze) },
+  { bone: 'shield', geo: 'roundShield', mat: 'plain', m: e(0, 0, 0), f: F('barbarian'), k: MELEE, col: shFace(team) },
+  { bone: 'shield', geo: 'woodRim', mat: 'plain', m: e(0, 0, 0), f: F('barbarian'), k: MELEE, col: shRim(() => C.wood) },
+  { bone: 'shield', geo: 'boss', mat: 'metal', m: e(0, 0, .06), f: F('barbarian'), k: MELEE, col: shRim(u => u.leader ? crestCol(u) : C.steel) },
   // weapons: base tier carries sword + shield; the Arms upgrade (tier 1+) swaps the sword for a
   // spear (reusing the old Spearman's shaft/tip bones) on both squad Footmen and the captain.
   { bone: 'wArm', geo: 'guard', mat: 'plain', m: e(0, -.5, .12), f: F('roman', 'greek'), k: MELEE, col: () => C.leather },

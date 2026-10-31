@@ -96,7 +96,12 @@ export const PARRY = { window: .26, light: .14, remote: .28, lock: .6, slow: .25
 // turn most light blows aside, staggering the attacker; a heavy blow smashes the guard and leaves them
 // reeling. share: about how much of a fight each difficulty spends guarded (Recruit, Soldier, Warlord);
 // punish: how often a captain cuts in with a quick blow when you wind up a heavy one in his face.
-export const GUARD = { share: [.1, .25, .4], dur: 1.4, parry: .8, stun: .55, broken: 1.1, punish: [0, .5, .85] };
+// A footman squaring up to a captain fights in a rhythm you can read: shield up for a moment (he
+// blocks everything from the front), then down to strike (he can't block). share: the part of each
+// cycle spent behind the shield, by footman tier; a shield wall or a held line keeps it up longer.
+// A sword blow on a raised shield knocks it aside: open for a moment, so the next blow lands.
+export const SHIELD = { cycle: [1.6, 2.3], share: [.35, .42, .5], wall: .3, held: .12, r: 4.5, open: .9, openStun: .3 };
+export const GUARD = { share: [.1, .25, .4], dur: 1.4, parry: 1, stun: .55, broken: 1.1, punish: [0, .5, .85] };
 // windup by difficulty (Recruit, Soldier, Warlord); chance: how often a ready captain picks one
 export const HEAVY = { windup: [.95, .8, .68], chance: [.22, .32, .4], vetChance: .12, mult: 1.75, kb: 1.8, reach: 1.1, guardBreak: .6, guardDmg: .55 };
 // Holding Attack does something different with each weapon: the sword winds up a guard-breaking
@@ -136,7 +141,7 @@ export const WEAPONS = ['sword', 'spear', 'jav'];
 export const WEAPON_NAMES = { sword: 'Sword', spear: 'Spear', jav: 'Javelins' };
 export const CAPTAIN_COMBAT = {
   sword: { cd: .36, finisherCd: .62, window: .85, mult: 1, finisherMult: 1.5, aim: 3.6 },
-  spear: { cd: .66, reachB: 1.1, mult: 1.15, pierce: .7, aim: 4.6 },
+  spear: { cd: .78, reachB: 1.1, mult: 1.45, pierce: .8, pierceN: 1, kb: 1.7, stun: .45, lunge: 5, aim: 4.6, shieldDmg: .3 }, // fewer, heavier thrusts: a lunge that shoves and runs through
   jav: { cd: .8, dmg: 30, range: 16, ammo: Infinity, regen: 4 }, // unlimited: the gap between throws is the limit
   jump: { v: 7.6, g: 22, cd: .3 },
   leap: { mult: 1.4, range: 3, arc: 1.3, stun: .6, cd: .7 },
