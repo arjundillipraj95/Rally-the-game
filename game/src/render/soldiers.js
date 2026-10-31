@@ -544,6 +544,12 @@ function pose(u, dt) {
     // a javelin drawn back: cocked further, the body turning away, the longer it's held
     if (u.javDraw > 0) { a.wArmX = near(a.wArmX, -2.6 - .45 * u.javDraw, k12); a.bodyRY += .45 + .3 * u.javDraw; a.bodyRX -= .1 * u.javDraw; a.spearZ = -.5 - .3 * u.javDraw; }
   }
+  // a broken army: running for home, arms flailing, faces white
+  if (u.routing && !u.mounted && !u.dead) { a.expr = 'scared'; a.sArmX = -2.3 + Math.sin(a.walk * 2) * .7; a.wArmX = -2.3 + Math.sin(a.walk * 2 + 2) * .7; a.bodyRX = -.12; }
+  // the rally horn: the men it reaches throw their weapons up with a roar, then go in yelling
+  if (u.rallyT > 0 && !a.rallied) { a.rallied = true; a.cheerT = .9; } else if (!(u.rallyT > 0)) a.rallied = false;
+  if (a.cheerT > 0 && !u.mounted) { a.cheerT -= dt; a.expr = 'yell'; a.sArmX = near(a.sArmX, -2.7, k12); a.wArmX = near(a.wArmX, -2.9, k12); a.wArmZ = 0; a.lift = Math.max(a.lift, .2 * Math.sin(Math.PI * a.cheerT / .9)); }
+  else if (u.rallyT > 0) a.expr = 'yell';
   // the battle's over: winners jump about with their arms in the air, everyone else runs for it
   if (G.state === 'end' && G.endInfo && G.endInfo.w >= 0 && !u.mounted) {
     const ph = a.idle * 7 + (u.id % 7);

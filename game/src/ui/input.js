@@ -7,11 +7,12 @@ import { cam } from '../render/camera.js';
 import { initAudio } from './audio.js';
 import { floatText } from '../render/effects.js';
 import { aimStart, aimMove, aimEnd, aimCancel } from './volleyaim.js';
-import { holdStart, holdMove, holdEnd, holdCancel } from './holdaim.js';
+import { holdStart, holdMove, holdEnd, holdCancel, hold as holdSt } from './holdaim.js';
+import { RALLY } from '../config.js';
 
 const $ = id => document.getElementById(id);
 export const inp = { joy: { active: false, id: null, ox: 0, oy: 0, x: 0, y: 0 }, look: { id: null, lx: 0, ly: 0 }, keys: {}, attackHeld: false, blockHeld: false, trayIsOpen: false, upIsOpen: false };
-let A = { attack() {}, ride() {}, order() {}, recruit() {}, upgrade() {}, volley() {}, jump() {}, weapon() {} };
+let A = { rally() {}, attack() {}, ride() {}, order() {}, recruit() {}, upgrade() {}, volley() {}, jump() {}, weapon() {} };
 
 export function trayOpen(on) { inp.trayIsOpen = on; $('tray').hidden = !on; $('recBtn').classList.toggle('open', on); if (on) upOpen(false); }
 export function upOpen(on) { inp.upIsOpen = on; $('upTray').hidden = !on; $('upBtn').classList.toggle('open', on); if (on) trayOpen(false); }
@@ -129,18 +130,24 @@ export function bindInput(actions) {
   // keyboard: hold V and point with the mouse
   addEventListener('pointermove', e => { mouse.x = e.clientX; mouse.y = e.clientY; if (e.pointerType === 'mouse' && inp.keys.KeyV) aimMove(e.clientX, e.clientY, false); });
   // Order: tap to step to the next order; press and drag to place a held line where you point
-  const cmd = $('cmdBtn'); let cmdPtr = null;
+  // (drag onto enemy men: attack that group; with the rally horn full, press and hold still: sound it)
+  const cmd = $('cmdBtn'); let cmdPtr = null, rallyT = null, rallied = false;
   cmd.addEventListener('pointerdown', e => {
     e.preventDefault(); e.stopPropagation(); initAudio();
     if (!holdStart(e.clientX, e.clientY)) { A.order(); return; }
-    cmdPtr = e.pointerId; cmd.classList.add('held'); try { cmd.setPointerCapture(e.pointerId); } catch (_) {}
+    cmdPtr = e.pointerId; cmd.classList.add('held'); rallied = false; try { cmd.setPointerCapture(e.pointerId); } catch (_) {}
+    const me = G.teams[G.myTi];
+    clearTimeout(rallyT);
+    if (me && me.rally >= 100) rallyT = setTimeout(() => { if (cmdPtr === e.pointerId && !holdSt.moved) { rallied = true; holdCancel(); A.rally(); } }, RALLY.hold * 1000);
   });
   cmd.addEventListener('pointermove', e => { if (e.pointerId === cmdPtr) holdMove(e.clientX, e.clientY, e.pointerType !== 'mouse'); });
   const cmdUp = e => {
-    if (e.pointerId !== cmdPtr) return; cmdPtr = null; cmd.classList.remove('held');
+    if (e.pointerId !== cmdPtr) return; cmdPtr = null; cmd.classList.remove('held'); clearTimeout(rallyT);
+    if (rallied) return;
     if (e.type !== 'pointerup') { holdCancel(); return; }
     const pt = holdEnd();
-    if (pt) A.order('hold', pt); else { A.order(); if (G.teams[G.myTi] && G.teams[G.myTi].order === 'hold') holdTip(); }
+    if (pt && pt.focus) A.order('focus', pt);
+    else if (pt) A.order('hold', pt); else { A.order(); if (G.teams[G.myTi] && G.teams[G.myTi].order === 'hold') holdTip(); }
   };
   cmd.addEventListener('pointerup', cmdUp); cmd.addEventListener('pointercancel', cmdUp);
   cmd.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); A.order(); } });
@@ -159,6 +166,7 @@ export function bindInput(actions) {
     if (e.code === 'KeyF') A.order('hold');
     if (e.code === 'KeyE') A.order('charge');
     if (e.code === 'KeyT') A.order('shieldwall');
+    if (e.code === 'KeyG') A.rally();
     if (e.code === 'KeyV') { if (aimStart(mouse.x, mouse.y)) aimMove(mouse.x, mouse.y, false, true); else A.volley(); } // aims at the mouse
     if (e.code === 'KeyC') A.jump();
     if (e.code === 'KeyR') A.weapon();

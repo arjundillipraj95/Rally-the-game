@@ -112,6 +112,17 @@ export const HOLD_ATK = { sword: .38, swordFull: .7, brace: .28, braceCd: .65, b
 // ai: how often a computer rider times it perfectly / well, per difficulty (the rest only graze).
 export const RIDE = { gallop: 1.6, turnLoss: 1.1, lockR: 16, lockCone: .9, perfect: 1.2, good: 2.6, remote: .9, tap: .2, tapMult: .55,
   sword: { at: 2.6, mult: 1.45 }, spear: { at: 3.6, mult: 1.65 }, perfectX: 1.7, goodX: 1.0, grazeX: .45, ai: { perfect: [.2, .4, .6], good: [.45, .4, .3] } };
+// Morale. Every army has the heart to fight (0-100). Losing men drains it (more when they fall to a
+// blow from the side or behind: flankAng is how far off their front that counts), and so does losing
+// its captain; it comes back while the captain stands and no enemy is close. At `rout` the army breaks:
+// its men run for home for routT seconds, taking flankX damage as they go, then regroup at `regroup`.
+// Blows from the side or behind always land flankX harder on soldiers.
+export const MORALE = { death: 7, flankDeath: 5, captain: 35, regen: 3, calmR: 15, rout: 20, waver: 40, regroup: 45, routT: 6, steady: 12, homeR: 32, flankAng: 2.0, flankX: 1.25 };
+// (steady: after regrouping, an army can't break again for this long; homeR: men this close to their own castle fight with their backs to the wall and don't break)
+// The rally horn. A captain fills it fighting well (per kill, captain kill, parry, perfect ride-by, guard
+// smashed, rider unhorsed); full, he can sound it: his army's morale +morale and any rout ends, his men
+// within r surge (dmg, spd) for buffT s, and enemies within enemyR flinch and lose enemyMorale.
+export const RALLY = { kill: 9, capKill: 30, parry: 15, ride: 12, guardBreak: 10, unhorse: 15, r: 18, morale: 45, buffT: 8, dmg: 1.25, spd: 1.15, enemyR: 11, enemyMorale: 15, hold: .45 };
 // A held line: footmen in their places take this share of the damage and knockback from the front,
 // and a charge into them stalls, hurting the horse.
 export const HOLD = { dmg: .7, kb: .3, horse: 30 };
@@ -164,7 +175,8 @@ export const SQUAD_CAP = 20;
 export const START_SQUAD = ['foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'arch', 'arch', 'arch'];
 export const FULL_SQUAD = ['foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'arch', 'arch', 'arch', 'arch', 'arch', 'arch'];
 export const ORDERS = ['follow', 'hold', 'charge', 'shieldwall'];
-export const ORDER_NAMES = { follow: 'Follow me!', hold: 'Hold here!', charge: 'Charge!', shieldwall: 'Shieldwall!' };
+export const ORDER_NAMES = { follow: 'Follow me!', hold: 'Hold here!', charge: 'Charge!', shieldwall: 'Shieldwall!', focus: 'Take them!' };
+// (focus, the attack on one enemy group, is given by dragging the order button onto them; not in the tap cycle)
 
 // Upgrades bought with gold during a battle. Footman/Archer tiers are single-purchase (one
 // cost each, foot2/arch2 require foot1/arch1 first); Aura/Horse stay repeatable up to 3 levels.

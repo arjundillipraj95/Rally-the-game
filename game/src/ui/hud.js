@@ -26,13 +26,14 @@ const ICONS = {
 };
 let atkIcon = null, cmdIcon = null, jmpMode = null;
 const JUMP_IC = '<path d="M5 14l7-7 7 7M5 20l7-7 7 7"/>', CHARGE_IC = '<path d="M3 12h11M10 7l5 5-5 5"/><path d="M16 6l5 6-5 6"/>';
-const ORDER_SHORT = { follow: 'Follow', hold: 'Hold', charge: 'Charge', shieldwall: 'Wall' };
+const ORDER_SHORT = { follow: 'Follow', hold: 'Hold', charge: 'Charge', shieldwall: 'Wall', focus: 'Attack' };
 // the squad order button shows the order in force as an icon (tap cycles; the name pops up in the world)
 const ORDER_ICONS = {
   follow: '<path d="M6 21V4h11l-2.5 4 2.5 4H6"/>',
   hold: '<path d="M12 5v16M7 9h10M5 14a7 7 0 0 0 14 0"/><circle cx="12" cy="4" r="1.6"/>',
   charge: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
   shieldwall: '<path d="M2.5 7h5.5v5c0 3-2.75 5-2.75 5S2.5 15 2.5 12zM9.25 7h5.5v5c0 3-2.75 5-2.75 5s-2.75-2-2.75-5zM16 7h5.5v5c0 3-2.75 5-2.75 5S16 15 16 12z"/>',
+  focus: '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>',
 };
 // lastSnapAt: when a client last heard from the host
 export function updateHud(lastSnapAt) {
@@ -55,6 +56,12 @@ export function updateHud(lastSnapAt) {
   const gold = Math.floor(me.gold); $('gold').textContent = gold;
   const sq = squadOf(G.myTi); $('squadN').textContent = sq.length;
   const c = k => sq.filter(u => u.kind === k).length; $('squadMix').textContent = `F${c('foot')} A${c('arch')}`;
+  { // your army's morale, and the rally horn on the order button
+    const T = G.teams[G.myTi], m = Math.max(0, Math.min(100, (T && T.morale) ?? 100)), mb = $('moraleBar');
+    mb.firstChild.style.width = m + '%'; mb.classList.toggle('rout', !!(T && T.routT > 0)); mb.classList.toggle('waver', !(T && T.routT > 0) && m <= 40);
+    const r = Math.max(0, Math.min(100, (T && T.rally) || 0)); $('rallyFill').firstChild.style.width = r + '%';
+    $('cmdBtn').classList.toggle('rallyReady', r >= 100);
+  }
   document.querySelectorAll('#tray button').forEach(b => {
     b.setAttribute('aria-disabled', (gold < STATS[b.dataset.kind].cost || sq.length >= G.squadCap || !canRecruit(G.myTi)) ? 'true' : 'false');
   });
@@ -92,7 +99,7 @@ export function updateHud(lastSnapAt) {
   $('vly').classList.toggle('dim', !p || p.dead || me.volleyCd > 0);
   const o = me.order || 'follow';
   if (cmdIcon !== o) { cmdIcon = o; $('cmdIc').innerHTML = ORDER_ICONS[o] || ORDER_ICONS.follow; $('cmdT').textContent = ORDER_SHORT[o] || 'Follow'; $('cmdBtn').setAttribute('aria-label', 'Squad order: ' + (ORDER_NAMES[o] || ORDER_NAMES.follow)); }
-  $('cmdBtn').style.borderColor = o === 'follow' ? 'var(--green)' : o === 'hold' ? 'var(--yellow)' : o === 'shieldwall' ? '#7f9bff' : 'var(--red)';
+  $('cmdBtn').style.borderColor = o === 'follow' ? 'var(--green)' : o === 'hold' ? 'var(--yellow)' : o === 'shieldwall' ? '#7f9bff' : 'var(--red)'; // (charge and an ordered attack: red)
   const NET = session.NET, tag = $('netTag');
   if (NET) {
     tag.hidden = false;

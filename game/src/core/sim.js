@@ -1,6 +1,6 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
-import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, HOLD_ATK, GUARD, RIDE, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT } from '../config.js';
+import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, rules, matchTime } from './state.js';
 import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W, groundSlow, onIce } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable } from './nav.js';
@@ -17,7 +17,7 @@ const sound = (name, x, z) => fx('sfx', { name, x, z });
 // army (0-3): a Duo teammate's army shares its castle rather than owning one.
 export function newTeams(humans, active = [1, 1, 1, 1, 0, 0, 0, 0]) {
   return Array.from({ length: 8 }, (_, i) => ({ points: 100, tickets: rules().tickets, caps: 0, ctrlScore: 0, gold: Math.round(ECON.startGold * rules().gold), alive: true, plan: null, leaderDeadT: 0, recruitT: rnd(2, 6), thinkT: 0,
-    human: !!humans[i], active: !!active[i], order: 'follow', holdPt: null, towerT: rnd(0, 1.4), leader: null,
+    human: !!humans[i], active: !!active[i], order: 'follow', holdPt: null, morale: 100, rally: 0, routT: 0, focus: null, towerT: rnd(0, 1.4), leader: null,
     up: { foot1: 0, foot2: 0, arch1: 0, arch2: 0, aura: 0, horse: 0 }, arrowHits: 0, shieldwallT: 0, volleyCd: 0, upT: rnd(20, 40) }));
 }
 export function mkUnit(ti, x, z, kind, human = false) {
@@ -69,6 +69,38 @@ export function setOrder(ti, o, pt) {
   const s = G.teams[ti]; s.order = o;
   const cap = s.leader;
   if (o === 'hold') s.holdPt = pt ? { x: +pt.x, z: +pt.z, face: +pt.face } : cap ? { x: cap.x + Math.sin(cap.face) * 2.5, z: cap.z + Math.cos(cap.face) * 2.5, face: cap.face } : null;
+  if (o === 'focus') { if (pt) s.focus = { id: pt.id | 0, x: +pt.x, z: +pt.z }; else s.order = 'follow'; }
+}
+// ---------- morale, routs and the rally horn ----------
+export const routing = ti => G.teams[ti] && G.teams[ti].routT > 0;
+const behind = (victim, from) => Math.abs(angDiff(victim.face, Math.atan2(from.x - victim.x, from.z - victim.z))) > MORALE.flankAng;
+function loseHeart(ti, amt) { const s = G.teams[ti]; if (s) s.morale = Math.max(0, s.morale - amt); }
+export function gainRally(u, amt) { if (!u || !u.leader) return; const s = G.teams[u.ti]; if (s) s.rally = Math.min(100, (s.rally || 0) + amt); }
+function moraleTick(dt) {
+  G.teams.forEach((s, ti) => {
+    if (!s.active) return;
+    const L = s.leader, up = L && !L.dead;
+    if (s.routT > 0) { s.routT -= dt; if (s.routT <= 0) { s.routT = 0; s.morale = Math.max(s.morale, MORALE.regroup); s.steadyT = MORALE.steady; } return; }
+    if (s.steadyT > 0) s.steadyT -= dt;
+    const men = squadOf(ti), home = gatePos(TEAMS[colorOf(ti)], ti >= 4 ? 9 : 0, 0);
+    const atHome = men.filter(u => Math.hypot(u.x - home[0], u.z - home[1]) < MORALE.homeR).length > men.length / 2;
+    if (s.morale <= MORALE.rout && men.length >= 3 && !(s.steadyT > 0) && !atHome) { s.routT = MORALE.routT; say('rout', ti); fx('fxmsg', { k: 'fxrout', u: L || squadOf(ti)[0], ti }); return; }
+    if (up && !nearestFoe(L, MORALE.calmR)[0]) s.morale = Math.min(100, s.morale + MORALE.regen * dt);
+    else if (up) s.morale = Math.min(100, s.morale + MORALE.regen * .25 * dt); // (a captain on his feet steadies them, even in the thick of it)
+    // a computer captain sounds his horn when it's full and his men are wavering or in a big fight
+    if (!s.human && up && s.rally >= 100 && (s.morale < 50 || G.units.filter(o => !o.dead && isEnemy(o, L) && Math.hypot(o.x - L.x, o.z - L.z) < 10).length >= 5)) rallyCry(ti);
+  });
+}
+export function rallyCry(ti) {
+  const s = G.teams[ti], L = s && s.leader; if (!L || L.dead || (s.rally || 0) < 100) return false;
+  s.rally = 0; s.morale = Math.min(100, s.morale + RALLY.morale); s.routT = 0;
+  for (const u of G.units) if (!u.dead && u.ti === ti && !u.leader && Math.hypot(u.x - L.x, u.z - L.z) < RALLY.r) { u.rallyT = RALLY.buffT; u.stun = Math.min(u.stun, 0); }
+  const shaken = new Set();
+  for (const o of G.units) if (!o.dead && isEnemy(o, L) && Math.hypot(o.x - L.x, o.z - L.z) < RALLY.enemyR) { if (!o.leader) o.stun = Math.max(o.stun, .5); shaken.add(o.ti); }
+  for (const t of shaken) loseHeart(t, RALLY.enemyMorale);
+  sound('horn'); fx('fxmsg', { k: 'fxrally', u: L });
+  if (L.remote || L.human) fx('netFlush');
+  return true;
 }
 export function canRecruit(ti) { const s = G.teams[ti]; return G.mode === 'conquest' ? G.teams[colorOf(ti)].alive : G.mode === 'dm' ? s.tickets > 0 : true; }
 export function recruit(ti, kind) {
@@ -150,6 +182,8 @@ export function speedOf(u) {
   s *= groundSlow(u.x, u.z); // (a ford, a wheat field, an oasis)
   if (u.human && u.blocking && !u.mounted) s *= .5;
   if (u.windup > 0) s *= .3;
+  if (u.rallyT > 0) s *= RALLY.spd;
+  if (u.routing) s *= 1.1;
   if (u.heavyCharge > 0) s *= .55;
   if (u.bracing) s *= HOLD_ATK.braceSlow;
   return s;
@@ -295,6 +329,8 @@ function hit(a, b, mult = 1, extra) {
   let dmg = a.dmg * rnd(.8, 1.2) * mult * aiDmg(a.ti);
   if (!a.leader && a.aura) dmg *= 1 + auraBonus(a.ti);
   if (a.y - b.y > .8) dmg *= 1.2; // fighting downhill
+  if (!b.leader && (behind(b, a) || routing(b.ti))) dmg *= MORALE.flankX; // caught from the side or behind, or running
+  if (a.rallyT > 0) dmg *= RALLY.dmg;
   b.lastHit = G.T;
   const spearedHorse = (a.kind === 'foot' && a.tier >= 1) || (a.leader && a.weapon === 'spear');
   if (b.mounted && (spearedHorse || Math.random() < .5)) { horseDamage(b, dmg * (spearedHorse ? 3 : 1)); return; }
@@ -324,7 +360,7 @@ function hit(a, b, mult = 1, extra) {
   }
   b.hp -= dmg;
   if (b.human && b.remote && !blocked) b.lastBlow = { a, dmg, heavy, t: G.T }; // (their parry press may still be on its way)
-  if (broke) { b.stun = Math.max(b.stun, onGuard ? GUARD.broken : HEAVY.guardBreak); if (onGuard) { b.guardT = 0; b.guardCd = 2; } fx('fxmsg', { k: 'fxbreak', u: b }); }
+  if (broke) { gainRally(a, RALLY.guardBreak); b.stun = Math.max(b.stun, onGuard ? GUARD.broken : HEAVY.guardBreak); if (onGuard) { b.guardT = 0; b.guardCd = 2; } fx('fxmsg', { k: 'fxbreak', u: b }); }
   if (a.remote || b.remote) fx('netFlush');
   if (a.isMe) { // your own blows: a beat of hit-stop, longer for heavy hits and kills, and a deeper thud
     const heavy = !blocked && (mult >= 1.35 || b.hp <= 0);
@@ -376,9 +412,10 @@ function rideStrike(p, tg, q) {
   if (!tg || q === 'miss') return;
   const ang = Math.atan2(tg.x - p.x, tg.z - p.z); p.face = turn(p.face, ang, .5);
   const mult = RIDE[w].mult * (q === 'perfect' ? RIDE.perfectX : q === 'good' ? RIDE.goodX : RIDE.grazeX) * (.5 + .6 * sf);
-  if (q === 'perfect' && w === 'spear' && tg.mounted) { horseDamage(tg, 999); if (tg.mounted) dismount(tg, true); fx('fxmsg', { k: 'fxjoust', u: tg, a: p }); } // a lance square on another rider: off he goes
+  if (q === 'perfect' && w === 'spear' && tg.mounted) { horseDamage(tg, 999); if (tg.mounted) dismount(tg, true); gainRally(p, RALLY.unhorse); fx('fxmsg', { k: 'fxjoust', u: tg, a: p }); } // a lance square on another rider: off he goes
   hit(p, tg, mult, { heavy: q !== 'graze', shown: true, kb: q === 'perfect' ? 2.2 : 1.2, stun: q === 'perfect' ? 1 : .4 }); // (shown: a rider's blow is always announced, so always parryable on the glint)
   if (q === 'perfect') {
+    gainRally(p, RALLY.ride);
     p.slowT = Math.max(p.slowT || 0, .3); tg.slowT = Math.max(tg.slowT || 0, .3); // (the moment has weight: the two of them, in slow motion)
     if (w === 'sword') { let n = 0; for (const o of G.units) { // a sabre pass cuts through to the men beside him
       if (o === tg || o.dead || !isEnemy(o, p) || o.mounted) continue;
@@ -405,7 +442,7 @@ function aiRide(u, foe, fd) {
 // ---------- parries, heavy blows and held attacks ----------
 function parry(b, a, heavy, byAI) {
   b.parryT = -9; b.lastBlow = null; b.cd = 0; b.stun = 0;
-  b.riposteT = G.T + PARRY.riposteT; b.ripN = PARRY.riposteN; b.parries = (b.parries || 0) + 1;
+  b.riposteT = G.T + PARRY.riposteT; b.ripN = PARRY.riposteN; b.parries = (b.parries || 0) + 1; gainRally(b, RALLY.parry);
   if (byAI) { b.guardT = 0; b.guardCd = 1.5; } // (he turned your blow: now he comes at you)
   a.windup = 0; a.glint = false; a.pending = null; a.stun = Math.max(a.stun, byAI ? GUARD.stun : heavy ? PARRY.heavyStun : PARRY.stun);
   a.ahT = 0; a.heavyCharge = 0;
@@ -515,7 +552,7 @@ function braceTick(p, dt) {
     if (d > reach || Math.abs(angDiff(p.face, Math.atan2(dx, dz))) > .7) continue;
     p.braceCd = HOLD_ATK.braceCd; p.swing = .38; p.swingKind = 3;
     if (o.mounted) {
-      horseDamage(o, 60); if (o.mounted) dismount(o, true); hit(p, o, 1.6, { unparryable: true, kb: 1.5 });
+      horseDamage(o, 60); if (o.mounted) dismount(o, true); gainRally(p, RALLY.unhorse); hit(p, o, 1.6, { unparryable: true, kb: 1.5 });
       fx('fxmsg', { k: 'fximpale', u: o }); if (p.isMe) { fx('hitstop', .12); fx('shake', .45); }
     } else hit(p, o, 1.45, { kb: 1.6, stun: .5 });
     break;
@@ -560,7 +597,7 @@ function arrowHit(a, b) {
   // a shieldwall turns arrows from the front only — locked shields don't cover the sides or back
   if (b.shieldwall && frontal && (b.kind === 'foot' || Math.random() < .6)) { spark(b.x, b.y + 2.2, b.z, '#e8d9b0', 4); sound('thud', b.x, b.z); return; }
   b.lastHit = G.T;
-  if (a.unhorse && b.mounted) { horseDamage(b, dmg); if (b.mounted) dismount(b, true); fx('fxmsg', { k: 'fxunhorse', u: b }); return; } // a full-draw javelin knocks a rider clean off
+  if (a.unhorse && b.mounted) { horseDamage(b, dmg); if (b.mounted) dismount(b, true); gainRally(a.shooter, RALLY.unhorse); fx('fxmsg', { k: 'fxunhorse', u: b }); return; } // a full-draw javelin knocks a rider clean off
   if (b.mounted && Math.random() < .6) { horseDamage(b, dmg); return; }
   let blocked = false;
   if (frontal && !b.mounted && !b.carrying && loc !== 'head') {
@@ -587,6 +624,10 @@ function die(u, killer, ang, launch = 0) {
   if (u.summon) { u.summon.state = 'leaving'; u.summon.t = 0; u.summon = null; }
   if (u.carrying) dropFlag(u);
   const s = G.teams[u.ti];
+  // the army takes it to heart: more so for a man cut down from the side or behind, most of all its captain
+  loseHeart(u.ti, u.leader ? MORALE.captain : MORALE.death + (killer && behind(u, killer) ? MORALE.flankDeath : 0));
+  if (killer && killer.leader) gainRally(killer, u.leader ? RALLY.capKill : RALLY.kill);
+  if (killer && killer.leader && u.leader && G.teams[killer.ti]) G.teams[killer.ti].morale = Math.min(100, G.teams[killer.ti].morale + 20);
   if (G.mode === 'dm') {
     s.tickets = Math.max(0, s.tickets - (u.leader ? 5 : 1));
     if (s.tickets <= 0 && s.alive) { s.alive = false; say('tickets0', u.ti); }
@@ -1113,6 +1154,15 @@ function holdPlace(u, H, dt, range) {
 function thinkSoldier(u, dt) {
   if (u.windup > 0) { moveToward(u, u.x, u.z, 0, dt); return; }
   const s = G.teams[u.ti], L = s.leader, leaderUp = L && !L.dead;
+  // a broken army runs for home, weapons forgotten
+  u.routing = s.routT > 0;
+  if (u.routing) { u.aim = false; u.holding = false; const [gx, gz] = gatePos(TEAMS[colorOf(u.ti)], u.ti >= 4 ? 9 : 0, 6); go(u, gx, gz, speedOf(u), dt, 2); return; }
+  // ordered at one enemy group: go for the men around it
+  if (orderOf(u.ti) === 'focus' && s.focus) {
+    let best = null, bd = 1e9;
+    for (const o of G.units) { if (o.dead || !isEnemy(o, u) || Math.hypot(o.x - s.focus.x, o.z - s.focus.z) > 9) continue; const d = Math.hypot(o.x - u.x, o.z - u.z); if (d < bd) { bd = d; best = o; } }
+    if (best) { u.foe = best; u.fd = bd; } else if (Math.hypot(s.focus.x - u.x, s.focus.z - u.z) > 3) { go(u, s.focus.x, s.focus.z, speedOf(u), dt, 2); return; }
+  }
   const myOrder = orderOf(u.ti);
   if (myOrder === 'shieldwall' && leaderUp) {
     u.aim = false;
@@ -1130,9 +1180,10 @@ function thinkSoldier(u, dt) {
     if (rider) { moveToward(u, u.x, u.z, 0, dt); faceTo(u, rider.x, rider.z, dt, 10); if (rd < u.r + rider.r + u.reach) startSwing(u, rider); u.holding = myOrder === 'hold'; return; }
   }
   if (myOrder === 'hold' && s.holdPt) { holdPlace(u, s.holdPt, dt, range); return; }
-  const engage = myOrder === 'charge' ? 45 : u.kind === 'arch' ? range : myOrder === 'hold' ? 8 : 10;
+  const engage = myOrder === 'charge' || myOrder === 'focus' ? 45 : u.kind === 'arch' ? range : myOrder === 'hold' ? 8 : 10;
   const foe = u.foe, fd = u.fd;
   const leash = myOrder === 'follow' && leaderUp && foe && Math.hypot(foe.x - L.x, foe.z - L.z) > 18;
+  if (myOrder === 'focus' && u.kind === 'arch' && foe && fd > range) { go(u, foe.x, foe.z, speedOf(u), dt, range * .8); return; } // (archers close to bow range of the group)
   if (foe && fd < engage && !leash) {
     if (u.kind === 'arch') {
       if (fd < u.r + foe.r + u.reach) { startSwing(u, foe); faceTo(u, foe.x, foe.z, dt); moveToward(u, u.x, u.z, 0, dt); }
@@ -1313,13 +1364,22 @@ export function update(dt, input) {
     u.tkey = G.teams[u.ti].human ? 1 - k : k;
   }
   for (const k of [0, 1]) for (const u of G.units) if (!u.dead && !u.leader && u.tkey === k) u.tslot = tIdx[u.ti]++;
+  moraleTick(dt);
+  // an ordered attack follows its group: onto the marked man, or the next man near where he fell; none left, and they fall back in
+  G.teams.forEach(s => {
+    if (s.order !== 'focus' || !s.focus) return;
+    const t = G.units.find(o => o.id === s.focus.id && !o.dead);
+    if (t) { s.focus.x = t.x; s.focus.z = t.z; return; }
+    const L = s.leader, n = L && G.units.filter(o => !o.dead && isEnemy(o, L)).sort((a, b) => Math.hypot(a.x - s.focus.x, a.z - s.focus.z) - Math.hypot(b.x - s.focus.x, b.z - s.focus.z))[0];
+    if (n && Math.hypot(n.x - s.focus.x, n.z - s.focus.z) < 9) { s.focus.id = n.id; s.focus.x = n.x; s.focus.z = n.z; } else { s.order = 'follow'; s.focus = null; if (s.human) say('focusDone', G.teams.indexOf(s)); }
+  });
   const DT = dt;
   for (const u of G.units) {
     if (u.dead) continue;
     // (the two men in a parry live a beat in slow motion; everyone else carries on)
     let dt = DT; if (u.slowT > 0) { u.slowT -= DT; dt = DT * PARRY.slow; }
     u.cd -= dt; u.shootCd -= dt; u.javCd -= dt; u.stun -= dt; u.blockT -= dt; u.rt -= dt; u.trampleT -= dt;
-    if (u.guardT > 0) u.guardT -= dt; if (u.guardCd > 0) u.guardCd -= dt;
+    if (u.guardT > 0) u.guardT -= dt; if (u.guardCd > 0) u.guardCd -= dt; if (u.rallyT > 0) u.rallyT -= dt;
     if (u.horseCd > 0) u.horseCd -= dt;
     if (u.leader) chargeTimers(u, dt);
     heavyTick(u, dt); if (u.human) braceTick(u, dt);

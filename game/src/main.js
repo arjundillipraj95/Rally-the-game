@@ -21,7 +21,7 @@ import { drawHoldAim, drawJavAim, drawRideAim } from './ui/holdaim.js';
 import './ui/fighttips.js';
 import { spawnCritters, updateCritters, clearCritters } from './render/critters.js';
 import { drawHorses, clearHorses } from './render/horses.js';
-import { spark, splat, dust, drawAura, floatText, pow, castleFx, effectsTick, drawEffects, clearEffects } from './render/effects.js';
+import { spark, splat, dust, drawAura, floatText, pow, shockwave, castleFx, effectsTick, drawEffects, clearEffects } from './render/effects.js';
 import { drawOverlay, clearOverlay, resizeOverlay } from './render/overlay.js';
 import { cam, followCamera, orbitCamera, camTarget, CAM_PITCH } from './render/camera.js';
 import { initAudio, sfx, buzz, gateS, startCrowd, stopCrowd, audioTick, audioStats, setMuted } from './ui/audio.js';
@@ -67,11 +67,19 @@ bus.on('hitstop', t => { hitstop = Math.max(hitstop, t); });
 bus.on('buzz', ms => buzz(ms));
 // the big moments of a fight: a parry, a guard smashed open, a rider skewered or knocked off his horse.
 // (On the host these come straight from the rules; on a joining player's phone, with the next snapshot.)
-const FIGHT_POW = { fxride: ['', ''], fxjoust: ['JOUSTED!', '#ffd23a'], fxparry: ['PARRY!', '#ffffff'], fxbreak: ['GUARD BROKEN!', '#ff8a3a'], fximpale: ['SKEWERED!', '#ffd23a'], fxunhorse: ['UNHORSED!', '#ffd23a'], fxint: ['STAGGERED!', '#ffd23a'] };
+const FIGHT_POW = { fxrally: ['RALLY!', '#ffd23a'], fxrout: ['', ''], fxride: ['', ''], fxjoust: ['JOUSTED!', '#ffd23a'], fxparry: ['PARRY!', '#ffffff'], fxbreak: ['GUARD BROKEN!', '#ff8a3a'], fximpale: ['SKEWERED!', '#ffd23a'], fxunhorse: ['UNHORSED!', '#ffd23a'], fxint: ['STAGGERED!', '#ffd23a'] };
 bus.on('fxmsg', d => {
   const u = d.u, me = G.player; if (!u || !FIGHT_POW[d.k]) return;
-  const near = me && Math.hypot(u.x - me.x, u.z - me.z) < 22, mine = u === me;
+  const near = me && Math.hypot(u.x - me.x, u.z - me.z) < (d.k === 'fxrally' || d.k === 'fxrout' ? 40 : 22), mine = u === me;
   if (!near && !mine && d.a !== me) return;
+  if (d.k === 'fxrally') { // a captain sounds the rally: a ring of gold rolls out from him, and the horn
+    pow(u.x, u.y + 3.4, u.z, 'RALLY!', '#ffd23a'); shockwave(u.x, u.z, 18, '#ffd23a'); sfx.horn(); if (near || mine) cam.shake = Math.max(cam.shake, .35); if (mine) buzz(80);
+    return;
+  }
+  if (d.k === 'fxrout') { // an army breaks
+    if (near) { pow(u.x, u.y + 3.4, u.z, 'ROUT!', '#e0352b'); sfx.heavy(u.x, u.z); }
+    return;
+  }
   if (d.k === 'fxride') { // your ride-by blow: how well you timed it
     if (d.a !== me) return;
     const R = { perfect: ['PERFECT!', '#ffd23a'], good: ['HIT!', '#ffffff'], graze: ['TOO LATE', '#c9c2b2'], miss: ['TOO EARLY', '#c9c2b2'] }[d.q] || ['', ''];
@@ -403,7 +411,7 @@ window.__fb = {
   // drive: also run the player captain with an idle stick (or a given one), so jumps and buffered attacks advance
   step(n, dt = 1 / 30, drive) { const inp = drive ? Object.assign({ wx: 0, wz: 0, mag: 0, block: false, attackHeld: false, camYaw: 0 }, drive === true ? {} : drive) : null; for (let i = 0; i < n && G.state === 'play'; i++) update(dt, inp); },
   ride() { if (G.player) { G.player.lastHit = -9; actions.ride(); } },
-  volley(pt) { actions.volley(pt); }, order(o, pt) { actions.order(o, pt); },
+  volley(pt) { actions.volley(pt); }, order(o, pt) { actions.order(o, pt); }, rally() { actions.rally(); },
   attack() { actions.attack(); }, jump() { actions.jump(); }, weapon(w) { actions.weapon(w); },
   setOrder, G, cam, scene, audio: () => audioStats(),
 };

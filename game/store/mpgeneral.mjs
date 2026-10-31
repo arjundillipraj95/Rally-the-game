@@ -1,0 +1,22 @@
+// Dev check: a joining player's rally horn and attack order reach the host.
+import { chromium } from 'playwright';
+const opts = { executablePath: '/opt/pw-browsers/chromium', args: ['--disable-features=WebRtcHideLocalIpsWithMdns', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] };
+const mk = async () => { const b = await chromium.launch(opts), c = await b.newContext({ viewport: { width: 320, height: 160 } });
+  await c.addInitScript(() => { window.__PEER_OPTS = { host: '127.0.0.1', port: 9000, path: '/', secure: false, config: { iceServers: [] } }; localStorage.setItem('rally-tutorial-done', '1'); localStorage.setItem('rally-quality', 'low'); window.__noRender = true; });
+  const p = await c.newPage(); p.on('pageerror', e => console.log('ERR', e.message)); await p.goto('http://127.0.0.1:8766/'); return [p, b]; };
+const [A, ab] = await mk(), [B, bb] = await mk();
+await A.click('#mpBtn'); await A.click('#hostBtn'); await A.waitForTimeout(2500);
+const code = await A.evaluate(() => document.getElementById('codeTxt').textContent);
+await B.click('#mpBtn'); await B.fill('#codeIn', code); await B.click('#joinBtn');
+await B.waitForFunction(() => !document.getElementById('ovLobby').hidden, null, { timeout: 30000 }); await B.waitForTimeout(1500);
+await A.click('#startBtn'); await A.waitForTimeout(3000);
+const bTi = await B.evaluate(() => window.__fb.info.myTi);
+await A.evaluate(bTi => { window.__fb.G.teams[bTi].rally = 100; }, bTi);
+await B.waitForTimeout(800);
+console.log('joiner sees horn:', await B.evaluate(() => window.__fb.G.teams[window.__fb.G.myTi].rally), 'button glowing:', await B.evaluate(() => document.getElementById('cmdBtn').classList.contains('rallyReady')));
+await B.evaluate(() => window.__fb.rally()); await B.waitForTimeout(800);
+console.log('host after the joiner\'s rally: horn', await A.evaluate(bTi => window.__fb.G.teams[bTi].rally, bTi), 'men surging', await A.evaluate(bTi => window.__fb.G.units.filter(u => u.ti === bTi && !u.dead && u.rallyT > 0).length, bTi));
+const tgt = await B.evaluate(() => { const G = window.__fb.G, me = G.player; const e = G.units.filter(u => !u.dead && G.ALLY[u.ti % 4] !== G.ALLY[me.ti % 4]).sort((a, b) => Math.hypot(a.x - me.x, a.z - me.z) - Math.hypot(b.x - me.x, b.z - me.z))[0]; window.__fb.order('focus', { x: e.x, z: e.z, id: e.id }); return e.id; });
+await B.waitForTimeout(800);
+console.log('host sees joiner order:', await A.evaluate(bTi => { const s = window.__fb.G.teams[bTi]; return s.order + ' on ' + (s.focus && s.focus.id); }, bTi), '(target', tgt + ')');
+await ab.close(); await bb.close();

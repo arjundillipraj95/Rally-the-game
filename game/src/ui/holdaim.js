@@ -2,7 +2,7 @@
 // rank will stand, with an arrow for the way it faces (away from your captain). Let go to give the order.
 // While your men hold, a faint bar stays on the ground where the line is.
 import * as THREE from 'three';
-import { G } from '../core/state.js';
+import { G, isEnemyTi } from '../core/state.js';
 import { groundY } from '../core/world.js';
 import { scene } from '../render/scene.js';
 import { screenToGround } from './volleyaim.js';
@@ -37,9 +37,19 @@ export function holdMove(sx, sy, touch) {
   hold.moved = true;
   const g = screenToGround(sx, sy - (touch ? FINGER_LIFT : 0)), p = G.player; if (!g || !p) return;
   hold.x = g.x; hold.z = g.z; hold.face = faceFrom(p, g.x, g.z);
+  // dragged onto enemy men: that's an attack order on their group, not a line
+  let best = null, bd = 3.2;
+  for (const u of G.units) { if (u.dead || !isEnemyTi(u.ti, G.myTi)) continue; const d = Math.hypot(u.x - g.x, u.z - g.z); if (d < bd) { bd = d; best = u; } }
+  hold.focus = best;
 }
-// the placed line ({x, z, face}), or null for a plain tap
-export function holdEnd() { if (!hold.on) return undefined; hold.on = false; return hold.moved ? { x: hold.x, z: hold.z, face: hold.face } : null; }
+// the placed line ({x, z, face}), an attack on a group ({x, z, id, focus: true}), or null for a plain tap
+export function holdEnd() {
+  if (!hold.on) return undefined; hold.on = false;
+  if (!hold.moved) return null;
+  const f = hold.focus; hold.focus = null;
+  return f && !f.dead ? { x: f.x, z: f.z, id: f.id, focus: true } : { x: hold.x, z: hold.z, face: hold.face };
+}
+export const holdHeldMs = () => hold.on ? performance.now() - hold.t0 : 0;
 export function holdCancel() { hold.on = false; }
 
 function place(m, x, z, face, t) {
@@ -48,12 +58,18 @@ function place(m, x, z, face, t) {
   m.bar.scale.x = (n - 1) * 1.3 + 1.4;
   if (t != null) m.g.scale.setScalar(1 + .04 * Math.sin(t * 9));
 }
+// the attack order: a red ring round the group under your finger, and a fainter one on the group your men are after
+const fMat = op => new THREE.MeshBasicMaterial({ color: 0xff4a3a, transparent: true, opacity: op, depthWrite: false, depthTest: false, side: THREE.DoubleSide });
+const fAim = new THREE.Mesh(new THREE.RingGeometry(3.1, 3.6, 40), fMat(.9)), fLive = new THREE.Mesh(new THREE.RingGeometry(3.2, 3.5, 40), fMat(.4));
+for (const m of [fAim, fLive]) { m.rotation.x = -Math.PI / 2; m.renderOrder = 2; m.visible = false; scene.add(m); }
 export function drawHoldAim(t) {
-  const showAim = hold.on && G.state === 'play' && (hold.moved || performance.now() - hold.t0 > SHOW_AFTER);
-  aimM.g.visible = false; liveM.g.visible = false;
-  if (showAim) place(aimM, hold.x, hold.z, hold.face, t);
-  const me = G.teams[G.myTi];
+  const me = G.teams[G.myTi], rallyFull = me && me.rally >= 100;
+  const showAim = hold.on && G.state === 'play' && (hold.moved || (!rallyFull && performance.now() - hold.t0 > SHOW_AFTER)); // (horn full: a still press is the rally, so no bar)
+  aimM.g.visible = false; liveM.g.visible = false; fAim.visible = false; fLive.visible = false;
+  if (showAim && hold.focus && !hold.focus.dead) { fAim.visible = true; fAim.position.set(hold.focus.x, groundY(hold.focus.x, hold.focus.z) + .15, hold.focus.z); fAim.scale.setScalar(1 + .05 * Math.sin(t * 9)); }
+  else if (showAim) place(aimM, hold.x, hold.z, hold.face, t);
   if (!showAim && G.state === 'play' && me && me.order === 'hold' && me.holdPt && G.player && !G.player.dead) place(liveM, me.holdPt.x, me.holdPt.z, me.holdPt.face);
+  if (G.state === 'play' && me && me.order === 'focus' && me.focus) { fLive.visible = true; fLive.position.set(me.focus.x, groundY(me.focus.x, me.focus.z) + .12, me.focus.z); }
 }
 
 // a javelin being drawn back: a ring on whoever it will fly at, widening with the draw and turning

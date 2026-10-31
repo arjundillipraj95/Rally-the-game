@@ -127,6 +127,7 @@ arrowMesh.frustumCulled = false; arrowMesh.count = 0; scene.add(arrowMesh);
 const o3 = new THREE.Object3D();
 
 export function effectsTick(dt) {
+  wavesTick(dt);
   for (const p of parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.vy -= (p.s > 5 ? -.5 : 9) * dt; p.life -= dt; }
   parts = parts.filter(p => p.life > 0 && p.y > -1);
   for (const f of floats) { f.t += dt; f.y += dt * 1.2; }
@@ -163,7 +164,18 @@ export function drawEffects() {
   arrowMesh.count = n; arrowMesh.instanceMatrix.needsUpdate = true;
 }
 
-export function clearEffects() { parts = []; floats = []; decals = []; pows = []; slashes = []; }
+export function clearEffects() { parts = []; floats = []; decals = []; pows = []; slashes = []; for (const w of waves) scene.remove(w.m); waves = []; }
+// a ring rolling out across the ground (the rally horn)
+let waves = [];
+export function shockwave(x, z, r, color) {
+  const m = new THREE.Mesh(new THREE.RingGeometry(.9, 1, 64), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .8, depthWrite: false, depthTest: false, side: THREE.DoubleSide }));
+  m.rotation.x = -Math.PI / 2; m.position.set(x, groundY(x, z) + .2, z); m.renderOrder = 2; scene.add(m); waves.push({ m, r, t: 0 });
+}
+export function wavesTick(dt) {
+  for (const w of waves) { w.t += dt; const k = Math.min(1, w.t / .7); w.m.scale.setScalar(1 + k * w.r); w.m.material.opacity = .8 * (1 - k); }
+  for (const w of waves) if (w.t >= .7) { scene.remove(w.m); w.m.geometry.dispose(); w.m.material.dispose(); }
+  waves = waves.filter(w => w.t < .7);
+}
 
 // ---------- the captain's aura: a faint ring on the ground around your captain ----------
 const auraMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .22, depthWrite: false, side: THREE.DoubleSide });

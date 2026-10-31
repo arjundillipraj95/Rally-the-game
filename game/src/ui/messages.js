@@ -32,6 +32,9 @@ export function msgText(k, a) {
     case 'flagHome': return ['The banner returns to the fort', ''];
     case 'capture': return [`${nm(a[0])} captures the banner!`, `${allianceCaps(G.ALLY[colorOf(a[0])])} of ${rules().caps}`, css(a[0])];
     case 'upgrade': { const u = UPGRADES.find(x => x.id === a[1]); return mine(a[0]) && u ? [`${u.name} level ${a[2]}`, u.desc, '#ffcf3a'] : null; }
+    case 'rout': return mine(a[0]) ? ['Your men are breaking!', G.teams[myTi] && G.teams[myTi].rally >= 100 ? 'Hold the Order button to sound the rally!' : 'Stay alive: they regroup in a few seconds', '#e0352b']
+      : [`${nm(a[0])}'s army breaks and runs!`, ally(a[0]) ? 'Cover them' : 'Cut them down', css(a[0])];
+    case 'focusDone': return mine(a[0]) ? ['Group destroyed', 'Your men fall back in', '#ffcf3a'] : null;
     case 'left': return [`${nm(a[0])}'s player left`, 'The computer takes over their army', css(a[0])];
     case 'pointCaptured': return mine(a[0]) ? [`You captured Point ${a[1]}!`, '', css(a[0])] : [`${nm(a[0])} captured Point ${a[1]}!`, ally(a[0]) ? 'Reinforce them' : 'Take it back', css(a[0])];
   }

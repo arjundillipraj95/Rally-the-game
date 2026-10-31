@@ -6,7 +6,7 @@ import { TEAMS, MAPS, KINDS, STATS, RECRUITS, FACTIONS, factionFromCode, ORDERS,
 import { G, bus, colorOf, isEnemyTi } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn } from '../core/world.js';
 import { buildNav, syncGates } from '../core/nav.js';
-import { blockPress, attackHold, attackRelease, rideRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainJump, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
+import { rallyCry, blockPress, attackHold, attackRelease, rideRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainJump, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
 import { session, isClient, isHost } from './session.js';
 import { showMsg } from '../ui/messages.js';
 import { sfx, buzz, gateS } from '../ui/audio.js';
@@ -42,13 +42,13 @@ bus.on('fxmsg', d => {
 // ---------- host ----------
 function encodeSnap() {
   const upPack = s => UPGRADES.reduce((n, u, k) => n + s.up[u.id] * 4 ** k, 0);
-  const teams = G.teams.map(s => [Math.round(s.points * 10), s.tickets, s.caps, Math.floor(s.gold), s.alive ? 1 : 0, Math.max(0, Math.ceil(s.leaderDeadT)), upPack(s)].join(',')).join(';');
+  const teams = G.teams.map(s => [Math.round(s.points * 10), s.tickets, s.caps, Math.floor(s.gold), s.alive ? 1 : 0, Math.max(0, Math.ceil(s.leaderDeadT)), upPack(s), Math.round(s.morale || 0), Math.floor(s.rally || 0), s.routT > 0 ? 1 : 0].join(',')).join(';');
   const us = [];
   for (const u of G.units) {
     if (u.dead) continue;
     const kt = KINDS.indexOf(u.kind) * 8 + u.ti;
     const fl = (u.swing > 0 ? 1 : 0) | (u.mounted ? 2 : 0) | ((u.blockT > 0 || (u.human && u.blocking)) ? 4 : 0) | (u.carrying ? 8 : 0) | (u.stun > 0 ? 16 : 0) | (u.aim ? 32 : 0) | (u.shieldwall ? 64 : 0) | (u.weapon === 'spear' ? 128 : u.weapon === 'jav' ? 256 : u.weapon === 'sword' ? 512 : 0) | (u.charge > 0 ? 1024 : 0)
-      | (u.windup > 0 ? 2048 : 0) | (u.glint ? 4096 : 0) | (u.heavyCharge > 0 ? 8192 : 0) | (u.bracing ? 16384 : 0) | (u.javDraw > 0 ? 32768 : 0) | (u.couch || u.rideReady ? 65536 : 0);
+      | (u.windup > 0 ? 2048 : 0) | (u.glint ? 4096 : 0) | (u.heavyCharge > 0 ? 8192 : 0) | (u.bracing ? 16384 : 0) | (u.javDraw > 0 ? 32768 : 0) | (u.couch || u.rideReady ? 65536 : 0) | (u.routing ? 131072 : 0) | (u.rallyT > 0 ? 262144 : 0);
     const row = [b36(u.id), kt.toString(16), encX(u.x), encX(u.z), encF(u.face), b36(clamp(u.hp / u.max, 0, 1) * 35), b36(fl)];
     if (u.jy > .05) row.push(b36(u.jy * 10));
     us.push(row.join(','));
@@ -117,11 +117,13 @@ export function netHostReadInputs() {
     if (typeof pr.chg === 'number' && pr.chg > last.chg) { if (L && !L.dead) captainCharge(L); last.chg = pr.chg; }
     if (typeof pr.vly === 'number' && pr.vly > last.vly) { orderVolley(ti, Array.isArray(pr.vat) ? { x: +pr.vat[0], z: +pr.vat[1] } : null); last.vly = pr.vly; }
     if (Array.isArray(pr.up)) for (let k = 0; k < UPGRADES.length; k++) while ((pr.up[k] | 0) > last.up[k]) { last.up[k]++; buyUpgrade(ti, UPGRADES[k].id); }
-    const holdKey = pr.ord === 'hold' && Array.isArray(pr.hold) ? pr.hold.join(',') : '';
-    if (pr.ord && ORDERS.includes(pr.ord) && (pr.ord !== s.order || holdKey !== last.hold)) { // (a hold moved to a new spot counts as a new order)
+    const holdKey = pr.ord === 'hold' && Array.isArray(pr.hold) ? pr.hold.join(',') : pr.ord === 'focus' && Array.isArray(pr.foc) ? 'f' + pr.foc.join(',') : '';
+    if (pr.ord && (ORDERS.includes(pr.ord) || pr.ord === 'focus') && (pr.ord !== s.order || holdKey !== last.hold)) { // (a hold moved to a new spot, or a new group to attack, counts as a new order)
       s.order = pr.ord; last.hold = holdKey;
       if (pr.ord === 'hold') setOrder(ti, 'hold', Array.isArray(pr.hold) ? { x: +pr.hold[0], z: +pr.hold[1], face: +pr.hold[2] } : null);
+      if (pr.ord === 'focus') setOrder(ti, 'focus', Array.isArray(pr.foc) ? { x: +pr.foc[0], z: +pr.foc[1], id: pr.foc[2] | 0 } : null);
     }
+    if (typeof pr.rly === 'number' && pr.rly > (last.rly || 0)) { rallyCry(ti); last.rly = pr.rly; } // the rally horn
     if (Array.isArray(pr.rec)) for (let k = 0; k < 3; k++) while ((pr.rec[k] | 0) > last.rec[k]) { last.rec[k]++; recruit(ti, RECRUITS[k]); }
   }
 }
@@ -142,7 +144,7 @@ export function clientStart(hp) {
   G.flag = G.mode === 'ctf' ? { state: 'home', x: 0, z: 0, carrier: null, dropT: 0 } : null;
   G.ctrlPoints = G.mode === 'ctrl' ? makeCtrlPoints(G.layout) : null;
   Object.assign(C, { byId: new Map(), lastN: -1, lastMsgN: (hp.m && hp.m.length) ? hp.m[hp.m.length - 1][0] : 0, meId: null, meInit: false, kickN: 0, localCd: 0, lastSnapAt: performance.now(),
-    inp: { atk: 0, ride: 0, vly: 0, chg: 0, par: 0, ahN: 0, ahD: 0, ah: false, vat: null, rec: [0, 0, 0], up: [0, 0, 0, 0, 0], ord: 'follow', hold: null, face: 0 }, sendAt: 0, sendNow: false, pred: null, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
+    inp: { atk: 0, ride: 0, vly: 0, chg: 0, par: 0, ahN: 0, ahD: 0, ah: false, rly: 0, foc: null, vat: null, rec: [0, 0, 0], up: [0, 0, 0, 0, 0], ord: 'follow', hold: null, face: 0 }, sendAt: 0, sendNow: false, pred: null, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
   G.player = null;
   cam.yaw = Math.atan2(-TEAMS[colorOf(G.myTi)].pos[0], -TEAMS[colorOf(G.myTi)].pos[1]); cam.pitch = CAM_PITCH;
   G.state = 'play';
@@ -181,6 +183,7 @@ function clientApply(hp) {
     const v = row.split(',').map(Number), s = G.teams[i]; if (!s) return;
     s.points = v[0] / 10; s.tickets = v[1]; s.caps = v[2]; if (i !== myTi || performance.now() - (C.goldLocalAt || 0) > 700) s.gold = v[3]; s.alive = !!v[4]; s.leaderDeadT = v[5];
     if (v.length > 6 && (i !== myTi || performance.now() - (C.upLocalAt || 0) > 700)) UPGRADES.forEach((u, k) => { s.up[u.id] = Math.floor(v[6] / 4 ** k) % 4; });
+    if (v.length > 9) { s.morale = v[7]; s.rally = v[8]; s.routT = v[9] ? 1 : 0; }
   });
   G.bounty = +secs[7];
   const mine = secs[6] ? secs[6].split(';').map(r => r.split(',')).find(r => +r[0] === myTi) : null;
@@ -216,7 +219,7 @@ function clientApply(hp) {
       u.jyT = f[7] ? p36(f[7]) / 10 : 0;
       u.charge = (fl & 1024) ? 1 : 0;
       u.windup = (fl & 2048) ? 1 : 0; u.glint = !!(fl & 4096);
-      u.heavyCharge = (fl & 8192) ? 1 : 0; u.bracing = !!(fl & 16384); u.javDraw = (fl & 32768) ? .7 : 0; u.couch = !!(fl & 65536);
+      u.heavyCharge = (fl & 8192) ? 1 : 0; u.bracing = !!(fl & 16384); u.javDraw = (fl & 32768) ? .7 : 0; u.couch = !!(fl & 65536); u.routing = !!(fl & 131072); u.rallyT = (fl & 262144) ? 1 : 0;
     }
     if (id !== myId) {
       u.tx = x; u.tz = z; u.tface = face;
@@ -337,7 +340,7 @@ export function clientTick(dt) {
   // send my captain and my buttons
   if ((performance.now() - C.sendAt > 66 || C.sendNow) && G.state === 'play') {
     C.sendAt = performance.now(); C.sendNow = false;
-    const pres = { role: 'player', nick: session.myNick || 'Captain', ph: 'play', seed: G.seed, par: C.inp.par, ahN: C.inp.ahN, ahD: C.inp.ahD, ah: C.inp.ah, atk: C.inp.atk, ride: C.inp.ride, vly: C.inp.vly, vat: C.inp.vat, chg: C.inp.chg, rec: C.inp.rec, up: C.inp.up, ord: C.inp.ord, hold: C.inp.hold, face: C.inp.face, blk: inp.blockHeld ? 1 : 0 };
+    const pres = { role: 'player', nick: session.myNick || 'Captain', ph: 'play', seed: G.seed, rly: C.inp.rly, foc: C.inp.foc, par: C.inp.par, ahN: C.inp.ahN, ahD: C.inp.ahD, ah: C.inp.ah, atk: C.inp.atk, ride: C.inp.ride, vly: C.inp.vly, vat: C.inp.vat, chg: C.inp.chg, rec: C.inp.rec, up: C.inp.up, ord: C.inp.ord, hold: C.inp.hold, face: C.inp.face, blk: inp.blockHeld ? 1 : 0 };
     if (me && !me.dead) pres.cap = [me.id, r2(me.x), r2(me.z), r2(me.face), r1(me.vx), r1(me.vz), r2(me.jy || 0), Math.max(0, WEAPONS.indexOf(me.weapon || 'sword'))];
     NET.room.presence(pres).catch(() => {});
   }
@@ -446,9 +449,23 @@ export const actions = {
     orderVolley(G.myTi, pt || null);
   },
   // no argument: step to the next order; with one: set it
-  // pt (hold only): where to put the line, {x, z, face}; without one it forms in front of the captain
+  // sound the rally horn (when it's full)
+  rally() {
+    const p = G.player, me = G.teams[G.myTi]; if (G.state !== 'play' || !p || p.dead || !me) return;
+    if ((me.rally || 0) < 100) { floatText(p.x, p.y + 3.2, p.z, 'The rally horn fills as you fight well', '#fff'); return; }
+    if (isClient()) { C.inp.rly++; C.sendNow = true; me.rally = 0; return; }
+    rallyCry(G.myTi);
+  },
+  // pt (hold only): where to put the line, {x, z, face}; without one it forms in front of the captain.
+  // 'focus' (with pt {x, z, id}): attack that enemy group
   order(want, pt) {
     const p = G.player; if (G.state !== 'play' || !p || p.dead) return;
+    if (want === 'focus') {
+      if (!pt) return;
+      if (isClient()) { setOrder(G.myTi, 'focus', pt); C.inp.ord = 'focus'; C.inp.foc = [r1(pt.x), r1(pt.z), pt.id | 0]; C.sendNow = true; }
+      else setOrder(G.myTi, 'focus', pt);
+      sfx.order(); bus.emit('shout', { u: p, kind: 'focus' }); bus.emit('hud'); return;
+    }
     const cur = G.teams[G.myTi].order || 'follow';
     const o = ORDERS.includes(want) ? want : ORDERS[(ORDERS.indexOf(cur) + 1) % ORDERS.length];
     if (o === cur && o !== 'hold') return;
