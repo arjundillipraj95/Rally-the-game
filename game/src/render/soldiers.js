@@ -9,7 +9,7 @@ import { G, isEnemyTi, isFfa, colorOf, bus } from '../core/state.js';
 import { braced } from '../core/sim.js';
 import { scene, shadowsOn, camera } from './scene.js';
 import { camTarget } from './camera.js';
-import { trail, slash, pow, dust } from './effects.js';
+import { trail, slash, pow, dust, spark } from './effects.js';
 import { groundY } from '../core/world.js';
 import { quality } from './quality.js';
 
@@ -508,6 +508,32 @@ function pose(u, dt) {
     const s = Math.sin(Math.PI * Math.max(0, a.stumble) / .4);
     if (!u.mounted) { a.legL[0] += .55 * s; a.legR[0] -= .25 * s; a.bodyRX -= .3 * s; a.bodyY -= .06 * s; }
     if (t < 0) { a.sArmX = near(a.sArmX, -1.9, k12 * s); a.wArmX = near(a.wArmX, -2.1, k12 * s); a.wArmZ = near(a.wArmZ, -.4, k12 * s); }
+  }
+  // a heavy blow being wound up: the weapon hauled high behind the head, leaning back on the rear foot.
+  // A red "!" goes up as it starts, and the blade glints as it begins to fall: that's the moment to parry.
+  const wind = u.windup > 0 && !u.mounted;
+  if (wind) {
+    a.wArmX = near(a.wArmX, -2.9, k12); a.wArmZ = near(a.wArmZ, -.15, k12); a.bodyRX -= .2; a.bodyY -= .05;
+    a.legL[0] -= .3; a.legR[0] += .25; a.expr = 'yell';
+    if (spearArmed) { a.spearRX = -.7; a.spearZ = -.5; }
+    if (!a.wound) { a.wound = true; if (nearCam(u, 26)) { pow(u.x, u.y + 3.3, u.z, '!', '#ff4a3a'); bus.emit('sfx', { name: 'windup', x: u.x, z: u.z }); } const me = G.player; if (me && !me.dead && Math.hypot(me.x - u.x, me.z - u.z) < 5 && isEnemyTi(u.ti, me.ti)) bus.emit('fighttip', 'parry'); }
+  } else a.wound = false;
+  if (u.glint && !a.glinted) { a.glinted = true; if (nearCam(u, 26)) { spark(u.x - Math.sin(u.face) * .3, u.y + 3, u.z - Math.cos(u.face) * .3, '#ffffff', 14); bus.emit('sfx', { name: 'glint', x: u.x, z: u.z }); } }
+  if (!u.glint) a.glinted = false;
+  if (!u.mounted && t < 0) {
+    // the sword's held blow: raised over the shoulder, trembling; a gold flash when it's fully wound
+    if (u.heavyCharge > 0) {
+      a.wArmX = near(a.wArmX, -2.75 + Math.sin(a.idle * 40) * .04 * u.heavyCharge, k12); a.wArmZ = near(a.wArmZ, -.35, k12);
+      a.bodyRY += .35 * u.heavyCharge; a.bodyRX -= .12 * u.heavyCharge; a.expr = 'yell';
+      if (u.heavyCharge >= 1 && !a.fullFlash) { a.fullFlash = true; spark(u.x, u.y + 3, u.z, '#ffd23a', 10); }
+    } else a.fullFlash = false;
+    // a planted spear: crouched low behind the levelled point, feet wide
+    if (u.bracing) {
+      a.bodyY -= .2; a.legL[0] = -.6; a.legR[0] = .55; a.legL[2] = .22; a.legR[2] = -.22;
+      a.wArmX = near(a.wArmX, -1.45, k12); a.spearRX = 1.5; a.spearZ = .3; a.bodyRX += .22; a.sArmX = near(a.sArmX, -1.2, k12);
+    }
+    // a javelin drawn back: cocked further, the body turning away, the longer it's held
+    if (u.javDraw > 0) { a.wArmX = near(a.wArmX, -2.6 - .45 * u.javDraw, k12); a.bodyRY += .45 + .3 * u.javDraw; a.bodyRX -= .1 * u.javDraw; a.spearZ = -.5 - .3 * u.javDraw; }
   }
   // the battle's over: winners jump about with their arms in the air, everyone else runs for it
   if (G.state === 'end' && G.endInfo && G.endInfo.w >= 0 && !u.mounted) {

@@ -6,7 +6,8 @@ import { G } from '../core/state.js';
 import { groundY } from '../core/world.js';
 import { scene } from '../render/scene.js';
 import { screenToGround } from './volleyaim.js';
-import { HOLD_W } from '../core/sim.js';
+import { HOLD_W, javTarget } from '../core/sim.js';
+import { CAPTAIN_COMBAT, HOLD_ATK } from '../config.js';
 
 export const hold = { on: false, moved: false, x: 0, z: 0, face: 0, sx: 0, sy: 0, t0: 0 };
 const FINGER_LIFT = 70, SHOW_AFTER = 220; // (ms: a quick tap never flashes the bar)
@@ -53,4 +54,16 @@ export function drawHoldAim(t) {
   if (showAim) place(aimM, hold.x, hold.z, hold.face, t);
   const me = G.teams[G.myTi];
   if (!showAim && G.state === 'play' && me && me.order === 'hold' && me.holdPt && G.player && !G.player.dead) place(liveM, me.holdPt.x, me.holdPt.z, me.holdPt.face);
+}
+
+// a javelin being drawn back: a ring on whoever it will fly at, widening with the draw and turning
+// gold once the throw is hard enough to knock a rider off his horse
+const jRingMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .85, depthWrite: false, depthTest: false, side: THREE.DoubleSide });
+const jRing = new THREE.Mesh(new THREE.RingGeometry(.8, 1.05, 32), jRingMat); jRing.rotation.x = -Math.PI / 2; jRing.renderOrder = 2; jRing.visible = false; scene.add(jRing);
+export function drawJavAim() {
+  const p = G.player; jRing.visible = false;
+  if (!p || p.dead || G.state !== 'play' || !(p.javDraw > 0) || (p.javAmmo || 0) < 1) return;
+  const t = javTarget(p, CAPTAIN_COMBAT.jav.range + HOLD_ATK.javRange * p.javDraw);
+  jRing.visible = true; jRing.position.set(t.x, groundY(t.x, t.z) + .15, t.z); jRing.scale.setScalar(.8 + .6 * p.javDraw);
+  jRingMat.color.setHex(p.javDraw >= HOLD_ATK.unhorse ? 0xffd23a : 0xffffff);
 }

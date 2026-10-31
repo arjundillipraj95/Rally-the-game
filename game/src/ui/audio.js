@@ -217,6 +217,29 @@ export const sfx = {
     if (!ac || !gateS('dg', 150)) return; const pl = at(x, z); if (pl.v < .2) return;
     tone(1568, .7, .09, 'sine', 0, 0, pl, .3); tone(2350, .5, .045, 'sine', 0, 0, pl, .3); tone(3136, .3, .02, 'sine', 0, 0, pl, .3);
   },
+  // an enemy hauling up a heavy blow: a grunt and a slow, rising swish (the warning)
+  windup(x, z) {
+    if (!ac || !gateS('wu', 200)) return; const pl = at(x, z); if (pl.v < .15) return;
+    play('grunt', x, z, { vol: .6, rate: .85, jit: .08, send: .15 });
+    noise(.5, 500, 1.5, .1, 'bandpass', 1600, pl, .05, .15);
+  },
+  // the glint as the blow starts down: a sharp metallic "ting" (the cue to parry)
+  glint(x, z) {
+    if (!ac || !gateS('gl', 120)) return; const pl = at(x, z); if (pl.v < .15) return;
+    tone(2637, .22, .1, 'triangle', 0, 0, pl, .2); tone(3951, .14, .05, 'sine', 0, 0, pl, .2);
+  },
+  // a parry: steel ringing off steel, big and bright, with a low punch under it
+  parry(x, z) {
+    if (!ac || !gateS('pa', 90)) return; const pl = at(x, z);
+    play('clang', x, z, { vol: .9, rate: 1.15, jit: .05, send: .35 }); play('clang', x, z, { vol: .5, rate: .7, delay: .03, send: .35 });
+    tone(1760, .55, .12, 'triangle', 0, 0, pl, .35); tone(2640, .4, .06, 'sine', 0, .01, pl, .35); tone(110, .25, .35, 'sine', 50, 0, pl, .2);
+  },
+  // a guard smashed open: wood cracking and a heavy thump
+  guardbreak(x, z) {
+    if (!ac || !gateS('gb', 120)) return; const pl = at(x, z);
+    play('heavy', x, z, { vol: 1, rate: .8, send: .25 }); play('thud', x, z, { vol: .8, rate: .6, delay: .02 });
+    noise(.12, 1200, 1, .35, 'highpass', 0, pl, 0, .2);
+  },
   heavy(x, z) { if (!gateS('hv', 80)) return; play('heavy', x, z, { vol: 1, jit: .06, send: .25 }); tone(85, .28, .35, 'sine', 38, 0, at(x, z), .3); },
   die(x, z) { if (!gateS('di', 90)) return; play('fall', x, z, { vol: .75, delay: .18, rate: .9 }); play('cloth', x, z, { vol: .3, delay: .1 }); },
   wall(x, z) { if (gateS('wa', 100)) play('wall', x, z, { vol: .75, rate: .85, send: .35 }) || noise(.2, 500, 1.2, .3, 'lowpass', 0, at(x, z)); },

@@ -2,11 +2,11 @@
 // presses and draws the host's snapshots (a compact text string, roughly 1-4KB depending on
 // how many soldiers are alive — capped well under that even at a full 8-army Duo match — sent
 // about 12 times a second).
-import { TEAMS, MAPS, KINDS, STATS, RECRUITS, FACTIONS, factionFromCode, ORDERS, ORDER_NAMES, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT } from '../config.js';
+import { TEAMS, MAPS, KINDS, STATS, RECRUITS, FACTIONS, factionFromCode, ORDERS, ORDER_NAMES, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT, HOLD_ATK } from '../config.js';
 import { G, bus, colorOf, isEnemyTi } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn } from '../core/world.js';
 import { buildNav, syncGates } from '../core/nav.js';
-import { newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainJump, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
+import { blockPress, attackHold, attackRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainJump, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
 import { session, isClient, isHost } from './session.js';
 import { showMsg } from '../ui/messages.js';
 import { sfx, buzz, gateS } from '../ui/audio.js';
@@ -33,6 +33,12 @@ bus.on('msg', m => {
   if (isHost() && NET.msgs) { NET.msgs.push([++NET.msgN, m.k, ...m.a]); if (NET.msgs.length > 8) NET.msgs.shift(); }
 });
 
+// fight moments ride along with the announcements, by unit id, to be shown on every phone
+bus.on('fxmsg', d => {
+  const NET = session.NET;
+  if (isHost() && NET.msgs && d.u && !d.fromNet) { NET.msgs.push([++NET.msgN, d.k, d.u.id, d.heavy ? 1 : 0]); if (NET.msgs.length > 8) NET.msgs.shift(); }
+});
+
 // ---------- host ----------
 function encodeSnap() {
   const upPack = s => UPGRADES.reduce((n, u, k) => n + s.up[u.id] * 4 ** k, 0);
@@ -41,7 +47,8 @@ function encodeSnap() {
   for (const u of G.units) {
     if (u.dead) continue;
     const kt = KINDS.indexOf(u.kind) * 8 + u.ti;
-    const fl = (u.swing > 0 ? 1 : 0) | (u.mounted ? 2 : 0) | ((u.blockT > 0 || (u.human && u.blocking)) ? 4 : 0) | (u.carrying ? 8 : 0) | (u.stun > 0 ? 16 : 0) | (u.aim ? 32 : 0) | (u.shieldwall ? 64 : 0) | (u.weapon === 'spear' ? 128 : u.weapon === 'jav' ? 256 : u.weapon === 'sword' ? 512 : 0) | (u.charge > 0 ? 1024 : 0);
+    const fl = (u.swing > 0 ? 1 : 0) | (u.mounted ? 2 : 0) | ((u.blockT > 0 || (u.human && u.blocking)) ? 4 : 0) | (u.carrying ? 8 : 0) | (u.stun > 0 ? 16 : 0) | (u.aim ? 32 : 0) | (u.shieldwall ? 64 : 0) | (u.weapon === 'spear' ? 128 : u.weapon === 'jav' ? 256 : u.weapon === 'sword' ? 512 : 0) | (u.charge > 0 ? 1024 : 0)
+      | (u.windup > 0 ? 2048 : 0) | (u.glint ? 4096 : 0) | (u.heavyCharge > 0 ? 8192 : 0) | (u.bracing ? 16384 : 0) | (u.javDraw > 0 ? 32768 : 0);
     const row = [b36(u.id), kt.toString(16), encX(u.x), encX(u.z), encF(u.face), b36(clamp(u.hp / u.max, 0, 1) * 35), b36(fl)];
     if (u.jy > .05) row.push(b36(u.jy * 10));
     us.push(row.join(','));
@@ -97,12 +104,14 @@ export function netHostReadInputs() {
     const ti = NET.seats[p.peer]; if (ti === undefined) continue;
     const pr = p.presence || {}; if (pr.seed !== G.seed || pr.ph !== 'play') continue;
     const s = G.teams[ti], L = s.leader; if (!s.human) continue;
-    const last = NET.inp[ti] || (NET.inp[ti] = { atk: 0, chg: 0, ride: 0, vly: 0, hold: '', rec: [0, 0, 0], up: [0, 0, 0, 0, 0] });
+    const last = NET.inp[ti] || (NET.inp[ti] = { atk: 0, chg: 0, ride: 0, vly: 0, par: 0, ahN: 0, hold: '', rec: [0, 0, 0], up: [0, 0, 0, 0, 0] });
     if (L && !L.dead && Array.isArray(pr.cap) && pr.cap[0] === L.id) {
       L.x = +pr.cap[1]; L.z = +pr.cap[2]; L.face = +pr.cap[3]; L.vx = +pr.cap[4]; L.vz = +pr.cap[5];
-      L.blocking = !!pr.blk; L.jy = Math.max(0, +pr.cap[6] || 0);
+      L.blocking = !!pr.blk; L.jy = Math.max(0, +pr.cap[6] || 0); L.ahHeld = !!pr.ah;
       const w = WEAPONS[pr.cap[7] | 0]; if (w && L.weapon !== w) { L.weapon = w; s.weapon = w; }
     }
+    if (typeof pr.par === 'number' && pr.par > last.par) { if (L && !L.dead) blockPress(L); last.par = pr.par; } // Block pressed: a parry window
+    if (typeof pr.ahN === 'number' && pr.ahN > last.ahN) { if (L && !L.dead) { if (typeof pr.face === 'number') L.face = pr.face; attackRelease(L, L.weapon || 'sword', +pr.ahD || 0); } last.ahN = pr.ahN; } // Attack let go after a hold
     if (typeof pr.atk === 'number' && pr.atk > last.atk) { if (L && !L.dead) { if (typeof pr.face === 'number') L.face = pr.face; captainAttack(L); } last.atk = pr.atk; }
     if (typeof pr.ride === 'number' && pr.ride > last.ride) { if (L) toggleHorseFor(L); last.ride = pr.ride; }
     if (typeof pr.chg === 'number' && pr.chg > last.chg) { if (L && !L.dead) captainCharge(L); last.chg = pr.chg; }
@@ -133,7 +142,7 @@ export function clientStart(hp) {
   G.flag = G.mode === 'ctf' ? { state: 'home', x: 0, z: 0, carrier: null, dropT: 0 } : null;
   G.ctrlPoints = G.mode === 'ctrl' ? makeCtrlPoints(G.layout) : null;
   Object.assign(C, { byId: new Map(), lastN: -1, lastMsgN: (hp.m && hp.m.length) ? hp.m[hp.m.length - 1][0] : 0, meId: null, meInit: false, kickN: 0, localCd: 0, lastSnapAt: performance.now(),
-    inp: { atk: 0, ride: 0, vly: 0, chg: 0, vat: null, rec: [0, 0, 0], up: [0, 0, 0, 0, 0], ord: 'follow', hold: null, face: 0 }, sendAt: 0, sendNow: false, pred: null, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
+    inp: { atk: 0, ride: 0, vly: 0, chg: 0, par: 0, ahN: 0, ahD: 0, ah: false, vat: null, rec: [0, 0, 0], up: [0, 0, 0, 0, 0], ord: 'follow', hold: null, face: 0 }, sendAt: 0, sendNow: false, pred: null, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
   G.player = null;
   cam.yaw = Math.atan2(-TEAMS[colorOf(G.myTi)].pos[0], -TEAMS[colorOf(G.myTi)].pos[1]); cam.pitch = CAM_PITCH;
   G.state = 'play';
@@ -206,6 +215,8 @@ function clientApply(hp) {
       if (kind === 'captain') u.weapon = (fl & 128) ? 'spear' : (fl & 256) ? 'jav' : (fl & 512) ? 'sword' : undefined;
       u.jyT = f[7] ? p36(f[7]) / 10 : 0;
       u.charge = (fl & 1024) ? 1 : 0;
+      u.windup = (fl & 2048) ? 1 : 0; u.glint = !!(fl & 4096);
+      u.heavyCharge = (fl & 8192) ? 1 : 0; u.bracing = !!(fl & 16384); u.javDraw = (fl & 32768) ? .7 : 0;
     }
     if (id !== myId) {
       u.tx = x; u.tz = z; u.tface = face;
@@ -243,7 +254,11 @@ function clientApply(hp) {
     flag.carrier = f[3] ? C.byId.get(p36(f[3])) || null : null;
     if (flag.carrier) flag.carrier.carrying = true;
   }
-  for (const m of (hp.m || [])) if (m[0] > C.lastMsgN) { C.lastMsgN = m[0]; showMsg(m[1], m.slice(2)); }
+  for (const m of (hp.m || [])) if (m[0] > C.lastMsgN) {
+    C.lastMsgN = m[0];
+    if (typeof m[1] === 'string' && m[1].startsWith('fx')) { const u = G.units.find(x => x.id === m[2]); if (u) bus.emit('fxmsg', { k: m[1], u, heavy: !!m[3], fromNet: true }); }
+    else showMsg(m[1], m.slice(2));
+  }
 }
 
 // Returns false if the client left the match (host gone, back to lobby).
@@ -266,7 +281,15 @@ export function clientTick(dt) {
   const me = G.player;
   if (me && !me.dead && G.state === 'play') {
     me.stun -= dt;
-    driveCaptain(me, import.meta.env.DEV && window.__moveOverride ? window.__moveOverride() : readMove(dt), dt);
+    const mv = import.meta.env.DEV && window.__moveOverride ? window.__moveOverride() : readMove(dt);
+    driveCaptain(me, mv, dt);
+    if (mv.block && !C.blkPrev && !me.mounted) { C.inp.par++; C.sendNow = true; } C.blkPrev = !!mv.block; // (a Block press: the host opens a parry window)
+    // holding Attack: shown here at once (sword raised, spear planted, javelin drawn); the host acts on the release
+    const held = !!mv.attackHeld && !me.mounted;
+    if (held) C.ahT = (C.ahT || 0) + dt;
+    else if (C.ahT > 0) { C.inp.ahN++; C.inp.ahD = r2(C.ahT); C.inp.face = r2(me.face); C.sendNow = true; predictRelease(me, C.ahT); C.ahT = 0; }
+    attackHold(me, held, dt, true);
+    if (held !== !!C.inp.ah) { C.inp.ah = held; C.sendNow = true; }
     for (const o of G.units) { // stay out of other soldiers
       if (o === me || o.dead || !isEnemyTi(o.ti, me.ti)) continue; // (your own men make way; the host moves them)
       const dx = me.x - o.x, dz = me.z - o.z, min = me.r + o.r; if (Math.abs(dx) > min || Math.abs(dz) > min) continue;
@@ -286,7 +309,7 @@ export function clientTick(dt) {
         t.predHitAt = performance.now();
       }
     }
-    if ((inp.attackHeld || C.atkBuf > 0) && C.localCd <= 0) actions.attack();
+    if (((inp.attackHeld && me.mounted) || C.atkBuf > 0) && C.localCd <= 0) actions.attack();
   }
   const k = Math.min(1, dt * 15);
   for (const u of G.units) { // everyone else glides toward the host's positions
@@ -313,7 +336,7 @@ export function clientTick(dt) {
   // send my captain and my buttons
   if ((performance.now() - C.sendAt > 66 || C.sendNow) && G.state === 'play') {
     C.sendAt = performance.now(); C.sendNow = false;
-    const pres = { role: 'player', nick: session.myNick || 'Captain', ph: 'play', seed: G.seed, atk: C.inp.atk, ride: C.inp.ride, vly: C.inp.vly, vat: C.inp.vat, chg: C.inp.chg, rec: C.inp.rec, up: C.inp.up, ord: C.inp.ord, hold: C.inp.hold, face: C.inp.face, blk: inp.blockHeld ? 1 : 0 };
+    const pres = { role: 'player', nick: session.myNick || 'Captain', ph: 'play', seed: G.seed, par: C.inp.par, ahN: C.inp.ahN, ahD: C.inp.ahD, ah: C.inp.ah, atk: C.inp.atk, ride: C.inp.ride, vly: C.inp.vly, vat: C.inp.vat, chg: C.inp.chg, rec: C.inp.rec, up: C.inp.up, ord: C.inp.ord, hold: C.inp.hold, face: C.inp.face, blk: inp.blockHeld ? 1 : 0 };
     if (me && !me.dead) pres.cap = [me.id, r2(me.x), r2(me.z), r2(me.face), r1(me.vx), r1(me.vz), r2(me.jy || 0), Math.max(0, WEAPONS.indexOf(me.weapon || 'sword'))];
     NET.room.presence(pres).catch(() => {});
   }
@@ -327,6 +350,16 @@ export function clientHorses() {
 
 // A client's own guess at what its Attack press does (the host decides for real), so the swing,
 // the combo rhythm and the javelin count respond instantly instead of a round-trip later.
+// Attack let go after holding it: the sword's heavy blow, or a javelin (drawn back for t seconds)
+function predictRelease(p, t) {
+  const w = p.weapon || 'sword';
+  if (w === 'sword' && t >= HOLD_ATK.sword + .12) { p.swing = .38; p.swingKind = 5; sfx.swing(p.x, p.z); C.localCd = .7; C.lastAtkAt = performance.now(); }
+  if (w === 'jav' && p.javAmmo >= 1 && C.localCd <= 0) {
+    const k = t > HOLD_ATK.jav ? Math.min(1, (t - HOLD_ATK.jav) / (HOLD_ATK.javFull - HOLD_ATK.jav)) : 0;
+    const tg = javTarget(p, CAPTAIN_COMBAT.jav.range + HOLD_ATK.javRange * k); p.face = Math.atan2(tg.x - p.x, tg.z - p.z);
+    p.javAmmo--; C.javLocalAt = performance.now(); C.localCd = CAPTAIN_COMBAT.jav.cd; p.swingKind = 4; p.swing = .38; sfx.swing(p.x, p.z);
+  }
+}
 function predictAttack(p) {
   const CC = CAPTAIN_COMBAT;
   if (p.mounted) {
@@ -336,10 +369,7 @@ function predictAttack(p) {
   }
   if (airborne(p)) { C.localCd = CC.leap.cd; p.jvy = Math.min(p.jvy, -9); p.vx += Math.sin(p.face) * 3; p.vz += Math.cos(p.face) * 3; p.swingKind = 2; return; }
   if (p.weapon === 'jav') {
-    if (p.javAmmo >= 1) {
-      const t = javTarget(p); p.face = Math.atan2(t.x - p.x, t.z - p.z);
-      p.javAmmo--; C.javLocalAt = performance.now(); C.localCd = CC.jav.cd; p.swingKind = 4; return;
-    }
+    if (p.javAmmo >= 1) return; // (on foot the javelin goes when Attack is let go: see predictRelease)
     p.weapon = 'sword'; G.teams[G.myTi].weapon = 'sword'; floatText(p.x, p.y + 3.2, p.z, 'Out of javelins', '#fff'); bus.emit('hud');
   }
   const spear = p.weapon === 'spear', best = softAim(p, aimRange(p));
@@ -389,6 +419,7 @@ export const actions = {
     const p = G.player; if (G.state !== 'play' || !p || p.dead) return;
     const nw = switchWeapon(p, w); if (!nw) return;
     sfx.draw(); floatText(p.x, p.y + 3.2, p.z, WEAPON_NAMES[nw], '#fff');
+    setTimeout(() => bus.emit('fighttip', nw), 1200); // (how to use it, the first couple of times)
     bus.emit('hud');
   },
   ride() {

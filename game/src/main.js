@@ -17,10 +17,11 @@ import { drawSoldiers, drawCalls, clearProps } from './render/soldiers.js';
 import { banterTick, clearBanter } from './render/banter.js';
 import { updateSeeThrough } from './render/seethrough.js';
 import { drawVolleyAim } from './ui/volleyaim.js';
-import { drawHoldAim } from './ui/holdaim.js';
+import { drawHoldAim, drawJavAim } from './ui/holdaim.js';
+import './ui/fighttips.js';
 import { spawnCritters, updateCritters, clearCritters } from './render/critters.js';
 import { drawHorses, clearHorses } from './render/horses.js';
-import { spark, splat, dust, drawAura, floatText, castleFx, effectsTick, drawEffects, clearEffects } from './render/effects.js';
+import { spark, splat, dust, drawAura, floatText, pow, castleFx, effectsTick, drawEffects, clearEffects } from './render/effects.js';
 import { drawOverlay, clearOverlay, resizeOverlay } from './render/overlay.js';
 import { cam, followCamera, orbitCamera, camTarget, CAM_PITCH } from './render/camera.js';
 import { initAudio, sfx, buzz, gateS, startCrowd, stopCrowd, audioTick, audioStats, setMuted } from './ui/audio.js';
@@ -64,6 +65,23 @@ bus.on('shake', v => { cam.shake = v; });
 let hitstop = 0;
 bus.on('hitstop', t => { hitstop = Math.max(hitstop, t); });
 bus.on('buzz', ms => buzz(ms));
+// the big moments of a fight: a parry, a guard smashed open, a rider skewered or knocked off his horse.
+// (On the host these come straight from the rules; on a joining player's phone, with the next snapshot.)
+let slowmo = 0;
+const FIGHT_POW = { fxparry: ['PARRY!', '#ffffff'], fxbreak: ['GUARD BROKEN!', '#ff8a3a'], fximpale: ['SKEWERED!', '#ffd23a'], fxunhorse: ['UNHORSED!', '#ffd23a'], fxint: ['STAGGERED!', '#ffd23a'] };
+bus.on('fxmsg', d => {
+  const u = d.u, me = G.player; if (!u || !FIGHT_POW[d.k]) return;
+  const near = me && Math.hypot(u.x - me.x, u.z - me.z) < 22, mine = u === me;
+  if (!near && !mine) return;
+  const [txt, col] = FIGHT_POW[d.k];
+  if (d.k !== 'fxint' || mine || near) pow(u.x, u.y + 2.9, u.z, txt, col);
+  if (d.k === 'fxparry') {
+    spark(u.x + Math.sin(u.face) * .8, u.y + 1.6, u.z + Math.cos(u.face) * .8, '#ffffff', 16); sfx.parry(u.x, u.z);
+    if (mine) { buzz(30); cam.shake = Math.max(cam.shake, .3); if (!session.NET) slowmo = d.heavy ? .45 : .3; else hitstop = Math.max(hitstop, .12); } // (slow motion only alone: online it would slow everyone)
+  }
+  if (d.k === 'fxbreak') { sfx.guardbreak(u.x, u.z); if (mine) { buzz(60); cam.shake = Math.max(cam.shake, .45); bus.emit('fighttip', 'break'); } }
+  if (d.k === 'fximpale' || d.k === 'fxunhorse') { sfx.heavy(u.x, u.z); cam.shake = Math.max(cam.shake, .35); if (!session.NET && near) slowmo = .3; }
+});
 bus.on('hint', text => { const p = G.player; if (p && gateS('mhint', 2500)) floatText(p.x, p.y + 3.4, p.z, text, '#fff'); });
 bus.on('respawnMe', L => { cam.yaw = L.face; });
 bus.on('hud', () => { if (G.state === 'play') updateHud(C.lastSnapAt); });
@@ -314,7 +332,7 @@ function drawMatch(dt) {
   if (import.meta.env.DEV && window.__camAt) { const c = window.__camAt; camera.position.set(c[0], c[1], c[2]); camera.lookAt(c[3], c[4], c[5]); } // (dev: fixed shots of the scenery)
   updateSeeThrough(dt, camera.position, camTarget());
   drawAura(G.player, auraRange(G.myTi), grassTime());
-  drawVolleyAim(grassTime()); drawHoldAim(grassTime());
+  drawVolleyAim(grassTime()); drawHoldAim(grassTime()); drawJavAim();
   const tg = camTarget(); followSun(tg ? tg.x : 0, tg ? tg.z : 0, grassTime());
   if (!(import.meta.env.DEV && window.__noRender)) renderer.render(scene, camera); // (dev: network tests skip drawing)
   drawOverlay({ joy: inp.joy, nickFor });
@@ -333,6 +351,7 @@ function loop(now) {
   if (paused) { last = now; requestAnimationFrame(loop); return; }
   const raw = (now - last) / 1000; let dt = Math.min(.05, raw); last = now;
   if (hitstop > 0) { hitstop -= raw; dt *= .06; }
+  else if (slowmo > 0) { slowmo -= raw; dt *= .22; }
   if (raw > 0) fpsAvg += (1 / raw - fpsAvg) * .05;
   try {
     if (isClient() && (G.state === 'play' || G.state === 'end')) {

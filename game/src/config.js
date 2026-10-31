@@ -83,6 +83,20 @@ export const JAVELIN = { dmg: 24, range: 10, cd: 6.5 };
 // individual archer/javelin cooldowns so it stays a burst rather than a free DPS button.
 export const VOLLEY = { cd: 9, spread: 2.6 }; // spread: how far an aimed volley scatters around the mark
 // Horse charge: a burst of speed that bowls over everyone in front (braced spears still stop it)
+// Fighting as a captain. Enemy captains (and veteran footmen) wind up their heavy blows where you can
+// see them: a raised weapon, a shout, then a glint as it comes down. Tap Block during the glint to
+// parry: the blow is turned, the attacker staggers, and your next couple of hits land harder and
+// can't be blocked. Hold Block against a heavy blow and your guard is broken instead.
+// window: how long before the blow a Block tap still parries (s); remote: extra allowance for a
+// joining player's press crossing the network; lock: a second tap this soon after the last doesn't
+// open a window (no parrying by mashing); light: the tighter window for an ordinary, unannounced blow.
+export const PARRY = { window: .26, light: .14, remote: .28, lock: .6, stun: .8, heavyStun: 1.3, riposteT: 1.8, riposteN: 2, riposteMult: 1.5 };
+// windup by difficulty (Recruit, Soldier, Warlord); chance: how often a ready captain picks one
+export const HEAVY = { windup: [.95, .8, .68], chance: [.22, .32, .4], vetChance: .12, mult: 1.75, kb: 1.8, reach: 1.1, guardBreak: .6, guardDmg: .55 };
+// Holding Attack does something different with each weapon: the sword winds up a guard-breaking
+// heavy blow; the spear is planted (braced) and skewers whoever runs or rides onto it; javelins are
+// drawn back for a harder, longer throw that can knock a rider off his horse.
+export const HOLD_ATK = { sword: .38, swordFull: .7, brace: .28, braceCd: .65, braceSlow: .15, jav: .22, javFull: .85, javMult: .75, javRange: 9, unhorse: .7 };
 // A held line: footmen in their places take this share of the damage and knockback from the front,
 // and a charge into them stalls, hurting the horse.
 export const HOLD = { dmg: .7, kb: .3, horse: 30 };
