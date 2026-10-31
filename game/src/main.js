@@ -35,7 +35,7 @@ import { session, isClient, isHost, prefs } from './net/session.js';
 import { allyFor, describeTeams, assignFactions } from './core/teams.js';
 import { actions, netHostReadInputs, netHostTick, netHostSend, clientTick, clientHorses, setNetHooks, C } from './net/netgame.js';
 import { bindLobby, showLobby, hostLobbyTick, clientLobbyTick, netLeave } from './net/lobby.js';
-import { CAPS_TO_WIN } from './config.js';
+import { CAPS_TO_WIN, PARRY } from './config.js';
 
 const $ = id => document.getElementById(id);
 { const nj = $('nojs'); if (nj) nj.remove(); }
@@ -67,20 +67,22 @@ bus.on('hitstop', t => { hitstop = Math.max(hitstop, t); });
 bus.on('buzz', ms => buzz(ms));
 // the big moments of a fight: a parry, a guard smashed open, a rider skewered or knocked off his horse.
 // (On the host these come straight from the rules; on a joining player's phone, with the next snapshot.)
-let slowmo = 0;
 const FIGHT_POW = { fxparry: ['PARRY!', '#ffffff'], fxbreak: ['GUARD BROKEN!', '#ff8a3a'], fximpale: ['SKEWERED!', '#ffd23a'], fxunhorse: ['UNHORSED!', '#ffd23a'], fxint: ['STAGGERED!', '#ffd23a'] };
 bus.on('fxmsg', d => {
   const u = d.u, me = G.player; if (!u || !FIGHT_POW[d.k]) return;
   const near = me && Math.hypot(u.x - me.x, u.z - me.z) < 22, mine = u === me;
-  if (!near && !mine) return;
+  if (!near && !mine && d.a !== me) return;
   const [txt, col] = FIGHT_POW[d.k];
   if (d.k !== 'fxint' || mine || near) pow(u.x, u.y + 2.9, u.z, txt, col);
   if (d.k === 'fxparry') {
     spark(u.x + Math.sin(u.face) * .8, u.y + 1.6, u.z + Math.cos(u.face) * .8, '#ffffff', 16); sfx.parry(u.x, u.z);
-    if (mine) { buzz(30); cam.shake = Math.max(cam.shake, .3); if (!session.NET) slowmo = d.heavy ? .45 : .3; else hitstop = Math.max(hitstop, .12); } // (slow motion only alone: online it would slow everyone)
+    // the two men in it move in slow motion for a beat (the rules slow them on the host; this slows how they're drawn everywhere)
+    const t = PARRY.slowT * (d.heavy ? 1.2 : 1); u.slowT = Math.max(u.slowT || 0, t); if (d.a) d.a.slowT = Math.max(d.a.slowT || 0, t);
+    if (mine || d.a === me) { buzz(30); cam.shake = Math.max(cam.shake, .3); }
+    if (d.byAI && d.a === me) bus.emit('fighttip', 'guard');
   }
   if (d.k === 'fxbreak') { sfx.guardbreak(u.x, u.z); if (mine) { buzz(60); cam.shake = Math.max(cam.shake, .45); bus.emit('fighttip', 'break'); } }
-  if (d.k === 'fximpale' || d.k === 'fxunhorse') { sfx.heavy(u.x, u.z); cam.shake = Math.max(cam.shake, .35); if (!session.NET && near) slowmo = .3; }
+  if (d.k === 'fximpale' || d.k === 'fxunhorse') { sfx.heavy(u.x, u.z); cam.shake = Math.max(cam.shake, .35); }
 });
 bus.on('hint', text => { const p = G.player; if (p && gateS('mhint', 2500)) floatText(p.x, p.y + 3.4, p.z, text, '#fff'); });
 bus.on('respawnMe', L => { cam.yaw = L.face; });
@@ -351,7 +353,6 @@ function loop(now) {
   if (paused) { last = now; requestAnimationFrame(loop); return; }
   const raw = (now - last) / 1000; let dt = Math.min(.05, raw); last = now;
   if (hitstop > 0) { hitstop -= raw; dt *= .06; }
-  else if (slowmo > 0) { slowmo -= raw; dt *= .22; }
   if (raw > 0) fpsAvg += (1 / raw - fpsAvg) * .05;
   try {
     if (isClient() && (G.state === 'play' || G.state === 'end')) {

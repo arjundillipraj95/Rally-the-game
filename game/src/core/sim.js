@@ -1,6 +1,6 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
-import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, HOLD_ATK, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT } from '../config.js';
+import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, HOLD_ATK, GUARD, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, rules, matchTime } from './state.js';
 import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W, groundSlow, onIce } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable } from './nav.js';
@@ -288,6 +288,10 @@ function hit(a, b, mult = 1, extra) {
   // a captain's Block tapped just before the blow lands turns it aside
   if (b.human && !b.mounted && b.stun <= 0 && !b.carrying && G.T - (b.parryT ?? -9) <= (heavy ? PARRY.window : PARRY.light) + (b.remote ? PARRY.remote : 0)
     && Math.abs(angDiff(b.face, Math.atan2(a.x - b.x, a.z - b.z))) < 1.5 && !(extra && extra.unparryable)) { parry(b, a, heavy); return; }
+  // a computer captain on guard turns most light blows from another captain aside
+  const onGuard = !b.human && b.guardT > 0 && b.stun <= 0 && !b.mounted && Math.abs(angDiff(b.face, Math.atan2(a.x - b.x, a.z - b.z))) < 1.2;
+  if (onGuard && a.leader && !heavy && !(extra && (extra.unblockable || extra.unparryable)) && Math.random() < GUARD.parry) { parry(b, a, false, true); return; }
+  if (b.heavyCharge > 0 || b.ahT > 0) b.chargeBrokeT = G.T; // (hit while winding up a heavy blow: it's lost)
   let dmg = a.dmg * rnd(.8, 1.2) * mult * aiDmg(a.ti);
   if (!a.leader && a.aura) dmg *= 1 + auraBonus(a.ti);
   if (a.y - b.y > .8) dmg *= 1.2; // fighting downhill
@@ -297,7 +301,7 @@ function hit(a, b, mult = 1, extra) {
   let kb = (a.leader ? (a.mounted ? 10 : 8) : 5) * (extra && extra.kb || 1);
   const frontal = Math.abs(angDiff(b.face, Math.atan2(a.x - b.x, a.z - b.z))) < 1.1;
   const held = frontal && b.holding && !b.human; // a footman standing his place in a held line
-  let blocked = false;
+  let blocked = onGuard;
   if (frontal && b.stun <= 0 && !b.mounted && !b.carrying && !(extra && extra.unblockable)) {
     if (b.human) blocked = b.blocking;
     else if (Math.random() < (b.block || 0) + (b.aura ? auraBonus(b.ti) : 0) + (b.shieldwall && b.kind === 'foot' ? .3 : 0) + (held ? .15 : 0)) { blocked = true; b.blockT = .45; }
@@ -320,7 +324,7 @@ function hit(a, b, mult = 1, extra) {
   }
   b.hp -= dmg;
   if (b.human && b.remote && !blocked) b.lastBlow = { a, dmg, heavy, t: G.T }; // (their parry press may still be on its way)
-  if (broke) { b.stun = Math.max(b.stun, HEAVY.guardBreak); fx('fxmsg', { k: 'fxbreak', u: b }); }
+  if (broke) { b.stun = Math.max(b.stun, onGuard ? GUARD.broken : HEAVY.guardBreak); if (onGuard) { b.guardT = 0; b.guardCd = 2; } fx('fxmsg', { k: 'fxbreak', u: b }); }
   if (a.remote || b.remote) fx('netFlush');
   if (a.isMe) { // your own blows: a beat of hit-stop, longer for heavy hits and kills, and a deeper thud
     const heavy = !blocked && (mult >= 1.35 || b.hp <= 0);
@@ -333,15 +337,19 @@ function hit(a, b, mult = 1, extra) {
   if (b.hp <= 0) die(b, a, ang, mult >= 1.35 || (extra && extra.unblockable) || (a.leader && Math.random() < .18) ? 1 : 0);
 }
 // ---------- parries, heavy blows and held attacks ----------
-function parry(b, a, heavy) {
+function parry(b, a, heavy, byAI) {
   b.parryT = -9; b.lastBlow = null; b.cd = 0; b.stun = 0;
   b.riposteT = G.T + PARRY.riposteT; b.ripN = PARRY.riposteN; b.parries = (b.parries || 0) + 1;
-  a.windup = 0; a.glint = false; a.pending = null; a.stun = Math.max(a.stun, heavy ? PARRY.heavyStun : PARRY.stun);
+  if (byAI) { b.guardT = 0; b.guardCd = 1.5; } // (he turned your blow: now he comes at you)
+  a.windup = 0; a.glint = false; a.pending = null; a.stun = Math.max(a.stun, byAI ? GUARD.stun : heavy ? PARRY.heavyStun : PARRY.stun);
+  a.ahT = 0; a.heavyCharge = 0;
+  // the moment has weight for the two men in it: they move in slow motion for a beat, the battle around them doesn't
+  a.slowT = b.slowT = PARRY.slowT * (heavy ? 1.2 : 1);
   const ang = Math.atan2(a.x - b.x, a.z - b.z); push(a, Math.sin(ang) * 6, Math.cos(ang) * 6, a.stun);
   b.face = ang;
   const hx = (a.x + b.x) / 2, hz = (a.z + b.z) / 2;
   spark(hx, (a.y + b.y) / 2 + 1.5, hz, '#ffffff', 14); sound('parry', hx, hz);
-  fx('fxmsg', { k: 'fxparry', u: b, heavy });
+  fx('fxmsg', { k: 'fxparry', u: b, a, heavy, byAI: !!byAI });
   if (a.remote || b.remote) fx('netFlush');
 }
 // Block pressed (the start of a press, not holding it): opens a short parry window. A press that
@@ -383,7 +391,8 @@ function heavyTick(u, dt) {
 export function attackHold(p, held, dt, remote) {
   if (!p || p.dead || p.mounted || p.carrying) { p.ahT = 0; p.heavyCharge = 0; p.bracing = false; p.javDraw = 0; return; }
   const w = p.weapon || 'sword';
-  if (held) p.ahT = (p.ahT || 0) + dt;
+  if (held && p.stun > 0 && w === 'sword') p.ahT = 0; // (knocked about: the wind-up starts over)
+  else if (held) p.ahT = (p.ahT || 0) + dt;
   const t = held ? p.ahT : 0;
   p.heavyCharge = w === 'sword' && t > HOLD_ATK.sword ? Math.min(1, (t - HOLD_ATK.sword) / (HOLD_ATK.swordFull - HOLD_ATK.sword)) : 0;
   p.bracing = w === 'spear' && t > HOLD_ATK.brace;
@@ -393,13 +402,14 @@ export function attackHold(p, held, dt, remote) {
 }
 export function attackRelease(p, w, t) {
   p.heavyCharge = 0; p.bracing = false; p.javDraw = 0; p.heavyReady = false;
-  if (!p || p.dead || p.mounted) return;
+  if (!p || p.dead || p.mounted || p.stun > 0) return;
+  if (w === 'sword' && G.T - (p.chargeBrokeT ?? -9) < t) return; // (struck while winding it up: the blow is lost)
   if (w === 'sword' && t >= HOLD_ATK.sword + .12) heavySwing(p, Math.min(1, (t - HOLD_ATK.sword) / (HOLD_ATK.swordFull - HOLD_ATK.sword)));
   if (w === 'jav') { const k = t > HOLD_ATK.jav ? Math.min(1, (t - HOLD_ATK.jav) / (HOLD_ATK.javFull - HOLD_ATK.jav)) : 0; javThrow(p, k); }
 }
 // the sword's held blow: slower, but smashes guards, knocks men flat and cuts through a wind-up
 function heavySwing(p, k) {
-  p.cd = Math.min(p.cd, 0); p.stun = Math.min(p.stun, 0);
+  p.cd = Math.min(p.cd, 0);
   const tg = softAim(p, CC.sword.aim + 1.2);
   if (!startSwing(p, tg)) return;
   if (tg) { const ang = Math.atan2(tg.x - p.x, tg.z - p.z); p.face = ang; p.vx += Math.sin(ang) * 6; p.vz += Math.cos(ang) * 6; }
@@ -885,9 +895,28 @@ function aiHorse(u, dist) {
 // Computer captains fight with the player's moveset, more of it the higher the difficulty:
 // Recruit keeps the plain swing; Soldier switches weapons and throws javelins, with a slower
 // rhythm and the odd leap; Warlord chains full-speed combos and leaps into any cluster of men.
+// A computer captain's guard: in spells, shield raised, pressing in without attacking. Decided every
+// GUARD.dur seconds while fighting another captain, so it takes up about GUARD.share of the fight.
+function aiGuard(u, foe, fd, dt) {
+  if (!(u.guardT > 0) && !(u.guardCd > 0)) { u.guardCd = GUARD.dur; if (foe.leader && !foe.mounted && fd < 7 && Math.random() < GUARD.share[G.diff]) u.guardT = GUARD.dur * (.8 + Math.random() * .5); }
+  if (!(u.guardT > 0)) return false;
+  if (foe.stun > .2 || foe.dead || foe.mounted) { u.guardT = 0; return false; } // (an opening: take it)
+  u.blockT = Math.max(u.blockT, .15); faceTo(u, foe.x, foe.z, dt, 8);
+  go(u, foe.x, foe.z, speedOf(u) * .45, dt, u.r + foe.r + u.reach * .7);
+  return true;
+}
+// wind up a heavy blow in a captain's face and he may cut in before it lands
+function aiPunish(u, foe, fd) {
+  if (!(foe.heavyCharge > 0) && !(foe.ahT > .25 && (foe.weapon || 'sword') === 'sword')) { u.punishRoll = null; return false; }
+  if (u.punishRoll == null) u.punishRoll = Math.random() < GUARD.punish[G.diff];
+  if (!u.punishRoll || u.cd > 0 || u.stun > 0 || fd > u.r + foe.r + u.reach + .5) return false;
+  u.guardT = 0; captainAttack(u); return true;
+}
 function aiCaptainFight(u, foe, fd, dt) {
   const war = G.diff >= 2;
   if (u.windup > 0) { moveToward(u, u.x, u.z, 0, dt); return; }
+  if (aiPunish(u, foe, fd)) return;
+  if (aiGuard(u, foe, fd, dt)) return;
   if (!u.weapon) u.weapon = 'sword';
   u.wpnT = (u.wpnT || 0) - dt; u.leapT = (u.leapT || 0) - dt;
   if (u.wpnT <= 0) { // re-think the weapon now and then, like a person would
@@ -942,6 +971,7 @@ function thinkLeader(u, s, dt) {
       if (fd < 3) startSweep(u);
     } else if (G.diff >= 1) aiCaptainFight(u, foe, fd, dt);
     else if (u.windup > 0) moveToward(u, u.x, u.z, 0, dt);
+    else if (aiGuard(u, foe, fd, dt)) {}
     else {
       go(u, foe.x, foe.z, speedOf(u), dt, u.r + foe.r + u.reach * .6); faceTo(u, foe.x, foe.z, dt);
       if (fd < u.r + foe.r + u.reach + .4 && u.cd <= 0 && !foe.mounted && Math.random() < HEAVY.chance[0] && startHeavy(u, foe, HEAVY.windup[0])) return;
@@ -1177,9 +1207,10 @@ export function update(dt, input) {
   }
   const p = G.player;
   if (p && !p.dead && input) {
-    driveCaptain(p, input, dt);
+    const pdt = p.slowT > 0 ? dt * PARRY.slow : dt;
+    driveCaptain(p, input, pdt);
     if (input.block && !p.blkPrev) blockPress(p); p.blkPrev = !!input.block;
-    attackHold(p, !!input.attackHeld, dt);
+    attackHold(p, !!input.attackHeld, pdt);
     if (((input.attackHeld && p.mounted) || p.atkBuf > 0) && p.cd <= 0 && p.stun <= 0) captainAttack(p);
   }
   for (const s of G.teams) { const L = s.leader; if (L && L.human && !L.dead && L.remote) attackHold(L, !!L.ahHeld, dt, true); }
@@ -1200,9 +1231,13 @@ export function update(dt, input) {
     u.tkey = G.teams[u.ti].human ? 1 - k : k;
   }
   for (const k of [0, 1]) for (const u of G.units) if (!u.dead && !u.leader && u.tkey === k) u.tslot = tIdx[u.ti]++;
+  const DT = dt;
   for (const u of G.units) {
     if (u.dead) continue;
+    // (the two men in a parry live a beat in slow motion; everyone else carries on)
+    let dt = DT; if (u.slowT > 0) { u.slowT -= DT; dt = DT * PARRY.slow; }
     u.cd -= dt; u.shootCd -= dt; u.javCd -= dt; u.stun -= dt; u.blockT -= dt; u.rt -= dt; u.trampleT -= dt;
+    if (u.guardT > 0) u.guardT -= dt; if (u.guardCd > 0) u.guardCd -= dt;
     if (u.horseCd > 0) u.horseCd -= dt;
     if (u.leader) chargeTimers(u, dt);
     heavyTick(u, dt); if (u.human) braceTick(u, dt);
@@ -1296,7 +1331,7 @@ export function update(dt, input) {
   for (const u of G.units) {
     if (u.dead) { fallStep(u, dt); continue; }
     if (u.remote) { u.y = groundY(u.x, u.z) + (u.jy || 0); continue; } // moved by their own phone
-    integrate(u, dt, u.z);
+    integrate(u, u.slowT > 0 ? dt * PARRY.slow : dt, u.z);
   }
   G.units = G.units.filter(u => !(u.dead && u.deadT > 14));
 

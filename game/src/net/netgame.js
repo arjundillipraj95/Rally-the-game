@@ -2,7 +2,7 @@
 // presses and draws the host's snapshots (a compact text string, roughly 1-4KB depending on
 // how many soldiers are alive — capped well under that even at a full 8-army Duo match — sent
 // about 12 times a second).
-import { TEAMS, MAPS, KINDS, STATS, RECRUITS, FACTIONS, factionFromCode, ORDERS, ORDER_NAMES, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT, HOLD_ATK } from '../config.js';
+import { TEAMS, MAPS, KINDS, STATS, RECRUITS, FACTIONS, factionFromCode, ORDERS, ORDER_NAMES, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT, HOLD_ATK, PARRY } from '../config.js';
 import { G, bus, colorOf, isEnemyTi } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn } from '../core/world.js';
 import { buildNav, syncGates } from '../core/nav.js';
@@ -36,7 +36,7 @@ bus.on('msg', m => {
 // fight moments ride along with the announcements, by unit id, to be shown on every phone
 bus.on('fxmsg', d => {
   const NET = session.NET;
-  if (isHost() && NET.msgs && d.u && !d.fromNet) { NET.msgs.push([++NET.msgN, d.k, d.u.id, d.heavy ? 1 : 0]); if (NET.msgs.length > 8) NET.msgs.shift(); }
+  if (isHost() && NET.msgs && d.u && !d.fromNet) { NET.msgs.push([++NET.msgN, d.k, d.u.id, d.heavy ? 1 : 0, d.a ? d.a.id : -1, d.byAI ? 1 : 0]); if (NET.msgs.length > 8) NET.msgs.shift(); }
 });
 
 // ---------- host ----------
@@ -256,7 +256,7 @@ function clientApply(hp) {
   }
   for (const m of (hp.m || [])) if (m[0] > C.lastMsgN) {
     C.lastMsgN = m[0];
-    if (typeof m[1] === 'string' && m[1].startsWith('fx')) { const u = G.units.find(x => x.id === m[2]); if (u) bus.emit('fxmsg', { k: m[1], u, heavy: !!m[3], fromNet: true }); }
+    if (typeof m[1] === 'string' && m[1].startsWith('fx')) { const u = G.units.find(x => x.id === m[2]), a = G.units.find(x => x.id === m[4]); if (u) bus.emit('fxmsg', { k: m[1], u, a, heavy: !!m[3], byAI: !!m[5], fromNet: true }); }
     else showMsg(m[1], m.slice(2));
   }
 }
@@ -282,7 +282,8 @@ export function clientTick(dt) {
   if (me && !me.dead && G.state === 'play') {
     me.stun -= dt;
     const mv = import.meta.env.DEV && window.__moveOverride ? window.__moveOverride() : readMove(dt);
-    driveCaptain(me, mv, dt);
+    for (const u of G.units) if (u.slowT > 0) u.slowT -= dt; // (a parry's slow beat, for the two men in it)
+    driveCaptain(me, mv, me.slowT > 0 ? dt * PARRY.slow : dt);
     if (mv.block && !C.blkPrev && !me.mounted) { C.inp.par++; C.sendNow = true; } C.blkPrev = !!mv.block; // (a Block press: the host opens a parry window)
     // holding Attack: shown here at once (sword raised, spear planted, javelin drawn); the host acts on the release
     const held = !!mv.attackHeld && !me.mounted;

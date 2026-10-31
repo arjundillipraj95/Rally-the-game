@@ -603,7 +603,7 @@ export function drawSoldiers(units, dt) {
     }
     if (drawn >= MAX_UNITS) break;
     drawn++;
-    const a = pose(u, dt);
+    const a = pose(u, u.slowT > 0 ? dt * .25 : dt); // (a parry's two men move in slow motion)
     bones(u, a);
     if (u.mounted && u.charge > 0 && Math.random() < dt * 16) dust(u.x - Math.sin(u.face) * 1.4, u.z - Math.cos(u.face) * 1.4); // a charge kicks up a trail
     // a brief streak off the blade/spear tip while mid-swing, so a fast hit reads as motion

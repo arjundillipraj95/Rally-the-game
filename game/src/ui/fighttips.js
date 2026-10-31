@@ -9,9 +9,10 @@ const TIPS = {
   sword: 'Hold Attack for a heavy blow that smashes guards',
   spear: 'Hold Attack to plant the spear: riders who charge you are thrown',
   jav: 'Hold Attack to draw back: a full draw knocks riders off their horses',
+  guard: "He's on guard: hold Attack for a heavy blow to smash it",
 };
 let lastAt = 0; const shown = new Set(); // (each tip at most once a match; the parry ones jump the queue)
-const URGENT = new Set(['parry', 'break']);
+const URGENT = new Set(['parry', 'break', 'guard']);
 bus.on('msg', m => { if (m && m.k === 'start') shown.clear(); });
 export function fightTip(k) {
   const p = G.player, text = TIPS[k]; if (!p || p.dead || !text || G.state !== 'play' || shown.has(k)) return;

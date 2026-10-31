@@ -90,7 +90,13 @@ export const VOLLEY = { cd: 9, spread: 2.6 }; // spread: how far an aimed volley
 // window: how long before the blow a Block tap still parries (s); remote: extra allowance for a
 // joining player's press crossing the network; lock: a second tap this soon after the last doesn't
 // open a window (no parrying by mashing); light: the tighter window for an ordinary, unannounced blow.
-export const PARRY = { window: .26, light: .14, remote: .28, lock: .6, stun: .8, heavyStun: 1.3, riposteT: 1.8, riposteN: 2, riposteMult: 1.5 };
+export const PARRY = { window: .26, light: .14, remote: .28, lock: .6, slow: .25, slowT: .4, stun: .8, heavyStun: 1.3, riposteT: 1.8, riposteN: 2, riposteMult: 1.5 };
+// slow/slowT: a parry slows the two men in it (only them) to this speed for this long.
+// Enemy captains raise their guard in spells you can see (shield up, pressing in). While guarded they
+// turn most light blows aside, staggering the attacker; a heavy blow smashes the guard and leaves them
+// reeling. share: about how much of a fight each difficulty spends guarded (Recruit, Soldier, Warlord);
+// punish: how often a captain cuts in with a quick blow when you wind up a heavy one in his face.
+export const GUARD = { share: [.1, .25, .4], dur: 1.4, parry: .8, stun: .55, broken: 1.1, punish: [0, .5, .85] };
 // windup by difficulty (Recruit, Soldier, Warlord); chance: how often a ready captain picks one
 export const HEAVY = { windup: [.95, .8, .68], chance: [.22, .32, .4], vetChance: .12, mult: 1.75, kb: 1.8, reach: 1.1, guardBreak: .6, guardDmg: .55 };
 // Holding Attack does something different with each weapon: the sword winds up a guard-breaking
