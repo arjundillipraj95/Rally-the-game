@@ -349,8 +349,25 @@ const watchdog = {
 };
 
 // ---------- loop ----------
+// A fault in one part of a frame (the rules, sound, the scenery, the HUD) is caught on its own, so the
+// rest of the frame still runs and the picture never freezes. The first fault of a match is also shown
+// as a small line on screen, so a player's screenshot says exactly what went wrong.
+let faultSeed = null;
+function fault(where, e) {
+  console.error(e);
+  if (faultSeed === G.seed) return; faultSeed = G.seed; // (once per match)
+  const el = document.createElement('div'); el.className = 'faultNote';
+  const at = String((e && e.stack) || '').split('\n').find(l => /\.js/.test(l)) || '';
+  el.textContent = `⚠ ${where}: ${(e && e.message) || e} ${at.replace(/^\s*at\s*/, '').replace(/https?:\/\/[^/]+\/(.*\/)?/, '').slice(0, 80)}`;
+  document.body.appendChild(el); setTimeout(() => el.remove(), 30000);
+}
 function drawMatch(dt) {
-  try { audioTick(dt); } catch (e) { console.error(e); } // (sound can never freeze the screen)
+  try { drawScene(dt); } catch (e) { fault('draw', e); }
+  try { if (!(import.meta.env.DEV && window.__noRender)) renderer.render(scene, camera); } catch (e) { fault('render', e); } // (dev: network tests skip drawing)
+  try { drawOverlay({ joy: inp.joy, nickFor }); } catch (e) { fault('overlay', e); }
+}
+function drawScene(dt) {
+  try { audioTick(dt); } catch (e) { fault('sound', e); } // (sound can never freeze the screen)
   banterTick(dt); updateCritters(dt);
   drawSoldiers(G.units, dt);
   const horses = isClient() ? clientHorses() : G.horses.map(h => ({ key: h.id, ti: h.ti, x: h.x, z: h.z, face: h.face, spd: h.spd, state: h.state, t: h.t, fall: h.fall }));
@@ -364,8 +381,6 @@ function drawMatch(dt) {
   drawAura(G.player, auraRange(G.myTi), grassTime());
   drawVolleyAim(grassTime()); drawHoldAim(grassTime()); drawJavAim(); drawRideAim();
   const tg = camTarget(); followSun(tg ? tg.x : 0, tg ? tg.z : 0, grassTime());
-  if (!(import.meta.env.DEV && window.__noRender)) renderer.render(scene, camera); // (dev: network tests skip drawing)
-  drawOverlay({ joy: inp.joy, nickFor });
 }
 function nickFor(ti) {
   const NET = session.NET; if (!NET) return null;
@@ -384,10 +399,11 @@ function loop(now) {
   if (raw > 0) fpsAvg += (1 / raw - fpsAvg) * .05;
   try {
     if (isClient() && (G.state === 'play' || G.state === 'end')) {
-      if (clientTick(dt) && (G.state === 'play' || G.state === 'end')) drawMatch(dt); else demo(dt);
+      let live = true; try { live = clientTick(dt); } catch (e) { fault('net', e); }
+      if (live && (G.state === 'play' || G.state === 'end')) drawMatch(dt); else demo(dt);
     } else if (G.state === 'play') {
       if (isHost()) netHostReadInputs();
-      update(dt, import.meta.env.DEV && window.__moveOverride ? window.__moveOverride() : readMove(dt)); // (dev-only override for scripted capture)
+      try { update(dt, import.meta.env.DEV && window.__moveOverride ? window.__moveOverride() : readMove(dt)); } catch (e) { fault('rules', e); } // (dev-only override for scripted capture)
       if (isHost() && G.state === 'play') netHostTick();
       drawMatch(dt);
       watchdog.tick(raw);
@@ -402,8 +418,8 @@ function loop(now) {
         else if (isHost() && now - (session.NET.lastLobby || 0) > 700) { session.NET.lastLobby = now; hostLobbyTick(); }
       }
     }
-    if (G.state === 'play') { hudT -= dt; if (hudT <= 0) { hudT = .1; updateHud(C.lastSnapAt); tutorialTick(.1); } }
-  } catch (err) { console.error(err); }
+    if (G.state === 'play') { hudT -= dt; if (hudT <= 0) { hudT = .1; try { updateHud(C.lastSnapAt); tutorialTick(.1); } catch (e) { fault('hud', e); } } }
+  } catch (err) { fault('frame', err); }
   requestAnimationFrame(loop);
 }
 
