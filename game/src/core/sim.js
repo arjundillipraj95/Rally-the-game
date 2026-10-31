@@ -1,7 +1,7 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
 import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT } from '../config.js';
-import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, rules, matchTime } from './state.js';
+import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, activeFrom, gateOff, ARMIES, rules, matchTime } from './state.js';
 import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W, groundSlow, onIce } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable } from './nav.js';
 
@@ -12,11 +12,11 @@ const spark = (x, y, z, c, n) => fx('spark', { x, y, z, c, n });
 const sound = (name, x, z) => fx('sfx', { name, x, z });
 
 // ---------- setup ----------
-// Armies 0-3 are each castle's own army; 4-7 are its Duo teammate's, real only when active[i].
+// Armies 0-3 are each castle's own army; 4-11 are its Duo/Trio teammates', real only when active[i].
 // Castle strength (points/alive, conquest only) is only ever read/written on the color's own
-// army (0-3): a Duo teammate's army shares its castle rather than owning one.
-export function newTeams(humans, active = [1, 1, 1, 1, 0, 0, 0, 0]) {
-  return Array.from({ length: 8 }, (_, i) => ({ points: 100, tickets: rules().tickets, caps: 0, ctrlScore: 0, gold: Math.round(ECON.startGold * rules().gold), alive: true, plan: null, leaderDeadT: 0, recruitT: rnd(2, 6), thinkT: 0,
+// army (0-3): a teammate's army shares its castle rather than owning one.
+export function newTeams(humans, active = activeFrom([0, 0, 0, 0])) {
+  return Array.from({ length: ARMIES }, (_, i) => ({ points: 100, tickets: rules().tickets, caps: 0, ctrlScore: 0, gold: Math.round(ECON.startGold * rules().gold), alive: true, plan: null, leaderDeadT: 0, recruitT: rnd(2, 6), thinkT: 0,
     human: !!humans[i], active: !!active[i], order: 'follow', holdPt: null, morale: 100, rally: 0, routT: 0, focus: null, towerT: rnd(0, 1.4), leader: null,
     up: { foot1: 0, foot2: 0, arch1: 0, arch2: 0, aura: 0, horse: 0 }, arrowHits: 0, shieldwallT: 0, volleyCd: 0, upT: rnd(20, 40) }));
 }
@@ -42,21 +42,21 @@ export function mkUnit(ti, x, z, kind, human = false) {
 }
 export const squadOf = ti => G.units.filter(u => !u.dead && u.ti === ti && !u.leader);
 
-export function startMatch(humans, active = [1, 1, 1, 1, 0, 0, 0, 0]) {
+export function startMatch(humans, active = activeFrom([0, 0, 0, 0])) {
   G.layout = makeLayout(G.map.id, G.mode === 'ctf', G.mode === 'ctrl', G.seed); buildNav(G.layout);
   G.units = []; G.horses = []; G.arrows = [];
   G.T = 0; G.kills = 0; G.recruited = 0; G.bounty = -1; G.uid = 0; G.arrowN = 0; G.endInfo = null; G.awarded = false;
   G.teams = newTeams(humans, active);
-  G.duo = [0, 1, 2, 3].map(c => !!active[c + 4]);
+  G.duo = [0, 1, 2, 3].map(c => active[c + 8] ? 2 : active[c + 4] ? 1 : 0);
   G.flag = G.mode === 'ctf' ? { state: 'home', x: 0, z: 0, carrier: null, dropT: 0 } : null;
   G.ctrlPoints = G.mode === 'ctrl' ? makeCtrlPoints(G.layout) : null;
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < ARMIES; i++) {
     if (!G.teams[i].active) continue;
-    const t = TEAMS[colorOf(i)], duo = i >= 4; // a Duo army musters a little further back so it doesn't spawn on top of its teammate
-    const [gx, gz] = gatePos(t, duo ? 9 : 0, 7);
+    const t = TEAMS[colorOf(i)], off = gateOff(i); // a castle's captains muster side by side along its gate
+    const [gx, gz] = gatePos(t, off, 7);
     G.teams[i].leader = mkUnit(i, gx, gz, 'captain', G.teams[i].human);
     const start = (G.fullSquads ? FULL_SQUAD : START_SQUAD).slice(0, G.squadCap);
-    start.forEach((n0, n) => { const [sx, sz] = gatePos(t, ((n % 7) - 3) * 1.4 + (duo ? 9 : 0), 1.5 + Math.floor(n / 7) * 1.4); mkUnit(i, sx, sz, n0); });
+    start.forEach((n0, n) => { const [sx, sz] = gatePos(t, ((n % 7) - 3) * 1.4 + off, 1.5 + Math.floor(n / 7) * 1.4); mkUnit(i, sx, sz, n0); });
   }
   G.player = G.teams[G.myTi].leader;
   G.state = 'play';
@@ -82,7 +82,7 @@ function moraleTick(dt) {
     const L = s.leader, up = L && !L.dead;
     if (s.routT > 0) { s.routT -= dt; if (s.routT <= 0) { s.routT = 0; s.morale = Math.max(s.morale, MORALE.regroup); s.steadyT = MORALE.steady; } return; }
     if (s.steadyT > 0) s.steadyT -= dt;
-    const men = squadOf(ti), home = gatePos(TEAMS[colorOf(ti)], ti >= 4 ? 9 : 0, 0);
+    const men = squadOf(ti), home = gatePos(TEAMS[colorOf(ti)], gateOff(ti), 0);
     const atHome = men.filter(u => Math.hypot(u.x - home[0], u.z - home[1]) < MORALE.homeR).length > men.length / 2;
     if (s.morale <= MORALE.rout && men.length >= 3 && !(s.steadyT > 0) && !atHome) { s.routT = MORALE.routT; say('rout', ti); fx('fxmsg', { k: 'fxrout', u: L || squadOf(ti)[0], ti }); return; }
     if (up && !nearestFoe(L, MORALE.calmR)[0]) s.morale = Math.min(100, s.morale + MORALE.regen * dt);
@@ -107,7 +107,7 @@ export function recruit(ti, kind) {
   const s = G.teams[ti], cost = STATS[kind].cost;
   if (!canRecruit(ti) || s.gold < cost || squadOf(ti).length >= G.squadCap) return false;
   s.gold -= cost;
-  const [gx, gz] = gatePos(TEAMS[colorOf(ti)], rnd(-2, 2) + (ti >= 4 ? 9 : 0)); mkUnit(ti, gx, gz, kind);
+  const [gx, gz] = gatePos(TEAMS[colorOf(ti)], rnd(-2, 2) + (gateOff(ti))); mkUnit(ti, gx, gz, kind);
   if (ti === G.myTi) { G.recruited++; sound('coin'); }
   return true;
 }
@@ -665,7 +665,7 @@ export function teamOut(i) {
 }
 // One color's shown score: castle strength is shared (conquest), tickets and captures are each
 // army's own and add up across a Duo pair.
-export const armiesOfColor = c => G.duo[c] ? [c, c + 4] : [c];
+export const armiesOfColor = c => [c, c + 4, c + 8].slice(0, 1 + (G.duo[c] | 0));
 const ARMY_SCORE_FIELD = { dm: 'tickets', ctf: 'caps', ctrl: 'ctrlScore' };
 export function colorScore(c) {
   if (G.mode === 'conquest') return G.teams[c].points;
@@ -995,9 +995,9 @@ function planLeader(u, s) {
 }
 function planGoal(u, s) {
   const p = s.plan; if (!p) return null;
-  const t = TEAMS[colorOf(u.ti)], duo = u.ti >= 4;
+  const t = TEAMS[colorOf(u.ti)];
   switch (p.kind) {
-    case 'defend': { const [gx, gz] = gatePos(t, duo ? 9 : 0, 1); return { x: gx, z: gz, stop: 1.5 }; }
+    case 'defend': { const [gx, gz] = gatePos(t, gateOff(u.ti), 1); return { x: gx, z: gz, stop: 1.5 }; }
     case 'castle': return { x: TEAMS[p.ti].pos[0], z: TEAMS[p.ti].pos[1], stop: CASTLE_REACH - .8, castle: p.ti };
     case 'hunt': case 'escort': return p.target && !p.target.dead ? { x: p.target.x, z: p.target.z, stop: p.kind === 'escort' ? 3 : 1.5 } : null;
     case 'home': { const [gx, gz] = gatePos(t); return { x: gx, z: gz, stop: .5 }; }
@@ -1071,7 +1071,7 @@ function aiHold(u, s) {
   s.aiHold = false;
   if (G.diff < 1 || squadOf(u.ti).length < 5) return;
   const p = s.plan; let spot = null;
-  if (p && p.kind === 'defend') spot = gatePos(TEAMS[colorOf(u.ti)], u.ti >= 4 ? 9 : 0, 3);
+  if (p && p.kind === 'defend') spot = gatePos(TEAMS[colorOf(u.ti)], gateOff(u.ti), 3);
   else if (p && p.kind === 'point') { const pt = G.ctrlPoints && G.ctrlPoints[p.id]; if (pt && pt.owner === u.ti) spot = [pt.x, pt.z]; }
   if (!spot || Math.hypot(u.x - spot[0], u.z - spot[1]) > 10) return;
   const [f] = nearestFoe({ x: spot[0], z: spot[1], ti: u.ti }, 34, o => !o.dead);
@@ -1158,7 +1158,7 @@ function thinkSoldier(u, dt) {
   const s = G.teams[u.ti], L = s.leader, leaderUp = L && !L.dead;
   // a broken army runs for home, weapons forgotten
   u.routing = s.routT > 0;
-  if (u.routing) { u.aim = false; u.holding = false; const [gx, gz] = gatePos(TEAMS[colorOf(u.ti)], u.ti >= 4 ? 9 : 0, 6); go(u, gx, gz, speedOf(u), dt, 2); return; }
+  if (u.routing) { u.aim = false; u.holding = false; const [gx, gz] = gatePos(TEAMS[colorOf(u.ti)], gateOff(u.ti), 6); go(u, gx, gz, speedOf(u), dt, 2); return; }
   // ordered at one enemy group: go for the men around it
   if (orderOf(u.ti) === 'focus' && s.focus) {
     let best = null, bd = 1e9;
@@ -1230,7 +1230,7 @@ function thinkSoldier(u, dt) {
     const [gx, gz] = slotPos(anchor, anchor.isFront || !!anchor.human, u.slot || 0, u.kind === 'arch', u.meleeN || 0);
     const d = go(u, gx, gz, speedOf(u) * (Math.hypot(gx - u.x, gz - u.z) > 6 ? 1.15 : 1), dt);
     if (d < 1) u.face = turn(u.face, anchor.face, dt * 6);
-  } else { const [gx, gz] = gatePos(TEAMS[colorOf(u.ti)], u.ti >= 4 ? 9 : 0, 2); go(u, gx, gz, u.spd, dt, 3); }
+  } else { const [gx, gz] = gatePos(TEAMS[colorOf(u.ti)], gateOff(u.ti), 2); go(u, gx, gz, u.spd, dt, 3); }
 }
 function aiPick(ti) {
   const r = Math.random();
@@ -1334,7 +1334,7 @@ export function update(dt, input) {
     if (s.leader.dead && canRespawn(i)) {
       s.leaderDeadT -= dt;
       if (s.leaderDeadT <= 0) {
-        const [gx, gz] = gatePos(TEAMS[colorOf(i)], i >= 4 ? 9 : 0, 7);
+        const [gx, gz] = gatePos(TEAMS[colorOf(i)], gateOff(i), 7);
         const L = mkUnit(i, gx, gz, 'captain', s.human); s.leader = L; s.plan = null;
         if (i === G.myTi) { G.player = L; bus.emit('respawnMe', L); }
         if (s.human) say('respawn', i);
@@ -1358,7 +1358,7 @@ export function update(dt, input) {
   for (const s of G.teams) { const L = s.leader; if (L && L.human && !L.dead) { if (L.atkBuf > 0) { L.atkBuf -= dt; if (L.remote && L.cd <= 0 && L.stun <= 0) captainAttack(L); } regenJavs(L, dt); } }
   for (const s of G.teams) { const L = s.leader; if (L && L.human && !L.dead) { const [f] = nearestFoe(L, 12); if (!f && L.hp < L.max) L.hp = Math.min(L.max, L.hp + dt * 6); } }
 
-  const slotIdx = [0, 0, 0, 0, 0, 0, 0, 0], archIdx = [0, 0, 0, 0, 0, 0, 0, 0], meleeN = [0, 0, 0, 0, 0, 0, 0, 0], archN = [0, 0, 0, 0, 0, 0, 0, 0], tIdx = [0, 0, 0, 0, 0, 0, 0, 0];
+  const zeros = () => new Array(ARMIES).fill(0), slotIdx = zeros(), archIdx = zeros(), meleeN = zeros(), archN = zeros(), tIdx = zeros();
   const ords = G.teams.map((_, i) => orderOf(i)), rng = G.teams.map((_, i) => auraRange(i) ** 2);
   for (const u of G.units) {
     if (u.dead || u.leader) continue;

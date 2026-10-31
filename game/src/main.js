@@ -6,7 +6,7 @@ import '@fontsource/barlow-semi-condensed/latin-800.css';
 import '@fontsource/barlow-semi-condensed/latin-800-italic.css';
 import './style.css';
 import { TEAMS, MODES, MAPS, PRESETS, RANKS, CRESTS, QUIPS, TIPS } from './config.js';
-import { G, bus, colorOf, rules, matchTime, modeDesc } from './core/state.js';
+import { G, bus, colorOf, rules, matchTime, modeDesc, activeFrom } from './core/state.js';
 import { startMatch, mkUnit, newTeams, update, fallStep, endMatch, auraRange, endStep, setOrder } from './core/sim.js';
 import { makeLayout, gatePos, groundY } from './core/world.js';
 import { buildNav } from './core/nav.js';
@@ -266,18 +266,19 @@ seg('segMap', v => { G.map = MAPS[v]; updateDesc(); seedDemo(); });
 seg('segTeams', v => { preset = v; G.ALLY = allyFor(v, G.myTi); updateDesc(); });
 seg('segFaction', v => { prefs.faction = v; prefs.save(); seedDemo(); });
 seg('segColor', v => { prefs.color = +v; prefs.save(); resetSolo(); updateDesc(); seedDemo(); });
-// Duo for solo/vs-computer play: each color can get a second, computer-run army sharing its castle.
-// Unlike the multiplayer lobby's Duo toggle, these are independent on/off chips, not a single-select segment.
-const soloDuo = [false, false, false, false];
+// Duo/Trio for solo/vs-computer play: each color can get a second and third, computer-run army sharing
+// its castle. Each chip cycles that color Solo -> Duo -> Trio.
+const soloDuo = [0, 0, 0, 0];
 $('segDuo').querySelectorAll('button').forEach((b, i) => {
-  b.addEventListener('click', () => { soloDuo[i] = !soloDuo[i]; b.setAttribute('aria-pressed', String(soloDuo[i])); });
+  const name = b.textContent.split(' ')[0];
+  b.addEventListener('click', () => { soloDuo[i] = (soloDuo[i] + 1) % 3; b.setAttribute('aria-pressed', String(soloDuo[i] > 0)); b.textContent = name + ' ' + ['Duo', 'Duo', 'Trio'][soloDuo[i]]; });
 });
 function resetSolo() { G.role = 'solo'; G.myTi = prefs.color; G.ALLY = allyFor(preset, G.myTi); }
 function soloStart() {
   initAudio(); session.NET = null; resetSolo();
   G.seed = (Math.random() * 1e9) | 0;
   G.factions = assignFactions(TEAMS.map((_, i) => i === G.myTi ? prefs.faction : null), G.seed);
-  const active = [1, 1, 1, 1, ...soloDuo.map(d => d ? 1 : 0)];
+  const active = activeFrom(soloDuo);
   G.crests = []; G.crests[G.myTi] = progress.crest;
   beginMatch(TEAMS.map((_, i) => i === G.myTi ? 1 : 0), active);
 }

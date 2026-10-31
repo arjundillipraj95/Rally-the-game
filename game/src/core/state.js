@@ -30,15 +30,22 @@ export const G = {
   horseN: 0,
   endInfo: null,
   squadCap: 20,
-  duo: [false, false, false, false], // per castle color: does it field a second, independent army?
+  duo: [0, 0, 0, 0], // per castle color: how many extra captains share it (0 solo, 1 Duo, 2 Trio)
 };
 
-// Armies 0-3 are the four castles' own army; 4-7 are each castle's Duo teammate army
-// (only real when G.duo[color] is true). colorOf maps either back to its castle/color/alliance.
+// Armies 0-3 are the four castles' own army; 4-7 each castle's second captain (Duo), 8-11 its
+// third (Trio), real only while G.duo[color] reaches that slot. colorOf maps any of them back to
+// its castle/color/alliance. All of a castle's captains muster at its one gate, side by side.
+export const ARMIES = 12;
 export const colorOf = ti => ti % 4;
-export const slotOf = ti => ti < 4 ? 0 : 1;
-export const armyOf = (color, slot) => slot ? color + 4 : color;
-export const activeArmies = () => { const out = [0, 1, 2, 3]; for (let c = 0; c < 4; c++) if (G.duo[c]) out.push(c + 4); return out; };
+export const slotOf = ti => ti >> 2;
+export const armyOf = (color, slot) => color + 4 * slot;
+export const activeArmies = () => { const out = [0, 1, 2, 3]; for (let s = 1; s <= 2; s++) for (let c = 0; c < 4; c++) if ((G.duo[c] | 0) >= s) out.push(c + 4 * s); return out; };
+// which armies a match fields, from each color's extra-captain count
+export const activeFrom = duo => Array.from({ length: ARMIES }, (_, i) => i < 4 || (duo[i % 4] | 0) >= (i >> 2) ? 1 : 0);
+// how far along the gate a castle's captains stand: the first in the middle, the others either side
+export const gateOff = ti => [0, 9, -9][ti >> 2];
+export const SLOT_NAME = ['', 'Co-captain', 'Third captain'];
 
 // the numbers for this match's length: time limit, tickets, captures, control target...
 export const rules = () => LENGTHS[G.len] || LENGTHS.quick;

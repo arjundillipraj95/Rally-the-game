@@ -1,6 +1,6 @@
 // Scoreboard, clock, health, gold, squad count and button labels.
 import { TEAMS, MODES, STATS, DM_TICKETS, CAPS_TO_WIN, CTRL, AL_LETTER, ORDER_NAMES, UPGRADES, WEAPON_NAMES } from '../config.js';
-import { G, isFfa, colorOf, rules, matchTime } from '../core/state.js';
+import { G, isFfa, colorOf, rules, matchTime, SLOT_NAME } from '../core/state.js';
 import { colorOut, colorScore, colorHuman, squadOf, canRecruit, horseMax, upgradeCost, javMax } from '../core/sim.js';
 import { session, isClient } from '../net/session.js';
 
@@ -103,7 +103,7 @@ export function updateHud(lastSnapAt) {
   const NET = session.NET, tag = $('netTag');
   if (NET) {
     tag.hidden = false;
-    const others = G.teams.map((s, i) => i).filter(i => G.teams[i].active && G.teams[i].human && i !== G.myTi).map(i => TEAMS[colorOf(i)].name + (i >= 4 ? ' (co-captain)' : ''));
+    const others = G.teams.map((s, i) => i).filter(i => G.teams[i].active && G.teams[i].human && i !== G.myTi).map(i => TEAMS[colorOf(i)].name + (i >= 4 ? ` (${SLOT_NAME[i >> 2].toLowerCase()})` : ''));
     if (isClient()) {
       const stale = performance.now() - (lastSnapAt || 0) > 2500;
       tag.textContent = stale ? 'Waiting for the host…' : `Online · ${others.length ? 'with ' + others.join(', ') : 'host'}`;

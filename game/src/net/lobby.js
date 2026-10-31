@@ -1,6 +1,6 @@
 // "Play with friends": host or join by code, pick colors and teams, start the battle.
 import { TEAMS, MAPS, PRESETS, AL_LETTER, FACTIONS } from '../config.js';
-import { G, colorOf, slotOf } from '../core/state.js';
+import { G, colorOf, slotOf, activeFrom, ARMIES, SLOT_NAME } from '../core/state.js';
 import { makeP2PRoom as rawRoom, newCode, p2pAvailable } from './p2p.js';
 import { progress } from '../ui/progress.js';
 // A brief hiccup reaching the connection server shouldn't end the attempt: try once more before
@@ -17,7 +17,7 @@ import { initAudio, stopCrowd } from '../ui/audio.js';
 
 const $ = id => document.getElementById(id);
 let hooks = { startMatch() {}, seedDemo() {}, preset: () => 'ffa', resetSolo() {} };
-// want is the desired ARMY seat (0-3 = a color's own army, 4-7 = that color's Duo teammate);
+// want is the desired ARMY seat (0-3 = a color's own army, 4-7 its Duo teammate, 8-11 its Trio third);
 // -2 (just arrived) lets the host seat you in the first free color, -1 means you stood up
 const myPresence = () => ({ role: 'player', nick: session.myNick || 'Captain', ph: 'lobby', want: (session.NET.want ?? -2), fac: prefs.faction, cr: progress.crest });
 let busy = false;
@@ -50,14 +50,14 @@ export function hostLobbyTick() {
   const me = myPeer(NET.room); if (me && NET.me !== me) { const t = NET.seats[NET.me]; delete NET.seats[NET.me]; NET.me = me; NET.seats[me] = t === undefined ? 0 : t; }
   for (const k of Object.keys(NET.seats)) if (!present.has(k) && k !== NET.me) delete NET.seats[k];
   const L = NET.lobby;
-  // a color's slot 1 only exists while that color is Duo; drop anyone left sitting in one that just turned off
-  for (const k of Object.keys(NET.seats)) if (NET.seats[k] >= 4 && !L.duo[colorOf(NET.seats[k])]) delete NET.seats[k];
+  // a color's extra seats only exist while it is Duo/Trio; drop anyone left sitting in one that just went away
+  for (const k of Object.keys(NET.seats)) if (slotOf(NET.seats[k]) > (L.duo[colorOf(NET.seats[k])] | 0)) delete NET.seats[k];
   const taken = () => Object.values(NET.seats);
   for (const p of peers) {
     if (p.sameTab) continue;
     const pr = p.presence || {}; if (pr.role !== 'player') continue;
     const want = pr.want;
-    if (typeof want === 'number' && want >= 0 && want < 8 && (want < 4 || L.duo[colorOf(want)])) {
+    if (typeof want === 'number' && want >= 0 && want < ARMIES && slotOf(want) <= (L.duo[colorOf(want)] | 0)) {
       if (NET.seats[p.peer] === want) continue;
       if (!taken().includes(want)) NET.seats[p.peer] = want;
     } else if (want === -1 && NET.seats[p.peer] !== undefined) delete NET.seats[p.peer];
@@ -65,7 +65,7 @@ export function hostLobbyTick() {
       const free = [0, 1, 2, 3].find(t => !taken().includes(t)); if (free !== undefined) NET.seats[p.peer] = free;
     }
   }
-  NET.room.presence({ role: 'host', ph: 'lobby', nick: session.myNick || 'Host', fac: prefs.faction, mode: L.mode, map: L.map, diff: L.diff, len: L.len, al: L.al.join(''), duo: L.duo.map(d => d ? 1 : 0).join(''), seats: NET.seats, s: null, m: null, res: null }).catch(() => {});
+  NET.room.presence({ role: 'host', ph: 'lobby', nick: session.myNick || 'Host', fac: prefs.faction, mode: L.mode, map: L.map, diff: L.diff, len: L.len, al: L.al.join(''), duo: L.duo.map(d => d | 0).join(''), seats: NET.seats, s: null, m: null, res: null }).catch(() => {});
   renderLobby();
 }
 function lobbyView() {
@@ -75,7 +75,7 @@ function lobbyView() {
   if (!hostP) return null;
   NET.hostPeer = hostP.peer;
   const h = hostP.presence;
-  return { mode: h.mode, map: h.map, diff: h.diff, len: h.len === 'standard' ? 'standard' : 'quick', al: String(h.al || '0123').split('').map(Number), duo: String(h.duo || '0000').split('').map(c => c === '1'), seats: h.seats || {}, hostNick: h.nick, ph: h.ph, hostP };
+  return { mode: h.mode, map: h.map, diff: h.diff, len: h.len === 'standard' ? 'standard' : 'quick', al: String(h.al || '0123').split('').map(Number), duo: String(h.duo || '0000').split('').map(c => Math.min(2, +c || 0)), seats: h.seats || {}, hostNick: h.nick, ph: h.ph, hostP };
 }
 export function renderLobby() {
   const NET = session.NET;
@@ -114,14 +114,14 @@ export function renderLobby() {
     const chip = document.createElement('span'); chip.className = 'alchip'; chip.setAttribute('role', 'button'); chip.textContent = 'Team ' + AL_LETTER[v.al[i]];
     if (host) { chip.tabIndex = 0; chip.addEventListener('click', e => { e.stopPropagation(); NET.lobby.al[i] = (NET.lobby.al[i] + 1) % 4; hostLobbyTick(); }); }
     main.appendChild(chip);
-    const tog = document.createElement('span'); tog.className = 'duotog' + (v.duo[i] ? ' on' : ''); tog.setAttribute('role', 'button'); tog.textContent = 'Duo';
+    const tog = document.createElement('span'); tog.className = 'duotog' + (v.duo[i] ? ' on' : ''); tog.setAttribute('role', 'button'); tog.textContent = ['Duo', 'Duo', 'Trio'][v.duo[i] | 0]; // (off it reads Duo, dimmed: tap once for Duo, again for Trio)
     if (host) {
       tog.tabIndex = 0;
-      tog.addEventListener('click', e => { e.stopPropagation(); NET.lobby.duo[i] = !NET.lobby.duo[i]; hostLobbyTick(); });
+      tog.addEventListener('click', e => { e.stopPropagation(); NET.lobby.duo[i] = ((NET.lobby.duo[i] | 0) + 1) % 3; hostLobbyTick(); });
     } else tog.setAttribute('disabled', '');
     main.appendChild(tog);
     col.appendChild(main);
-    if (v.duo[i]) col.appendChild(seatBtn(i + 4, t, 'Co-captain'));
+    for (let s = 1; s <= (v.duo[i] | 0); s++) col.appendChild(seatBtn(i + 4 * s, t, SLOT_NAME[s]));
     box.appendChild(col);
   });
   const setSeg = (id, val, ro) => { const el = $(id); el.classList.toggle('ro', ro); el.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === String(val)))); };
@@ -135,7 +135,7 @@ export function renderLobby() {
   const mySeat = v.seats[me];
   $('lobbyStatus').textContent = host
     ? ((NET.room.pending && NET.room.pending() ? `${NET.room.pending()} joining… · ` : '') + (nAl < 2 ? 'Everyone is on one team. Split the teams to start.' : nPlayers < 2 ? 'Share the code. Friends open this page, tap Play with friends and enter it.' : `${nPlayers} players · computer plays the rest`))
-    : (mySeat === undefined ? 'Tap a color to take it' : `You are ${TEAMS[colorOf(mySeat)].name}${slotOf(mySeat) ? "'s co-captain" : ''}. Waiting for the host to start…`);
+    : (mySeat === undefined ? 'Tap a color to take it' : `You are ${TEAMS[colorOf(mySeat)].name}${slotOf(mySeat) ? "'s " + SLOT_NAME[slotOf(mySeat)].toLowerCase() : ''}. Waiting for the host to start…`);
 }
 
 export async function netLeave(msg) {
@@ -187,7 +187,7 @@ export function bindLobby(h) {
     busy = false;
     if (!gr) { $('netNote').textContent = 'Could not open a battle. Try again.'; return; }
     $('netNote').textContent = '';
-    const NET = session.NET = { role: 'host', room: gr, name: code, seats: {}, msgs: [], msgN: 0, snapN: 0, inp: {}, lobby: { mode: G.mode, map: G.map.id, diff: G.diff, len: G.len, al: allyFor(hooks.preset(), prefs.color), duo: [false, false, false, false] } };
+    const NET = session.NET = { role: 'host', room: gr, name: code, seats: {}, msgs: [], msgN: 0, snapN: 0, inp: {}, lobby: { mode: G.mode, map: G.map.id, diff: G.diff, len: G.len, al: allyFor(hooks.preset(), prefs.color), duo: [0, 0, 0, 0] } };
     const me = myPeer(gr) || 'me';
     NET.me = me; NET.seats[me] = prefs.color; G.myTi = prefs.color; G.role = 'host';
     NET.unsub = gr.onPeers(() => { if (G.state === 'lobby') hostLobbyTick(); });
@@ -239,9 +239,9 @@ export function bindLobby(h) {
     G.myTi = NET.seats[NET.me] ?? 0;
     G.seed = (Math.random() * 1e9) | 0;
     NET.msgs = []; NET.msgN = 0; NET.inp = {}; NET.snapN = 0;
-    const humans = [0, 0, 0, 0, 0, 0, 0, 0], chosen = [null, null, null, null], peers = NET.room.peers();
+    const humans = new Array(ARMIES).fill(0), chosen = [null, null, null, null], peers = NET.room.peers();
     G.crests = [];
-    const active = [1, 1, 1, 1, ...L.duo.map(d => d ? 1 : 0)];
+    const active = activeFrom(L.duo);
     for (const [peer, ti] of Object.entries(NET.seats)) {
       humans[ti] = 1;
       const pr = (peers.find(p => p.peer === peer) || {}).presence || {};
