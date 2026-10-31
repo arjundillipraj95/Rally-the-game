@@ -350,7 +350,8 @@ const watchdog = {
 
 // ---------- loop ----------
 function drawMatch(dt) {
-  audioTick(dt); banterTick(dt); updateCritters(dt);
+  try { audioTick(dt); } catch (e) { console.error(e); } // (sound can never freeze the screen)
+  banterTick(dt); updateCritters(dt);
   drawSoldiers(G.units, dt);
   const horses = isClient() ? clientHorses() : G.horses.map(h => ({ key: h.id, ti: h.ti, x: h.x, z: h.z, face: h.face, spd: h.spd, state: h.state, t: h.t, fall: h.fall }));
   drawHorses(horses, dt);

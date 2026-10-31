@@ -157,6 +157,7 @@ function mhorn(f, t, dur, g = .07) {
 }
 // a war drum at time t: the body's thump and the skin's slap
 function mdrum(t, g = .5, pitch = 1) {
+  if (!(g > 0)) return; // (a silent beat: no hit at all; a zero target would make the browser throw)
   const o = ac.createOscillator(), gn = ac.createGain(); o.type = 'sine';
   o.frequency.setValueAtTime(82 * pitch, t); o.frequency.exponentialRampToValueAtTime(44 * pitch, t + .35);
   gn.gain.setValueAtTime(.0001, t); gn.gain.exponentialRampToValueAtTime(g, t + .008); gn.gain.exponentialRampToValueAtTime(.0001, t + .5);
@@ -273,7 +274,7 @@ export function audioTick(dt) {
       if (T) play(Math.random() < .6 ? 'clang' : 'hit', T.x + Math.cos(a) * r, T.z + Math.sin(a) * r, { vol: .35, rate: .85, jit: .12, min: 0 });
     }
   }
-  musicTick(dt, Math.min(1, (amb.near || 0) / 8), amb.foes || 0); // (the music follows the fighting round you, not across the field)
+  try { musicTick(dt, Math.min(1, (amb.near || 0) / 8), amb.foes || 0); } catch (e) { console.error(e); } // (the music follows the fighting round you, not across the field; a music fault must never stop the picture)
   // war drums: a slow beat, quickening and louder as the fighting heats up (only with the music off: the score has its own)
   if (amb.drumT <= 0 && !musicOn) {
     const h = amb.heat, beat = 60 / (70 + 60 * h);
