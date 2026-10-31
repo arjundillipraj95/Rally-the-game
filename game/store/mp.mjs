@@ -13,7 +13,7 @@ const code = await A.evaluate(() => document.getElementById('codeTxt').textConte
 const duo = process.argv[2] === 'duo';
 const aTi = await A.evaluate(() => window.__fb.info.myTi);
 if (duo) { await A.click('.seatcol:nth-child(' + (aTi + 1) + ') .duotog'); await A.waitForTimeout(500); }
-await B.click('#mpBtn'); await B.fill('#nick', 'Friend'); await B.fill('#codeIn', code); await B.click('#joinBtn'); await B.waitForTimeout(2500);
+await B.click('#mpBtn'); await B.fill('#nick', 'Friend'); await B.fill('#codeIn', code); await B.click('#joinBtn'); await B.waitForFunction(() => !document.getElementById('ovLobby').hidden, null, { timeout: 30000 }); await B.waitForTimeout(800);
 if (duo) { await B.click('.seatcol:nth-child(' + (aTi + 1) + ') .seat.slot2'); await B.waitForTimeout(1200); }
 else { await B.click('.seatcol:nth-child(' + (((aTi + 1) % 4) + 1) + ') .seat'); await B.waitForTimeout(1200); }
 await A.click('#startBtn'); await A.waitForTimeout(3000);

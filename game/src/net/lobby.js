@@ -6,9 +6,9 @@ import { progress } from '../ui/progress.js';
 // A brief hiccup reaching the connection server shouldn't end the attempt: try once more before
 // reporting it. Definite answers (code taken, no such battle, battle full) come back immediately.
 const FINAL = new Set(['unavailable-id', 'peer-unavailable', 'full', 'no-webrtc', 'timeout']);
-async function makeP2PRoom(code, host) {
-  try { return await rawRoom(code, host); }
-  catch (e) { if (e && FINAL.has(e.type)) throw e; await new Promise(r => setTimeout(r, 800)); return rawRoom(code, host); }
+async function makeP2PRoom(code, host, onStage) {
+  try { return await rawRoom(code, host, onStage); }
+  catch (e) { if (e && (FINAL.has(e.type) || e.type === 'ice-failed')) throw e; await new Promise(r => setTimeout(r, 800)); return rawRoom(code, host, onStage); }
 }
 import { session, prefs } from './session.js';
 import { allyFor, assignFactions } from '../core/teams.js';
@@ -17,8 +17,9 @@ import { initAudio, stopCrowd } from '../ui/audio.js';
 
 const $ = id => document.getElementById(id);
 let hooks = { startMatch() {}, seedDemo() {}, preset: () => 'ffa', resetSolo() {} };
-// want is the desired ARMY seat (0-3 = a color's own army, 4-7 = that color's Duo teammate)
-const myPresence = () => ({ role: 'player', nick: session.myNick || 'Captain', ph: 'lobby', want: (session.NET.want ?? -1), fac: prefs.faction, cr: progress.crest });
+// want is the desired ARMY seat (0-3 = a color's own army, 4-7 = that color's Duo teammate);
+// -2 (just arrived) lets the host seat you in the first free color, -1 means you stood up
+const myPresence = () => ({ role: 'player', nick: session.myNick || 'Captain', ph: 'lobby', want: (session.NET.want ?? -2), fac: prefs.faction, cr: progress.crest });
 let busy = false;
 
 export function openBrowse() {
@@ -60,6 +61,9 @@ export function hostLobbyTick() {
       if (NET.seats[p.peer] === want) continue;
       if (!taken().includes(want)) NET.seats[p.peer] = want;
     } else if (want === -1 && NET.seats[p.peer] !== undefined) delete NET.seats[p.peer];
+    else if (want === -2 && NET.seats[p.peer] === undefined) { // a new arrival: give them a free color straight away (nobody gets left out by not tapping one)
+      const free = [0, 1, 2, 3].find(t => !taken().includes(t)); if (free !== undefined) NET.seats[p.peer] = free;
+    }
   }
   NET.room.presence({ role: 'host', ph: 'lobby', nick: session.myNick || 'Host', fac: prefs.faction, mode: L.mode, map: L.map, diff: L.diff, len: L.len, al: L.al.join(''), duo: L.duo.map(d => d ? 1 : 0).join(''), seats: NET.seats, s: null, m: null, res: null }).catch(() => {});
   renderLobby();
@@ -85,7 +89,7 @@ export function renderLobby() {
   const facOf = peer => { const p = peers.find(x => x.peer === peer); const f = p && p.presence && p.presence.fac; return FACTIONS[f] ? FACTIONS[f].name : ''; };
   const me = myPeer(NET.room);
   const seatOf = ti => Object.keys(v.seats).find(k => v.seats[k] === ti);
-  const sig = JSON.stringify([me, v.mode, v.map, v.diff, v.len, v.al, v.duo, v.seats, v.hostNick, peers.map(p => [p.peer, p.presence && p.presence.nick, p.presence && p.presence.role, p.presence && p.presence.fac])]);
+  const sig = JSON.stringify([me, v.mode, v.map, v.diff, v.len, v.al, v.duo, v.seats, v.hostNick, NET.room.pending ? NET.room.pending() : 0, peers.map(p => [p.peer, p.presence && p.presence.nick, p.presence && p.presence.role, p.presence && p.presence.fac])]);
   if (sig === NET.lobbySig) return; NET.lobbySig = sig;
   const box = $('seats'); box.innerHTML = '';
   const seatBtn = (armyTi, t, label) => {
@@ -100,7 +104,7 @@ export function renderLobby() {
     el.addEventListener('click', () => {
       if (occ && occ !== me) return;
       if (host) { if (!occ) { NET.seats[me] = armyTi; hostLobbyTick(); } }
-      else { NET.want = occ === me ? -1 : armyTi; NET.room.presence(myPresence()).catch(() => {}); }
+      else if (occ !== me) { NET.want = armyTi; NET.room.presence(myPresence()).catch(() => {}); } // (tapping your own color keeps you there)
     });
     return el;
   };
@@ -130,7 +134,7 @@ export function renderLobby() {
   $('startBtn').disabled = nAl < 2;
   const mySeat = v.seats[me];
   $('lobbyStatus').textContent = host
-    ? (nAl < 2 ? 'Everyone is on one team. Split the teams to start.' : nPlayers < 2 ? 'Share the code. Friends open this page, tap Play with friends and enter it.' : `${nPlayers} players · computer plays the rest`)
+    ? ((NET.room.pending && NET.room.pending() ? `${NET.room.pending()} joining… · ` : '') + (nAl < 2 ? 'Everyone is on one team. Split the teams to start.' : nPlayers < 2 ? 'Share the code. Friends open this page, tap Play with friends and enter it.' : `${nPlayers} players · computer plays the rest`))
     : (mySeat === undefined ? 'Tap a color to take it' : `You are ${TEAMS[colorOf(mySeat)].name}${slotOf(mySeat) ? "'s co-captain" : ''}. Waiting for the host to start…`);
 }
 
@@ -194,13 +198,16 @@ export function bindLobby(h) {
     if (code.length !== 4) { $('netNote').textContent = 'Battle codes are 4 letters or numbers.'; return; }
     if (busy) return; busy = true; saveNick();
     $('netNote').textContent = `Joining ${code}…`;
+    const stages = { server: `Joining ${code}: finding the battle…`, host: `Joining ${code}: linking up with the host's phone…`, slow: `Still linking up. On mobile data this can take up to 20 seconds…` };
     let gr;
-    try { gr = await makeP2PRoom(code, false); }
+    try { gr = await makeP2PRoom(code, false, st => { if (stages[st]) $('netNote').textContent = stages[st]; }); }
     catch (e) {
       busy = false;
       const t = e && e.type;
       $('netNote').textContent = t === 'peer-unavailable' ? `No battle found with code ${code}. Check the code with your host.`
         : t === 'full' ? 'That battle already has eight players.'
+        : (t === 'ice-failed' || (t === 'timeout' && e.stage === 'host')) ? "Found the battle but couldn't link up with the host's phone. This usually comes from mobile data or a strict Wi-Fi: try both on Wi-Fi (or the host on Wi-Fi), then try again."
+        : t === 'timeout' ? "Couldn't reach the battle server. Check your internet connection and try again."
         : 'Could not connect. Check your internet connection and try again.';
       return;
     }
