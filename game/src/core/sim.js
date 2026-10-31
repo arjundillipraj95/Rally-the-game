@@ -1,6 +1,6 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
-import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT } from '../config.js';
+import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, rules, matchTime } from './state.js';
 import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W, groundSlow, onIce } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable } from './nav.js';
@@ -628,6 +628,8 @@ function die(u, killer, ang, launch = 0) {
   loseHeart(u.ti, u.leader ? MORALE.captain : MORALE.death + (killer && behind(u, killer) ? MORALE.flankDeath : 0));
   if (killer && killer.leader) gainRally(killer, u.leader ? RALLY.capKill : RALLY.kill);
   if (killer && killer.leader && u.leader && G.teams[killer.ti]) G.teams[killer.ti].morale = Math.min(100, G.teams[killer.ti].morale + 20);
+  // a captain cut down by a captain: the moment of the battle. The two of them, in slow motion.
+  if (killer && killer.leader && u.leader) { killer.slowT = Math.max(killer.slowT || 0, CAPKILL_SLOW); u.slowT = CAPKILL_SLOW; fx('fxmsg', { k: 'fxcapkill', u, a: killer }); }
   if (G.mode === 'dm') {
     s.tickets = Math.max(0, s.tickets - (u.leader ? 5 : 1));
     if (s.tickets <= 0 && s.alive) { s.alive = false; say('tickets0', u.ti); }
@@ -1181,6 +1183,12 @@ function thinkSoldier(u, dt) {
   }
   if (myOrder === 'hold' && s.holdPt) { holdPlace(u, s.holdPt, dt, range); return; }
   const engage = myOrder === 'charge' || myOrder === 'focus' ? 45 : u.kind === 'arch' ? range : myOrder === 'hold' ? 8 : 10;
+  // a duel between captains: leave it to them. Pick another man, or stand back and watch.
+  if (u.foe && u.foe.duel && u.kind !== 'arch') {
+    const [alt, ad] = nearestFoe(u, 10, o => !o.duel);
+    if (alt) { u.foe = alt; u.fd = ad; }
+    else { const D = u.foe.duel, dd = Math.hypot(u.x - D.x, u.z - D.z); if (dd < 5.5) { const k = 5.5 / Math.max(dd, .1); go(u, D.x + (u.x - D.x) * k, D.z + (u.z - D.z) * k, speedOf(u), dt, .3); } else moveToward(u, u.x, u.z, 0, dt); faceTo(u, D.x, D.z, dt, 4); return; }
+  }
   const foe = u.foe, fd = u.fd;
   const leash = myOrder === 'follow' && leaderUp && foe && Math.hypot(foe.x - L.x, foe.z - L.z) > 18;
   if (myOrder === 'focus' && u.kind === 'arch' && foe && fd > range) { go(u, foe.x, foe.z, speedOf(u), dt, range * .8); return; } // (archers close to bow range of the group)
@@ -1365,6 +1373,13 @@ export function update(dt, input) {
   }
   for (const k of [0, 1]) for (const u of G.units) if (!u.dead && !u.leader && u.tkey === k) u.tslot = tIdx[u.ti]++;
   moraleTick(dt);
+  // captains locked in single combat on foot: the men round them give them room
+  for (const u of G.units) u.duel = null;
+  const caps = G.units.filter(u => u.leader && !u.dead && !u.mounted);
+  for (let i = 0; i < caps.length; i++) for (let j = i + 1; j < caps.length; j++) {
+    const a = caps[i], b = caps[j]; if (!isEnemy(a, b) || Math.hypot(a.x - b.x, a.z - b.z) > 3.5) continue;
+    const d = { x: (a.x + b.x) / 2, z: (a.z + b.z) / 2 }; a.duel = d; b.duel = d;
+  }
   // an ordered attack follows its group: onto the marked man, or the next man near where he fell; none left, and they fall back in
   G.teams.forEach(s => {
     if (s.order !== 'focus' || !s.focus) return;

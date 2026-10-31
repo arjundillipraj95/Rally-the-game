@@ -122,6 +122,8 @@ export const MORALE = { death: 7, flankDeath: 5, captain: 35, regen: 3, calmR: 1
 // The rally horn. A captain fills it fighting well (per kill, captain kill, parry, perfect ride-by, guard
 // smashed, rider unhorsed); full, he can sound it: his army's morale +morale and any rout ends, his men
 // within r surge (dmg, spd) for buffT s, and enemies within enemyR flinch and lose enemyMorale.
+// a captain cut down by another: the two of them in slow motion for this long (like a parry, only them)
+export const CAPKILL_SLOW = .7;
 export const RALLY = { kill: 9, capKill: 30, parry: 15, ride: 12, guardBreak: 10, unhorse: 15, r: 18, morale: 45, buffT: 8, dmg: 1.25, spd: 1.15, enemyR: 11, enemyMorale: 15, hold: .45 };
 // A held line: footmen in their places take this share of the damage and knockback from the front,
 // and a charge into them stalls, hurting the horse.

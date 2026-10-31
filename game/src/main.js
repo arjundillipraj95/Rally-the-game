@@ -24,7 +24,7 @@ import { drawHorses, clearHorses } from './render/horses.js';
 import { spark, splat, dust, drawAura, floatText, pow, shockwave, castleFx, effectsTick, drawEffects, clearEffects } from './render/effects.js';
 import { drawOverlay, clearOverlay, resizeOverlay } from './render/overlay.js';
 import { cam, followCamera, orbitCamera, camTarget, CAM_PITCH } from './render/camera.js';
-import { initAudio, sfx, buzz, gateS, startCrowd, stopCrowd, audioTick, audioStats, setMuted } from './ui/audio.js';
+import { initAudio, sfx, buzz, gateS, startCrowd, stopCrowd, audioTick, audioStats, setMuted, musicCue, setMusic, musicEnabled } from './ui/audio.js';
 import { portal, portalInit, onPortal } from './portal.js';
 import { showMsg, allyNames } from './ui/messages.js';
 import { buildHud, showHud, updateHud, banner, fmt } from './ui/hud.js';
@@ -35,7 +35,7 @@ import { session, isClient, isHost, prefs } from './net/session.js';
 import { allyFor, describeTeams, assignFactions } from './core/teams.js';
 import { actions, netHostReadInputs, netHostTick, netHostSend, clientTick, clientHorses, setNetHooks, C } from './net/netgame.js';
 import { bindLobby, showLobby, hostLobbyTick, clientLobbyTick, netLeave } from './net/lobby.js';
-import { CAPS_TO_WIN, PARRY } from './config.js';
+import { CAPS_TO_WIN, PARRY, CAPKILL_SLOW } from './config.js';
 
 const $ = id => document.getElementById(id);
 { const nj = $('nojs'); if (nj) nj.remove(); }
@@ -67,17 +67,25 @@ bus.on('hitstop', t => { hitstop = Math.max(hitstop, t); });
 bus.on('buzz', ms => buzz(ms));
 // the big moments of a fight: a parry, a guard smashed open, a rider skewered or knocked off his horse.
 // (On the host these come straight from the rules; on a joining player's phone, with the next snapshot.)
-const FIGHT_POW = { fxrally: ['RALLY!', '#ffd23a'], fxrout: ['', ''], fxride: ['', ''], fxjoust: ['JOUSTED!', '#ffd23a'], fxparry: ['PARRY!', '#ffffff'], fxbreak: ['GUARD BROKEN!', '#ff8a3a'], fximpale: ['SKEWERED!', '#ffd23a'], fxunhorse: ['UNHORSED!', '#ffd23a'], fxint: ['STAGGERED!', '#ffd23a'] };
+const FIGHT_POW = { fxcapkill: ['CAPTAIN SLAIN!', '#ffd23a'], fxrally: ['RALLY!', '#ffd23a'], fxrout: ['', ''], fxride: ['', ''], fxjoust: ['JOUSTED!', '#ffd23a'], fxparry: ['PARRY!', '#ffffff'], fxbreak: ['GUARD BROKEN!', '#ff8a3a'], fximpale: ['SKEWERED!', '#ffd23a'], fxunhorse: ['UNHORSED!', '#ffd23a'], fxint: ['STAGGERED!', '#ffd23a'] };
 bus.on('fxmsg', d => {
   const u = d.u, me = G.player; if (!u || !FIGHT_POW[d.k]) return;
-  const near = me && Math.hypot(u.x - me.x, u.z - me.z) < (d.k === 'fxrally' || d.k === 'fxrout' ? 40 : 22), mine = u === me;
+  const near = me && Math.hypot(u.x - me.x, u.z - me.z) < (d.k === 'fxrally' || d.k === 'fxrout' || d.k === 'fxcapkill' ? 40 : 22), mine = u === me;
   if (!near && !mine && d.a !== me) return;
   if (d.k === 'fxrally') { // a captain sounds the rally: a ring of gold rolls out from him, and the horn
-    pow(u.x, u.y + 3.4, u.z, 'RALLY!', '#ffd23a'); shockwave(u.x, u.z, 18, '#ffd23a'); sfx.horn(); if (near || mine) cam.shake = Math.max(cam.shake, .35); if (mine) buzz(80);
+    pow(u.x, u.y + 3.4, u.z, 'RALLY!', '#ffd23a'); shockwave(u.x, u.z, 18, '#ffd23a'); sfx.horn(); if (near || mine) cam.shake = Math.max(cam.shake, .35); if (mine) { buzz(80); musicCue('rally'); }
+    return;
+  }
+  if (d.k === 'fxcapkill') { // a captain cut down by a captain: both of them in slow motion, a drum like thunder
+    if (!near && d.a !== me && !mine) return;
+    u.slowT = Math.max(u.slowT || 0, CAPKILL_SLOW); if (d.a) d.a.slowT = Math.max(d.a.slowT || 0, CAPKILL_SLOW);
+    pow(u.x, u.y + 3.4, u.z, mine ? 'YOU FELL!' : 'CAPTAIN SLAIN!', mine ? '#e0352b' : '#ffd23a'); sfx.heavy(u.x, u.z); musicCue(mine ? 'fell' : d.a === me ? 'slain' : 'capdown');
+    cam.shake = Math.max(cam.shake, .5); if (d.a === me) buzz(90);
     return;
   }
   if (d.k === 'fxrout') { // an army breaks
     if (near) { pow(u.x, u.y + 3.4, u.z, 'ROUT!', '#e0352b'); sfx.heavy(u.x, u.z); }
+    const ti = d.ti ?? u.ti; musicCue(ti === G.myTi ? 'routMine' : G.ALLY[ti % 4] !== G.ALLY[G.myTi % 4] ? 'routEnemy' : 'capdown');
     return;
   }
   if (d.k === 'fxride') { // your ride-by blow: how well you timed it
@@ -276,6 +284,8 @@ function soloStart() {
 const pressSeg = (id, v) => $(id).querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === String(v))));
 seg('segDiff', v => { G.diff = +v; });
 seg('segLen', v => { G.len = v; prefs.len = v; prefs.save(); updateDesc(); });
+seg('segMusic', v => { setMusic(v === 'on'); pressSeg('segMusic', v); });
+pressSeg('segMusic', musicEnabled() ? 'on' : 'off');
 seg('segQuality', v => {
   if (v === quality.setting) return;
   saveSetting(v);

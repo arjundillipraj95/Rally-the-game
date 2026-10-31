@@ -49,7 +49,7 @@ let muted = false;
 export function setMuted(m) { muted = !!m; if (out && ac) out.gain.setTargetAtTime(muted ? 0 : .9, ac.currentTime, .05); }
 export const audioReady = () => !!ac && Object.keys(bufs).length > 0;
 // for automated checks: what loaded, how many sounds are playing right now, the battle's heat
-export const audioStats = () => ({ state: ac && ac.state, muted, banks: Object.fromEntries(Object.entries(bufs).map(([k, v]) => [k, v.length])), voices, heat: +(amb.heat || 0).toFixed(2), near: amb.near || 0, far: amb.far || 0 });
+export const audioStats = () => ({ music: { on: musicOn, level: M.level, want: M.want, drone: !!M.drone, bar: M.bar, beat: M.beat, next: ac && +M.next.toFixed(2), now: ac && +ac.currentTime.toFixed(2) }, state: ac && ac.state, muted, banks: Object.fromEntries(Object.entries(bufs).map(([k, v]) => [k, v.length])), voices, heat: +(amb.heat || 0).toFixed(2), near: amb.near || 0, far: amb.far || 0 });
 export function gateS(n, ms) { const t = performance.now(); if (lastS[n] && t - lastS[n] < ms) return false; lastS[n] = t; return true; }
 
 // ---------- where a sound is, from the listener ----------
@@ -121,6 +121,107 @@ function brass(f, dur, g = .12, delay = 0) {
   lfo.start(t); lfo.stop(t + dur + .05);
 }
 
+// ---------- the music: a war score that follows the battle ----------
+// Three levels, chosen from what's happening round your captain and changed only on the bar line:
+// muster (a low drone and a slow drum), approach (enemies close: a pulsing bass and a steadier beat),
+// clash (fighting all round: driving drums with fills, the bass doubled, horn calls). On top, short
+// stingers for the big moments. All synthesized, D minor, on its own bus so it can be switched off.
+const N = { Bb1: 58.27, C2: 65.41, D2: 73.42, E2: 82.41, F2: 87.31, G2: 98, A2: 110, Bb2: 116.54, C3: 130.81, D3: 146.83, F3: 174.61, A3: 220, Bb3: 233.08, D4: 293.66, F4: 349.23, Fs4: 369.99, A4: 440, D5: 587.33 };
+const BASS = [['D2', 'D2', 'F2', 'D2', 'D2', 'D2', 'A2', 'G2'], ['Bb1', 'Bb1', 'D2', 'Bb1', 'C2', 'C2', 'G2', 'C2']];
+const BPM = [74, 92, 112];
+let mus = null, musicOn = true;
+const M = { level: 0, want: 0, next: 0, beat: 0, bar: 0, drone: null, calmT: 0, clashCueT: 0 };
+try { musicOn = localStorage.getItem('rally-music') !== 'off'; } catch (e) {}
+export const musicEnabled = () => musicOn;
+export function setMusic(on) {
+  musicOn = !!on; try { localStorage.setItem('rally-music', on ? 'on' : 'off'); } catch (e) {}
+  if (mus && ac) mus.gain.setTargetAtTime(on ? .5 : 0, ac.currentTime, .3);
+  if (M.droneOut && ac) M.droneOut.gain.setTargetAtTime(on ? .5 : 0, ac.currentTime, .3);
+}
+function mOut() { if (!mus) { mus = ac.createGain(); mus.gain.value = musicOn ? .5 : 0; mus.connect(out); const s = ac.createGain(); s.gain.value = .25; mus.connect(s).connect(verb); } return mus; }
+// a pitched note at time t (s, audio clock) through a low-pass that opens a little on the attack
+function mnote(f, t, dur, g, type = 'sawtooth', cut = 1400) {
+  const o = ac.createOscillator(), fl = ac.createBiquadFilter(), gn = ac.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t); fl.type = 'lowpass'; fl.Q.value = 1.5;
+  fl.frequency.setValueAtTime(cut * .6, t); fl.frequency.linearRampToValueAtTime(cut, t + .05); fl.frequency.linearRampToValueAtTime(cut * .5, t + dur);
+  gn.gain.setValueAtTime(.0001, t); gn.gain.exponentialRampToValueAtTime(g, t + .015); gn.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  o.connect(fl).connect(gn).connect(mOut()); o.start(t); o.stop(t + dur + .03);
+}
+// a horn: three detuned saws swelling in, a touch of vibrato
+function mhorn(f, t, dur, g = .07) {
+  const fl = ac.createBiquadFilter(), gn = ac.createGain(); fl.type = 'lowpass'; fl.Q.value = 2;
+  fl.frequency.setValueAtTime(f * 1.5, t); fl.frequency.linearRampToValueAtTime(f * 5, t + .15); fl.frequency.linearRampToValueAtTime(f * 3, t + dur);
+  gn.gain.setValueAtTime(.0001, t); gn.gain.exponentialRampToValueAtTime(g, t + .08); gn.gain.setValueAtTime(g, t + Math.max(.1, dur - .2)); gn.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  fl.connect(gn).connect(mOut());
+  for (const det of [-6, 0, 5]) { const o = ac.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(f * .98, t); o.frequency.exponentialRampToValueAtTime(f, t + .06); o.detune.value = det; o.connect(fl); o.start(t); o.stop(t + dur + .05); }
+}
+// a war drum at time t: the body's thump and the skin's slap
+function mdrum(t, g = .5, pitch = 1) {
+  const o = ac.createOscillator(), gn = ac.createGain(); o.type = 'sine';
+  o.frequency.setValueAtTime(82 * pitch, t); o.frequency.exponentialRampToValueAtTime(44 * pitch, t + .35);
+  gn.gain.setValueAtTime(.0001, t); gn.gain.exponentialRampToValueAtTime(g, t + .008); gn.gain.exponentialRampToValueAtTime(.0001, t + .5);
+  o.connect(gn).connect(mOut()); o.start(t); o.stop(t + .55);
+  const s = ac.createBufferSource(), fl = ac.createBiquadFilter(), ng = ac.createGain(); s.buffer = nb; fl.type = 'bandpass'; fl.frequency.value = 900 * pitch; fl.Q.value = .9;
+  ng.gain.setValueAtTime(g * .35, t); ng.gain.exponentialRampToValueAtTime(.0001, t + .08); s.connect(fl).connect(ng).connect(mOut()); s.start(t, Math.random()); s.stop(t + .1);
+}
+function droneStart() {
+  const t = ac.currentTime, fl = ac.createBiquadFilter(), gn = ac.createGain(); fl.type = 'lowpass'; fl.frequency.value = 300; fl.Q.value = .7;
+  gn.gain.setValueAtTime(.0001, t); gn.gain.exponentialRampToValueAtTime(.05, t + 3);
+  const dg = ac.createGain(); dg.gain.value = musicOn ? .5 : 0; M.droneOut = dg; fl.connect(gn).connect(dg).connect(out); // (straight out, not through the reverb: it never stops)
+  const os = [[N.D2, -5, 'sawtooth'], [N.D2, 5, 'sawtooth'], [N.A2, 0, 'sawtooth'], [N.D2 / 2, 0, 'sine']].map(([f, det, type]) => { const o = ac.createOscillator(); o.type = type; o.frequency.value = f; o.detune.value = det; o.connect(fl); o.start(t); return o; });
+  M.drone = { fl, gn, os };
+}
+export function musicStart() {
+  if (!ac) return; musicStop();
+  Object.assign(M, { level: 0, want: 0, beat: 0, bar: 0, calmT: 0, clashCueT: 0, next: ac.currentTime + .4 });
+  droneStart();
+  // the battle begins: a horn call over the drums
+  const t = ac.currentTime + .3; mdrum(t, .6); mdrum(t + .45, .5); mhorn(N.D4, t + .1, .5); mhorn(N.A4, t + .6, 1.2);
+}
+export function musicStop() {
+  if (!ac || !M.drone) return; const t = ac.currentTime, d = M.drone; M.drone = null;
+  d.gn.gain.cancelScheduledValues(t); d.gn.gain.setValueAtTime(d.gn.gain.value, t); d.gn.gain.exponentialRampToValueAtTime(.0001, t + 1.2);
+  for (const o of d.os) o.stop(t + 1.3);
+}
+function beat(t) {
+  const b = M.beat % 4, lv = M.level, spb = 60 / BPM[lv], bass = BASS[M.bar % 2];
+  if (b === 0) { M.level = M.want; if (M.drone) M.drone.fl.frequency.setTargetAtTime([300, 520, 900][M.level], t, 1.5); }
+  if (lv === 0) { if (b === 0) mdrum(t, .32); if (b === 2) mdrum(t, .2, 1.1); }
+  if (lv >= 1) {
+    mdrum(t, b === 0 ? (lv === 2 ? .75 : .5) : b === 2 ? (lv === 2 ? .65 : .38) : lv === 2 ? .42 : 0, b % 2 ? 1.15 : 1);
+    for (const e of [0, 1]) { const n = N[bass[b * 2 + e]]; mnote(n, t + e * spb / 2, spb * .45, lv === 2 ? .09 : .06, 'sawtooth', lv === 2 ? 900 : 650); if (lv === 2) mnote(n * 2, t + e * spb / 2, spb * .4, .035, 'square', 1200); }
+  }
+  if (lv === 2) {
+    if (b === 3) { mdrum(t + spb / 2, .45, 1.3); mdrum(t + spb * .75, .35, 1.4); } // a fill into the next bar
+    if (b === 0 && M.bar % 4 === 0) { mhorn(N.D4, t, spb * .9); mhorn(N.F4, t + spb, spb * .9); mhorn(N.A4, t + spb * 2, spb * 1.8); } // the horn call
+    if (b === 0 && M.bar % 4 === 2) { for (const f of [N.Bb3, N.D4, N.F4]) mhorn(f, t, spb * 1.4, .045); } // and its answer
+  }
+  M.beat++; if (M.beat % 4 === 0) M.bar++;
+}
+function musicTick(dt, heat, enemiesNear) {
+  if (!ac || !M.drone) return;
+  M.calmT -= dt; M.clashCueT -= dt;
+  const hot = heat > .22, want = hot ? 2 : enemiesNear >= 3 ? 1 : 0;
+  if (want === 2) M.calmT = 6;
+  M.want = want === 2 || M.calmT > 0 ? 2 : want; // (the clash music holds on a few seconds after the fighting thins)
+  if (M.want === 2 && M.level < 2 && M.clashCueT <= 0) { musicCue('clash'); M.clashCueT = 25; }
+  const now = ac.currentTime; if (M.next < now - .5) M.next = now + .05;
+  while (M.next < now + .2) { beat(M.next); M.next += 60 / BPM[M.level]; }
+}
+// the big moments
+export function musicCue(kind) {
+  if (!ac || !musicOn) return; const t = ac.currentTime + .03;
+  switch (kind) {
+    case 'clash': mdrum(t, .9, .9); mhorn(N.D4, t, .6, .06); mhorn(N.A4, t, .6, .05); break;
+    case 'routEnemy': mdrum(t, .7); mhorn(N.D4, t, .25); mhorn(N.A4, t + .25, .25); mhorn(N.D5, t + .5, 1.1); break;
+    case 'routMine': mdrum(t, .6, .8); mhorn(N.A3, t, .45, .06); mhorn(N.F3, t + .45, .45, .06); mhorn(N.D3, t + .9, 1.3, .06); break;
+    case 'slain': mdrum(t, 1, .85); mdrum(t + .3, .7); for (const f of [N.D4, N.Fs4, N.A4]) mhorn(f, t + .3, 1.6, .05); break;
+    case 'capdown': mdrum(t, .8, .9); mhorn(N.D4, t + .1, .9, .05); mhorn(N.A4, t + .1, .9, .04); break;
+    case 'fell': mdrum(t, .8, .75); mhorn(N.D3, t + .1, .6, .06); mhorn(N.A2, t + .7, 1.4, .06); break;
+    case 'rally': for (let k = 0; k < 7; k++) mdrum(t + k * .07, .3 + k * .07, 1 + k * .05); break;
+  }
+}
+
 // ---------- the sound of the battle around you ----------
 // A low wind, a distant roar that swells with how many men are fighting, far-off steel ringing out,
 // and war drums that quicken as the fighting nears. Driven by audioTick() each frame.
@@ -140,8 +241,10 @@ export function startCrowd(mapId) {
   const t = ac.currentTime;
   bed.wind.gn.gain.linearRampToValueAtTime(bed.wind.g, t + 2);
   bed.roar.gn.gain.linearRampToValueAtTime(bed.roar.g * .4, t + 2);
+  musicStart();
 }
 export function stopCrowd() {
+  musicStop();
   if (!bed || !ac) { bed = null; return; }
   const t = ac.currentTime;
   for (const l of Object.values(bed)) { try { l.gn.gain.cancelScheduledValues(t); l.gn.gain.setValueAtTime(l.gn.gain.value, t); l.gn.gain.linearRampToValueAtTime(0, t + .8); l.s.stop(t + .85); } catch (e) {} }
@@ -153,8 +256,9 @@ export function audioTick(dt) {
   const L = listener();
   if (amb.t <= 0 && L) { // how hot is the battle, near and far (sampled, not every frame)
     amb.t = .5; let near = 0, far = 0;
-    for (const u of G.units) { if (u.dead || !(u.swing > 0 || (u.fd != null && u.fd < 2.5))) continue; const d = Math.hypot(u.x - L.x, u.z - L.z); if (d < 20) near++; else far++; }
-    amb.near = near; amb.far = far;
+    let foes = 0; const me = G.player;
+    for (const u of G.units) { if (u.dead) continue; const d = Math.hypot(u.x - L.x, u.z - L.z); if (me && d < 45 && G.ALLY[u.ti % 4] !== G.ALLY[me.ti % 4]) foes++; if (!(u.swing > 0 || (u.fd != null && u.fd < 2.5))) continue; if (d < 20) near++; else far++; }
+    amb.near = near; amb.far = far; amb.foes = foes;
     const heat = clamp((near * 1.5 + far) / 40, 0, 1);
     amb.heat += (heat - amb.heat) * .35;
     const t = ac.currentTime;
@@ -169,8 +273,9 @@ export function audioTick(dt) {
       if (T) play(Math.random() < .6 ? 'clang' : 'hit', T.x + Math.cos(a) * r, T.z + Math.sin(a) * r, { vol: .35, rate: .85, jit: .12, min: 0 });
     }
   }
-  // war drums: a slow beat, quickening and louder as the fighting heats up
-  if (amb.drumT <= 0) {
+  musicTick(dt, Math.min(1, (amb.near || 0) / 8), amb.foes || 0); // (the music follows the fighting round you, not across the field)
+  // war drums: a slow beat, quickening and louder as the fighting heats up (only with the music off: the score has its own)
+  if (amb.drumT <= 0 && !musicOn) {
     const h = amb.heat, beat = 60 / (70 + 60 * h);
     const pl = { v: .5 + .5 * h, pan: (Math.random() - .5) * .3, far: .5 };
     drum(.55, 0, 1, pl); drum(.4, beat * .5, 1.12, pl);
