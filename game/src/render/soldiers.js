@@ -574,6 +574,13 @@ function pose(u, dt) {
       a.sArmX = -2.3 + Math.sin(a.walk * 2) * .7; a.wArmX = -2.3 + Math.sin(a.walk * 2 + 2) * .7; a.bodyRX = -.12;
     }
   }
+  // an evade: leaning into it (into a pounce, away in a backstep, over to the side in a sidestep)
+  if (u.evade && !u.mounted && G.T - u.evade.t < .28) {
+    const k = 1 - (G.T - u.evade.t) / .28, kind = u.evade.kind;
+    if (kind === 'pounce') { a.bodyRX += .45 * k; a.legL[0] = -1; a.legR[0] = .7; }
+    else if (kind === 'back') { a.bodyRX -= .35 * k; a.legL[0] = .5; a.legR[0] = -.2; }
+    else { const dx = Math.sin(u.face) * u.vz - Math.cos(u.face) * u.vx; a.bodyRZ += (dx > 0 ? -.4 : .4) * k; a.legL[2] += .3 * k; a.legR[2] -= .3 * k; }
+  }
   // the spin (a sword combo's third blow): the whole body turns once round, blade out at arm's length
   if (t >= 0 && kind === 4 && !u.mounted && !spearArmed) {
     const r = ease(Math.min(1, Math.max(0, (t - .06) / .5)));

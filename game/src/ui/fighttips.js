@@ -9,6 +9,8 @@ const TIPS = {
   sword: 'Hold Attack for a heavy blow that smashes guards',
   spear: 'Three thrusts in a row: the third lunges through the whole line',
   shield: 'Shield knocked aside: strike now! Or wait for him to lower it',
+  evade: 'Jump + stick to evade: at him, to the side, or back',
+  counter: 'Attack right after an evade to strike back',
   jav: 'Hold Attack to draw back: a full draw knocks riders off their horses',
   guard: "He's on guard: hold Attack for a heavy blow to smash it",
   ride: 'Hold Attack as you ride at someone. Let go when the ring turns gold',
@@ -37,6 +39,7 @@ setInterval(() => {
   const T = G.teams[G.myTi]; if (T && T.rally >= 100) fightTip('horn');
   if (T && T.order === 'hold') fightTip('attack');
   if (p.mounted) { if ((p.weapon || 'sword') !== 'jav') fightTip('ride'); return; }
+  if (G.units.some(o => !o.dead && o.leader && o !== p && Math.hypot(o.x - p.x, o.z - p.z) < 6 && G.ALLY[o.ti % 4] !== G.ALLY[p.ti % 4])) fightTip('evade');
   if ((p.weapon || 'sword') !== 'sword') return;
   if (G.units.some(o => !o.dead && o.ti !== p.ti && Math.hypot(o.x - p.x, o.z - p.z) < 5 && G.ALLY[o.ti % 4] !== G.ALLY[p.ti % 4])) fightTip('sword');
 }, 1500);

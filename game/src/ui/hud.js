@@ -91,8 +91,8 @@ export function updateHud(lastSnapAt) {
   if (jmpMode !== jk + (jk === 'cd' ? Math.ceil(p.chargeCd) : '')) {
     jmpMode = jk + (jk === 'cd' ? Math.ceil(p.chargeCd) : '');
     $('jmpIc').innerHTML = mounted ? CHARGE_IC : JUMP_IC;
-    $('jmpL').textContent = jk === 'jump' ? 'Jump' : jk === 'charge' ? 'Charge' : Math.ceil(p.chargeCd) + 's';
-    $('jmp').setAttribute('aria-label', mounted ? 'Charge' : 'Jump');
+    $('jmpL').textContent = jk === 'jump' ? 'Evade' : jk === 'charge' ? 'Charge' : Math.ceil(p.chargeCd) + 's';
+    $('jmp').setAttribute('aria-label', mounted ? 'Charge' : 'Evade');
   }
   $('jmp').classList.toggle('dim', !p || p.carrying || (mounted && p.chargeCd > 0));
   $('jmp').classList.toggle('on', mounted && p.charge > 0);

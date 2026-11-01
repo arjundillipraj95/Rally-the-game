@@ -64,7 +64,7 @@ for (const style of process.env.STYLES !== undefined ? process.env.STYLES.split(
   }));
   console.log('spear brace vs a charging rider:', await page.evaluate(() => {
     const F = window.__fb, G = F.G, p = G.player, L = G.teams[window.__foe].leader;
-    F.weapon('spear'); p.face = 0; F.step(12, 1 / 30, { attackHeld: true, camYaw: 0 });
+    p.x = 0; p.z = 0; p.vx = p.vz = 0; F.weapon('spear'); p.face = 0; F.step(12, 1 / 30, { attackHeld: true, camYaw: 0 });
     L.x = 0; L.z = 16; L.face = Math.PI; L.stun = 0; L.mounted = true; L.r = .95; L.horseHp = 100; L.charge = 2; L.chargeHit = new Set(); L.vx = 0; L.vz = -14;
     L.horse = { state: 'ridden', x: L.x, z: L.z, face: L.face, t: 0, rider: L, spd: 0 }; G.horses.push(L.horse);
     let res = 'rider got through';

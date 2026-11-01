@@ -40,6 +40,7 @@ const r = await page.evaluate(async () => {
   const guard = F.mkUnit(foe, X + 3, Z + 1, 'foot'); guard.hp = guard.max = 1e4; F.step(2, 1 / 30, true); out.markedWithHisManNear = !!L.execReady; guard.dead = true; G.units = G.units.filter(u => !u.dead); F.step(2, 1 / 30, true);
   const morale0 = G.teams[foe].morale, rally0 = G.teams[me].rally;
   while (p.cd > 0) F.step(1, 1 / 30, true);
+  out.atPress = { ready: !!L.execReady, d: +Math.hypot(L.x - p.x, L.z - p.z).toFixed(2), hp: Math.round(L.hp), stun: +L.stun.toFixed(2), evade: L.evade && L.evade.kind, mounted: L.mounted, jy: +(p.jy || 0).toFixed(2) };
   F.attack();
   out.executing = !!(p.execA && L.execV);
   let t = 0; const hpDuring = []; while (!L.dead && t < 3) { if (t > .3 && t < .5) { const h = L.hp; hpDuring.push(h); } F.step(1, 1 / 30, true); t += 1 / 30; }

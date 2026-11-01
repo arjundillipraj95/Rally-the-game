@@ -129,6 +129,15 @@ export const MORALE = { death: 7, flankDeath: 5, captain: 35, regen: 3, calmR: 1
 // share it. oasis: your men in it heal, and every army on your side earns gold. village: every `every`
 // seconds a footman walks out to the army on your side with the most men there.
 export const HOLDS = { capture: 7, oasis: { r: 13, heal: 6, gold: 2.5, name: 'the Oasis' }, village: { r: 11, every: 15, name: 'a village' } };
+// The evade (the Jump button, on foot): which way depends on the stick, judged against the enemy
+// you're facing. Toward him: a pounce; to the side: a sidestep; away (or no stick): a backstep. Each
+// starts with iframe s untouchable (joiners get remote more, for the trip to the host), then cd s
+// before the next; two in a row within chain s and you're winded (tired). Attack within follow s of
+// one is its follow-up: the pounce a leap strike, the sidestep a flank cut, the backstep a counter-lunge.
+// A pounce clears low walls and hedges. Computer captains evade a captain's blow at ai[difficulty].
+export const EVADE = { iframe: .2, remote: .12, cd: .45, tired: 1.3, chain: 1.1, follow: .45, rally: 8,
+  pounce: { v: 12.5, dash: .2, hop: 5.5 }, side: { v: 9, dash: .16, hop: 3.2 }, back: { v: 10, dash: .17, hop: 3.2 },
+  flank: { mult: 1.35, stun: .45 }, counter: { mult: 1.3, lunge: 8, dash: .14, reachB: .7 }, ai: [.12, .25, .4] };
 // A blow from behind (a captain's): harder, and it staggers. Circle him.
 export const BACKSTAB = { mult: 1.6, stun: .5 };
 // The execution: an enemy captain beaten down (hp at or under hp of his max, or hpStunned while

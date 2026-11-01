@@ -35,6 +35,14 @@ export function wheelOpen(on) {
 }
 export function releaseAll() { inp.keys = {}; inp.attackHeld = inp.blockHeld = false; inp.joy.active = false; inp.joy.x = inp.joy.y = 0; inp.look.id = null; }
 
+// the stick as it is right now (for the evade's direction), without turning the camera
+export function moveNow() {
+  const { joy, keys } = inp; let mx = joy.x, my = joy.y;
+  if (keys.KeyA) mx -= 1; if (keys.KeyD) mx += 1; if (keys.KeyW) my -= 1; if (keys.KeyS) my += 1; if (keys.ArrowUp) my -= 1; if (keys.ArrowDown) my += 1;
+  let mag = Math.hypot(mx, my); if (mag > 1) { mx /= mag; my /= mag; mag = 1; }
+  const y = cam.yaw, fx = Math.sin(y), fz = Math.cos(y), rx = -Math.cos(y), rz = Math.sin(y);
+  return { wx: fx * (-my) + rx * mx, wz: fz * (-my) + rz * mx, mag };
+}
 export function readMove(dt) {
   const { joy, keys } = inp;
   let mx = joy.x, my = joy.y;

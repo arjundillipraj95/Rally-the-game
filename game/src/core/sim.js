@@ -1,6 +1,6 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
-import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, HOLDS, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT } from '../config.js';
+import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, HOLDS, EVADE, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, activeFrom, gateOff, ARMIES, rules, matchTime } from './state.js';
 import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W, groundSlow, onIce } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable } from './nav.js';
@@ -330,11 +330,16 @@ function resolveLeap(u) {
     if (o.dead || !isEnemy(o, u)) continue;
     if (Math.hypot(o.x - u.x, o.z - u.z) > L.range + o.r) continue;
     if (Math.abs(angDiff(u.face, Math.atan2(o.x - u.x, o.z - u.z))) > L.arc) continue;
-    hit(u, o, L.mult, { stun: L.stun, kb: 1.3, unblockable: true });
+    hit(u, o, L.mult * (u.leapStrike ? 1.2 : 1), { stun: L.stun + (u.leapStrike ? .25 : 0), kb: u.leapStrike ? 1.8 : 1.3, unblockable: true });
   }
+  u.leapStrike = false;
 }
 function hit(a, b, mult = 1, extra) {
   if (!isEnemy(a, b) || b.execT > 0 || a.execT > 0) return; // (an execution plays out untouched)
+  if (b.iframeT > 0) { // (evaded: the blow passes through where he was)
+    if (b.leader && a.leader && !b.evadedAt) { b.evadedAt = G.T; gainRally(b, EVADE.rally); fx('fxmsg', { k: 'fxevade', u: b, a }); }
+    return;
+  }
   // a riposte: the couple of blows after a parry land harder and can't be blocked
   if (a.ripN > 0 && a.riposteT > G.T) { a.ripN--; mult *= PARRY.riposteMult; extra = Object.assign({}, extra, { unblockable: true }); }
   let heavy = !!(extra && extra.heavy);
@@ -664,7 +669,7 @@ function throwJavelin(u, tg, dmg) {
 }
 export function makeArrow(a) { a.x = a.x0; a.y = a.y0; a.z = a.z0; a.px = a.x0; a.py = a.y0; a.pz = a.z0; return a; }
 function arrowHit(a, b) {
-  if (b.execT > 0) return;
+  if (b.execT > 0 || b.iframeT > 0) return;
   const shooter = a.shooter;
   let dmg, loc = 'body';
   if (a.javelin) {
@@ -941,6 +946,45 @@ export function stepJump(p, dt) {
   p.jvy -= CC.jump.g * dt; p.jy += p.jvy * dt;
   if (p.jy <= 0) { p.jy = 0; p.jvy = 0; p.jumpCd = CC.jump.cd; sound('land', p.x, p.z); spark(p.x, groundY(p.x, p.z) + .1, p.z, '#c9b28a', 4); }
 }
+// ---------- the evade ----------
+// The way to judge the stick: the enemy you're squaring up to (else the way you face).
+function evadeRef(p) { const f = softAim(p, 8); return f ? Math.atan2(f.x - p.x, f.z - p.z) : p.face; }
+export function evadeKind(p, wx, wz, mag) {
+  if (!(mag > .3)) return 'back';
+  const d = angDiff(evadeRef(p), Math.atan2(wx, wz));
+  return Math.abs(d) < Math.PI / 4 ? 'pounce' : Math.abs(d) > Math.PI * 3 / 4 ? 'back' : d > 0 ? 'left' : 'right';
+}
+// Starts an evade of the given kind ('pounce', 'left', 'right', 'back'): the burst of movement, the
+// hop, the untouchable moment, the cooldown. Run where the captain is driven (solo/host, or a
+// joiner's own phone); remote: the host marking a joiner's evade (no movement: their phone moves them).
+export function captainEvade(p, kind, remote = false) {
+  if (!p || p.dead || p.mounted || p.carrying || p.execT > 0 || p.execA || p.execV) return false;
+  if (!remote && (p.stun > 0 || (p.evadeCd || 0) > 0)) return false;
+  const ref = evadeRef(p), side = kind === 'left' ? 1 : kind === 'right' ? -1 : 0, E = EVADE[side ? 'side' : kind];
+  if (!E) return false;
+  p.evade = { kind: side ? 'side' : kind, t: G.T };
+  p.iframeT = EVADE.iframe + (remote ? EVADE.remote : 0);
+  p.evadeN = G.T - (p.lastEvadeT ?? -9) < EVADE.chain ? (p.evadeN || 0) + 1 : 1; p.lastEvadeT = G.T;
+  p.evadeCd = p.evadeN >= 2 ? EVADE.tired : EVADE.cd; // (twice in quick succession and he's winded)
+  p.pending = null; p.heavyCharge = 0; p.windup = 0; p.blocking = false;
+  if (kind === 'pounce') p.vaultT = E.dash + .2; // (clears a low wall or a hedge)
+  if (!remote) {
+    const a = kind === 'pounce' ? ref : kind === 'back' ? ref + Math.PI : ref + side * Math.PI / 2;
+    p.vx = Math.sin(a) * E.v; p.vz = Math.cos(a) * E.v; p.dashT = E.dash; p.face = ref;
+    p.jvy = E.hop; p.jy = Math.max(p.jy || 0, .001);
+  }
+  sound('jump', p.x, p.z); spark(p.x, groundY(p.x, p.z) + .1, p.z, '#c9b28a', 6);
+  return true;
+}
+// a computer captain sees a captain's blow coming his way: now and then he gets out of it, and a
+// hardened one comes straight back with the follow-up
+function aiEvade(u, from) {
+  if (!u || u.human || u.dead || u.mounted || u.stun > 0 || (u.evadeCd || 0) > 0 || u.execT > 0 || u.execReady) return;
+  if (Math.random() > EVADE.ai[G.diff]) return;
+  const kinds = ['left', 'right', 'back'], k = kinds[Math.floor(Math.random() * 3)];
+  u.dashT = 0; if (!captainEvade(u, k)) return;
+  if (G.diff >= 1 && Math.random() < (G.diff === 2 ? .8 : .45)) u.evadeFollowT = .2 + Math.random() * .12;
+}
 // No argument: cycle sword -> spear -> javelins. The choice sticks through respawns.
 export function switchWeapon(p, w) {
   if (!p || p.dead) return null;
@@ -1000,6 +1044,10 @@ export function captainAttack(p) {
     if (p.isMe) fx('float', { x: p.x, y: p.y + 3.2, z: p.z, text: 'Out of javelins', color: '#fff' });
   }
   if (p.human) { const v = execTarget(p); if (v) { startExec(p, v); return; } } // (a beaten captain: finish him)
+  // straight out of an evade: its follow-up
+  const ev = p.evade && G.T - p.evade.t < (EVADE[p.evade.kind] ? EVADE[p.evade.kind].dash : .2) + EVADE.follow ? p.evade.kind : null;
+  if (ev) p.evade = null;
+  if (ev === 'pounce') { leapSlam(p); p.leapStrike = true; return; } // (the pounce: down on him from the air)
   const spear = p.weapon === 'spear', S = CC.sword;
   const sCombo = spear ? (G.T - p.lastSwingT < CC.spear.window && p.swingKind >= 3 ? (p.combo + 1) % 3 : 0) : 0, skewer = sCombo === 2, SK = CC.spear.skewer;
   const best = softAim(p, spear ? (skewer ? SK.aim : CC.spear.aim) : S.aim);
@@ -1032,6 +1080,15 @@ export function captainAttack(p) {
     if (!fin) { p.vx += Math.sin(p.face) * S.step; p.vz += Math.cos(p.face) * S.step; } // (a half-step into each blow)
     p.cd = fin ? S.finisherCd : S.cd; p.combo = combo; p.swingKind = fin ? 4 : combo; // (4: the spin)
   }
+  if ((ev === 'side' || ev === 'back') && p.pending) {
+    if (ev === 'side') { Object.assign(p.pending, { mult: (p.pending.mult || 1) * EVADE.flank.mult, stun: Math.max(p.pending.stun || 0, EVADE.flank.stun) }); p.swingKind = spear ? 3 : 1; } // the flank cut: hard enough to break a wind-up; from behind, a backstab too
+    else { Object.assign(p.pending, { mult: (p.pending.mult || 1) * EVADE.counter.mult, reachB: (p.pending.reachB || 0) + EVADE.counter.reachB }); if (!spear) p.swingKind = 0; } // the counter-lunge: point first
+    p.combo = 0;
+    // either way he drives back in to arm's length, so the answer to an evade always lands
+    if (best) { const d = Math.hypot(best.x - p.x, best.z - p.z), gap = Math.max(0, d - (p.r + best.r + p.reach - .2)), v = Math.min(16, gap / EVADE.counter.dash + 2);
+      p.vx = Math.sin(p.face) * v; p.vz = Math.cos(p.face) * v; p.dashT = EVADE.counter.dash; }
+  }
+  if (best && best.leader && !best.human && p.pending) aiEvade(best, p); // (he may see it coming)
   p.lastSwingT = G.T;
 }
 // Missile volley: every archer with a target in range fires immediately, and every javelin-ready
@@ -1401,6 +1458,7 @@ export function integrate(u, dt, pz) {
   u.x += u.vx * dt; u.z += u.vz * dt;
   for (const o of nearObstacles(u.x, u.z)) {
     if (o.gate && !gateShut(o)) continue;
+    if (o.fence && u.vaultT > 0) continue; // (a pounce goes over a low wall or a hedge)
     const dx = u.x - o.x, dz = u.z - o.z;
     if (o.box) {
       const c = Math.cos(o.rot), s = Math.sin(o.rot), lx = dx * c - dz * s, lz = dx * s + dz * c;
@@ -1435,13 +1493,14 @@ export function driveCaptain(p, input, dt) {
   if (p.charge > 0) { // charging: full tilt, straight on unless steered
     input = Object.assign({}, input, input.mag < .3 ? { wx: Math.sin(p.face), wz: Math.cos(p.face) } : {}, { mag: 1 });
   }
-  if (air) {
+  const dashing = p.dashT > 0;
+  if (dashing) p.dashT -= dt; // (mid-lunge or mid-evade: momentum carries him, eyes on his man)
+  else if (air) {
     const k = Math.min(1, dt * 2.5);
     p.vx += (input.wx * spd * input.mag - p.vx) * k; p.vz += (input.wz * spd * input.mag - p.vz) * k;
-  } else if (p.dashT > 0) p.dashT -= dt; // (mid-lunge: momentum carries him)
-  else moveToward(p, p.x + input.wx * 3, p.z + input.wz * 3, spd * input.mag, dt, .05);
+  } else moveToward(p, p.x + input.wx * 3, p.z + input.wz * 3, spd * input.mag, dt, .05);
   const face0 = p.face;
-  if (input.mag > .15) p.face = turn(p.face, Math.atan2(input.wx, input.wz), dt * (p.mounted ? 4.5 : p.blocking ? 5 : swinging ? 6 : 12));
+  if (input.mag > .15 && !dashing) p.face = turn(p.face, Math.atan2(input.wx, input.wz), dt * (p.mounted ? 4.5 : p.blocking ? 5 : swinging ? 6 : 12));
   if (p.mounted) { // the gallop: built riding straight on, lost turning hard or reining in
     const tr = Math.abs(angDiff(face0, p.face)) / Math.max(dt, 1e-3), straight = input.mag > .7 && tr < 1;
     p.gallop = clamp((p.gallop || 0) + (p.charge > 0 ? 1 : straight ? dt / RIDE.gallop : -dt * (tr > 2 ? RIDE.turnLoss : input.mag < .3 ? .8 : .3)), 0, 1);
@@ -1551,6 +1610,7 @@ export function update(dt, input) {
     let dt = DT; if (u.slowT > 0) { u.slowT -= DT; dt = DT * PARRY.slow; }
     u.cd -= dt; u.shootCd -= dt; u.javCd -= dt; u.stun -= dt; u.blockT -= dt; u.rt -= dt; u.trampleT -= dt;
     if (u.guardT > 0) u.guardT -= dt; if (u.guardCd > 0) u.guardCd -= dt; if (u.rallyT > 0) u.rallyT -= dt;
+    if (u.iframeT > 0) { u.iframeT -= dt; if (u.iframeT <= 0) u.evadedAt = 0; } if (u.evadeCd > 0) u.evadeCd -= dt; if (u.vaultT > 0) u.vaultT -= dt;
     if (u.horseCd > 0) u.horseCd -= dt;
     if (u.leader) chargeTimers(u, dt);
     heavyTick(u, dt); if (u.human) braceTick(u, dt); if (!u.leader) shieldTick(u, dt); else execTick(u, dt);
@@ -1561,6 +1621,8 @@ export function update(dt, input) {
     if (u.foe) u.fd = Math.hypot(u.foe.x - u.x, u.foe.z - u.z);
     if (u.human || u.dead) continue;
     if (u.execT > 0) continue; // (in an execution, one way or the other: no thinking)
+    if (u.dashT > 0) { u.dashT -= dt; stepJump(u, dt); continue; } // (mid-evade: momentum carries him)
+    if (u.evadeFollowT > 0) { u.evadeFollowT -= dt; if (u.evadeFollowT <= 0 && u.foe && u.fd < 4 && u.cd <= 0) { u.face = Math.atan2(u.foe.x - u.x, u.foe.z - u.z); captainAttack(u); } }
     if (u.stun > 0 && !u.mounted) { moveToward(u, u.x, u.z, 0, dt); continue; } // (reeling: he can't turn to face you, so a stagger is the moment to get round him)
     if (u.leader) { stepJump(u, dt); regenJavs(u, dt); thinkLeader(u, G.teams[u.ti], dt); }
     else { u.slot = u.kind === 'arch' ? archIdx[u.ti]++ : slotIdx[u.ti]++; u.meleeN = meleeN[u.ti]; u.archN = archN[u.ti]; thinkSoldier(u, dt); }
