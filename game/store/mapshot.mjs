@@ -5,6 +5,7 @@ const [map = 'valley', name = map, extra] = process.argv.slice(2);
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const page = await open(browser, 1280, 720);
 if (process.env.NOFOG) await page.evaluate(() => { window.__nofog = 1; });
+if (process.env.TEAMS) await page.evaluate(t => document.querySelector(`#segTeams button[data-v="${t}"]`).click(), process.env.TEAMS);
 await page.click(`#segMap button[data-v="${map}"]`);
 await page.click('#goBtn'); await frames(page, 10);
 await page.evaluate(() => { document.getElementById('hudWrap').style.display = 'none'; document.getElementById('fx').style.display = 'none'; document.querySelectorAll('.overlay,.veil,.banner').forEach(o => o.hidden = true); for (const u of window.__fb.G.units) u.hidden = true; if (window.__nofog) window.__fb.scene.fog = null; });

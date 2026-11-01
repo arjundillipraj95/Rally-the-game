@@ -24,6 +24,44 @@ export function sizeWorld(mapId) {
 }
 export const isBig = id => BIG.has(id);
 
+// ---------- where the castles stand (Age of Empires style) ----------
+// Allies start side by side and the sides apart (opposite in 2v2; the lone castle facing the three in
+// 3v1; every castle on its own in a free-for-all), on a ring round the middle. Each match the whole
+// layout turns to a new angle and each castle is nudged a little, so no opening is ever the same.
+// Who stands where follows the match seed and the teams, so every phone works out the same thing.
+// Frost, Forum and the Colosseum are built round their four corners and keep them (for now).
+const CORNERED = new Set(['frost', 'forum', 'colosseum']);
+export const SIDES = { flanks: [0, Math.PI], mids: [] }; // flanks: the two places where the sides meet (between enemies), as angles
+export function placeCastles(mapId, seed) {
+  sizeWorld(mapId);
+  const ang = TEAMS.map(t => Math.atan2(t.pos[1], t.pos[0])), al = G.ALLY && G.ALLY.length === 4 ? G.ALLY : [0, 1, 2, 3];
+  if (!CORNERED.has(mapId)) {
+    const R = mulberry(((seed | 0) ^ 0x5bd1) + 3), rad0 = Math.hypot(56, 56) * W.S;
+    const groups = []; for (let i = 0; i < 4; i++) { const g = groups.find(g => al[g[0]] === al[i]); if (g) g.push(i); else groups.push([i]); }
+    for (let k = groups.length - 1; k > 0; k--) { const j = Math.floor(R() * (k + 1)); [groups[k], groups[j]] = [groups[j], groups[k]]; } // (which side sits where)
+    const n = groups.length;
+    let phi = R() * Math.PI * 2;
+    if (mapId === 'river') { phi = n === 4 ? Math.PI / 4 : (R() < .5 ? 1 : -1) * Math.PI / 2; groups.sort((a, b) => b.length - a.length); } // (the river always runs between the sides: the biggest side on one bank)
+    groups.forEach((g, k) => {
+      const c = phi + k * Math.PI * 2 / n, sp = g.length === 2 ? 1.12 : .96; // (a pair ~64 degrees apart, three abreast ~55)
+      g.forEach((i, j) => {
+        const a = n === 4 ? c + (R() - .5) * .14 : c + (j - (g.length - 1) / 2) * sp + (R() - .5) * .1, d = rad0 * (.96 + R() * .06);
+        TEAMS[i].pos[0] = Math.cos(a) * d; TEAMS[i].pos[1] = Math.sin(a) * d; ang[i] = a;
+      });
+    });
+  }
+  // the gaps between neighbouring castles: the widest gaps between enemies are where the sides meet
+  const TAU = Math.PI * 2, s = ang.map((a, i) => ({ a: ((a % TAU) + TAU) % TAU, i })).sort((x, y) => x.a - y.a);
+  const mids = s.map((p, k) => { const q = s[(k + 1) % 4]; let gap = q.a - p.a; if (gap <= 0) gap += TAU; return { a: p.a + gap / 2, gap, foes: al[p.i] !== al[q.i] ? 1 : 0 }; });
+  mids.sort((x, y) => (y.foes - x.foes) || (y.gap - x.gap));
+  const f0 = mids[0], f1 = mids.slice(1).sort((x, y) => Math.abs(angDiff(y.a, f0.a)) - Math.abs(angDiff(x.a, f0.a)))[0];
+  SIDES.flanks = [f0.a, f1.a]; SIDES.mids = mids.map(m => m.a);
+  // the Valley's wheat fields and the Desert's oases lie where the sides meet
+  const P2 = (a, d) => [Math.cos(a) * d, Math.sin(a) * d];
+  FIELDS.length = 0; for (const a of SIDES.mids) { const [x, z] = P2(a, 77.5); FIELDS.push({ x, z, a, hw: 12, hd: 6.5 }); }
+  OASES.length = 0; for (const a of SIDES.flanks) { const [x, z] = P2(a, 77.5); OASES.push({ x, z, r: 7 }); }
+}
+
 // ---------- ground that changes how you move (big maps) ----------
 // Grass Valley: a wheat field fills each pass (long side along the way through); wading it is slow.
 export const FIELDS = [0, Math.PI / 2, Math.PI, Math.PI * 1.5].map(a => ({ x: Math.cos(a) * 77.5, z: Math.sin(a) * 77.5, a, hw: 12, hd: 6.5 }));
@@ -209,20 +247,20 @@ function canyons(L, R) {
   const r = (a, b) => a + R() * (b - a), keep = [];
   const clear = (x, z, rad) => Math.hypot(x, z) < 37 + rad || Math.hypot(x, z) > W.R - 3 - rad * .4
     || TEAMS.some(t => Math.hypot(t.pos[0] - x, t.pos[1] - z) < 27 + rad)
-    || [[77.5, 0], [-77.5, 0], [0, 77.5], [0, -77.5]].some(([ox, oz]) => Math.hypot(ox - x, oz - z) < 11 + rad);
-  for (let tries = 0; tries < 2500 && keep.length < 18; tries++) {
-    const a = r(0, Math.PI / 2), d = r(40, W.R - 4), x = Math.cos(a) * d, z = Math.sin(a) * d, rad = r(9.5, 16);
+    || SIDES.mids.some(a => Math.hypot(Math.cos(a) * 77.5 - x, Math.sin(a) * 77.5 - z) < 11 + rad);
+  // (over the whole ring now the castles stand where the teams put them, not in four turned corners)
+  for (let tries = 0; tries < 6000 && keep.length < 64; tries++) {
+    const a = r(0, Math.PI * 2), d = r(40, W.R - 4), x = Math.cos(a) * d, z = Math.sin(a) * d, rad = r(8, 14.5);
     if (clear(x, z, rad * .8)) continue;
     const gap = 5.5; // (the narrowest canyon: room for a few men abreast)
-    if (keep.some(m => [0, 1, 2, 3].some(k => { const [qx, qz] = rot4([m.x, m.z], k); return Math.hypot(qx - x, qz - z) < m.rad + rad + gap; }))) continue;
-    if ([1, 2, 3].some(k => { const [qx, qz] = rot4([x, z], k); return Math.hypot(qx - x, qz - z) < rad * 2 + gap; })) continue;
+    if (keep.some(m => Math.hypot(m.x - x, m.z - z) < m.rad + rad + gap)) continue;
     keep.push({ x, z, rad, h: r(4.4, 6.2), n: 9 + Math.floor(R() * 3), stretch: r(.7, 1.45), tilt: r(0, Math.PI), wob: Array.from({ length: 12 }, () => r(.78, 1.12)) });
   }
   for (const m of keep) {
     const pts = []; for (let i = 0; i < m.n; i++) { const a = i / m.n * Math.PI * 2, rr = m.rad * m.wob[i], lx = Math.cos(a) * rr * m.stretch, lz = Math.sin(a) * rr / m.stretch; pts.push([m.x + lx * Math.cos(m.tilt) - lz * Math.sin(m.tilt), m.z + lx * Math.sin(m.tilt) + lz * Math.cos(m.tilt)]); }
-    for (let k = 0; k < 4; k++) solid(L, pts.map(p => rot4(p, k)), m.h, 'mesa');
+    solid(L, pts, m.h, 'mesa');
   }
-  L.ctrlBase = [[0, 0], [77.5, 0], [-77.5, 0], [0, 77.5], [0, -77.5]]; // (Control mode: the fort and the four canyon junctions)
+  L.ctrlBase = [[0, 0], ...SIDES.mids.map(a => [Math.cos(a) * 77.5, Math.sin(a) * 77.5])]; // (Control mode: the fort and the four canyon junctions)
 }
 // Grass Valley's open country: no ridges, just fields bounded here and there by dry-stone walls and
 // hedgerows (short runs with gaps: they shape a fight without walling anyone in), so any direction is
@@ -230,16 +268,16 @@ function canyons(L, R) {
 function fieldBounds(L, R) {
   const r = (a, b) => a + R() * (b - a), segs = [];
   const clear = (x, z, pad) => TEAMS.some(t => Math.hypot(t.pos[0] - x, t.pos[1] - z) < 24 + pad) || Math.hypot(x, z) < 15 + pad || Math.hypot(x, z) > W.R - 8
-    || [[77.5, 0], [-77.5, 0]].some(([ox, oz]) => Math.hypot(ox - x, oz - z) < 15 + pad) || [[0, 77.5], [0, -77.5]].some(([ox, oz]) => Math.hypot(ox - x, oz - z) < 6 + pad);
-  for (let tries = 0; tries < 500 && segs.length < 11; tries++) {
-    const a = r(0, Math.PI / 2), d = r(22, W.R - 12), x = Math.cos(a) * d, z = Math.sin(a) * d, len = r(9, 17);
+    || SIDES.mids.some((a, i) => Math.hypot(Math.cos(a) * 77.5 - x, Math.sin(a) * 77.5 - z) < (SIDES.flanks.includes(a) ? 15 : 6) + pad);
+  for (let tries = 0; tries < 2500 && segs.length < 44; tries++) { // (over the whole field: the castles stand where the teams put them)
+    const a = r(0, Math.PI * 2), d = r(22, W.R - 12), x = Math.cos(a) * d, z = Math.sin(a) * d, len = r(9, 17);
     const ang = (R() < .5 ? 0 : Math.PI / 2) + r(-.25, .25), dx = Math.cos(ang) * len / 2, dz = Math.sin(ang) * len / 2;
     if (clear(x, z, len / 2) || clear(x + dx, z + dz, 1) || clear(x - dx, z - dz, 1)) continue;
-    if (segs.some(s => [0, 1, 2, 3].some(k => { const [qx, qz] = rot4([s.x, s.z], k); return Math.hypot(qx - x, qz - z) < (s.len + len) / 2 + 6; }))) continue;
+    if (segs.some(s => Math.hypot(s.x - x, s.z - z) < (s.len + len) / 2 + 6)) continue;
     segs.push({ x, z, len, dx, dz, kind: R() < .5 ? 'wall' : 'hedge' });
   }
-  for (const s of segs) for (let k = 0; k < 4; k++) {
-    const [ax, az] = rot4([s.x - s.dx, s.z - s.dz], k), [bx, bz] = rot4([s.x + s.dx, s.z + s.dz], k);
+  for (const s of segs) {
+    const ax = s.x - s.dx, az = s.z - s.dz, bx = s.x + s.dx, bz = s.z + s.dz;
     L.fences.push({ ax, az, bx, bz, kind: s.kind });
     wallLine(L, ax, az, bx, bz, .75, s.kind === 'hedge' ? 2 : 1.1, { fence: true }); // (a hedge stops arrows; a low wall only the flat ones)
   }
@@ -314,7 +352,7 @@ function makeCtrlSpots(L) {
 }
 
 export function makeLayout(mapId, withFort, withCtrl, seed) {
-  sizeWorld(mapId);
+  placeCastles(mapId, seed);
   const R = mulberry(seed | 0), r = (a, b) => a + R() * (b - a), S = W.S;
   const L = { mapId, withFort, ridges: [], roads: [], passes: [], flats: [], hills: [], palisades: [], rocks: [], trees: [], stones: [], obstacles: [], blockers: [], fortSegments: [],
     buildings: [], columns: [], towers: [], rings: [], gates: [], palms: [], huts: [], statues: [], holds: [], solids: [], fences: [] };
@@ -483,7 +521,11 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
   if (mapId === 'valley') {
     fieldBounds(L, R);
     // farm tracks: from each gate to the middle and out to the villages (they read from the saddle)
-    for (const t of TEAMS) { const [gx, gz] = gatePos(t, 0, 4), jit = () => (R() - .5) * 8; L.roads.push(smooth([[gx, gz], [gx * .6 + jit(), gz * .6 + jit()], [gx * .25 + jit(), gz * .25 + jit()], [0, 0]], 3)); for (const vx of [-77.5, 77.5]) if (Math.sign(vx) === Math.sign(t.pos[0])) L.roads.push(smooth([[gx, gz], [(gx + vx) / 2 + jit(), gz * .45 + jit()], [vx, gz > 0 ? 9 : -9]], 3)); }
+    for (const t of TEAMS) {
+      const [gx, gz] = gatePos(t, 0, 4), jit = () => (R() - .5) * 8; L.roads.push(smooth([[gx, gz], [gx * .6 + jit(), gz * .6 + jit()], [gx * .25 + jit(), gz * .25 + jit()], [0, 0]], 3));
+      const a = SIDES.flanks.slice().sort((p, q) => Math.abs(angDiff(Math.atan2(t.pos[1], t.pos[0]), p)) - Math.abs(angDiff(Math.atan2(t.pos[1], t.pos[0]), q)))[0], vx = Math.cos(a) * 77.5, vz = Math.sin(a) * 77.5;
+      L.roads.push(smooth([[gx, gz], [(gx + vx) / 2 + jit(), (gz + vz) / 2 + jit()], [vx, vz]], 3)); // (and out to the nearer village)
+    }
     // copses of oak in each corner, tucked against the ridges (cover beside the lanes, never in them)
     copses(60, [3, 6]);
     // a ring of old standing stones in the middle: cover to fight round, never a wall
@@ -497,10 +539,10 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
     bigRocks(26);
     // a village in each pass on the x axis (between enemy castles in 2v2): hold it and it sends you men.
     // Its cottages stand at the corners of the wheat field, leaving the way through open
-    for (const sx of [-1, 1]) {
-      const cx = sx * ROUTES.pass;
-      L.holds.push({ x: cx, z: 0, kind: 'village', r: HOLDS.village.r, px: cx + sx * 7.3, pz: 0 });
-      for (const [dx, dz] of [[-6.6, -8.8], [6.6, -8.8], [-6.6, 8.8], [6.6, 8.8]]) box(L, cx + dx, dz + r(-.6, .6), 1.9, 1.5, r(-.15, .15) + (dz > 0 ? Math.PI : 0), 3.2, 'cottage');
+    for (const a of SIDES.flanks) {
+      const ux = Math.cos(a), uz = Math.sin(a), cx = ux * ROUTES.pass, cz = uz * ROUTES.pass; // (u: out from the middle; the lane through runs across it)
+      L.holds.push({ x: cx, z: cz, kind: 'village', r: HOLDS.village.r, px: cx + ux * 7.3, pz: cz + uz * 7.3 });
+      for (const [dx, dz] of [[-6.6, -8.8], [6.6, -8.8], [-6.6, 8.8], [6.6, 8.8]]) { const t = dz + r(-.6, .6); box(L, cx + ux * dx - uz * t, cz + uz * dx + ux * t, 1.9, 1.5, -a + r(-.15, .15) + (dz > 0 ? Math.PI : 0), 3.2, 'cottage'); }
     }
   }
 
