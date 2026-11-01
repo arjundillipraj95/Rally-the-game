@@ -2,7 +2,7 @@
 // presses and draws the host's snapshots (a compact text string, roughly 1-4KB depending on
 // how many soldiers are alive — more in a full 12-army Trio match — sent
 // about 12 times a second).
-import { BASH, STREAK, EVADE, TEAMS, MAPS, KINDS, STATS, RECRUITS, FACTIONS, factionFromCode, ORDERS, ORDER_NAMES, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT, HOLD_ATK, PARRY } from '../config.js';
+import { RHYTHM, BASH, STREAK, EVADE, TEAMS, MAPS, KINDS, STATS, RECRUITS, FACTIONS, factionFromCode, ORDERS, ORDER_NAMES, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT, HOLD_ATK, PARRY } from '../config.js';
 import { G, bus, colorOf, isEnemyTi, activeFrom, ARMIES, duoStr, duoParse } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn, angDiff } from '../core/world.js';
 import { buildNav, syncGates } from '../core/nav.js';
@@ -118,7 +118,7 @@ export function netHostReadInputs() {
     if (typeof pr.par === 'number' && pr.par > last.par) { if (L && !L.dead) blockPress(L); last.par = pr.par; } // Block pressed: a parry window
     if (typeof pr.ahN === 'number' && pr.ahN > last.ahN) { if (L && !L.dead) { if (typeof pr.face === 'number') L.face = pr.face; if (L.mounted) rideRelease(L, L.weapon || 'sword', +pr.ahD || 0); else attackRelease(L, L.weapon || 'sword', +pr.ahD || 0); } last.ahN = pr.ahN; } // Attack let go after a hold
     if (typeof pr.bsh === 'number' && pr.bsh > (last.bsh || 0)) { if (L && !L.dead) { if (typeof pr.face === 'number') L.face = pr.face; if (!captainBash(L)) captainAttack(L); } last.bsh = pr.bsh; } // (Block, then Attack: the shield bash)
-    if (typeof pr.atk === 'number' && pr.atk > last.atk) { if (L && !L.dead) { if (typeof pr.face === 'number') L.face = pr.face; captainAttack(L); } last.atk = pr.atk; }
+    if (typeof pr.atk === 'number' && pr.atk > last.atk) { if (L && !L.dead) { if (typeof pr.face === 'number') L.face = pr.face; L.rbIn = typeof pr.rb === 'number' ? pr.rb : null; /* (the beats their phone counted) */ captainAttack(L); } last.atk = pr.atk; }
     if (typeof pr.ride === 'number' && pr.ride > last.ride) { if (L) toggleHorseFor(L); last.ride = pr.ride; }
     if (typeof pr.chg === 'number' && pr.chg > last.chg) { if (L && !L.dead) captainCharge(L); last.chg = pr.chg; }
     if (typeof pr.evN === 'number' && pr.evN > (last.evN || 0)) { if (L && !L.dead && ['pounce', 'left', 'right', 'back'].includes(pr.evK)) captainEvade(L, pr.evK, true); last.evN = pr.evN; } // (a joiner's evade: their phone moved them; here, the untouchable moment and the follow-up)
@@ -155,7 +155,7 @@ export function clientStart(hp) {
   G.ctrlPoints = G.mode === 'ctrl' ? makeCtrlPoints(G.layout) : null;
   G.holds = makeHolds(G.layout); G.duels = [];
   Object.assign(C, { byId: new Map(), lastN: -1, lastMsgN: (hp.m && hp.m.length) ? hp.m[hp.m.length - 1][0] : 0, meId: null, meInit: false, kickN: 0, localCd: 0, lastSnapAt: performance.now(),
-    inp: { bsh: 0, dl: 0, dlId: null, atk: 0, ride: 0, vly: 0, chg: 0, evN: 0, evK: '', par: 0, ahN: 0, ahD: 0, ah: false, rly: 0, foc: null, vat: null, rec: [0, 0, 0], up: UPGRADES.map(() => 0), ord: 'follow', hold: null, face: 0 }, sendAt: 0, sendNow: false, pred: null, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
+    inp: { rb: 0, bsh: 0, dl: 0, dlId: null, atk: 0, ride: 0, vly: 0, chg: 0, evN: 0, evK: '', par: 0, ahN: 0, ahD: 0, ah: false, rly: 0, foc: null, vat: null, rec: [0, 0, 0], up: UPGRADES.map(() => 0), ord: 'follow', hold: null, face: 0 }, sendAt: 0, sendNow: false, pred: null, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
   G.player = null;
   cam.yaw = Math.atan2(-TEAMS[colorOf(G.myTi)].pos[0], -TEAMS[colorOf(G.myTi)].pos[1]); cam.pitch = CAM_PITCH;
   G.state = 'play';
@@ -369,7 +369,7 @@ export function clientTick(dt) {
   // send my captain and my buttons
   if ((performance.now() - C.sendAt > 66 || C.sendNow) && G.state === 'play') {
     C.sendAt = performance.now(); C.sendNow = false;
-    const pres = { role: 'player', nick: session.myNick || 'Captain', ph: 'play', seed: G.seed, evN: C.inp.evN, evK: C.inp.evK, rly: C.inp.rly, bsh: C.inp.bsh, dl: C.inp.dl, dlId: C.inp.dlId, foc: C.inp.foc, par: C.inp.par, ahN: C.inp.ahN, ahD: C.inp.ahD, ah: C.inp.ah, atk: C.inp.atk, ride: C.inp.ride, vly: C.inp.vly, vat: C.inp.vat, chg: C.inp.chg, rec: C.inp.rec, up: C.inp.up, ord: C.inp.ord, hold: C.inp.hold, face: C.inp.face, blk: inp.blockHeld ? 1 : 0 };
+    const pres = { role: 'player', nick: session.myNick || 'Captain', ph: 'play', seed: G.seed, evN: C.inp.evN, evK: C.inp.evK, rly: C.inp.rly, rb: C.inp.rb, bsh: C.inp.bsh, dl: C.inp.dl, dlId: C.inp.dlId, foc: C.inp.foc, par: C.inp.par, ahN: C.inp.ahN, ahD: C.inp.ahD, ah: C.inp.ah, atk: C.inp.atk, ride: C.inp.ride, vly: C.inp.vly, vat: C.inp.vat, chg: C.inp.chg, rec: C.inp.rec, up: C.inp.up, ord: C.inp.ord, hold: C.inp.hold, face: C.inp.face, blk: inp.blockHeld ? 1 : 0 };
     if (me && !me.dead) pres.cap = [me.id, r2(me.x), r2(me.z), r2(me.face), r1(me.vx), r1(me.vz), r2(me.jy || 0), Math.max(0, WEAPONS.indexOf(me.weapon || 'sword'))];
     NET.room.presence(pres).catch(() => {});
   }
@@ -446,11 +446,17 @@ export const actions = {
       if (C.localCd > 0 || p.stun > 0) { C.atkBuf = .4; return; }
       C.atkBuf = 0;
       if (bashing) { C.blkAt = -1e9; p.swing = .38; p.swingKind = 6; p.blockT = .3; sfx.thud(p.x, p.z); C.inp.bsh++; }
-      else { predictAttack(p); p.swing = .38; sfx.swing(p.x, p.z); C.inp.atk++; }
+      else {
+        const gap = (performance.now() - (p.pressAt || -1e9)) / 1000; // (the beat, judged here where the press happened)
+        C.beats = gap > CAPTAIN_COMBAT.sword.window || (C.beats || 0) >= 2 ? 0 : Math.abs(gap - RHYTHM.at) <= RHYTHM.w ? (C.beats || 0) + 1 : 0; C.inp.rb = C.beats;
+        predictAttack(p); p.swing = .38; sfx.swing(p.x, p.z); C.inp.atk++;
+      }
+      p.pressAt = performance.now();
       C.inp.face = r2(p.face); C.lastAtkAt = performance.now(); C.sendNow = true;
       return;
     }
     if (bashing && captainBash(p)) return;
+    p.pressAt = performance.now(); // (for the beat ring)
     captainAttack(p);
   },
   // Jump on foot; on horseback the same button is the charge

@@ -6,7 +6,7 @@ import { floatText } from '../render/effects.js';
 const TIPS = {
   parry: 'Tap Block as his blade glints!',
   break: "Holding Block won't stop a heavy blow. Tap it as the blade glints!",
-  sword: 'Hold Attack for a heavy blow that smashes guards',
+  sword: 'Press as the ring closes on you: three on the beat is a rhythm finisher',
   spear: 'Three thrusts in a row: the third lunges through the whole line',
   shield: 'Shield knocked aside: strike now! (Block then Attack bashes it open too)',
   evade: 'Jump + stick to evade: at him, to the side, or back',

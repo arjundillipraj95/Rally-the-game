@@ -1,7 +1,7 @@
 // The 2D layer drawn over the 3D view: sparks, floating text, health bars, names,
 // the banner pointer, the joystick and the red tint while you are down. Also the minimap.
 import * as THREE from 'three';
-import { TEAMS, DUEL, STREAK } from '../config.js';
+import { TEAMS, DUEL, STREAK, RHYTHM, CAPTAIN_COMBAT } from '../config.js';
 import { G, isEnemyTi, isFfa, colorOf, isOut } from '../core/state.js';
 import { groundY, clamp, W } from '../core/world.js';
 import { camera, view } from './scene.js';
@@ -54,7 +54,7 @@ export function drawOverlay(opts) {
         ctx.strokeText('BOUNTY', sx, sy - 20); ctx.fillStyle = '#ffcf3a'; ctx.fillText('BOUNTY', sx, sy - 20);
       }
     }
-    drawDuels(); drawStars(); drawFinish(); drawStreak();
+    drawDuels(); drawBeat(); drawStars(); drawFinish(); drawStreak();
     drawBubbles();
     if (G.flag) drawFlagPointer();
     if (G.mode === 'ctrl') drawControlLabels(); drawHoldLabels();
@@ -141,6 +141,19 @@ function drawDuels() {
       const txt = `CHALLENGED ${Math.max(0, Math.ceil(d.t))}`; ctx.strokeText(txt, sx, sy); ctx.fillStyle = '#ffd23a'; ctx.fillText(txt, sx, sy);
     }
   }
+}
+// The sword's beat: after each blow of a combo a ring closes in on your captain; press as it meets him
+// (it flashes gold) and the blow's on the beat. Two on the beat, and the third is the rhythm finisher.
+function drawBeat() {
+  const p = G.player; if (!p || p.dead || p.mounted || (p.weapon || 'sword') !== 'sword' || !p.pressAt) return;
+  const t = (performance.now() - p.pressAt) / 1000; if (t > RHYTHM.at + RHYTHM.w + .1 || p.swingKind === 4) return;
+  const k = Math.min(1, t / RHYTHM.at), r = 2.6 - 1.7 * k, hot = Math.abs(t - RHYTHM.at) <= RHYTHM.w;
+  ctx.beginPath(); let pen = false;
+  for (let i = 0; i <= 28; i++) {
+    const a = i / 28 * Math.PI * 2, x = p.x + Math.sin(a) * r, z = p.z + Math.cos(a) * r, [sx, sy, ok] = proj(x, groundY(x, z) + .12, z);
+    if (!ok) { pen = false; continue; } if (pen) ctx.lineTo(sx, sy); else { ctx.moveTo(sx, sy); pen = true; }
+  }
+  ctx.lineWidth = hot ? 4 : 2; ctx.strokeStyle = hot ? 'rgba(255,210,58,.95)' : `rgba(255,255,255,${.15 + .35 * k})`; ctx.stroke();
 }
 // Your streak: blows landed in a row, over your captain's head from the second; full, the whirlwind's ready.
 function drawStreak() {

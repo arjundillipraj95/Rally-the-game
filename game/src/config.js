@@ -105,6 +105,9 @@ export const VCHARGE = { window: 4, dur: 8, dmg: 1.3, kb: 1.25, morale: 12 }; //
 // is marked for everyone; its armies' horns fill, and from then on its men within r of it fight harder
 // (dmg x), never break, and keep their heart up (moraleFloor).
 export const LAST = { at: 25, r: 32, dmg: 1.3, moraleFloor: 45 };
+// The sword's rhythm: each blow of a combo pressed on the beat (at s after the last, give or take w)
+// counts; the third blow after two on the beat is a rhythm finisher: mult x harder, a bigger shove and stagger.
+export const RHYTHM = { at: .52, w: .12, mult: 1.45, kb: 1.5, stun: .75 };
 export const STREAK = { gap: 3, n: 8, mult: 2.2, kb: 2.2, stun: .9, cleaveN: 5 };
 // The shield bash: Block tapped, then Attack within window s (not at once: one after the other). A shove
 // with the shield: little damage, but it knocks a raised shield or guard aside (open s stunned). Unless
