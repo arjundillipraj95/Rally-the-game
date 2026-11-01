@@ -108,6 +108,10 @@ export const LAST = { at: 25, r: 32, dmg: 1.3, moraleFloor: 45 };
 // The sword's rhythm: each blow of a combo pressed on the beat (at s after the last, give or take w)
 // counts; the third blow after two on the beat is a rhythm finisher: mult x harder, a bigger shove and stagger.
 export const RHYTHM = { at: .52, w: .12, mult: 1.45, kb: 1.5, stun: .75 };
+// The shield wall's push: Attack while your men are in shieldwall (nobody in your own reach): the
+// whole wall heaves forward a step, and every enemy right in front of it is shoved back (kb), knocked
+// off balance (stun) with his shield knocked aside, for a little damage (mult of a footman's blow).
+export const PUSH = { cd: 4, reach: 2.4, kb: 9, stun: .7, mult: .4, step: 6 };
 export const STREAK = { gap: 3, n: 8, mult: 2.2, kb: 2.2, stun: .9, cleaveN: 5 };
 // The shield bash: Block tapped, then Attack within window s (not at once: one after the other). A shove
 // with the shield: little damage, but it knocks a raised shield or guard aside (open s stunned). Unless

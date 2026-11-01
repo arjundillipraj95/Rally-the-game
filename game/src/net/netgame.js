@@ -538,6 +538,7 @@ export const actions = {
       if (o === 'hold') { setOrder(G.myTi, 'hold', pt); const h = me.holdPt; C.inp.hold = [r1(h.x), r1(h.z), r2(h.face)]; C.sendNow = true; } // (kept locally too, for the marker)
     } else setOrder(G.myTi, o, pt);
     sfx.order(); bus.emit('shout', { u: p, kind: o }); // your captain bellows it
+    if (o === 'shieldwall') setTimeout(() => bus.emit('fighttip', 'push'), 900);
     bus.emit('hud');
   },
   upgrade(id) {

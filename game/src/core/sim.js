@@ -1,6 +1,6 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
-import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, HOLDS, EVADE, FORT, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT, DUEL, CHEST, STREAK, BASH, LAST, VCHARGE, RHYTHM } from '../config.js';
+import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, HOLDS, EVADE, FORT, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT, DUEL, CHEST, STREAK, BASH, LAST, VCHARGE, RHYTHM, PUSH } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, activeFrom, gateOff, ARMIES, rules, matchTime, isOut } from './state.js';
 import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W, groundSlow, onIce } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable, setPalSeg } from './nav.js';
@@ -1341,6 +1341,7 @@ export function captainAttack(p) {
     p.weapon = 'sword'; if (G.teams[p.ti]) G.teams[p.ti].weapon = 'sword';
     if (p.isMe) fx('float', { x: p.x, y: p.y + 3.2, z: p.z, text: 'Out of javelins', color: '#fff' });
   }
+  if (p.human && orderOf(p.ti) === 'shieldwall' && !softAim(p, 2.2) && wallPush(p)) return; // (behind the wall, nobody in reach: the wall heaves)
   if (p.human && (p.streak || 0) >= STREAK.n && G.T - (p.streakT ?? -9) <= STREAK.gap) { streakFinisher(p); return; }
   // straight out of an evade: its follow-up
   const ev = p.evade && G.T - p.evade.t < (EVADE[p.evade.kind] ? EVADE[p.evade.kind].dash : .2) + EVADE.follow ? p.evade.kind : null;
@@ -1396,6 +1397,32 @@ export function captainAttack(p) {
   }
   if (best && best.leader && !best.human && p.pending) aiEvade(best, p); // (he may see it coming)
   p.lastSwingT = G.T;
+}
+// The shield wall's push (PUSH): the wall steps into them as one, and the men in front of it reel back.
+export function wallPush(p) {
+  const s = G.teams[p.ti]; if (!s || (s.pushCd || 0) > G.T) return false;
+  const wall = G.units.filter(u => !u.dead && u.ti === p.ti && u.kind === 'foot' && u.shieldwall && u.stun <= 0);
+  if (wall.length < 3) return false;
+  s.pushCd = G.T + PUSH.cd;
+  const f = p.face, fx0 = Math.sin(f), fz0 = Math.cos(f), hit = new Set();
+  for (const w of wall) {
+    w.vx += fx0 * PUSH.step; w.vz += fz0 * PUSH.step; w.blockT = Math.max(w.blockT, .4); w.swing = .3;
+    for (const o of G.units) {
+      if (o.dead || hit.has(o) || !isEnemy(o, w) || o.mounted || o.leader && o.duelId) continue;
+      const dx = o.x - w.x, dz = o.z - w.z, d = Math.hypot(dx, dz); if (d > w.r + o.r + PUSH.reach) continue;
+      if (dx * fx0 + dz * fz0 < 0) continue; // (only what's in front of the wall)
+      hit.add(o);
+      o.guardUp = false; o.gT = SHIELD.open; o.blockT = 0; o.guardT = 0; if (o.windup > 0) { o.windup = 0; o.glint = false; }
+      o.hp -= w.dmg * PUSH.mult * aiDmg(w.ti); o.lastHit = G.T;
+      push(o, fx0 * PUSH.kb, fz0 * PUSH.kb, PUSH.stun);
+      if (o.hp <= 0) die(o, w, f, 0);
+    }
+  }
+  p.cd = .5; p.swing = .38; p.swingKind = 6; p.blockT = .3;
+  sound('clang', p.x, p.z); sound('trample', p.x + fx0 * 2, p.z + fz0 * 2);
+  fx('fxmsg', { k: 'fxpush', u: p, heavy: hit.size > 0 }); hl(p.ti, 'push', hit.size ? 1 : 0);
+  if (p.remote) fx('netFlush');
+  return true;
 }
 // The streak's payoff: a whirlwind all the way round, harder than the spin, that no guard stops.
 function streakFinisher(p) {

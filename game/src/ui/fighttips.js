@@ -18,6 +18,7 @@ const TIPS = {
   horn: 'Your rally horn is full! Press and hold the Order button to sound it',
   attack: 'Drag the Order button onto enemies to send your men at them',
   vcharge: 'Volley landed! Order Charge now: they hit harder',
+  push: 'Shieldwall: press Attack to heave the whole wall forward',
 };
 let lastAt = 0; const shown = new Set(); // (each tip at most once a match; the parry ones jump the queue)
 const URGENT = new Set(['parry', 'break', 'guard', 'rider', 'horn', 'vcharge']);
