@@ -203,7 +203,7 @@ export function bindLobby(h) {
     if (code.length !== 4) { $('netNote').textContent = 'Battle codes are 4 letters or numbers.'; return; }
     if (busy) return; busy = true; saveNick();
     $('netNote').textContent = `Joining ${code}…`;
-    const stages = { server: `Joining ${code}: finding the battle…`, host: `Joining ${code}: linking up with the host's phone…`, slow: `Still linking up. On mobile data this can take up to 20 seconds…` };
+    const stages = { server: `Joining ${code}: finding the battle…`, host: `Joining ${code}: linking up with the host's phone…`, slow: `Still linking up. On mobile data this can take up to 20 seconds…`, relay: `No direct link: connecting ${code} through the relay…` };
     let gr;
     try { gr = await makeP2PRoom(code, false, st => { if (stages[st]) $('netNote').textContent = stages[st]; }); }
     catch (e) {
@@ -211,7 +211,7 @@ export function bindLobby(h) {
       const t = e && e.type;
       $('netNote').textContent = t === 'peer-unavailable' ? `No battle found with code ${code}. Check the code with your host.`
         : t === 'full' ? 'That battle already has eight players.'
-        : (t === 'ice-failed' || (t === 'timeout' && e.stage === 'host')) ? "Found the battle but couldn't link up with the host's phone. This usually comes from mobile data or a strict Wi-Fi: try both on Wi-Fi (or the host on Wi-Fi), then try again."
+        : (t === 'ice-failed' || (t === 'timeout' && e.stage === 'host')) ? "Found the battle but couldn't link up with the host's phone, directly or through the relay. Keep the host's game open on screen (a phone in the background drops off), then try again."
         : t === 'timeout' ? "Couldn't reach the battle server. Check your internet connection and try again."
         : 'Could not connect. Check your internet connection and try again.';
       return;

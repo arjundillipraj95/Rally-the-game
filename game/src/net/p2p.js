@@ -51,6 +51,81 @@ const peerOpts = async () => {
   return o;
 };
 
+// ---------- the relay fallback ----------
+// When two phones can't link up directly and no TURN relay gets through (common between countries,
+// and on mobile data), the room's messages go through public MQTT message brokers over secure
+// WebSockets instead. No sign-up, works on nearly any network; a little more lag. The host listens on
+// every broker; a joiner uses the first one that gets an answer from the host. Topics:
+// rallygame/v1/<code>/h (to the host, {f: joiner id, d}) and rallygame/v1/<code>/c/<joiner id> (to a joiner).
+const BROKERS = ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://test.mosquitto.org:8081/mqtt'];
+const brokers = () => window.__MQTT_URLS || BROKERS;
+const rtopic = code => `rallygame/v1/${code}`;
+async function mqttLib() { const m = await import('mqtt'); return m.default || m; }
+const mqttOpts = () => ({ clientId: 'rally' + Math.random().toString(36).slice(2, 12), connectTimeout: 8000, reconnectPeriod: 3000, keepalive: 30, clean: true });
+// a stand-in for a PeerJS DataConnection, carried over a broker
+function fakeConn(peerId, sendFn) {
+  const ev = {};
+  const c = { peer: peerId, open: true, relay: true, peerConnection: null,
+    on(k, f) { (ev[k] || (ev[k] = [])).push(f); return c; },
+    emit(k, v) { for (const f of ev[k] || []) { try { f(v); } catch (e) { console.error(e); } } },
+    send: d => sendFn(d),
+    close() { if (!c.open) return; c.open = false; c.emit('close'); } };
+  return c;
+}
+// host: hands each joiner that turns up on a broker to onConn, as if they'd connected directly
+async function hostRelay(code, onConn) {
+  const mqtt = await mqttLib(), T = rtopic(code), clients = [], fakes = new Map();
+  for (const url of brokers()) {
+    let cl; try { cl = mqtt.connect(url, mqttOpts()); } catch (e) { continue; }
+    cl.on('connect', () => cl.subscribe(T + '/h', { qos: 0 }));
+    cl.on('error', () => {});
+    cl.on('message', (_, buf) => {
+      let m; try { m = JSON.parse(buf.toString()); } catch (e) { return; }
+      if (!m || typeof m.f !== 'string' || !/^r-[a-z0-9]{6,16}$/.test(m.f) || !m.d || typeof m.d !== 'object') return;
+      let c = fakes.get(m.f);
+      if (m.d.t === 'bye') { if (c) { fakes.delete(m.f); c.close(); } return; }
+      if (!c || !c.open) {
+        const id = m.f;
+        c = fakeConn(id, d => { try { c.cl.publish(T + '/c/' + id, JSON.stringify(d)); } catch (e) {} });
+        c.on('close', () => { if (fakes.get(id) === c) fakes.delete(id); });
+        fakes.set(id, c); c.cl = cl; onConn(c); c.emit('open');
+      }
+      c.cl = cl; // (answer on whichever broker they last spoke on)
+      c.emit('data', m.d);
+    });
+    clients.push(cl);
+  }
+  return { end() { for (const c of [...fakes.values()]) c.close(); for (const cl of clients) try { cl.end(true); } catch (e) {} } };
+}
+// joiner: says hello on every broker until the host answers on one; resolves with the link to the host
+async function joinRelay(code, myId, hello, waitMs = 14000) {
+  const mqtt = await mqttLib(), T = rtopic(code), cls = [];
+  return new Promise((resolve, reject) => {
+    let picked = null;
+    const fin = () => { clearInterval(hi); clearTimeout(to); for (const cl of cls) if (cl !== picked) try { cl.end(true); } catch (e) {} };
+    const to = setTimeout(() => { fin(); reject({ type: 'relay-failed' }); }, waitMs);
+    const say = (cl, d) => { try { cl.publish(T + '/h', JSON.stringify({ f: myId, d })); } catch (e) {} };
+    const hi = setInterval(() => { for (const cl of cls) if (cl.connected) say(cl, hello()); }, 1000);
+    for (const url of brokers()) {
+      let cl; try { cl = mqtt.connect(url, mqttOpts()); } catch (e) { continue; }
+      cls.push(cl);
+      cl.on('error', () => {});
+      cl.on('connect', () => { cl.subscribe(T + '/c/' + myId, { qos: 0 }, () => say(cl, hello())); });
+      cl.on('message', (_, buf) => {
+        let d; try { d = JSON.parse(buf.toString()); } catch (e) { return; }
+        if (!d || typeof d !== 'object') return;
+        if (!picked) {
+          picked = cl; fin();
+          const c = fakeConn('host', x => say(cl, x));
+          c.end = () => { try { say(cl, { t: 'bye' }); } catch (e) {} setTimeout(() => { try { cl.end(true); } catch (e) {} }, 200); };
+          c.link = cl; resolve(c); setTimeout(() => c.emit('data', d), 0); return;
+        }
+        if (cl === picked && picked.fake) picked.fake.emit('data', d);
+      });
+    }
+  }).then(c => { c.link.fake = c; return c; });
+}
+
 // onStage (optional) hears how far a join has got: 'server' (reaching the matchmaking server),
 // 'host' (linking up with the host's phone), 'slow' (still trying after a while).
 export async function makeP2PRoom(code, host, onStage = () => {}) {
@@ -62,7 +137,7 @@ export async function makeP2PRoom(code, host, onStage = () => {}) {
     const done = (ok, v) => { if (settled) return; settled = true; clearTimeout(to); clearTimeout(slowT); ok ? resolve(v) : reject(v); };
     // a link through a relay on a slow mobile connection can take a while: allow 25 s before giving up
     let stage = 'server';
-    const to = setTimeout(() => { try { peer.destroy(); } catch (e) {} done(false, { type: 'timeout', stage }); }, 25000);
+    const to = setTimeout(() => { if (!host) { fallback({ type: 'timeout', stage }); return; } try { peer.destroy(); } catch (e) {} done(false, { type: 'timeout', stage }); }, 25000);
     const slowT = setTimeout(() => { if (!settled) onStage('slow'); }, 9000);
     onStage('server');
     const alive = p => p === myId || (performance.now() - (seen.get(p) || 0)) < 6000;
@@ -81,16 +156,20 @@ export async function makeP2PRoom(code, host, onStage = () => {}) {
     const pending = new Set(); // (host: phones that have found us but aren't linked up yet)
     peer.on('open', id => {
       myId = id; peers.set(id, mine);
-      if (host) { done(true, api); return; }
+      if (host) { done(true, api); hostRelay(code, onConn).then(r => { relayHost = r; if (left) r.end(); }).catch(() => {}); return; }
       stage = 'host'; onStage('host');
+      if (window.__FORCE_RELAY) { fallback({ type: 'ice-failed', stage }); return; } // (tests: as if the direct link had failed)
       hostConn = peer.connect(P2P_PREFIX + code, { reliable: true, serialization: 'json' });
-      // every route tried and none worked: say so now rather than waiting out the clock
+      // every route tried and none worked: on to the relay rather than waiting out the clock
       const watch = setInterval(() => {
-        const pc = hostConn.peerConnection; if (settled || !pc) { if (settled) clearInterval(watch); return; }
-        if (pc.iceConnectionState === 'failed') { clearInterval(watch); try { peer.destroy(); } catch (e) {} done(false, { type: 'ice-failed', stage }); }
+        const pc = hostConn.peerConnection; if (settled || relaying || !pc) { if (settled || relaying) clearInterval(watch); return; }
+        if (pc.iceConnectionState === 'failed') { clearInterval(watch); fallback({ type: 'ice-failed', stage }); }
       }, 500);
-      hostConn.on('open', () => { try { hostConn.send({ t: 'p', pr: mine }); } catch (e) {} done(true, api); });
-      hostConn.on('data', d => {
+      hostConn.on('open', () => { if (relaying) { try { hostConn.close(); } catch (e) {} return; } try { hostConn.send({ t: 'p', pr: mine }); } catch (e) {} done(true, api); });
+      wireHost(hostConn);
+    });
+    function wireHost(hc) {
+      hc.on('data', d => {
         if (!d || typeof d !== 'object') return;
         seen.set(P2P_PREFIX + code, performance.now());
         if (d.t === 'full') { done(false, { type: 'full' }); return; }
@@ -100,10 +179,25 @@ export async function makeP2PRoom(code, host, onStage = () => {}) {
           notify();
         } else if (d.t === 'h' && typeof d.id === 'string' && d.pr && typeof d.pr === 'object') { peers.set(d.id, d.pr); notify(); }
       });
-      hostConn.on('close', () => { for (const k of [...peers.keys()]) if (k !== myId) peers.delete(k); notify(); });
-      hostConn.on('error', () => {});
-    });
-    peer.on('connection', c => {
+      hc.on('close', () => { if (hc !== hostConn) return; for (const k of [...peers.keys()]) if (k !== myId) peers.delete(k); notify(); });
+      hc.on('error', () => {});
+    }
+    // the direct link can't be made: carry on through the relay (and only then give up)
+    let relaying = false;
+    async function fallback(why) {
+      if (settled || relaying || host) return;
+      relaying = true; clearTimeout(to); onStage('relay');
+      try { peer.destroy(); } catch (e) {}
+      const rid = 'r-' + Math.random().toString(36).slice(2, 12);
+      if (myId) peers.delete(myId); myId = rid; peers.set(myId, mine);
+      try {
+        const c = await joinRelay(code, rid, () => ({ t: 'p', pr: mine }));
+        if (settled) { c.end(); return; }
+        hostConn = c; wireHost(c); seen.set(P2P_PREFIX + code, performance.now()); done(true, api);
+      } catch (e) { done(false, why); }
+    }
+    let relayHost = null;
+    const onConn = c => {
       if (!host) { c.close(); return; }
       if (conns.size >= 7) { c.on('open', () => { try { c.send({ t: 'full' }); } catch (e) {} setTimeout(() => c.close(), 400); }); return; }
       conns.set(c.peer, c); seen.set(c.peer, performance.now());
@@ -115,22 +209,25 @@ export async function makeP2PRoom(code, host, onStage = () => {}) {
         const old = peers.get(c.peer); peers.set(c.peer, d.pr); notify();
         if (!old || old.nick !== d.pr.nick || old.want !== d.pr.want || old.ph !== d.pr.ph || old.role !== d.pr.role || old.fac !== d.pr.fac) relaySoon();
       });
-      const gone = () => { pending.delete(c.peer); if (!conns.has(c.peer)) return; conns.delete(c.peer); peers.delete(c.peer); notify(); relaySoon(); };
+      const gone = () => { pending.delete(c.peer); if (conns.get(c.peer) !== c) return; conns.delete(c.peer); peers.delete(c.peer); notify(); relaySoon(); };
       c.on('close', gone); c.on('error', gone);
-    });
+    };
+    peer.on('connection', onConn);
     peer.on('error', e => {
-      if (!settled) { try { peer.destroy(); } catch (_) {} done(false, e); return; }
+      if (relaying) return;
+      if (!settled) { if (!host && e && e.type !== 'unavailable-id') { fallback(e); return; } try { peer.destroy(); } catch (_) {} done(false, e); return; }
       if (e && e.type === 'peer-unavailable' && !host) { for (const k of [...peers.keys()]) if (k !== myId) peers.delete(k); notify(); }
     });
-    peer.on('disconnected', () => { if (!peer.destroyed) try { peer.reconnect(); } catch (e) {} });
+    peer.on('disconnected', () => { if (!peer.destroyed && !relaying) try { peer.reconnect(); } catch (e) {} });
     let lastSent = 0;
     const sendMine = () => {
       lastSent = performance.now();
       if (host) { for (const c of conns.values()) if (c.open) try { c.send({ t: 'h', id: myId, pr: mine }); } catch (e) {} }
       else if (hostConn && hostConn.open) try { hostConn.send({ t: 'p', pr: mine }); } catch (e) {}
     };
+    let left = false;
     const beat = setInterval(() => {
-      if (peer.destroyed) { clearInterval(beat); return; }
+      if (left || (peer.destroyed && !relaying)) { clearInterval(beat); return; }
       if (performance.now() - lastSent > 1500) sendMine();
       if (host) for (const [p, c] of [...conns]) if (!pending.has(p) && performance.now() - (seen.get(p) || performance.now()) > 8000) { try { c.close(); } catch (e) {} conns.delete(p); peers.delete(p); notify(); relaySoon(); }
       notify();
@@ -145,7 +242,8 @@ export async function makeP2PRoom(code, host, onStage = () => {}) {
       peers: snap,
       pending: () => pending.size, // (host: how many are still linking up)
       onPeers: f => { listeners.push(f); setTimeout(() => f({ peers: snap() }), 0); return () => { const i = listeners.indexOf(f); if (i >= 0) listeners.splice(i, 1); }; },
-      leave: async () => { clearInterval(beat); try { peer.destroy(); } catch (e) {} },
+      leave: async () => { left = true; clearInterval(beat); try { peer.destroy(); } catch (e) {} if (relayHost) relayHost.end(); if (hostConn && hostConn.relay && hostConn.end) hostConn.end(); },
+      relayed: () => !!relaying, // (a joiner on the relay)
     };
   });
 }
