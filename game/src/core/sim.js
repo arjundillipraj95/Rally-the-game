@@ -40,6 +40,12 @@ export function mkUnit(ti, x, z, kind, human = false) {
     jy: 0, jvy: 0, jumpCd: 0, javAmmo: CAPTAIN_COMBAT.jav.ammo + tier, javRegen: 0, combo: 0, lastSwingT: -9, atkBuf: 0 };
   G.units.push(u); return u;
 }
+// A player's moments of the match, for the results screen: counts (and the best streak).
+export function hl(ti, k, v) {
+  const s = G.teams[ti]; if (!s || !s.human) return;
+  const h = s.hl || (s.hl = {});
+  if (k === 'streak') h.streak = Math.max(h.streak || 0, v); else h[k] = (h[k] || 0) + (v ?? 1);
+}
 export const squadOf = ti => G.units.filter(u => !u.dead && u.ti === ti && !u.leader);
 
 export function startMatch(humans, active = activeFrom([0, 0, 0, 0])) {
@@ -389,7 +395,7 @@ function hit(a, b, mult = 1, extra) {
     blocked = false; b.guardUp = false; b.gT = SHIELD.open; b.guardT = 0; b.guardCd = Math.max(b.guardCd || 0, 1.2); b.blockT = 0;
     extra = Object.assign({}, extra, { stun: guard ? BASH.open : BASH.stun });
     if (b.windup > 0) { b.windup = 0; b.glint = false; }
-    fx('fxmsg', { k: 'fxbash', u: b, a, heavy: guard });
+    fx('fxmsg', { k: 'fxbash', u: b, a, heavy: guard }); if (guard) hl(a.ti, 'bash');
   }
   // a heavy blow (or any big hit) knocks a man out of his own wind-up
   if (b.windup > 0 && (heavy || mult >= 1.35 || (extra && extra.unblockable))) { b.windup = 0; b.glint = false; b.stun = Math.max(b.stun, .5); fx('fxmsg', { k: 'fxint', u: b }); }
@@ -409,7 +415,7 @@ function hit(a, b, mult = 1, extra) {
   b.hp -= dmg;
   if (!blocked && dmg > 0) { // the streak: a player captain's blows that land, broken when he's hit
     if (a.human && a.leader && !(extra && extra.streak) && a.streakBlow !== a.lastSwingT) { // (one per blow that lands, however many it cuts; not the whirlwind's own)
-      a.streakBlow = a.lastSwingT; a.streak = G.T - (a.streakT ?? -9) > STREAK.gap ? 1 : (a.streak || 0) + 1; a.streakT = G.T;
+      a.streakBlow = a.lastSwingT; a.streak = G.T - (a.streakT ?? -9) > STREAK.gap ? 1 : (a.streak || 0) + 1; a.streakT = G.T; hl(a.ti, 'streak', a.streak);
     }
     if (b.human && b.leader) b.streak = 0;
   }
@@ -498,7 +504,7 @@ function endDuel(d, why, w, by) {
     const l = w === a ? b : a, sw = G.teams[w.ti], sl = G.teams[l.ti];
     sw.rally = 100; sw.morale = Math.min(100, sw.morale + DUEL.winMorale);
     if (squadOf(l.ti).length) { sl.morale = 0; sl.routT = MORALE.routT; fx('fxmsg', { k: 'fxrout', u: squadOf(l.ti)[0], ti: l.ti }); }
-    say('duelWon', w.ti, l.ti); fx('fxmsg', { k: 'fxduelwin', u: w, a: l });
+    say('duelWon', w.ti, l.ti); hl(w.ti, 'duel'); fx('fxmsg', { k: 'fxduelwin', u: w, a: l });
   } else if (why === 'draw') {
     for (const u of [a, b]) { const s = G.teams[u.ti]; s.morale = Math.min(100, s.morale + DUEL.draw); }
     say('duelDraw', a.ti, b.ti); fx('fxmsg', { k: 'fxdueldraw', u: a, a: b });
@@ -646,7 +652,7 @@ function execTick(u, dt) {
         v.execT = 0; v.execV = false; v.hp = 0; v.lastHit = G.T;
         spark(v.x, v.y + 1.4, v.z, TEAMS[colorOf(v.ti)].css, 14); sound('heavy', v.x, v.z); sound('hit', v.x, v.z);
         fx('fxmsg', { k: 'fxexec', u: v, a: u });
-        die(v, u, ang, 1);
+        die(v, u, ang, 1); hl(u.ti, 'exec');
         loseHeart(v.ti, EXEC.morale); gainRally(u, EXEC.rally);
         if (u.isMe) { fx('hitstop', .16); fx('shake', .6); }
         if (u.remote) fx('netFlush');
@@ -726,9 +732,9 @@ function aiRide(u, foe, fd) {
 function parry(b, a, heavy, byAI, perfect) {
   if (perfect && a.leader && !a.mounted) { // a perfect parry: the blade turned so hard it leaves his hand
     a.disarmT = G.T + PARRY.disarm; a.cd = Math.max(a.cd, PARRY.disarm); a.combo = 0;
-    fx('fxmsg', { k: 'fxdisarm', u: a, a: b }); gainRally(b, RALLY.parry);
+    fx('fxmsg', { k: 'fxdisarm', u: a, a: b }); gainRally(b, RALLY.parry); hl(b.ti, 'disarm');
   }
-  b.parryT = -9; b.lastBlow = null; b.cd = 0; b.stun = 0;
+  b.parryT = -9; b.lastBlow = null; b.cd = 0; b.stun = 0; if (b.human) hl(b.ti, 'parry');
   b.riposteT = G.T + PARRY.riposteT; b.ripN = PARRY.riposteN; b.parries = (b.parries || 0) + 1; gainRally(b, RALLY.parry);
   if (byAI) { b.guardT = 0; b.guardCd = 1.5; } // (he turned your blow: now he comes at you)
   a.windup = 0; a.glint = false; a.pending = null; a.stun = Math.max(a.stun, byAI ? GUARD.stun : heavy ? PARRY.heavyStun : PARRY.stun);
@@ -916,6 +922,7 @@ function die(u, killer, ang, launch = 0) {
   // the army takes it to heart: more so for a man cut down from the side or behind, most of all its captain
   loseHeart(u.ti, u.leader ? MORALE.captain : MORALE.death + (killer && behind(u, killer) ? MORALE.flankDeath : 0));
   if (killer && killer.leader) gainRally(killer, u.leader ? RALLY.capKill : RALLY.kill);
+  if (killer && killer.leader && u.leader && killer.human) hl(killer.ti, 'capkill');
   if (killer && killer.leader && u.leader && G.teams[killer.ti]) G.teams[killer.ti].morale = Math.min(100, G.teams[killer.ti].morale + 20);
   // a captain cut down by a captain: the moment of the battle. The two of them, in slow motion.
   if (killer && killer.leader && u.leader) { killer.slowT = Math.max(killer.slowT || 0, CAPKILL_SLOW); u.slowT = CAPKILL_SLOW; if (!u.execBy) fx('fxmsg', { k: 'fxcapkill', u, a: killer }); } // (an execution has its own moment)
@@ -941,6 +948,7 @@ function die(u, killer, ang, launch = 0) {
 }
 function destroyCastle(i, by) {
   const s = G.teams[i]; s.alive = false; s.points = 0;
+  if (by != null) hl(by, 'castle');
   say('castleDown', i, by);
   checkEnd();
 }
@@ -1081,7 +1089,7 @@ function chestTick() {
 }
 function chestTaken(h, a) {
   h.chest = 0; G.chestDone = true;
-  for (const i of sideArmies(a)) { const s = G.teams[i]; s.gold += CHEST.gold; s.rally = 100; s.morale = Math.min(100, s.morale + 15); }
+  for (const i of sideArmies(a)) { hl(i, 'chest'); const s = G.teams[i]; s.gold += CHEST.gold; s.rally = 100; s.morale = Math.min(100, s.morale + 15); }
   say('chestTaken', a, CHEST.gold); fx('netFlush');
 }
 function holdsTick(dt) {
@@ -1363,7 +1371,7 @@ function streakFinisher(p) {
   const best = softAim(p, 4); if (best) p.face = Math.atan2(best.x - p.x, best.z - p.z);
   if (!startSwing(p, best)) return;
   Object.assign(p.pending, { t: .14, mult: STREAK.mult, cleave: true, spin: true, kb: STREAK.kb, stun: STREAK.stun, streak: true });
-  p.cd = .9; p.combo = 0; p.swingKind = 4; p.streak = 0; p.lastSwingT = G.T;
+  p.cd = .9; p.combo = 0; p.swingKind = 4; p.streak = 0; p.lastSwingT = G.T; hl(p.ti, 'rampage');
   fx('fxmsg', { k: 'fxstreak', u: p });
   if (p.remote) fx('netFlush');
 }

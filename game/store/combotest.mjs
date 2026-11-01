@@ -2,7 +2,7 @@
 // then its cooldown; (2) after a parry, Block-then-Attack is the riposte, not a bash; (3) the streak:
 // eight blows landed, then the whirlwind through a ring of men; (4) a perfect parry disarms, a late one doesn't.
 import { chromium } from 'playwright';
-import { open, frames } from './stage.mjs';
+import { open, frames, OUT } from './stage.mjs';
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const page = await open(browser, 640, 320);
 const errs = []; page.on('pageerror', e => errs.push(e.message));
@@ -43,5 +43,8 @@ const r = await page.evaluate(() => {
   out.perfect = parryAt(1); out.late = parryAt(3);
   return out;
 });
-console.log(JSON.stringify(r), 'errors:', errs.slice(0, 3));
+await page.evaluate(() => window.__fb.end()); await frames(page, 70);
+if (process.argv[2] === 'shot') { await page.waitForTimeout(2200); await frames(page, 5); } if (process.argv[2] === 'shot') await page.screenshot({ path: OUT + 'moments.png', timeout: 120000 });
+const moments = await page.evaluate(() => [...document.querySelectorAll('#endMoments li')].map(l => l.textContent));
+console.log(JSON.stringify(r), '\nmoments:', JSON.stringify(moments), 'errors:', errs.slice(0, 3));
 await browser.close();

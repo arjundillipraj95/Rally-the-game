@@ -172,6 +172,7 @@ bus.on('end', ({ w, why }) => {
   $('endText').textContent = `${MODES[G.mode].name} on ${G.map.name}. ${endText(w, why)}`;
   const qs = QUIPS[result]; $('endQuip').textContent = qs[(Math.random() * qs.length) | 0];
   $('sKills').textContent = G.kills; $('sSquad').textContent = G.recruited; $('sTime').textContent = fmt(G.T);
+  showMoments((G.teams[G.myTi] && G.teams[G.myTi].hl) || {});
   showRank(G.awarded ? null : awardMatch({ result, kills: G.kills, diff: G.diff })); G.awarded = true;
   const host = isHost(), client = isClient();
   $('againBtn').hidden = client;
@@ -181,6 +182,25 @@ bus.on('end', ({ w, why }) => {
   if (host) netHostSend(true);
   setTimeout(() => { if (G.state === 'end') $('ovEnd').hidden = false; }, 1600);
 });
+// Results screen: your moments of the match, the biggest first (up to four).
+function showMoments(h) {
+  const n = (k, one, many) => h[k] ? (h[k] === 1 ? one : many.replace('#', h[k])) : null;
+  const lines = [
+    n('duel', 'Won a duel', 'Won # duels'),
+    n('exec', 'Executed a captain', 'Executed # captains'),
+    n('rampage', 'Went on a rampage', 'Went on # rampages'),
+    n('castle', 'Brought down a castle', 'Brought down # castles'),
+    n('chest', 'Took the war chest', 'Took the war chest'),
+    n('capkill', 'Cut down an enemy captain', 'Cut down # enemy captains'),
+    n('disarm', 'Disarmed a captain with a perfect parry', 'Disarmed # captains with perfect parries'),
+    h.streak >= 5 ? `Landed ${h.streak} blows in a row` : null,
+    n('bash', 'Bashed a guard open', 'Bashed # guards open'),
+    n('parry', 'Parried a blow', 'Parried # blows'),
+  ].filter(Boolean).slice(0, 4);
+  const ul = $('endMoments'); ul.innerHTML = '';
+  for (const t of lines) { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); }
+  ul.hidden = !lines.length;
+}
 // Results screen: XP gained, the bar filling toward the next rank, and any crest it unlocked.
 function showRank(aw) {
   const pr = rankProgress(), bar = $('xpBar');

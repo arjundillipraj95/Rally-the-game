@@ -82,7 +82,7 @@ export function netHostSend() {
   const NET = session.NET; if (!NET) return;
   NET.lastSend = performance.now();
   const pres = { role: 'host', ph: G.state === 'end' ? 'end' : 'play', seed: G.seed, mode: G.mode, map: G.map.id, diff: G.diff, time: G.time, tgt: G.target, al: G.ALLY.join(''), duo: G.duo.map(d => d | 0).join(''), seats: NET.seats, nick: session.myNick || 'Host', fa: G.factions.map(f => (FACTIONS[f] || FACTIONS.roman).code).join(''), cr: Array.from({ length: ARMIES }, (_, i) => (G.crests && G.crests[i]) | 0).join(''), n: ++NET.snapN, s: encodeSnap(), m: NET.msgs };
-  if (G.state === 'end' && G.endInfo) { pres.res = [G.endInfo.w, G.endInfo.why]; pres.kl = G.teams.map(t => t.kills | 0).join(','); }
+  if (G.state === 'end' && G.endInfo) { pres.res = [G.endInfo.w, G.endInfo.why]; pres.kl = G.teams.map(t => t.kills | 0).join(','); pres.hl = G.teams.map(t => t.hl ? Object.entries(t.hl).map(([k, v]) => k + ':' + v).join(',') : '').join(';'); }
   let json = JSON.stringify(pres);
   while (json.length > 3900) { // trim arrows first, then messages
     const parts = pres.s.split('|'), a = parts[3].split(';');
@@ -302,6 +302,7 @@ export function clientTick(dt) {
     if (hp.ph === 'lobby') { hooks.onLobby(); return false; }
     if (hp.seed === G.seed && (hp.ph === 'play' || hp.ph === 'end')) clientApply(hp);
     if (hp.ph === 'end' && hp.kl) G.kills = +String(hp.kl).split(',')[G.myTi] || 0; // your captain's kills, as the host counted them
+    if (hp.ph === 'end' && typeof hp.hl === 'string' && G.teams[G.myTi]) { const h = {}; for (const kv of (hp.hl.split(';')[G.myTi] || '').split(',')) { const [k, v] = kv.split(':'); if (k && /^[a-z]+$/.test(k)) h[k] = +v || 0; } G.teams[G.myTi].hl = h; } // (and your moments)
     if (hp.ph === 'end' && G.state === 'play' && Array.isArray(hp.res)) bus.emit('hostEnd', hp.res);
   }
   if (G.state !== 'play' && G.state !== 'end') return false;

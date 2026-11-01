@@ -349,6 +349,9 @@
 .faultNote{position:fixed;left:8px;bottom:4px;z-index:99;max-width:70vw;font:600 11px/1.3 system-ui,sans-serif;color:#fff;background:rgba(160,20,20,.85);padding:3px 7px;border-radius:5px;pointer-events:none;}
 
 /* a beaten enemy captain in reach: the Attack button burns red, and Attack executes him */
+#ovEnd .moments{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:4px;}
+#ovEnd .moments li{font:800 15px "Barlow Semi Condensed",sans-serif;color:#ffcf3a;}
+#ovEnd .moments li::before{content:"★ ";color:#ffcf3a;}
 #ordFan{position:fixed;z-index:40;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:stretch;}
 #ordFan[hidden]{display:none;}
 #ordFan button{font:800 15px "Barlow Semi Condensed",sans-serif;letter-spacing:.4px;text-transform:uppercase;color:#fff;background:rgba(20,16,14,.82);border:2px solid rgba(255,255,255,.35);border-radius:14px;padding:9px 16px;min-width:132px;touch-action:none;white-space:nowrap;}
