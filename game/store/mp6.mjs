@@ -16,8 +16,8 @@ const [, H] = pages[0];
 await H.waitForTimeout(800);
 await H.click('#mpBtn'); await H.fill('#nick', 'Host'); await H.click('#hostBtn'); await H.waitForTimeout(2500);
 await H.click(`#lobbyMap button[data-v="${map}"]`).catch(() => {});
-await H.click('#lobbyTeams button[data-v="2v2"]');
-for (const col of [0, 0, 1, 1]) { await H.locator('.seatcol').nth(col).locator('.duotog').click(); await H.waitForTimeout(150); }
+await H.evaluate(() => { const L = window.__fbLobby; });
+for (const col of [0, 0, 1, 1]) { await H.locator('#seats .seatcol').nth(col).locator('.duotog').click(); await H.waitForTimeout(150); }
 console.log('toggles:', await H.$$eval('.duotog', e => e.map(x => x.textContent).join(' ')));
 const code = await H.evaluate(() => document.getElementById('codeTxt').textContent);
 const want = [null, [0, 1], [0, 2], [1, 0], [1, 1], [1, 2]];
@@ -25,8 +25,8 @@ for (let i = 1; i <= 5; i++) {
   const [n, p] = pages[i];
   await p.click('#mpBtn', { noWaitAfter: true }); await p.fill('#nick', n); await p.fill('#codeIn', code); await p.click('#joinBtn', { noWaitAfter: true });
   await p.waitForFunction(() => !document.getElementById('ovLobby').hidden, null, { timeout: 30000, polling: 300 }).catch(async () => console.log(n, 'NO LOBBY', await p.evaluate(() => document.getElementById('netNote').textContent)));
-  await p.waitForFunction(c => document.querySelectorAll('.seatcol').length === 4 && document.querySelectorAll('.seatcol')[0].querySelectorAll('.seat').length === 3, null, { timeout: 20000, polling: 300 }).catch(async () => console.log(n, 'seats not drawn', await p.evaluate(() => JSON.stringify({ lobby: !document.getElementById('ovLobby').hidden, note: document.getElementById('netNote').textContent, cols: document.querySelectorAll('.seatcol').length }))));
-  await p.evaluate(([c, k]) => document.querySelectorAll('.seatcol')[c].querySelectorAll('.seat')[k].click(), want[i]);
+  await p.waitForFunction(c => document.querySelectorAll('#seats .seatcol').length === 4 && document.querySelectorAll('#seats .seatcol')[0].querySelectorAll('.seat').length === 3, null, { timeout: 20000, polling: 300 }).catch(async () => console.log(n, 'seats not drawn', await p.evaluate(() => JSON.stringify({ lobby: !document.getElementById('ovLobby').hidden, note: document.getElementById('netNote').textContent, cols: document.querySelectorAll('#seats .seatcol').length }))));
+  await p.evaluate(([c, k]) => document.querySelectorAll('#seats .seatcol')[c].querySelectorAll('.seat')[k].click(), want[i]);
   await p.waitForTimeout(1200);
 }
 await H.waitForTimeout(1500);

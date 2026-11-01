@@ -12,10 +12,10 @@ await A.click('#mpBtn'); await A.fill('#nick', 'Host'); await A.click('#hostBtn'
 const code = await A.evaluate(() => document.getElementById('codeTxt').textContent);
 const duo = process.argv[2] === 'duo';
 const aTi = await A.evaluate(() => window.__fb.info.myTi);
-if (duo) { await A.click('.seatcol:nth-child(' + (aTi + 1) + ') .duotog'); await A.waitForTimeout(500); }
+if (duo) { await A.click('#seats .seatcol:nth-child(' + (aTi + 1) + ') .duotog'); await A.waitForTimeout(500); }
 await B.click('#mpBtn'); await B.fill('#nick', 'Friend'); await B.fill('#codeIn', code); await B.click('#joinBtn'); await B.waitForFunction(() => !document.getElementById('ovLobby').hidden, null, { timeout: 30000 }); await B.waitForTimeout(800);
-if (duo) { await B.click('.seatcol:nth-child(' + (aTi + 1) + ') .seat.slot2'); await B.waitForTimeout(1200); }
-else { await B.click('.seatcol:nth-child(' + (((aTi + 1) % 4) + 1) + ') .seat'); await B.waitForTimeout(1200); }
+if (duo) { await B.click('#seats .seatcol:nth-child(' + (aTi + 1) + ') .seat.slot2'); await B.waitForTimeout(1200); }
+else { await B.click('#seats .seatcol:nth-child(' + (((aTi + 1) % 4) + 1) + ') .seat'); await B.waitForTimeout(1200); }
 await A.click('#startBtn'); await A.waitForTimeout(3000);
 await B.evaluate(async () => { const S = await import('/src/core/state.js'); S.bus.on('hitstop', () => window.__onHs && window.__onHs()); });
 console.log('A ti', await A.evaluate(() => window.__fb.info.myTi), 'B ti', await B.evaluate(() => window.__fb.info.myTi), 'B state', await B.evaluate(() => window.__fb.info.state));

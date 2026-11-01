@@ -84,7 +84,7 @@
         <h1 class="logo"><span>Rally!</span></h1>
         <div class="flags"><i style="background:var(--blue)"></i><i style="background:var(--red)"></i><i style="background:var(--green)"></i><i style="background:var(--yellow)"></i></div>
         <p class="tagline">Lead your army against three rival teams, alone or with friends on their own phones.</p>
-        <button class="go quick" id="quickBtn" type="button"><span>Quick battle</span><small>Random map &amp; mode · 3-5 min</small></button>
+        <button class="go quick" id="quickBtn" type="button"><span>Quick battle</span><small>Random map &amp; mode · 5 min</small></button>
         <div class="rankchip"><span id="rankLine">Recruit</span><span id="rankNext"></span></div>
         <div class="rankjoke" id="rankJoke"></div>
         <div class="tip" id="tip"></div>
@@ -120,20 +120,17 @@
             <button type="button" data-v="forest" aria-pressed="false">Pine Forest</button>
           </div>
           </div>
-          <div class="grp"><label>Teams</label>
-          <div class="seg" id="segTeams">
-            <button type="button" data-v="ffa" aria-pressed="true">Free for all</button>
-            <button type="button" data-v="2v2" aria-pressed="false">2 v 2</button>
-            <button type="button" data-v="2v1v1" aria-pressed="false">2 v 1 v 1</button>
-            <button type="button" data-v="3v1" aria-pressed="false">3 v 1</button>
-          </div>
+          <div class="grp"><label>Teams <span class="hint">tap a colour to be it · the letter chip changes its team · Duo adds a computer co-captain, tap again for Trio</span></label>
+            <div class="seats" id="soloSeats"></div>
           </div>
           <div class="grp"><label>Length</label>
-            <div class="seg" id="segLen">
-              <button type="button" data-v="quick" aria-pressed="true">Quick · 3-5 min</button>
-              <button type="button" data-v="standard" aria-pressed="false">Standard · 6-10 min</button>
+            <div class="seg" id="segTime">
+              <button type="button" data-v="5" aria-pressed="false">5 min · Quick</button>
+              <button type="button" data-v="10" aria-pressed="true">10 min · Standard</button>
+              <button type="button" data-v="15" aria-pressed="false">15 min · Long</button>
             </div>
           </div>
+          <div class="grp"><label id="targetLabel">Target</label><div class="seg" id="segTarget"></div></div>
           <div class="grp"><label>Difficulty</label>
           <div class="seg" id="segDiff">
             <button type="button" data-v="0" aria-pressed="false">Recruit</button>
@@ -151,24 +148,8 @@
             <button type="button" data-v="barbarian" aria-pressed="false">Barbarians</button>
           </div>
           </div>
-          <div class="grp"><label>Colour</label>
-          <div class="seg swatches" id="segColor">
-            <button type="button" data-v="0" aria-pressed="true" style="background:var(--blue)">Blue</button>
-            <button type="button" data-v="1" aria-pressed="false" style="background:var(--red)">Red</button>
-            <button type="button" data-v="2" aria-pressed="false" style="background:var(--green)">Green</button>
-            <button type="button" data-v="3" aria-pressed="false" style="background:var(--yellow)">Yellow</button>
-          </div>
-          </div>
           <div class="grp"><label>Captain's crest</label>
             <div class="crests" id="segCrest" aria-label="Captain's crest"></div><div class="note" id="crestNote"></div>
-          </div>
-          <div class="grp"><label>Duo castles <span class="hint">a computer co-captain shares the castle (double squad)</span></label>
-          <div class="seg swatches" id="segDuo">
-            <button type="button" data-v="0" aria-pressed="false" style="background:var(--blue)">Blue Duo</button>
-            <button type="button" data-v="1" aria-pressed="false" style="background:var(--red)">Red Duo</button>
-            <button type="button" data-v="2" aria-pressed="false" style="background:var(--green)">Green Duo</button>
-            <button type="button" data-v="3" aria-pressed="false" style="background:var(--yellow)">Yellow Duo</button>
-          </div>
           </div>
         </div>
         <div class="panel" id="tabSettings" role="tabpanel" hidden>
@@ -252,7 +233,7 @@
               <button type="button" data-v="roman">Romans</button><button type="button" data-v="greek">Greeks</button><button type="button" data-v="barbarian">Barbarians</button>
             </div>
           </div>
-          <div class="grp" id="lobbyTeamsGrp"><label>Team setup</label>
+          <div class="grp" id="lobbyTeamsGrp" hidden><label>Team setup</label>
             <div class="seg" id="lobbyTeams">
               <button type="button" data-v="ffa">Free for all</button>
               <button type="button" data-v="2v2">2 v 2</button>
@@ -269,8 +250,9 @@
               <button type="button" data-v="forum">Forum</button><button type="button" data-v="valley">Valley</button><button type="button" data-v="desert">Desert Fort</button><button type="button" data-v="frost">Frost</button><span class="segsep">More maps</span><button type="button" data-v="colosseum">Colosseum</button><button type="button" data-v="wooden">Wooden Fort</button><button type="button" data-v="dunes">Dunes</button><button type="button" data-v="river">River</button><button type="button" data-v="forest">Forest</button>
             </div></div>
           <div class="grp"><label>Length</label>
-            <div class="seg" id="lobbyLen"><button type="button" data-v="quick">Quick · 3-5 min</button><button type="button" data-v="standard">Standard · 6-10 min</button></div>
+            <div class="seg" id="lobbyTime"><button type="button" data-v="5">5 min · Quick</button><button type="button" data-v="10">10 min · Standard</button><button type="button" data-v="15">15 min · Long</button></div>
           </div>
+          <div class="grp"><label id="lobbyTargetLabel">Target</label><div class="seg" id="lobbyTarget"></div></div>
           <div class="grp"><label>Computer players</label>
             <div class="seg" id="lobbyDiff"><button type="button" data-v="0">Recruit</button><button type="button" data-v="1">Soldier</button><button type="button" data-v="2">Warlord</button></div>
           </div>

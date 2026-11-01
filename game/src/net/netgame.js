@@ -79,7 +79,7 @@ export function netHostTick() {
 export function netHostSend() {
   const NET = session.NET; if (!NET) return;
   NET.lastSend = performance.now();
-  const pres = { role: 'host', ph: G.state === 'end' ? 'end' : 'play', seed: G.seed, mode: G.mode, map: G.map.id, diff: G.diff, len: G.len, al: G.ALLY.join(''), duo: G.duo.map(d => d | 0).join(''), seats: NET.seats, nick: session.myNick || 'Host', fa: G.factions.map(f => (FACTIONS[f] || FACTIONS.roman).code).join(''), cr: Array.from({ length: ARMIES }, (_, i) => (G.crests && G.crests[i]) | 0).join(''), n: ++NET.snapN, s: encodeSnap(), m: NET.msgs };
+  const pres = { role: 'host', ph: G.state === 'end' ? 'end' : 'play', seed: G.seed, mode: G.mode, map: G.map.id, diff: G.diff, time: G.time, tgt: G.target, al: G.ALLY.join(''), duo: G.duo.map(d => d | 0).join(''), seats: NET.seats, nick: session.myNick || 'Host', fa: G.factions.map(f => (FACTIONS[f] || FACTIONS.roman).code).join(''), cr: Array.from({ length: ARMIES }, (_, i) => (G.crests && G.crests[i]) | 0).join(''), n: ++NET.snapN, s: encodeSnap(), m: NET.msgs };
   if (G.state === 'end' && G.endInfo) { pres.res = [G.endInfo.w, G.endInfo.why]; pres.kl = G.teams.map(t => t.kills | 0).join(','); }
   let json = JSON.stringify(pres);
   while (json.length > 3900) { // trim arrows first, then messages
@@ -135,7 +135,7 @@ export function netHostReadInputs() {
 // ---------- client ----------
 export function clientStart(hp) {
   G.role = 'client';
-  G.mode = hp.mode; G.map = MAPS[hp.map]; G.diff = hp.diff; G.len = hp.len === 'standard' ? 'standard' : 'quick'; G.ALLY = hp.al.split('').map(Number); G.seed = hp.seed;
+  G.mode = hp.mode; G.map = MAPS[hp.map]; G.diff = hp.diff; G.time = [5, 10, 15].includes(+hp.time) ? +hp.time : 10; G.target = hp.tgt == null ? null : +hp.tgt; G.ALLY = hp.al.split('').map(Number); G.seed = hp.seed;
   G.factions = String(hp.fa || 'rrrr').split('').map(factionFromCode);
   G.crests = String(hp.cr || '').split('').map(c => Math.min(7, +c || 0));
   G.duo = String(hp.duo || '0000').split('').map(c => Math.min(2, +c || 0));

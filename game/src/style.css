@@ -360,3 +360,14 @@
 .pausecard{max-width:440px;text-align:center;display:flex !important;flex-direction:column;align-items:center;gap:4px;}
 .pausecard p{opacity:.85;margin:6px 0 16px;}
 .pausebtns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+/* the home page's team seats: the same as the lobby's, packed into the menu panel */
+#soloSeats{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;}
+#soloSeats .seatcol{gap:4px;min-width:0;}
+#soloSeats .seat{min-height:52px;padding:6px 6px 6px 8px;}
+#soloSeats .seat:not(.slot2){padding-right:6px;padding-top:26px;}
+#soloSeats .seat b{font-size:16px;}
+#soloSeats .seat.slot2{min-height:36px;padding:5px 6px;}
+#soloSeats .seat.slot2 b{font-size:12px;}
+#soloSeats .seat span{font-size:11px;}
+#soloSeats .alchip{font-size:10px;padding:1px 5px;top:4px;right:4px;}
+#soloSeats .duotog{font-size:9px;padding:1px 5px;top:4px;left:4px;right:auto;bottom:auto;}

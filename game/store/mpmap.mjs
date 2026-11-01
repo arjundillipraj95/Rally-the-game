@@ -15,7 +15,7 @@ await A.click(`#lobbyMap button[data-v="${map}"]`); await A.waitForTimeout(400);
 const code = await A.evaluate(() => document.getElementById('codeTxt').textContent);
 const aTi = await A.evaluate(() => window.__fb.info.myTi);
 await B.click('#mpBtn'); await B.fill('#nick', 'Friend'); await B.fill('#codeIn', code); await B.click('#joinBtn'); await B.waitForTimeout(2500);
-await B.click('.seatcol:nth-child(' + (((aTi + 1) % 4) + 1) + ') .seat'); await B.waitForTimeout(1200);
+await B.click('#seats .seatcol:nth-child(' + (((aTi + 1) % 4) + 1) + ') .seat'); await B.waitForTimeout(1200);
 await A.click('#startBtn'); await A.waitForTimeout(3000);
 const sig = p => p.evaluate(() => { const G = window.__fb.G, L = G.layout; return JSON.stringify({ map: G.map.id, obs: L.obstacles.length, ridges: L.ridges.length, roads: L.roads.length, c0: G.layout && [Math.round(L.obstacles[L.obstacles.length - 1].x), Math.round(L.obstacles[L.obstacles.length - 1].z)], sum: Math.round(L.obstacles.reduce((s, o) => s + o.x * 3 + o.z, 0)) }); });
 const sa = await sig(A), sb = await sig(B);

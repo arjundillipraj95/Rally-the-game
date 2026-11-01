@@ -1,6 +1,6 @@
 // "Play with friends": host or join by code, pick colors and teams, start the battle.
-import { TEAMS, MAPS, PRESETS, AL_LETTER, FACTIONS } from '../config.js';
-import { G, colorOf, slotOf, activeFrom, ARMIES, SLOT_NAME } from '../core/state.js';
+import { TEAMS, MAPS, PRESETS, AL_LETTER, FACTIONS, TARGETS } from '../config.js';
+import { G, colorOf, slotOf, activeFrom, ARMIES, SLOT_NAME, targetFor } from '../core/state.js';
 import { makeP2PRoom as rawRoom, newCode, p2pAvailable } from './p2p.js';
 import { progress } from '../ui/progress.js';
 // A brief hiccup reaching the connection server shouldn't end the attempt: try once more before
@@ -65,17 +65,17 @@ export function hostLobbyTick() {
       const free = [0, 1, 2, 3].find(t => !taken().includes(t)); if (free !== undefined) NET.seats[p.peer] = free;
     }
   }
-  NET.room.presence({ role: 'host', ph: 'lobby', nick: session.myNick || 'Host', fac: prefs.faction, mode: L.mode, map: L.map, diff: L.diff, len: L.len, al: L.al.join(''), duo: L.duo.map(d => d | 0).join(''), seats: NET.seats, s: null, m: null, res: null }).catch(() => {});
+  NET.room.presence({ role: 'host', ph: 'lobby', nick: session.myNick || 'Host', fac: prefs.faction, mode: L.mode, map: L.map, diff: L.diff, time: L.time, tgt: L.tgt, al: L.al.join(''), duo: L.duo.map(d => d | 0).join(''), seats: NET.seats, s: null, m: null, res: null }).catch(() => {});
   renderLobby();
 }
 function lobbyView() {
   const NET = session.NET;
-  if (NET.role === 'host') return { mode: NET.lobby.mode, map: NET.lobby.map, diff: NET.lobby.diff, len: NET.lobby.len, al: NET.lobby.al, duo: NET.lobby.duo, seats: NET.seats, hostNick: session.myNick || 'Host' };
+  if (NET.role === 'host') return { mode: NET.lobby.mode, map: NET.lobby.map, diff: NET.lobby.diff, time: NET.lobby.time, tgt: NET.lobby.tgt, al: NET.lobby.al, duo: NET.lobby.duo, seats: NET.seats, hostNick: session.myNick || 'Host' };
   const hostP = NET.room.peers().find(p => p.presence && p.presence.role === 'host');
   if (!hostP) return null;
   NET.hostPeer = hostP.peer;
   const h = hostP.presence;
-  return { mode: h.mode, map: h.map, diff: h.diff, len: h.len === 'standard' ? 'standard' : 'quick', al: String(h.al || '0123').split('').map(Number), duo: String(h.duo || '0000').split('').map(c => Math.min(2, +c || 0)), seats: h.seats || {}, hostNick: h.nick, ph: h.ph, hostP };
+  return { mode: h.mode, map: h.map, diff: h.diff, time: [5, 10, 15].includes(+h.time) ? +h.time : 10, tgt: h.tgt == null ? null : +h.tgt, al: String(h.al || '0123').split('').map(Number), duo: String(h.duo || '0000').split('').map(c => Math.min(2, +c || 0)), seats: h.seats || {}, hostNick: h.nick, ph: h.ph, hostP };
 }
 export function renderLobby() {
   const NET = session.NET;
@@ -89,7 +89,7 @@ export function renderLobby() {
   const facOf = peer => { const p = peers.find(x => x.peer === peer); const f = p && p.presence && p.presence.fac; return FACTIONS[f] ? FACTIONS[f].name : ''; };
   const me = myPeer(NET.room);
   const seatOf = ti => Object.keys(v.seats).find(k => v.seats[k] === ti);
-  const sig = JSON.stringify([me, v.mode, v.map, v.diff, v.len, v.al, v.duo, v.seats, v.hostNick, NET.room.pending ? NET.room.pending() : 0, peers.map(p => [p.peer, p.presence && p.presence.nick, p.presence && p.presence.role, p.presence && p.presence.fac])]);
+  const sig = JSON.stringify([me, v.mode, v.map, v.diff, v.time, v.tgt, v.al, v.duo, v.seats, v.hostNick, NET.room.pending ? NET.room.pending() : 0, peers.map(p => [p.peer, p.presence && p.presence.nick, p.presence && p.presence.role, p.presence && p.presence.fac])]);
   if (sig === NET.lobbySig) return; NET.lobbySig = sig;
   const box = $('seats'); box.innerHTML = '';
   const seatBtn = (armyTi, t, label) => {
@@ -128,7 +128,12 @@ export function renderLobby() {
   const hostSeat = host ? NET.seats[NET.me] : v.seats[NET.hostPeer];
   const presetOf = al => Object.keys(PRESETS).find(k => allyFor(k, colorOf(hostSeat ?? 0)).join('') === al.join('')) || '';
   setSeg('lobbyFaction', prefs.faction, false);
-  setSeg('lobbyTeams', presetOf(v.al), !host); setSeg('lobbyMode', v.mode, !host); setSeg('lobbyMap', v.map, !host); setSeg('lobbyDiff', v.diff, !host); setSeg('lobbyLen', v.len, !host);
+  setSeg('lobbyTeams', presetOf(v.al), !host); setSeg('lobbyMode', v.mode, !host); setSeg('lobbyMap', v.map, !host); setSeg('lobbyDiff', v.diff, !host); setSeg('lobbyTime', v.time, !host);
+  { // the mode's own target (tickets, captures...), for the mode the host picked
+    const T = TARGETS[v.mode] || TARGETS.conquest, cur = v.tgt ?? T.def; $('lobbyTargetLabel').textContent = T.label;
+    const want = T.opts.map(o => o[0]).join(); if ($('lobbyTarget').dataset.opts !== want) { $('lobbyTarget').dataset.opts = want; $('lobbyTarget').innerHTML = T.opts.map(([x, n]) => `<button type="button" data-v="${x}">${n}</button>`).join(''); }
+    setSeg('lobbyTarget', cur, !host);
+  }
   $('startBtn').hidden = !host;
   const nAl = new Set(v.al).size, nPlayers = Object.keys(v.seats).length;
   $('startBtn').disabled = nAl < 2;
@@ -187,7 +192,7 @@ export function bindLobby(h) {
     busy = false;
     if (!gr) { $('netNote').textContent = 'Could not open a battle. Try again.'; return; }
     $('netNote').textContent = '';
-    const NET = session.NET = { role: 'host', room: gr, name: code, seats: {}, msgs: [], msgN: 0, snapN: 0, inp: {}, lobby: { mode: G.mode, map: G.map.id, diff: G.diff, len: G.len, al: allyFor(hooks.preset(), prefs.color), duo: [0, 0, 0, 0] } };
+    const NET = session.NET = { role: 'host', room: gr, name: code, seats: {}, msgs: [], msgN: 0, snapN: 0, inp: {}, lobby: { mode: G.mode, map: G.map.id, diff: G.diff, time: G.time, tgt: G.target, al: hooks.teams(), duo: [0, 0, 0, 0] } };
     const me = myPeer(gr) || 'me';
     NET.me = me; NET.seats[me] = prefs.color; G.myTi = prefs.color; G.role = 'host';
     NET.unsub = gr.onPeers(() => { if (G.state === 'lobby') hostLobbyTick(); });
@@ -221,7 +226,8 @@ export function bindLobby(h) {
   const lobbySeg = (id, key) => $(id).addEventListener('click', e => {
     const b = e.target.closest('button'), NET = session.NET; if (!b || !NET || NET.role !== 'host') return;
     if (key === 'al') NET.lobby.al = allyFor(b.dataset.v, colorOf(NET.seats[NET.me] ?? 0));
-    else if (key === 'diff') NET.lobby.diff = +b.dataset.v;
+    else if (key === 'diff' || key === 'time' || key === 'tgt') NET.lobby[key] = +b.dataset.v;
+    else if (key === 'mode') { NET.lobby.mode = b.dataset.v; NET.lobby.tgt = prefs.tgt[b.dataset.v] ?? targetFor(b.dataset.v); }
     else NET.lobby[key] = b.dataset.v;
     hostLobbyTick();
   });
@@ -230,12 +236,12 @@ export function bindLobby(h) {
     prefs.faction = b.dataset.v; prefs.save();
     if (NET.role === 'host') hostLobbyTick(); else { NET.lobbySig = null; NET.room.presence(myPresence()).catch(() => {}); renderLobby(); }
   });
-  lobbySeg('lobbyTeams', 'al'); lobbySeg('lobbyMode', 'mode'); lobbySeg('lobbyMap', 'map'); lobbySeg('lobbyDiff', 'diff'); lobbySeg('lobbyLen', 'len');
+  lobbySeg('lobbyTeams', 'al'); lobbySeg('lobbyMode', 'mode'); lobbySeg('lobbyMap', 'map'); lobbySeg('lobbyDiff', 'diff'); lobbySeg('lobbyTime', 'time'); lobbySeg('lobbyTarget', 'tgt');
   $('startBtn').addEventListener('click', () => {
     const NET = session.NET; if (!NET || NET.role !== 'host') return;
     initAudio();
     const L = NET.lobby;
-    G.mode = L.mode; G.map = MAPS[L.map]; G.diff = L.diff; G.len = L.len || 'quick'; G.ALLY = [...L.al];
+    G.mode = L.mode; G.map = MAPS[L.map]; G.diff = L.diff; G.time = L.time || 10; G.target = L.tgt ?? targetFor(L.mode); G.ALLY = [...L.al];
     G.myTi = NET.seats[NET.me] ?? 0;
     G.seed = (Math.random() * 1e9) | 0;
     NET.msgs = []; NET.msgN = 0; NET.inp = {}; NET.snapN = 0;

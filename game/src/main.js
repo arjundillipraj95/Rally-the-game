@@ -5,8 +5,8 @@ import '@fontsource/barlow-semi-condensed/latin-600.css';
 import '@fontsource/barlow-semi-condensed/latin-800.css';
 import '@fontsource/barlow-semi-condensed/latin-800-italic.css';
 import './style.css';
-import { TEAMS, MODES, MAPS, PRESETS, RANKS, CRESTS, QUIPS, TIPS } from './config.js';
-import { G, bus, colorOf, rules, matchTime, modeDesc, activeFrom } from './core/state.js';
+import { TEAMS, MODES, MAPS, PRESETS, RANKS, CRESTS, QUIPS, TIPS, AL_LETTER, TARGETS } from './config.js';
+import { G, bus, colorOf, rules, matchTime, modeDesc, activeFrom, targetFor, SLOT_NAME } from './core/state.js';
 import { startMatch, mkUnit, newTeams, update, fallStep, endMatch, auraRange, endStep, setOrder } from './core/sim.js';
 import { makeLayout, gatePos, groundY } from './core/world.js';
 import { buildNav } from './core/nav.js';
@@ -52,7 +52,9 @@ document.addEventListener('touchend', e => { const n = Date.now(); if (n - lastT
 
 const params = new URLSearchParams(location.search);
 if (params.get('stress') === '1') G.fullSquads = true; // every team starts with a full squad of 20
-let preset = 'ffa';
+// the home page's team setup, as in the multiplayer lobby: each colour's team, and its Duo/Trio
+let soloAl = (() => { try { const v = JSON.parse(localStorage.getItem('rally-solo-al')); if (Array.isArray(v) && v.length === 4 && v.every(x => x >= 0 && x < 4)) return v.map(Number); } catch (e) {} return [0, 1, 1, 0]; })();
+const saveSoloAl = () => { try { localStorage.setItem('rally-solo-al', JSON.stringify(soloAl)); } catch (e) {} };
 
 // ---------- presentation listens to the rules ----------
 bus.on('msg', m => showMsg(m.k, m.a));
@@ -224,7 +226,7 @@ function beginMatch(humans, active) {
   startTutorial();
 }
 setNetHooks({ onMatchStart: viewForMatch, onAbort: msg => netLeave(msg), onLobby: () => showLobby() });
-bindLobby({ startMatch: beginMatch, seedDemo, preset: () => preset, resetSolo: () => resetSolo() });
+bindLobby({ startMatch: beginMatch, seedDemo, teams: () => soloAl.slice(), resetSolo: () => resetSolo() });
 bindInput(actions); bindTutorial();
 
 // ---------- title scene ----------
@@ -275,19 +277,39 @@ function updateQualityNote() {
   $('qualityNote').textContent = quality.stepped ? `Lowered to ${lvl} to keep the game smooth.` : quality.setting === 'auto' ? `Auto picked ${lvl} for this device.` : '';
   $('segQuality').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === quality.setting)));
 }
-seg('segMode', v => { G.mode = v; updateDesc(); });
+seg('segMode', v => { G.mode = v; G.target = prefs.tgt[v] ?? targetFor(v); renderTargets(); updateDesc(); });
 seg('segMap', v => { G.map = MAPS[v]; updateDesc(); seedDemo(); });
-seg('segTeams', v => { preset = v; G.ALLY = allyFor(v, G.myTi); updateDesc(); });
 seg('segFaction', v => { prefs.faction = v; prefs.save(); seedDemo(); });
-seg('segColor', v => { prefs.color = +v; prefs.save(); resetSolo(); updateDesc(); seedDemo(); });
-// Duo/Trio for solo/vs-computer play: each color can get a second and third, computer-run army sharing
-// its castle. Each chip cycles that color Solo -> Duo -> Trio.
+// Teams, as in the multiplayer lobby: tap a colour to be it, its letter chip cycles its team, its
+// Duo chip adds a computer co-captain (tap again for a third: Trio). Remembered between visits.
 const soloDuo = [0, 0, 0, 0];
-$('segDuo').querySelectorAll('button').forEach((b, i) => {
-  const name = b.textContent.split(' ')[0];
-  b.addEventListener('click', () => { soloDuo[i] = (soloDuo[i] + 1) % 3; b.setAttribute('aria-pressed', String(soloDuo[i] > 0)); b.textContent = name + ' ' + ['Duo', 'Duo', 'Trio'][soloDuo[i]]; });
-});
-function resetSolo() { G.role = 'solo'; G.myTi = prefs.color; G.ALLY = allyFor(preset, G.myTi); }
+function renderSoloSeats() {
+  const box = $('soloSeats'); box.innerHTML = '';
+  TEAMS.forEach((t, i) => {
+    const col = document.createElement('div'); col.className = 'seatcol';
+    const seat = (label, who, extra) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'seat' + (extra ? ' slot2' : '') + (who === 'You' ? ' mine' : ''); b.style.background = t.css;
+      const n = document.createElement('b'); n.textContent = label; const s = document.createElement('span'); s.textContent = who; b.append(n, s); return b; };
+    const main = seat(t.name, i === prefs.color ? 'You' : 'Computer');
+    main.addEventListener('click', () => { if (prefs.color === i) return; prefs.color = i; prefs.save(); resetSolo(); renderSoloSeats(); updateDesc(); seedDemo(); });
+    const chip = document.createElement('span'); chip.className = 'alchip'; chip.setAttribute('role', 'button'); chip.tabIndex = 0; chip.textContent = 'Team ' + AL_LETTER[soloAl[i]]; chip.title = 'Tap to change team';
+    chip.addEventListener('click', e => { e.stopPropagation(); soloAl[i] = (soloAl[i] + 1) % 4; saveSoloAl(); resetSolo(); renderSoloSeats(); updateDesc(); });
+    const tog = document.createElement('span'); tog.className = 'duotog' + (soloDuo[i] ? ' on' : ''); tog.setAttribute('role', 'button'); tog.tabIndex = 0; tog.textContent = ['Duo', 'Duo', 'Trio'][soloDuo[i]];
+    tog.addEventListener('click', e => { e.stopPropagation(); soloDuo[i] = (soloDuo[i] + 1) % 3; renderSoloSeats(); });
+    main.append(chip, tog); col.appendChild(main);
+    for (let s = 1; s <= soloDuo[i]; s++) col.appendChild(seat(SLOT_NAME[s], 'Computer', true));
+    box.appendChild(col);
+  });
+  const sides = new Set(soloAl).size;
+  $('goBtn').disabled = sides < 2; // (everyone on one team: nobody to fight)
+}
+// each mode's target (tickets, captures...), shown for the mode picked
+function renderTargets() {
+  const T = TARGETS[G.mode]; $('targetLabel').textContent = T.label;
+  $('segTarget').innerHTML = T.opts.map(([v, n]) => `<button type="button" data-v="${v}" aria-pressed="${v === (G.target ?? T.def)}">${n}</button>`).join('');
+}
+seg('segTime', v => { G.time = +v; prefs.time = +v; prefs.save(); updateDesc(); });
+seg('segTarget', v => { G.target = +v; prefs.tgt[G.mode] = +v; prefs.save(); updateDesc(); });
+function resetSolo() { G.role = 'solo'; G.myTi = prefs.color; G.ALLY = soloAl.slice(); }
 function soloStart() {
   initAudio(); session.NET = null; resetSolo();
   G.seed = (Math.random() * 1e9) | 0;
@@ -298,7 +320,6 @@ function soloStart() {
 }
 const pressSeg = (id, v) => $(id).querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === String(v))));
 seg('segDiff', v => { G.diff = +v; });
-seg('segLen', v => { G.len = v; prefs.len = v; prefs.save(); updateDesc(); });
 seg('segMusic', v => { setMusic(v === 'on'); pressSeg('segMusic', v); });
 pressSeg('segMusic', musicEnabled() ? 'on' : 'off');
 seg('segQuality', v => {
@@ -329,13 +350,13 @@ function hideVeil() { clearTimeout(veilT); $('veil').hidden = true; }
 ['goBtn', 'quickBtn', 'startBtn'].forEach(id => { const b = $(id); if (b) b.addEventListener('pointerdown', showVeil); });
 $('againBtn').addEventListener('pointerdown', () => { if (!isHost()) showVeil(); }); // a host's "again" goes to the lobby, not a battle
 $('goBtn').addEventListener('click', soloStart);
-// One tap to a fight: Quick length, a random map and mode, everyone for themselves; keeps your
-// army, colour and difficulty. The menu shows what was picked, so "Fight again" repeats it.
+// One tap to a fight: Quick (5 min), a random map and mode; keeps your army, colour, teams and
+// difficulty. The menu shows what was picked, so "Fight again" repeats it.
 $('quickBtn').addEventListener('click', () => {
   const pick = a => a[(Math.random() * a.length) | 0];
   const mode = pick(Object.keys(MODES)), map = pick(['forum', 'valley', 'desert', 'frost']); // the four featured maps
-  G.mode = mode; G.map = MAPS[map]; G.len = 'quick'; preset = 'ffa';
-  pressSeg('segMode', mode); pressSeg('segMap', map); pressSeg('segLen', 'quick'); pressSeg('segTeams', 'ffa');
+  G.mode = mode; G.map = MAPS[map]; G.time = 5; G.target = targetFor(mode);
+  pressSeg('segMode', mode); pressSeg('segMap', map); pressSeg('segTime', 5); renderTargets();
   updateDesc(); soloStart();
 });
 // between battles is the one place a games-site ad may play (off during a Basic Launch; see portal.js)
@@ -486,7 +507,7 @@ window.__fb = {
 
 function onResize() { resize(); resizeOverlay(); }
 addEventListener('resize', onResize);
-G.len = prefs.len; pressSeg('segLen', prefs.len); pressSeg('segFaction', prefs.faction); pressSeg('segColor', prefs.color); resetSolo();
+G.time = prefs.time; G.target = prefs.tgt[G.mode] ?? targetFor(G.mode); pressSeg('segTime', prefs.time); pressSeg('segFaction', prefs.faction); resetSolo(); renderSoloSeats(); renderTargets();
 applyShadowQuality(); onResize(); updateDesc(); updateQualityNote(); seedDemo(); requestAnimationFrame(loop);
 // the games site (if we're on one): its SDK, its mute setting, and our pause during its ads
 portalInit({ mute: m => setMuted(m), pause: p => { paused = p; } }).then(() => { portal.loadingStart(); requestAnimationFrame(() => portal.loadingStop()); });

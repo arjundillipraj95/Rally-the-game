@@ -26,11 +26,17 @@ export const MODES = {
   ctf:      { name: 'Capture the Fort', time: 600, title: 'Captures', desc: 'A banner waits in the fort at the centre. Carry it home on foot to score. Allies pool captures; first side to {caps} wins.' },
   ctrl:     { name: 'Control', time: 600, title: 'Control Score', desc: 'Five points are scattered across the map. Whoever has the most soldiers on a point owns it, and every point you hold adds to your score each second. Allies pool their score; first alliance to {win} wins.' },
 };
-// Match length. Quick (the default) is a 4-5 minute battle: lower targets, castles that fall faster
-// and computer armies that march out with smaller squads. Standard is the original full-length war.
-export const LENGTHS = {
-  quick: { name: 'Quick', time: { conquest: 300, dm: 240, ctf: 270, ctrl: 240 }, tickets: 150, caps: 3, win: 280, castle: 2.2, gather: .6, gold: 1.5 },
-  standard: { name: 'Standard', time: { conquest: 600, dm: 480, ctf: 600, ctrl: 600 }, tickets: 250, caps: 6, win: 720, castle: 1, gather: 1, gold: 1 },
+// Match length, in minutes: Quick, Standard (the default) or Long. A shorter battle runs hotter: more
+// gold, and computer armies march out with smaller squads (gather).
+export const TIMES = [[5, 'Quick'], [10, 'Standard'], [15, 'Long']];
+export const PACE = { 5: { gather: .6, gold: 1.5 }, 10: { gather: 1, gold: 1 }, 15: { gather: 1.15, gold: .9 } };
+// Each mode's own target, chosen before the battle: how hard castles are to knock down (the damage
+// they take is multiplied by it), tickets each side has, captures to win, score to win.
+export const TARGETS = {
+  conquest: { label: 'Castles', key: 'castle', def: 1.4, opts: [[2.2, 'Weak'], [1.4, 'Normal'], [1, 'Strong']] },
+  dm: { label: 'Tickets', key: 'tickets', def: 150, opts: [[100, '100'], [150, '150'], [200, '200']] },
+  ctf: { label: 'Captures to win', key: 'caps', def: 5, opts: [[3, '3'], [5, '5'], [7, '7']] },
+  ctrl: { label: 'Score to win', key: 'win', def: 450, opts: [[250, '250'], [450, '450'], [650, '650']] },
 };
 // Control mode: capture points, how they flip, and how fast score builds.
 export const CTRL = { points: 5, captureTime: 5, rate: 1, win: 450, radius: 5 };

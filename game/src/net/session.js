@@ -9,6 +9,7 @@ const read = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch (e) 
 export const prefs = {
   faction: read('rally-faction', 'roman'),
   color: +read('rally-color', '0') || 0,
-  len: read('rally-len', 'quick') === 'standard' ? 'standard' : 'quick',
-  save() { try { localStorage.setItem('rally-faction', this.faction); localStorage.setItem('rally-color', String(this.color)); localStorage.setItem('rally-len', this.len); } catch (e) {} },
+  time: [5, 10, 15].includes(+read('rally-time', '10')) ? +read('rally-time', '10') : 10,
+  tgt: (() => { try { return JSON.parse(read('rally-targets', '{}')) || {}; } catch (e) { return {}; } })(), // (each mode's last target)
+  save() { try { localStorage.setItem('rally-faction', this.faction); localStorage.setItem('rally-color', String(this.color)); localStorage.setItem('rally-time', String(this.time)); localStorage.setItem('rally-targets', JSON.stringify(this.tgt)); } catch (e) {} },
 };

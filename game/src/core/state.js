@@ -1,6 +1,6 @@
 // The whole game state lives in one plain object. Rules read and write it;
 // the renderer and UI only read it. Nothing here depends on three.js or the DOM.
-import { MAPS, LENGTHS } from '../config.js';
+import { MAPS, TIMES, PACE, TARGETS } from '../config.js';
 
 export const G = {
   role: 'solo',          // 'solo' | 'host' | 'client'
@@ -8,7 +8,8 @@ export const G = {
   mode: 'conquest',
   map: MAPS.forum,
   diff: 1,
-  len: 'quick',          // match length: 'quick' | 'standard' (see LENGTHS)
+  time: 10,              // match length in minutes: 5 | 10 | 15 (see TIMES)
+  target: null,          // this mode's target (see TARGETS); null: the mode's default
   preset: 'ffa',
   ALLY: [0, 1, 2, 3],
   myTi: 0,
@@ -48,8 +49,18 @@ export const gateOff = ti => [0, 9, -9][ti >> 2];
 export const SLOT_NAME = ['', 'Co-captain', 'Third captain'];
 
 // the numbers for this match's length: time limit, tickets, captures, control target...
-export const rules = () => LENGTHS[G.len] || LENGTHS.quick;
-export const matchTime = () => rules().time[G.mode] || 600;
+// the numbers for this battle (pace from its length, and the target chosen for its mode), worked out
+// once per setting (it's read every frame)
+let rulesKey = '', rulesNow = null;
+export const rules = () => {
+  const k = G.time + '|' + G.mode + '|' + G.target; if (k === rulesKey) return rulesNow;
+  const t = TIMES.find(x => x[0] === G.time) || TIMES[1], P = PACE[t[0]];
+  const r = { name: t[1], gather: P.gather, gold: P.gold }; for (const T of Object.values(TARGETS)) r[T.key] = T.def;
+  const T = TARGETS[G.mode]; if (T && T.opts.some(o => o[0] === G.target)) r[T.key] = G.target;
+  rulesKey = k; return (rulesNow = r);
+};
+export const matchTime = () => (TIMES.some(x => x[0] === G.time) ? G.time : 10) * 60;
+export const targetFor = mode => { const T = TARGETS[mode]; return T ? T.def : null; };
 export const modeDesc = m => (m.desc || '').replace('{tickets}', rules().tickets).replace('{caps}', rules().caps).replace('{win}', rules().win);
 export const isEnemyTi = (a, b) => G.ALLY[colorOf(a)] !== G.ALLY[colorOf(b)];
 export const isEnemy = (a, b) => G.ALLY[colorOf(a.ti)] !== G.ALLY[colorOf(b.ti)];
