@@ -29,6 +29,17 @@ export function buildValley(world, L) {
   anim = { sails: null, birds: [] };
   const face = (x, z) => Math.atan2(-x, -z); // turned to look at the middle of the field
 
+  // ---- the villages in the passes: whitewashed cottages under thatch, a door facing the lane ----
+  for (const b of L.buildings.filter(b => b.kind === 'cottage')) {
+    const g = new THREE.Group(); g.position.set(b.x, terrainMeshY(b.x, b.z) - .1, b.z); g.rotation.y = b.rot;
+    const walls = new THREE.Mesh(new THREE.BoxGeometry(b.w, 2.3, b.d), M.plaster); walls.position.y = 1.15; g.add(walls);
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(Math.hypot(b.w, b.d) * .62, 1.9, 4), M.thatch); roof.rotation.y = Math.PI / 4; roof.scale.set(b.w / b.d, 1, 1); roof.position.y = 3.2; g.add(roof);
+    const door = new THREE.Mesh(new THREE.BoxGeometry(.8, 1.5, .12), M.woodDark); door.position.set(0, .75, b.d / 2 + .02); g.add(door);
+    const win = new THREE.Mesh(new THREE.BoxGeometry(.55, .5, .12), M.woodDark); win.position.set(b.w / 2 - .7, 1.5, b.d / 2 + .02); g.add(win);
+    const chim = new THREE.Mesh(new THREE.BoxGeometry(.4, 1.2, .4), M.stone); chim.position.set(-b.w / 2 + .5, 3.4, 0); g.add(chim);
+    world.add(shadowy(g));
+  }
+
   // ---- the windmill on the south rim ----
   {
     const x = Math.sin(-.2) * W.R * 1.08, z = -Math.cos(-.2) * W.R * 1.08, g = new THREE.Group(), y = terrainMeshY(x, z) - .3;

@@ -1,7 +1,7 @@
 // Terrain heights and map layouts. A layout is plain data (what stands where),
 // generated from a seed so every phone in an online match builds the same map.
 // Obstacles are circles {x,z,r} or boxes {box,x,z,hw,hd,rot}; `blockers` stop arrows below height h.
-import { TEAMS, CASTLE_R } from '../config.js';
+import { TEAMS, CASTLE_R, HOLDS } from '../config.js';
 import { G } from './state.js';
 
 export function mulberry(a) {
@@ -265,7 +265,7 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
   sizeWorld(mapId);
   const R = mulberry(seed | 0), r = (a, b) => a + R() * (b - a), S = W.S;
   const L = { mapId, withFort, ridges: [], roads: [], passes: [], flats: [], hills: [], palisades: [], rocks: [], trees: [], stones: [], obstacles: [], blockers: [], fortSegments: [],
-    buildings: [], columns: [], towers: [], rings: [], gates: [], palms: [], huts: [], statues: [] };
+    buildings: [], columns: [], towers: [], rings: [], gates: [], palms: [], huts: [], statues: [], holds: [] };
   const nearCastle = (x, z, pad) => TEAMS.some(t => Math.hypot(t.pos[0] - x, t.pos[1] - z) < 20 + pad);
   const clearOf = (x, z, pad = 0) => !nearCastle(x, z, pad) && Math.hypot(x, z) > (withFort ? 12 : 8) + pad && !(mapId === 'river' && Math.abs(z) < 9);
   for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2 + r(-.1, .1); L.hills.push({ a, d: r(150, 185) * S, rad: r(18, 34) * S, sy: r(.35, .6) }); }
@@ -403,7 +403,9 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
     for (let i = 0; i < 60; i++) { const x = r(-110, 110), z = r(-110, 110); if (!ok(x, z, 1) || Math.hypot(x, z) < 30 || nearOasis(x, z, 3)) continue; L.palms.push({ x, z, s: r(.9, 1.3), lean: r(-.25, .25), rot: r(0, 6.28) }); L.obstacles.push({ x, z, r: .5 }); }
     for (let i = 0; i < 24; i++) { const x = r(-110, 110), z = r(-110, 110); if (!ok(x, z, 3) || Math.hypot(x, z) < 32 || nearOasis(x, z, 5)) continue; box(L, x, z, 1.8, 1.4, r(0, 3), 2.4, 'tent'); }
     bigRocks(16, (x, z) => Math.hypot(x, z) > 28);
-
+    // the prize: a spring in the old fort, palms round it. Whoever holds it heals and grows rich
+    L.holds.push({ x: 0, z: 0, kind: 'oasis', r: HOLDS.oasis.r, px: 4.8, pz: 0 });
+    for (let k = 0; k < 7; k++) { const a = k / 7 * Math.PI * 2 + .3, d = r(7.5, 9.5); const x = Math.cos(a) * d, z = Math.sin(a) * d; L.palms.push({ x, z, s: r(1.05, 1.35), lean: r(-.2, .2), rot: r(0, 6.28), spring: true }); L.obstacles.push({ x, z, r: .45 }); }
   }
 
   if (mapId === 'wooden') {
@@ -438,6 +440,13 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
     }
     for (let i = 0; i < 50; i++) { const a = r(0, 6.28), d = r(95, 130) * S; L.trees.push({ x: Math.cos(a) * d, z: Math.sin(a) * d, s: r(1, 1.6) }); }
     bigRocks(26);
+    // a village in each pass on the x axis (between enemy castles in 2v2): hold it and it sends you men.
+    // Its cottages stand at the corners of the wheat field, leaving the way through open
+    for (const sx of [-1, 1]) {
+      const cx = sx * ROUTES.pass;
+      L.holds.push({ x: cx, z: 0, kind: 'village', r: HOLDS.village.r, px: cx + sx * 7.3, pz: 0 });
+      for (const [dx, dz] of [[-6.6, -8.8], [6.6, -8.8], [-6.6, 8.8], [6.6, 8.8]]) box(L, cx + dx, dz + r(-.6, .6), 1.9, 1.5, r(-.15, .15) + (dz > 0 ? Math.PI : 0), 3.2, 'cottage');
+    }
   }
 
   for (const t of TEAMS) L.obstacles.push({ x: t.pos[0], z: t.pos[1], r: CASTLE_R, castle: true });

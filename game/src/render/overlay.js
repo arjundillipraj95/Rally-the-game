@@ -8,6 +8,7 @@ import { camera, view } from './scene.js';
 import { cam } from './camera.js';
 import { parts, floats, pows } from './effects.js';
 import { bubbles } from './banter.js';
+import { sideCss } from './holds.js';
 
 const fx = document.getElementById('fx'), ctx = fx.getContext('2d');
 const mini = document.getElementById('mini'), mctx = mini.getContext('2d');
@@ -56,7 +57,7 @@ export function drawOverlay(opts) {
     drawStars(); drawFinish();
     drawBubbles();
     if (G.flag) drawFlagPointer();
-    if (G.mode === 'ctrl') drawControlLabels();
+    if (G.mode === 'ctrl') drawControlLabels(); drawHoldLabels();
     if (G.mode === 'dm' && G.bounty === G.myTi && player && !player.dead && (performance.now() / 500 % 1) < .7) {
       ctx.font = 'italic 18px Bangers, Impact, sans-serif'; ctx.fillStyle = '#ffcf3a'; ctx.fillText('BOUNTY ON YOU', W / 2, 118);
     }
@@ -131,6 +132,19 @@ function drawStars() {
     }
   }
 }
+// The map's holdings: a name over each banner in its holder's colour, with a bar while it's being taken.
+function drawHoldLabels() {
+  const hs = G.holds; if (!hs || !hs.length) return;
+  for (const h of hs) {
+    const px = h.px ?? h.x, pz = h.pz ?? h.z, [sx, sy, ok] = proj(px, groundY(px, pz) + 7.4, pz); if (!ok) continue;
+    const d = Math.hypot(px - camera.position.x, pz - camera.position.z), sz = Math.round(clamp(900 / d, 12, 22));
+    const name = h.kind === 'oasis' ? 'OASIS' : 'VILLAGE';
+    ctx.textAlign = 'center'; ctx.font = `italic ${sz}px Bangers, Impact, sans-serif`; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.6)';
+    ctx.strokeText(name, sx, sy); ctx.fillStyle = h.owner >= 0 ? sideCss(h.owner) : '#efe9d8'; ctx.fillText(name, sx, sy);
+    if (h.contested) { ctx.font = `800 ${Math.round(sz * .6)}px "Barlow Semi Condensed", sans-serif`; ctx.fillStyle = '#ffcf3a'; ctx.strokeText('CONTESTED', sx, sy + sz * .8); ctx.fillText('CONTESTED', sx, sy + sz * .8); }
+    else if (h.cap >= 0 && h.prog > 0) { const w = sz * 2.6; ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, sy + 6, w, 5); ctx.fillStyle = sideCss(h.cap); ctx.fillRect(sx - w / 2, sy + 6, w * Math.min(1, h.prog), 5); }
+  }
+}
 function drawControlLabels() {
   const cps = G.ctrlPoints; if (!cps) return;
   for (const p of cps) {
@@ -196,6 +210,10 @@ function drawMini() {
     mctx.fillStyle = (G.mode !== 'conquest' || G.teams[i].alive) ? t.css : '#555'; mctx.fillRect(t.pos[0] * k - 9, t.pos[1] * k - 9, 18, 18);
     if (!isFfa() && !isEnemyTi(i, G.myTi)) { mctx.strokeStyle = '#fff'; mctx.lineWidth = 2; mctx.strokeRect(t.pos[0] * k - 9, t.pos[1] * k - 9, 18, 18); }
   });
+  for (const h of G.holds || []) { // the map's holdings: a ring in the holder's colour
+    mctx.lineWidth = 3; mctx.strokeStyle = h.contested || (h.cap >= 0 && h.prog > 0) ? '#ffcf3a' : h.owner >= 0 ? sideCss(h.owner) : 'rgba(255,255,255,.75)';
+    mctx.beginPath(); mctx.arc(h.x * k, h.z * k, Math.max(6, h.r * k), 0, Math.PI * 2); mctx.stroke();
+  }
   for (const u of G.units) { if (u.dead) continue; mctx.fillStyle = TEAMS[colorOf(u.ti)].css; const s = u.leader ? 6 : 3.5; mctx.fillRect(u.x * k - s / 2, u.z * k - s / 2, s, s); }
   if (G.flag) {
     const fc = G.flag.state === 'carried' && G.flag.carrier ? G.flag.carrier : G.flag;

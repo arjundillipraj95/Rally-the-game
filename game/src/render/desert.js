@@ -10,6 +10,7 @@ import { stoneTex, woodTex, uvScale } from './look.js';
 const green = new THREE.Color(0x9aa55a), salt = new THREE.Color(0xf1e2c0), gravel = new THREE.Color(0xa88a62);
 export function desertGround(c, x, z) {
   for (const o of OASES) { const d = Math.hypot(x - o.x, z - o.z); if (d < o.r + 6) c.lerp(green, Math.min(.75, (o.r + 6 - d) / 4)); }
+  { const d = Math.hypot(x, z); if (d < 12.5) c.lerp(green, Math.min(.8, (12.5 - d) / 4)); } // (the spring in the old fort: the prize)
   const r = Math.hypot(x, z); if (r < 28) return;
   const n = Math.sin(x * .09 - 1) * Math.cos(z * .08 + 2) + Math.sin((x - z) * .04) * .6;
   if (n > 1) c.lerp(salt, Math.min(.5, (n - 1) * 1.4)); else if (n < -1.1) c.lerp(gravel, Math.min(.45, (-1.1 - n) * 1.2));
@@ -40,6 +41,16 @@ export function buildDesert(world, L) {
     const w = new THREE.Mesh(new THREE.CircleGeometry(o.r + .3, 40), M.water); w.rotation.x = -Math.PI / 2; w.position.set(o.x, y, o.z); world.add(w); anim.water.push(w);
     const reeds = new THREE.InstancedMesh(new THREE.ConeGeometry(.06, 1.4, 4), M.reed, 60), mx = new THREE.Matrix4();
     for (let k = 0; k < 60; k++) { const a = R() * Math.PI * 2, d = o.r - .3 + R() * 1.2, x = o.x + Math.cos(a) * d, z = o.z + Math.sin(a) * d; mx.makeRotationZ((R() - .5) * .4); mx.setPosition(x, y + .5, z); reeds.setMatrixAt(k, mx); }
+    world.add(reeds);
+  }
+
+  // ---- the spring in the old fort (the map's prize): a pool in a ring of stones, reeds round it ----
+  {
+    const y = terrainMeshY(0, 0) + .07;
+    const w = new THREE.Mesh(new THREE.CircleGeometry(3.6, 40), M.water); w.rotation.x = -Math.PI / 2; w.position.set(0, y, 0); world.add(w); anim.water.push(w);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(3.75, .32, 6, 28), lam(0xb9a27a)); rim.rotation.x = Math.PI / 2; rim.position.set(0, y + .05, 0); world.add(shadowy(rim));
+    const reeds = new THREE.InstancedMesh(new THREE.ConeGeometry(.06, 1.4, 4), M.reed, 40), mx = new THREE.Matrix4();
+    for (let k = 0; k < 40; k++) { const a = R() * Math.PI * 2, d = 4.2 + R() * 1.4; mx.makeRotationZ((R() - .5) * .4); mx.setPosition(Math.cos(a) * d, y + .5, Math.sin(a) * d); reeds.setMatrixAt(k, mx); }
     world.add(reeds);
   }
 

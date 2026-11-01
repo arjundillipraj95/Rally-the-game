@@ -4,6 +4,7 @@ import { TEAMS, CASTLE_R, CTRL } from '../config.js';
 import { G } from '../core/state.js';
 import { groundY, terrainMeshY, mulberry, W, distToLine } from '../core/world.js';
 import { buildRidges } from './ridges.js';
+import { buildHolds, updateHolds } from './holds.js';
 import { scene, setLook } from './scene.js';
 import { quality } from './quality.js';
 import { lookFor, groundTex, stoneTex, woodTex, uvScale } from './look.js';
@@ -150,6 +151,7 @@ export function buildWorldView(L) {
   TEAMS.forEach((t, i) => castleObjs.push(buildCastle(t, i)));
   if (L.withFort) buildFort(L);
   ctrlObjs = L.ctrlSpots && L.ctrlSpots.length ? buildControlPoints(L) : [];
+  buildHolds(world, L);
   buildFeatures(L, world);
   if (M.id === 'valley') buildValley(world, L);
   if (M.id === 'frost') buildFrost(world);
@@ -290,7 +292,7 @@ export function updateWorldView(dt, fxHook) {
   updateValley(dt, grassU.time.value);
   updateFrost(dt, grassU.time.value);
   updateDesert(dt, grassU.time.value);
-  updateControlPoints();
+  updateControlPoints(); updateHolds();
   TEAMS.forEach((t, i) => {
     const s = G.teams[i], co = castleObjs[i]; if (!co || !s) return;
     const want = G.mode !== 'conquest' ? 1 : s.alive ? 1 - (1 - s.points / 100) * .12 : .28;

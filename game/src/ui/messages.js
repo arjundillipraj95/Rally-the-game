@@ -36,6 +36,11 @@ export function msgText(k, a) {
       : [`${nm(a[0])}'s army breaks and runs!`, ally(a[0]) ? 'Cover them' : 'Cut them down', css(a[0])];
     case 'focusDone': return mine(a[0]) ? ['Group destroyed', 'Your men fall back in', '#ffcf3a'] : null;
     case 'left': return [`${nm(a[0])}'s player left`, 'The computer takes over their army', css(a[0])];
+    case 'holdTaken': { // a[0]: the alliance that took it, a[1]: what it is
+      const ours = a[0] === G.ALLY[colorOf(myTi)], oasis = a[1] === 'oasis', what = oasis ? 'the Oasis' : 'a village';
+      return ours ? [`Your side holds ${what}!`, oasis ? 'Your men heal in it, and gold flows in' : 'It will send you footmen', '#ffcf3a']
+        : [`${allyNames(a[0])} took ${what}`, oasis ? 'They heal there and grow rich. Take it back' : 'It sends them men. Take it back', '#e0352b'];
+    }
     case 'pointCaptured': return mine(a[0]) ? [`You captured Point ${a[1]}!`, '', css(a[0])] : [`${nm(a[0])} captured Point ${a[1]}!`, ally(a[0]) ? 'Reinforce them' : 'Take it back', css(a[0])];
   }
   return null;
@@ -45,6 +50,8 @@ export function showMsg(k, a) {
   bus.emit('shownMsg', { k, a });
   const myTi = G.myTi;
   if (k === 'gold') { if (a[0] === myTi) { floatText(a[1], groundY(a[1], a[2]) + 2.6, a[2], `+${a[3]} gold`, '#ffcf3a'); sfx.coin(); } return; }
+  if (k === 'holdMen') { const p = G.player; if (a[0] === myTi && p && !p.dead) floatText(p.x, p.y + 3.4, p.z, '+1 footman from the village', '#ffcf3a'); return; }
+  if (k === 'holdTaken') { sfx.capture(); if (a[0] === G.ALLY[colorOf(myTi)]) { sfx.cheer(); buzz([50, 30, 50]); } }
   const m = msgText(k, a); if (!m) return;
   banner(m[0], m[1], m[2]);
   if (k === 'horseDown' && a[0] === myTi) { buzz(120); cam.shake = .5; }

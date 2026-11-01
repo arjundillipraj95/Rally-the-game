@@ -1,6 +1,6 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
-import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT } from '../config.js';
+import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, HOLDS, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, activeFrom, gateOff, ARMIES, rules, matchTime } from './state.js';
 import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W, groundSlow, onIce } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable } from './nav.js';
@@ -50,6 +50,7 @@ export function startMatch(humans, active = activeFrom([0, 0, 0, 0])) {
   G.duo = [0, 1, 2, 3].map(c => active[c + 8] ? 2 : active[c + 4] ? 1 : 0);
   G.flag = G.mode === 'ctf' ? { state: 'home', x: 0, z: 0, carrier: null, dropT: 0 } : null;
   G.ctrlPoints = G.mode === 'ctrl' ? makeCtrlPoints(G.layout) : null;
+  G.holds = makeHolds(G.layout);
   for (let i = 0; i < ARMIES; i++) {
     if (!G.teams[i].active) continue;
     const t = TEAMS[colorOf(i)], off = gateOff(i); // a castle's captains muster side by side along its gate
@@ -818,6 +819,58 @@ function updateControlPoints(dt) {
   checkEnd();
 }
 
+// ---------- holdings: places on the map worth taking ----------
+// Owned by an alliance (G.ALLY value), not an army: allies share them. Taken by standing in one with
+// only your side's men there; a fight inside freezes it; empty, a half-taken one slowly reverts.
+export const makeHolds = L => (L.holds || []).map((h, i) => ({ ...h, id: i, owner: -1, prog: 0, cap: -1, tick: 0 }));
+const allianceOf = ti => G.ALLY[colorOf(ti)];
+const sideArmies = a => activeArmies().filter(i => allianceOf(i) === a && !teamOut(i));
+function holdsTick(dt) {
+  const hs = G.holds; if (!hs || !hs.length) return;
+  for (const h of hs) {
+    const n = new Map();
+    for (const u of G.units) { if (u.dead || u.routing || Math.hypot(u.x - h.x, u.z - h.z) > h.r) continue; const a = allianceOf(u.ti); n.set(a, (n.get(a) || 0) + 1); }
+    h.contested = n.size > 1;
+    if (n.size === 1) {
+      const [a] = n.keys();
+      if (a === h.owner) { h.prog = 0; h.cap = -1; }
+      else {
+        if (h.cap !== a) { h.cap = a; h.prog = 0; }
+        h.prog += dt / HOLDS.capture * Math.min(2, .6 + n.get(a) / 5); // (more men take it quicker)
+        if (h.prog >= 1) { h.owner = a; h.prog = 0; h.cap = -1; h.tick = 0; say('holdTaken', a, h.kind); G.teams.forEach(s => { if (!s.human) s.thinkT = Math.min(s.thinkT, rnd(.5, 2)); }); }
+      }
+    } else if (n.size === 0 && h.prog > 0) { h.prog = Math.max(0, h.prog - dt / HOLDS.capture * .5); if (!h.prog) h.cap = -1; }
+    if (h.owner < 0) continue;
+    if (h.kind === 'oasis') { // its water heals the men in it; its trade fills every purse on the side
+      for (const u of G.units) if (!u.dead && u.hp < u.max && allianceOf(u.ti) === h.owner && Math.hypot(u.x - h.x, u.z - h.z) < h.r) u.hp = Math.min(u.max, u.hp + HOLDS.oasis.heal * dt);
+      for (const i of sideArmies(h.owner)) G.teams[i].gold += HOLDS.oasis.gold * dt;
+    } else if (h.kind === 'village') { // now and then a lad picks up a spear and walks out to join you
+      h.tick += dt;
+      if (h.tick >= HOLDS.village.every) {
+        h.tick = 0;
+        const arms = sideArmies(h.owner).filter(i => G.teams[i].leader && !G.teams[i].leader.dead && squadOf(i).length < G.squadCap);
+        const near = i => G.units.filter(u => !u.dead && u.ti === i && Math.hypot(u.x - h.x, u.z - h.z) < h.r).length;
+        arms.sort((x, y) => near(y) - near(x));
+        if (arms.length) { const i = arms[0], m = mkUnit(i, h.x + rnd(-1.5, 1.5), h.z + rnd(-1.5, 1.5), 'foot'); m.face = Math.atan2(G.teams[i].leader.x - m.x, G.teams[i].leader.z - m.z); say('holdMen', i, h.kind); }
+      }
+    }
+  }
+}
+// A computer captain's eye for the map: a holding his side doesn't have (or one of his side's under
+// attack nearby) is worth a march, more so for some captains than others.
+function holdPlan(u, s) {
+  const hs = G.holds; if (!hs || !hs.length) return null;
+  const a = allianceOf(u.ti);
+  if (s.plan && s.plan.kind === 'hold') { const h = hs[s.plan.id]; if (h && (h.owner !== a || h.contested) && Math.random() > .12) return s.plan; }
+  s.holdBias = s.holdBias ?? rnd(.3, .7);
+  const d = h => Math.hypot(h.x - u.x, h.z - u.z);
+  const threatened = hs.filter(h => h.owner === a && (h.contested || h.cap >= 0) && d(h) < 70).sort((x, y) => d(x) - d(y))[0];
+  if (threatened && Math.random() < .7) return { kind: 'hold', id: threatened.id };
+  const want = hs.filter(h => h.owner !== a).sort((x, y) => d(x) - d(y))[0];
+  if (want && Math.random() < s.holdBias) return { kind: 'hold', id: want.id };
+  return null;
+}
+
 // ---------- capture the fort ----------
 function dropFlag(u) {
   const f = G.flag; u.carrying = false; f.state = 'dropped'; f.carrier = null; f.x = u.x; f.z = u.z; f.dropT = 10;
@@ -1061,6 +1114,7 @@ function planLeader(u, s) {
     // gather a real army at home before marching out (keeps the big clashes big)
     const gather = Math.round((s.plan && s.plan.kind === 'castle' ? 4 : 11) * rules().gather);
     if (G.teams[colorOf(u.ti)].alive && (threat || squadN < gather)) { s.plan = { kind: 'defend' }; return; }
+    { const hp = holdPlan(u, s); if (hp) { s.plan = hp; return; } } // (the map's prize, if it has one)
     let target = s.plan && s.plan.kind === 'castle' && G.teams[s.plan.ti].alive && Math.random() > .08 ? s.plan.ti : null;
     if (target == null) {
       const opts = [0, 1, 2, 3].filter(c => isEnemyTi(c, u.ti) && G.teams[c].alive)
@@ -1071,6 +1125,7 @@ function planLeader(u, s) {
   } else if (G.mode === 'dm') {
     const gather = Math.round((s.plan && s.plan.kind === 'hunt' ? 3 : 9) * rules().gather);
     if (squadN < gather && s.tickets > 0) { s.plan = { kind: 'defend' }; return; }
+    { const hp = holdPlan(u, s); if (hp) { s.plan = hp; return; } }
     const [cap] = nearestFoe(u, 400, o => o.leader), [any] = nearestFoe(u, 400);
     const bl = G.bounty >= 0 && isEnemyTi(G.bounty, u.ti) && Math.random() < .5 ? G.teams[G.bounty].leader : null;
     s.plan = { kind: 'hunt', target: (bl && !bl.dead) ? bl : (cap || any) };
@@ -1099,6 +1154,7 @@ function planGoal(u, s) {
     case 'home': { const [gx, gz] = gatePos(t); return { x: gx, z: gz, stop: .5 }; }
     case 'banner': return { x: G.flag.x, z: G.flag.z, stop: .2 };
     case 'point': { const pt = G.ctrlPoints && G.ctrlPoints[p.id]; return pt ? { x: pt.x, z: pt.z, stop: CTRL.radius * .6 } : null; }
+    case 'hold': { const h = G.holds && G.holds[p.id]; return h ? { x: h.x, z: h.z, stop: h.r * .35 } : null; }
   }
   return null;
 }
@@ -1169,6 +1225,7 @@ function aiHold(u, s) {
   const p = s.plan; let spot = null;
   if (p && p.kind === 'defend') spot = gatePos(TEAMS[colorOf(u.ti)], gateOff(u.ti), 3);
   else if (p && p.kind === 'point') { const pt = G.ctrlPoints && G.ctrlPoints[p.id]; if (pt && pt.owner === u.ti) spot = [pt.x, pt.z]; }
+  else if (p && p.kind === 'hold') { const h = G.holds && G.holds[p.id]; if (h && h.owner === allianceOf(u.ti)) spot = [h.x, h.z]; }
   if (!spot || Math.hypot(u.x - spot[0], u.z - spot[1]) > 10) return;
   const [f] = nearestFoe({ x: spot[0], z: spot[1], ti: u.ti }, 34, o => !o.dead);
   if (!f) return;
@@ -1605,7 +1662,7 @@ export function update(dt, input) {
 
   arrowsTick(dt, true);
   updateFlag(dt);
-  updateControlPoints(dt);
+  updateControlPoints(dt); holdsTick(dt);
   checkTime();
 }
 // After the whistle: the winners stay put (the renderer has them celebrating) and everyone else

@@ -38,9 +38,9 @@ export const CTRL = { points: 5, captureTime: 5, rate: 1, win: 450, radius: 5 };
 export const MAPS = {
   forum:     { id: 'forum',     name: 'Forum',        desc: 'A Roman city. Rows of houses wall off every corner, so armies meet in the streets and fight for the gates between them. Four temples give the high ground: fighting down their steps deals +20% damage and archers on top shoot 30% farther.', sky: 0xdcd6c6, fog: [70, 200], g1: 0xd9cdb4, g2: 0xc8b99c, g3: 0xb5a584, hill: 0x8a7c66, rock: 0x9b9384 },
   colosseum: { id: 'colosseum', name: 'Colosseum',    desc: 'An arena ringed by a roaring crowd. The inner pit has four gates that slam shut for 20 seconds every minute.', sky: 0xdcd6c6, fog: [80, 220], g1: 0xdcc08e, g2: 0xcdae78, g3: 0xb89a6a, hill: 0x8a7c66, rock: 0x9b9384 },
-  desert:    { id: 'desert',    name: 'Desert Fort',  desc: 'A walled fortress on a plateau, ringed by sandstone mesas. Lanes wind round them to the four ramps up to the fort, and the oases lie in the passes between corners (wading them is slow). Hold the ramps and you hold the high ground.', sky: 0xe6d6b8, fog: [70, 230], g1: 0xe2bd82, g2: 0xd2a468, g3: 0xb98f5c, hill: 0x9c7a50, rock: 0xa58a68 },
+  desert:    { id: 'desert',    name: 'Desert Fort',  desc: 'A walled fort on a plateau, ringed by sandstone mesas. Inside the fort is a spring: the side that holds it heals its men there and earns extra gold. Race for it, or hit their castles while they fight over the water.', sky: 0xe6d6b8, fog: [70, 230], g1: 0xe2bd82, g2: 0xd2a468, g3: 0xb98f5c, hill: 0x9c7a50, rock: 0xa58a68 },
   wooden:    { id: 'wooden',    name: 'Wooden Fort',  desc: 'Every castle sits inside a log palisade with two gates, in a green valley of huts and watchtowers. Defenders fight at the gates.', sky: 0xcfdde0, fog: [60, 210], g1: 0x7fa04a, g2: 0x6c8a42, g3: 0x5d6f40, hill: 0x5b6a55, rock: 0x8a8d86 },
-  valley:    { id: 'valley',    name: 'Grass Valley', desc: 'Rolling farmland cut by rocky ridges. Two lanes lead out of every corner, and a pass through a wheat field (slow going) joins each pair of neighbours. Climb the ridge slopes and your archers shoot farther.', sky: 0xcfdde0, fog: [60, 220], g1: 0x8aad50, g2: 0x76983f, g3: 0x5d6f40, hill: 0x5b6a55, rock: 0x8f8f86 },
+  valley:    { id: 'valley',    name: 'Grass Valley', desc: 'Rolling farmland cut by rocky ridges. A village sits in each side pass: hold one and it sends you footmen. Split your army to take both, or win one and swing to the other.', sky: 0xcfdde0, fog: [60, 220], g1: 0x8aad50, g2: 0x76983f, g3: 0x5d6f40, hill: 0x5b6a55, rock: 0x8f8f86 },
   dunes:  { id: 'dunes',  name: 'Dune Field',  desc: 'Open sand and scattered fences. Straight fights.', sky: 0xdcd6c6, fog: [70, 190], g1: 0xc9a978, g2: 0xb8956a, g3: 0xa88a62, hill: 0x6e6258, rock: 0x8d8174 },
   river:  { id: 'river',  name: 'River Ford',  desc: 'A river splits the field. Two bridges and a shallow ford that slows everyone crossing it.', sky: 0xcfdde0, fog: [70, 190], g1: 0x7f9a4c, g2: 0x6c8a42, g3: 0x5d6f40, hill: 0x5b6a55, rock: 0x8a8d86 },
   forest: { id: 'forest', name: 'Pine Forest', desc: 'Dense pine clusters. Trees stop arrows and hide ambushes.', sky: 0xb9c8b0, fog: [34, 120], g1: 0x55733a, g2: 0x62803f, g3: 0x44582f, hill: 0x3e4c34, rock: 0x7a7c70 },
@@ -124,6 +124,11 @@ export const RIDE = { gallop: 1.6, turnLoss: 1.1, lockR: 16, lockCone: .9, perfe
 // Blows from the side or behind always land flankX harder on soldiers.
 export const MORALE = { death: 7, flankDeath: 5, captain: 35, regen: 3, calmR: 15, rout: 20, waver: 40, regroup: 45, routT: 6, steady: 12, homeR: 32, flankAng: 2.0, flankX: 1.25 };
 // (steady: after regrouping, an army can't break again for this long; homeR: men this close to their own castle fight with their backs to the wall and don't break)
+// Places on a map worth taking: each map's own question. Stand in one with more of your side's men
+// than anyone else's and, after capture s (quicker with more men), it turns your side's colour; allies
+// share it. oasis: your men in it heal, and every army on your side earns gold. village: every `every`
+// seconds a footman walks out to the army on your side with the most men there.
+export const HOLDS = { capture: 7, oasis: { r: 13, heal: 6, gold: 2.5, name: 'the Oasis' }, village: { r: 11, every: 15, name: 'a village' } };
 // A blow from behind (a captain's): harder, and it staggers. Circle him.
 export const BACKSTAB = { mult: 1.6, stun: .5 };
 // The execution: an enemy captain beaten down (hp at or under hp of his max, or hpStunned while
