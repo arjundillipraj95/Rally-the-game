@@ -320,7 +320,7 @@ function seg(id, cb) {
   });
 }
 function updateDesc() {
-  const tdesc = describeTeams(G.ALLY, G.myTi);
+  const tdesc = describeTeams(G.ALLY, G.myTi, soloDuo.map(d => d < 0));
   $('desc').innerHTML = `<strong>${MODES[G.mode].name} · ${rules().name}, about ${Math.round(matchTime() / 60)} min.</strong> ${modeDesc(MODES[G.mode])}<br><strong>${G.map.name}.</strong> ${G.map.desc} <strong>Teams:</strong> ${tdesc}`;
 }
 function updateQualityNote() {
@@ -341,16 +341,19 @@ function renderSoloSeats() {
     const seat = (label, who, extra) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'seat' + (extra ? ' slot2' : '') + (who === 'You' ? ' mine' : ''); b.style.background = t.css;
       const n = document.createElement('b'); n.textContent = label; const s = document.createElement('span'); s.textContent = who; b.append(n, s); return b; };
     const main = seat(t.name, i === prefs.color ? 'You' : 'Computer');
-    main.addEventListener('click', () => { if (prefs.color === i) return; prefs.color = i; prefs.save(); resetSolo(); renderSoloSeats(); updateDesc(); seedDemo(); });
+    main.addEventListener('click', () => { if (prefs.color === i) return; if (soloDuo[i] < 0) soloDuo[i] = 0; prefs.color = i; prefs.save(); resetSolo(); renderSoloSeats(); updateDesc(); seedDemo(); });
     const chip = document.createElement('span'); chip.className = 'alchip'; chip.setAttribute('role', 'button'); chip.tabIndex = 0; chip.textContent = 'Team ' + AL_LETTER[soloAl[i]]; chip.title = 'Tap to change team';
     chip.addEventListener('click', e => { e.stopPropagation(); soloAl[i] = (soloAl[i] + 1) % 4; saveSoloAl(); resetSolo(); renderSoloSeats(); updateDesc(); });
-    const tog = document.createElement('span'); tog.className = 'duotog' + (soloDuo[i] ? ' on' : ''); tog.setAttribute('role', 'button'); tog.tabIndex = 0; tog.textContent = ['Duo', 'Duo', 'Trio'][soloDuo[i]];
-    tog.addEventListener('click', e => { e.stopPropagation(); soloDuo[i] = (soloDuo[i] + 1) % 3; renderSoloSeats(); });
+    // the chip cycles: Duo, Trio, Out (not in this battle: a 2- or 3-castle battle), and back. Never your own colour out.
+    const out = soloDuo[i] < 0;
+    const tog = document.createElement('span'); tog.className = 'duotog' + (soloDuo[i] > 0 ? ' on' : '') + (out ? ' outt' : ''); tog.setAttribute('role', 'button'); tog.tabIndex = 0; tog.textContent = out ? 'Out' : ['Duo', 'Duo', 'Trio'][soloDuo[i]];
+    tog.addEventListener('click', e => { e.stopPropagation(); soloDuo[i] = soloDuo[i] === 2 ? (i === prefs.color || soloDuo.filter(d => d >= 0).length <= 2 ? 0 : -1) : soloDuo[i] + 1; renderSoloSeats(); updateDesc(); });
+    if (out) { main.classList.add('outseat'); main.querySelector('span').textContent = 'Not in this battle'; }
     main.append(chip, tog); col.appendChild(main);
     for (let s = 1; s <= soloDuo[i]; s++) col.appendChild(seat(SLOT_NAME[s], 'Computer', true));
     box.appendChild(col);
   });
-  const sides = new Set(soloAl).size;
+  const sides = new Set(soloAl.filter((_, i) => soloDuo[i] >= 0)).size;
   $('goBtn').disabled = sides < 2; // (everyone on one team: nobody to fight)
 }
 // each mode's target (tickets, captures...), shown for the mode picked

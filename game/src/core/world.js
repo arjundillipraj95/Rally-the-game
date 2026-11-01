@@ -2,7 +2,7 @@
 // generated from a seed so every phone in an online match builds the same map.
 // Obstacles are circles {x,z,r} or boxes {box,x,z,hw,hd,rot}; `blockers` stop arrows below height h.
 import { TEAMS, CASTLE_R, HOLDS, FORT, CENTRES } from '../config.js';
-import { G } from './state.js';
+import { G, isOut } from './state.js';
 
 export function mulberry(a) {
   return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -35,9 +35,15 @@ export const SIDES = { flanks: [0, Math.PI], mids: [] }; // flanks: the two plac
 export function placeCastles(mapId, seed) {
   sizeWorld(mapId);
   const ang = TEAMS.map(t => Math.atan2(t.pos[1], t.pos[0])), al = G.ALLY && G.ALLY.length === 4 ? G.ALLY : [0, 1, 2, 3];
+  const inC = [0, 1, 2, 3].filter(c => !isOut(c)); // (a 2- or 3-castle battle: the others aren't there)
+  if (CORNERED.has(mapId) && inC.length === 2 && Math.hypot(TEAMS[inC[0]].pos[0] + TEAMS[inC[1]].pos[0], TEAMS[inC[0]].pos[1] + TEAMS[inC[1]].pos[1]) > 1) {
+    // two castles on a cornered map: across the middle from each other (the second takes the corner opposite the first)
+    const o = [0, 1, 2, 3].find(c => Math.hypot(TEAMS[c].pos[0] + TEAMS[inC[0]].pos[0], TEAMS[c].pos[1] + TEAMS[inC[0]].pos[1]) < 1);
+    TEAMS[inC[1]].pos[0] = TEAMS[o].pos[0]; TEAMS[inC[1]].pos[1] = TEAMS[o].pos[1]; ang[inC[1]] = Math.atan2(TEAMS[o].pos[1], TEAMS[o].pos[0]);
+  }
   if (!CORNERED.has(mapId)) {
-    const R = mulberry(((seed | 0) ^ 0x5bd1) + 3), rad0 = Math.hypot(56, 56) * W.S;
-    const groups = []; for (let i = 0; i < 4; i++) { const g = groups.find(g => al[g[0]] === al[i]); if (g) g.push(i); else groups.push([i]); }
+    const R = mulberry(((seed | 0) ^ 0x5bd1) + 3), rad0 = Math.hypot(56, 56) * W.S * (inC.length === 2 ? .8 : inC.length === 3 ? .9 : 1); // (fewer castles: closer in)
+    const groups = []; for (const i of inC) { const g = groups.find(g => al[g[0]] === al[i]); if (g) g.push(i); else groups.push([i]); }
     for (let k = groups.length - 1; k > 0; k--) { const j = Math.floor(R() * (k + 1)); [groups[k], groups[j]] = [groups[j], groups[k]]; } // (which side sits where)
     const n = groups.length;
     let phi = R() * Math.PI * 2;
@@ -45,14 +51,15 @@ export function placeCastles(mapId, seed) {
     groups.forEach((g, k) => {
       const c = phi + k * Math.PI * 2 / n, sp = g.length === 2 ? 1.12 : .96; // (a pair ~64 degrees apart, three abreast ~55)
       g.forEach((i, j) => {
-        const a = n === 4 ? c + (R() - .5) * .14 : c + (j - (g.length - 1) / 2) * sp + (R() - .5) * .1, d = rad0 * (.96 + R() * .06);
+        const a = n === inC.length ? c + (R() - .5) * .14 : c + (j - (g.length - 1) / 2) * sp + (R() - .5) * .1, d = rad0 * (.96 + R() * .06);
         TEAMS[i].pos[0] = Math.cos(a) * d; TEAMS[i].pos[1] = Math.sin(a) * d; ang[i] = a;
       });
     });
   }
   // the gaps between neighbouring castles: the widest gaps between enemies are where the sides meet
-  const TAU = Math.PI * 2, s = ang.map((a, i) => ({ a: ((a % TAU) + TAU) % TAU, i })).sort((x, y) => x.a - y.a);
-  const mids = s.map((p, k) => { const q = s[(k + 1) % 4]; let gap = q.a - p.a; if (gap <= 0) gap += TAU; return { a: p.a + gap / 2, gap, foes: al[p.i] !== al[q.i] ? 1 : 0 }; });
+  for (const c of [0, 1, 2, 3]) if (isOut(c)) { TEAMS[c].pos[0] = 0; TEAMS[c].pos[1] = 4000 + 100 * c; } // (out of this battle: far off the map, and never built)
+  const TAU = Math.PI * 2, s = inC.map(i => ({ a: ((ang[i] % TAU) + TAU) % TAU, i })).sort((x, y) => x.a - y.a);
+  const mids = s.map((p, k) => { const q = s[(k + 1) % s.length]; let gap = q.a - p.a; if (gap <= 0) gap += TAU; return { a: p.a + gap / 2, gap, foes: al[p.i] !== al[q.i] ? 1 : 0 }; });
   mids.sort((x, y) => (y.foes - x.foes) || (y.gap - x.gap));
   const f0 = mids[0], f1 = mids.slice(1).sort((x, y) => Math.abs(angDiff(y.a, f0.a)) - Math.abs(angDiff(x.a, f0.a)))[0];
   SIDES.flanks = [f0.a, f1.a]; SIDES.mids = mids.map(m => m.a);
@@ -247,6 +254,7 @@ function solid(L, pts, h, kind) {
 // middle-facing gate round, so a breach can knock out one section at a time.
 function palisades(L) {
   L.pal = TEAMS.map((t, c) => {
+    if (isOut(c)) return { c, gates: [], obs: [], blk: [], towers: [] }; // (no castle here this battle)
     const [px, pz] = t.pos, toC = Math.atan2(-pz, -px), gates = [toC, toC + Math.PI / 2], half = FORT.gateW / FORT.r;
     const n = Math.ceil(Math.PI * 2 * FORT.r / 1.04), obs = [], blk = [];
     for (let i = 0; i < n; i++) {
@@ -526,7 +534,8 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
     // each castle starts inside its palisade (Fortify's first level, already built; see palisades()),
     // two gates: one toward the centre, one toward a neighbour, each flanked by watchtowers
     L.fortStart = 1;
-    TEAMS.forEach(t => {
+    TEAMS.forEach((t, c) => {
+      if (isOut(c)) return;
       const toC = Math.atan2(-t.pos[1], -t.pos[0]), side = toC + Math.PI / 2;
       for (const g of [toC, side]) for (const s of [-1, 1]) { const a = g + s * 3.9 / 22, x = t.pos[0] + Math.cos(a) * 22, z = t.pos[1] + Math.sin(a) * 22; L.towers.push({ x, z, r: 1.1, h: 6, kind: 'wood', small: true }); }
     });
@@ -545,6 +554,7 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
     fieldBounds(L, R);
     // farm tracks: from each gate to the middle and out to the villages (they read from the saddle)
     for (const t of TEAMS) {
+      if (isOut(TEAMS.indexOf(t))) continue;
       const [gx, gz] = gatePos(t, 0, 4), jit = () => (R() - .5) * 8; L.roads.push(smooth([[gx, gz], [gx * .6 + jit(), gz * .6 + jit()], [gx * .25 + jit(), gz * .25 + jit()], [0, 0]], 3));
       const a = SIDES.flanks.slice().sort((p, q) => Math.abs(angDiff(Math.atan2(t.pos[1], t.pos[0]), p)) - Math.abs(angDiff(Math.atan2(t.pos[1], t.pos[0]), q)))[0], vx = Math.cos(a) * 77.5, vz = Math.sin(a) * 77.5;
       L.roads.push(smooth([[gx, gz], [(gx + vx) / 2 + jit(), (gz + vz) / 2 + jit()], [vx, vz]], 3)); // (and out to the nearer village)
@@ -573,7 +583,7 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
   const C = CENTRES[mapId];
   if (C && !withFort && !withCtrl) L.holds.unshift({ x: 0, z: 0, kind: C[0], name: C[1], r: HOLDS[C[0]].r, px: 4.8, pz: 0, centre: true });
   for (const h of L.holds) { if (!h.name) h.name = h.kind === 'oasis' ? 'the Oasis' : 'a village'; if (!h.x && !h.z) h.centre = true; }
-  for (const t of TEAMS) L.obstacles.push({ x: t.pos[0], z: t.pos[1], r: CASTLE_R, castle: true });
+  TEAMS.forEach((t, c) => { if (!isOut(c)) L.obstacles.push({ x: t.pos[0], z: t.pos[1], r: CASTLE_R, castle: true }); });
   if (withFort) {
     for (let i = 0; i < 12; i++) {
       if (i % 3 === 0) continue; // four gates

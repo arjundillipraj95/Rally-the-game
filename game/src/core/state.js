@@ -41,9 +41,16 @@ export const ARMIES = 12;
 export const colorOf = ti => ti % 4;
 export const slotOf = ti => ti >> 2;
 export const armyOf = (color, slot) => color + 4 * slot;
-export const activeArmies = () => { const out = [0, 1, 2, 3]; for (let s = 1; s <= 2; s++) for (let c = 0; c < 4; c++) if ((G.duo[c] | 0) >= s) out.push(c + 4 * s); return out; };
+// G.duo[color]: how many extra captains a castle fields (0, 1 Duo, 2 Trio), or -1: that castle is out
+// of this battle altogether (a 2- or 3-castle battle): no castle, no army
+export const isOut = c => ((G.duo && G.duo[c]) | 0) < 0;
+export const castlesIn = () => [0, 1, 2, 3].filter(c => !isOut(c));
+export const activeArmies = () => { const out = castlesIn(); for (let s = 1; s <= 2; s++) for (let c = 0; c < 4; c++) if ((G.duo[c] | 0) >= s) out.push(c + 4 * s); return out; };
 // which armies a match fields, from each color's extra-captain count
-export const activeFrom = duo => Array.from({ length: ARMIES }, (_, i) => i < 4 || (duo[i % 4] | 0) >= (i >> 2) ? 1 : 0);
+export const activeFrom = duo => Array.from({ length: ARMIES }, (_, i) => (i < 4 ? (duo[i] | 0) >= 0 : (duo[i % 4] | 0) >= (i >> 2)) ? 1 : 0);
+// G.duo over the network: one character a castle, 'x' for out
+export const duoStr = duo => duo.map(d => (d | 0) < 0 ? 'x' : String(Math.min(2, d | 0))).join('');
+export const duoParse = s => String(s || '0000').padEnd(4, '0').slice(0, 4).split('').map(c => c === 'x' ? -1 : Math.min(2, +c || 0));
 // how far along the gate a castle's captains stand: the first in the middle, the others either side
 export const gateOff = ti => [0, 9, -9][ti >> 2];
 export const SLOT_NAME = ['', 'Co-captain', 'Third captain'];
@@ -64,7 +71,7 @@ export const targetFor = mode => { const T = TARGETS[mode]; return T ? T.def : n
 export const modeDesc = m => (m.desc || '').replace('{tickets}', rules().tickets).replace('{caps}', rules().caps).replace('{win}', rules().win);
 export const isEnemyTi = (a, b) => G.ALLY[colorOf(a)] !== G.ALLY[colorOf(b)];
 export const isEnemy = (a, b) => G.ALLY[colorOf(a.ti)] !== G.ALLY[colorOf(b.ti)];
-export const isFfa = () => new Set(G.ALLY).size === 4;
+export const isFfa = () => { const c = castlesIn(); return new Set(c.map(i => G.ALLY[i])).size === c.length; };
 
 // Small event bus: rules announce what happened, presentation decides how it looks and sounds.
 const handlers = {};

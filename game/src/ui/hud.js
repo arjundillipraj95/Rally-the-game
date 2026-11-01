@@ -1,6 +1,6 @@
 // Scoreboard, clock, health, gold, squad count and button labels.
 import { TEAMS, MODES, STATS, DM_TICKETS, CAPS_TO_WIN, CTRL, AL_LETTER, ORDER_NAMES, UPGRADES, WEAPON_NAMES, STREAK } from '../config.js';
-import { G, isFfa, colorOf, rules, matchTime, SLOT_NAME } from '../core/state.js';
+import { G, isFfa, colorOf, rules, matchTime, SLOT_NAME, isOut } from '../core/state.js';
 import { colorOut, colorScore, colorHuman, squadOf, canRecruit, horseMax, upgradeCost, javMax, execTarget } from '../core/sim.js';
 import { session, isClient } from '../net/session.js';
 
@@ -39,6 +39,7 @@ const ORDER_ICONS = {
 export function updateHud(lastSnapAt) {
   TEAMS.forEach((t, i) => {
     const row = $('tp' + i); if (!row) return;
+    const gone = isOut(i); row.hidden = gone; const pp = $('pip' + i); if (pp) pp.hidden = gone; if (gone) return; // (a castle out of this battle)
     const v = colorScore(i), max = G.mode === 'conquest' ? 100 : G.mode === 'dm' ? rules().tickets : G.mode === 'ctrl' ? rules().win : rules().caps;
     row.querySelector('i').style.transform = `scaleX(${Math.max(0, v) / max})`;
     row.querySelector('b').textContent = G.mode === 'ctf' ? `${v}/${rules().caps}` : Math.max(0, Math.ceil(v));

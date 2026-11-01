@@ -298,6 +298,8 @@
   .duotog{position:absolute;right:6px;bottom:6px;font:800 10px var(--body);letter-spacing:.04em;text-transform:uppercase;background:rgba(0,0,0,.35);color:#fff;border:1.5px solid rgba(255,255,255,.4);border-radius:6px;padding:2px 6px;cursor:pointer;}
   .duotog[disabled]{cursor:default;opacity:.55;}
   .duotog.on{background:#fff;color:#111;}
+  .duotog.outt{background:#1b1512;color:#fff;border-color:#fff;}
+  .seat.outseat{opacity:.5;filter:grayscale(.7);}
   /* short landscape phones (iPhone SE/8/mini, Safari with its toolbars) */
   @media (max-height:430px){
     #points{padding:5px 12px 7px 9px;min-width:124px;gap:1px;}

@@ -3,7 +3,7 @@
 // how many soldiers are alive — more in a full 12-army Trio match — sent
 // about 12 times a second).
 import { BASH, STREAK, EVADE, TEAMS, MAPS, KINDS, STATS, RECRUITS, FACTIONS, factionFromCode, ORDERS, ORDER_NAMES, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT, HOLD_ATK, PARRY } from '../config.js';
-import { G, bus, colorOf, isEnemyTi, activeFrom, ARMIES } from '../core/state.js';
+import { G, bus, colorOf, isEnemyTi, activeFrom, ARMIES, duoStr, duoParse } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn, angDiff } from '../core/world.js';
 import { buildNav, syncGates } from '../core/nav.js';
 import { captainBash, duelAct, duelOffer, duelTarget, initForts, applyFort, fortLvl, captainEvade, evadeKind, makeHolds, execTarget, rallyCry, blockPress, attackHold, attackRelease, rideRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainJump, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
@@ -81,7 +81,7 @@ export function netHostTick() {
 export function netHostSend() {
   const NET = session.NET; if (!NET) return;
   NET.lastSend = performance.now();
-  const pres = { role: 'host', ph: G.state === 'end' ? 'end' : 'play', seed: G.seed, mode: G.mode, map: G.map.id, diff: G.diff, time: G.time, tgt: G.target, al: G.ALLY.join(''), duo: G.duo.map(d => d | 0).join(''), seats: NET.seats, nick: session.myNick || 'Host', fa: G.factions.map(f => (FACTIONS[f] || FACTIONS.roman).code).join(''), cr: Array.from({ length: ARMIES }, (_, i) => (G.crests && G.crests[i]) | 0).join(''), n: ++NET.snapN, s: encodeSnap(), m: NET.msgs };
+  const pres = { role: 'host', ph: G.state === 'end' ? 'end' : 'play', seed: G.seed, mode: G.mode, map: G.map.id, diff: G.diff, time: G.time, tgt: G.target, al: G.ALLY.join(''), duo: duoStr(G.duo), seats: NET.seats, nick: session.myNick || 'Host', fa: G.factions.map(f => (FACTIONS[f] || FACTIONS.roman).code).join(''), cr: Array.from({ length: ARMIES }, (_, i) => (G.crests && G.crests[i]) | 0).join(''), n: ++NET.snapN, s: encodeSnap(), m: NET.msgs };
   if (G.state === 'end' && G.endInfo) { pres.res = [G.endInfo.w, G.endInfo.why]; pres.kl = G.teams.map(t => t.kills | 0).join(','); pres.hl = G.teams.map(t => t.hl ? Object.entries(t.hl).map(([k, v]) => k + ':' + v).join(',') : '').join(';'); }
   let json = JSON.stringify(pres);
   while (json.length > 3900) { // trim arrows first, then messages
@@ -142,13 +142,14 @@ export function clientStart(hp) {
   G.mode = hp.mode; G.map = MAPS[hp.map]; G.diff = hp.diff; G.time = [5, 10, 15].includes(+hp.time) ? +hp.time : 10; G.target = hp.tgt == null ? null : +hp.tgt; G.ALLY = hp.al.split('').map(Number); G.seed = hp.seed;
   G.factions = String(hp.fa || 'rrrr').split('').map(factionFromCode);
   G.crests = String(hp.cr || '').split('').map(c => Math.min(7, +c || 0));
-  G.duo = String(hp.duo || '0000').split('').map(c => Math.min(2, +c || 0));
+  G.duo = duoParse(hp.duo);
   G.layout = makeLayout(G.map.id, G.mode === 'ctf', G.mode === 'ctrl', G.seed); buildNav(G.layout);
   G.units = []; G.horses = []; G.arrows = [];
   G.T = 0; G.kills = 0; G.recruited = 0; G.bounty = -1; G.endInfo = null; G.awarded = false;
   const humans = new Array(ARMIES).fill(0); Object.values(hp.seats || {}).forEach(ti => humans[ti] = 1);
   const active = activeFrom(G.duo);
   G.teams = newTeams(humans, active);
+  for (let c = 0; c < 4; c++) if (!active[c]) G.teams[c].alive = false; // (a castle out of this battle)
   initForts(); C.fortSig = '';
   G.flag = G.mode === 'ctf' ? { state: 'home', x: 0, z: 0, carrier: null, dropT: 0 } : null;
   G.ctrlPoints = G.mode === 'ctrl' ? makeCtrlPoints(G.layout) : null;

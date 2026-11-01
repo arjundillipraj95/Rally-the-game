@@ -1,6 +1,6 @@
 // "Play with friends": host or join by code, pick colors and teams, start the battle.
 import { TEAMS, MAPS, PRESETS, AL_LETTER, FACTIONS, TARGETS } from '../config.js';
-import { G, colorOf, slotOf, activeFrom, ARMIES, SLOT_NAME, targetFor } from '../core/state.js';
+import { G, colorOf, slotOf, activeFrom, ARMIES, SLOT_NAME, targetFor, duoStr, duoParse } from '../core/state.js';
 import { makeP2PRoom as rawRoom, newCode, p2pAvailable } from './p2p.js';
 import { progress } from '../ui/progress.js';
 // A brief hiccup reaching the connection server shouldn't end the attempt: try once more before
@@ -65,7 +65,7 @@ export function hostLobbyTick() {
       const free = [0, 1, 2, 3].find(t => !taken().includes(t)); if (free !== undefined) NET.seats[p.peer] = free;
     }
   }
-  NET.room.presence({ role: 'host', ph: 'lobby', nick: session.myNick || 'Host', fac: prefs.faction, mode: L.mode, map: L.map, diff: L.diff, time: L.time, tgt: L.tgt, al: L.al.join(''), duo: L.duo.map(d => d | 0).join(''), seats: NET.seats, s: null, m: null, res: null }).catch(() => {});
+  NET.room.presence({ role: 'host', ph: 'lobby', nick: session.myNick || 'Host', fac: prefs.faction, mode: L.mode, map: L.map, diff: L.diff, time: L.time, tgt: L.tgt, al: L.al.join(''), duo: duoStr(L.duo), seats: NET.seats, s: null, m: null, res: null }).catch(() => {});
   renderLobby();
 }
 function lobbyView() {
@@ -75,7 +75,7 @@ function lobbyView() {
   if (!hostP) return null;
   NET.hostPeer = hostP.peer;
   const h = hostP.presence;
-  return { mode: h.mode, map: h.map, diff: h.diff, time: [5, 10, 15].includes(+h.time) ? +h.time : 10, tgt: h.tgt == null ? null : +h.tgt, al: String(h.al || '0123').split('').map(Number), duo: String(h.duo || '0000').split('').map(c => Math.min(2, +c || 0)), seats: h.seats || {}, hostNick: h.nick, ph: h.ph, hostP };
+  return { mode: h.mode, map: h.map, diff: h.diff, time: [5, 10, 15].includes(+h.time) ? +h.time : 10, tgt: h.tgt == null ? null : +h.tgt, al: String(h.al || '0123').split('').map(Number), duo: duoParse(h.duo), seats: h.seats || {}, hostNick: h.nick, ph: h.ph, hostP };
 }
 export function renderLobby() {
   const NET = session.NET;
@@ -103,7 +103,7 @@ export function renderLobby() {
     if (occ && facOf(occ)) { const f = document.createElement('small'); f.textContent = facOf(occ); el.appendChild(f); }
     el.addEventListener('click', () => {
       if (occ && occ !== me) return;
-      if (host) { if (!occ) { NET.seats[me] = armyTi; hostLobbyTick(); } }
+      if (host) { if (!occ) { if ((NET.lobby.duo[colorOf(armyTi)] | 0) < 0) NET.lobby.duo[colorOf(armyTi)] = 0; NET.seats[me] = armyTi; hostLobbyTick(); } } // (sitting in a colour that was out brings it back in)
       else if (occ !== me) { NET.want = armyTi; NET.room.presence(myPresence()).catch(() => {}); } // (tapping your own color keeps you there)
     });
     return el;
@@ -114,10 +114,18 @@ export function renderLobby() {
     const chip = document.createElement('span'); chip.className = 'alchip'; chip.setAttribute('role', 'button'); chip.textContent = 'Team ' + AL_LETTER[v.al[i]];
     if (host) { chip.tabIndex = 0; chip.addEventListener('click', e => { e.stopPropagation(); NET.lobby.al[i] = (NET.lobby.al[i] + 1) % 4; hostLobbyTick(); }); }
     main.appendChild(chip);
-    const tog = document.createElement('span'); tog.className = 'duotog' + (v.duo[i] ? ' on' : ''); tog.setAttribute('role', 'button'); tog.textContent = ['Duo', 'Duo', 'Trio'][v.duo[i] | 0]; // (off it reads Duo, dimmed: tap once for Duo, again for Trio)
+    // (off it reads Duo, dimmed: tap once for Duo, again for Trio, again for Out: not in this battle, then back)
+    const out = (v.duo[i] | 0) < 0;
+    const tog = document.createElement('span'); tog.className = 'duotog' + ((v.duo[i] | 0) > 0 ? ' on' : '') + (out ? ' outt' : ''); tog.setAttribute('role', 'button'); tog.textContent = out ? 'Out' : ['Duo', 'Duo', 'Trio'][v.duo[i] | 0];
+    if (out) { main.classList.add('outseat'); const s = main.querySelector('span'); if (s) s.textContent = 'Not in this battle'; }
     if (host) {
       tog.tabIndex = 0;
-      tog.addEventListener('click', e => { e.stopPropagation(); NET.lobby.duo[i] = ((NET.lobby.duo[i] | 0) + 1) % 3; hostLobbyTick(); });
+      tog.addEventListener('click', e => {
+        e.stopPropagation(); const d = NET.lobby.duo, cur = d[i] | 0;
+        const taken = Object.values(NET.seats).some(ti => colorOf(ti) === i), inN = d.filter(x => (x | 0) >= 0).length;
+        d[i] = cur === 2 ? (taken || inN <= 2 ? 0 : -1) : cur + 1; // (a colour someone's sitting in, or the last two castles, can't go out)
+        hostLobbyTick();
+      });
     } else tog.setAttribute('disabled', '');
     main.appendChild(tog);
     col.appendChild(main);
@@ -135,7 +143,7 @@ export function renderLobby() {
     setSeg('lobbyTarget', cur, !host);
   }
   $('startBtn').hidden = !host;
-  const nAl = new Set(v.al).size, nPlayers = Object.keys(v.seats).length;
+  const nAl = new Set(v.al.filter((_, i) => (v.duo[i] | 0) >= 0)).size, nPlayers = Object.keys(v.seats).length;
   $('startBtn').disabled = nAl < 2;
   const mySeat = v.seats[me];
   $('lobbyStatus').textContent = host

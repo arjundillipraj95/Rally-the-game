@@ -16,10 +16,11 @@ export function allyFor(preset, me) {
 }
 
 // "You (Red) and Green against Blue and Yellow."
-export function describeTeams(al, me) {
+export function describeTeams(al, me, out = []) {
   const name = i => i === me ? `you (${TEAMS[i].name})` : TEAMS[i].name;
-  const groups = [...new Set(al)].map(a => TEAMS.map((_, i) => i).filter(i => al[i] === a));
-  if (groups.length === 4) return `Every team for itself. You are ${TEAMS[me].name}.`;
+  const inC = TEAMS.map((_, i) => i).filter(i => !out[i]);
+  const groups = [...new Set(inC.map(i => al[i]))].map(a => inC.filter(i => al[i] === a));
+  if (groups.length === inC.length) return inC.length === 2 ? `One on one: ${name(inC[0])} against ${name(inC[1])}.` : `Every team for itself. You are ${TEAMS[me].name}.`;
   const list = xs => xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1];
   const join = g => list(g.map(name));
   const mine = groups.find(g => g.includes(me)), rest = groups.filter(g => g !== mine);

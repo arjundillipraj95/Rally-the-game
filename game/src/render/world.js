@@ -1,7 +1,7 @@
 // Builds the 3D scenery for a map layout: ground, hills, fences, trees, river, castles, centre fort, tall grass.
 import * as THREE from 'three';
 import { TEAMS, CASTLE_R, CTRL } from '../config.js';
-import { G } from '../core/state.js';
+import { G, isOut } from '../core/state.js';
 import { groundY, terrainMeshY, mulberry, W, distToLine } from '../core/world.js';
 import { buildRidges } from './ridges.js';
 import { buildHolds, updateHolds } from './holds.js';
@@ -149,7 +149,7 @@ export function buildWorldView(L) {
     mm.position.set(r.x, terrainMeshY(r.x, r.z) + r.r * (r.big ? .55 : .4), r.z); mm.rotation.set(r.rx, r.ry, 0); if (r.big) mm.scale.set(1, 1.35, 1); world.add(shadowy(mm));
   }
   if (L.ridges && L.ridges.length) buildRidges(world, L);
-  TEAMS.forEach((t, i) => castleObjs.push(buildCastle(t, i)));
+  TEAMS.forEach((t, i) => castleObjs.push(isOut(i) ? null : buildCastle(t, i))); // (a castle out of this battle isn't built)
   if (L.withFort) buildFort(L);
   ctrlObjs = L.ctrlSpots && L.ctrlSpots.length ? buildControlPoints(L) : [];
   buildHolds(world, L); buildPalisades(world, L);

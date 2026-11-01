@@ -2,7 +2,7 @@
 // the banner pointer, the joystick and the red tint while you are down. Also the minimap.
 import * as THREE from 'three';
 import { TEAMS, DUEL, STREAK } from '../config.js';
-import { G, isEnemyTi, isFfa, colorOf } from '../core/state.js';
+import { G, isEnemyTi, isFfa, colorOf, isOut } from '../core/state.js';
 import { groundY, clamp, W } from '../core/world.js';
 import { camera, view } from './scene.js';
 import { cam } from './camera.js';
@@ -243,6 +243,7 @@ function drawMini() {
   if (id === 'frost') { mctx.fillStyle = 'rgba(255,255,255,.2)'; mctx.beginPath(); mctx.arc(0, 0, 24 * k, 0, Math.PI * 2); mctx.fill(); }
   if (G.layout) { if (miniFor !== G.layout) buildMiniLayer(S, k); mctx.drawImage(miniLayer, -o, -o); }
   TEAMS.forEach((t, i) => {
+    if (isOut(i)) return;
     mctx.fillStyle = (G.mode !== 'conquest' || G.teams[i].alive) ? t.css : '#555'; mctx.fillRect(t.pos[0] * k - 9, t.pos[1] * k - 9, 18, 18);
     if (!isFfa() && !isEnemyTi(i, G.myTi)) { mctx.strokeStyle = '#fff'; mctx.lineWidth = 2; mctx.strokeRect(t.pos[0] * k - 9, t.pos[1] * k - 9, 18, 18); }
   });

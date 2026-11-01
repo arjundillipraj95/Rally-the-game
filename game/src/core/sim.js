@@ -1,7 +1,7 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
 import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, HOLDS, EVADE, FORT, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT, DUEL, CHEST, STREAK, BASH } from '../config.js';
-import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, activeFrom, gateOff, ARMIES, rules, matchTime } from './state.js';
+import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, activeFrom, gateOff, ARMIES, rules, matchTime, isOut } from './state.js';
 import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W, groundSlow, onIce } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable, setPalSeg } from './nav.js';
 
@@ -49,11 +49,12 @@ export function hl(ti, k, v) {
 export const squadOf = ti => G.units.filter(u => !u.dead && u.ti === ti && !u.leader);
 
 export function startMatch(humans, active = activeFrom([0, 0, 0, 0])) {
+  G.duo = [0, 1, 2, 3].map(c => !active[c] ? -1 : active[c + 8] ? 2 : active[c + 4] ? 1 : 0); // (before the layout: where the castles stand depends on who's in)
   G.layout = makeLayout(G.map.id, G.mode === 'ctf', G.mode === 'ctrl', G.seed); buildNav(G.layout);
   G.units = []; G.horses = []; G.arrows = [];
   G.T = 0; G.kills = 0; G.recruited = 0; G.bounty = -1; G.uid = 0; G.arrowN = 0; G.endInfo = null; G.awarded = false;
   G.teams = newTeams(humans, active);
-  G.duo = [0, 1, 2, 3].map(c => active[c + 8] ? 2 : active[c + 4] ? 1 : 0);
+  for (let c = 0; c < 4; c++) if (!active[c]) { G.teams[c].alive = false; G.teams[c].points = 0; G.teams[c].tickets = 0; } // (a castle out of this battle)
   G.flag = G.mode === 'ctf' ? { state: 'home', x: 0, z: 0, carrier: null, dropT: 0 } : null;
   G.ctrlPoints = G.mode === 'ctrl' ? makeCtrlPoints(G.layout) : null;
   G.holds = makeHolds(G.layout);
@@ -1036,7 +1037,7 @@ function updateControlPoints(dt) {
 export function initForts() {
   G.forts = [0, 1, 2, 3].map(() => ({ broken: 0, hp: new Array(FORT.segs).fill(FORT.segHp), towerT: rnd(0, FORT.towerEvery) }));
   const start = (G.layout && G.layout.fortStart) || 0;
-  for (let c = 0; c < 4; c++) { if (G.teams[c]) G.teams[c].up.fort = start; applyFort(c); }
+  for (let c = 0; c < 4; c++) { if (G.teams[c]) G.teams[c].up.fort = isOut(c) ? 0 : start; applyFort(c); }
 }
 export const fortLvl = c => (G.teams[c] && G.teams[c].up && G.teams[c].up.fort) || 0;
 export function applyFort(c) {
@@ -2023,7 +2024,7 @@ export function update(dt, input) {
   // castle towers shoot at enemies near their walls
   TEAMS.forEach((t, i) => {
     const s = G.teams[i];
-    if (G.mode === 'conquest' && !s.alive) return;
+    if ((G.mode === 'conquest' && !s.alive) || !s.active) return; // (and no castle at all: out of this battle)
     s.towerT -= dt; if (s.towerT > 0) return;
     s.towerT = 1.4;
     const [f] = nearestFoe({ x: t.pos[0], z: t.pos[1], ti: i }, 24);
@@ -2031,7 +2032,7 @@ export function update(dt, input) {
   });
   // Fortify's gate towers: each covers the ground outside its gate
   if (G.forts) for (let c = 0; c < 4; c++) {
-    if (fortLvl(c) < 2 || (G.mode === 'conquest' && !G.teams[c].alive)) continue;
+    if (fortLvl(c) < 2 || (G.mode === 'conquest' && !G.teams[c].alive) || isOut(c)) continue;
     const f = G.forts[c]; f.towerT -= dt; if (f.towerT > 0) continue; f.towerT = FORT.towerEvery;
     for (const tw of G.layout.pal[c].towers) { const [e] = nearestFoe({ x: tw.x, z: tw.z, ti: c }, FORT.towerRange); if (e) shoot({ x: tw.x, z: tw.z, y: 0, vx: 0, vz: 0, ti: c, tower: true, arrow: FORT.towerDmg }, e, 5.2); }
   }
