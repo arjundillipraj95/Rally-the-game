@@ -140,31 +140,16 @@ export function bindInput(actions) {
   // Order: tap to step to the next order; press and drag to place a held line where you point
   // (drag onto enemy men: attack that group; with the rally horn full, press and hold still: sound it)
   const cmd = $('cmdBtn'); let cmdPtr = null, rallyT = null, rallied = false;
-  // a tap opens the order fan: every order at once, one tap to pick (and the horn, when it's full)
-  const fan = document.createElement('div'); fan.id = 'ordFan'; fan.hidden = true; document.body.appendChild(fan);
-  let fanT = null;
-  const FAN = [['follow', 'Follow'], ['charge', 'Charge'], ['shieldwall', 'Shield wall'], ['hold', 'Hold here']];
-  const fanOpen = on => {
-    clearTimeout(fanT);
-    if (!on) { fan.hidden = true; return; }
-    const me = G.teams[G.myTi], cur = me ? me.order : 'follow';
-    fan.innerHTML = '';
-    const items = FAN.slice(); if (me && me.rally >= 100) items.push(['rally', 'Sound the rally!']);
-    for (const [o, name] of items) {
-      const b = document.createElement('button'); b.type = 'button'; b.textContent = name; b.dataset.o = o;
-      if (o === cur) b.classList.add('cur'); if (o === 'rally') b.classList.add('horn');
-      b.addEventListener('pointerdown', ev => { ev.preventDefault(); ev.stopPropagation(); fanOpen(false); if (o === 'rally') A.rally(); else { A.order(o); if (o === 'hold') holdTip(); } });
-      fan.appendChild(b);
-    }
-    const r = cmd.getBoundingClientRect();
-    fan.style.left = Math.round(r.left + r.width / 2) + 'px'; fan.style.bottom = Math.round(innerHeight - r.top + 8) + 'px';
-    fan.hidden = false; if (!window.__fanStay) fanT = setTimeout(() => fanOpen(false), 4000);
+  // a tap steps to the next order; a quick double tap: Follow me (from whatever it was)
+  let lastTapAt = 0;
+  const tapOrder = () => {
+    const now = performance.now();
+    if (now - lastTapAt < 330) { lastTapAt = 0; A.order('follow'); return; }
+    lastTapAt = now; A.order(); if (G.teams[G.myTi] && G.teams[G.myTi].order === 'hold') holdTip();
   };
-  addEventListener('pointerdown', e => { if (!fan.hidden && !fan.contains(e.target) && e.target !== cmd && !cmd.contains(e.target)) fanOpen(false); }, true);
   cmd.addEventListener('pointerdown', e => {
     e.preventDefault(); e.stopPropagation(); initAudio();
-    if (!fan.hidden) { fanOpen(false); cmdPtr = null; return; }
-    if (!holdStart(e.clientX, e.clientY)) { fanOpen(true); return; }
+    if (!holdStart(e.clientX, e.clientY)) { tapOrder(); return; }
     cmdPtr = e.pointerId; cmd.classList.add('held'); rallied = false; try { cmd.setPointerCapture(e.pointerId); } catch (_) {}
     const me = G.teams[G.myTi];
     clearTimeout(rallyT);
@@ -177,7 +162,7 @@ export function bindInput(actions) {
     if (e.type !== 'pointerup') { holdCancel(); return; }
     const pt = holdEnd();
     if (pt && pt.focus) A.order('focus', pt);
-    else if (pt) A.order('hold', pt); else fanOpen(true);
+    else if (pt) A.order('hold', pt); else tapOrder();
   };
   cmd.addEventListener('pointerup', cmdUp); cmd.addEventListener('pointercancel', cmdUp);
   cmd.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); A.order(); } });

@@ -360,11 +360,6 @@
 #ovEnd .sidemoments li::before{color:rgba(255,255,255,.6);}
 @keyframes lastp{from{background:rgba(224,53,43,0)}to{background:rgba(224,53,43,.45)}}
 .tp.last,[id^="tp"].last{animation:lastp .6s ease-in-out infinite alternate;border-radius:6px;}
-#ordFan{position:fixed;z-index:40;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:stretch;}
-#ordFan[hidden]{display:none;}
-#ordFan button{font:800 15px "Barlow Semi Condensed",sans-serif;letter-spacing:.4px;text-transform:uppercase;color:#fff;background:rgba(20,16,14,.82);border:2px solid rgba(255,255,255,.35);border-radius:14px;padding:9px 16px;min-width:132px;touch-action:none;white-space:nowrap;}
-#ordFan button.cur{border-color:#ffcf3a;color:#ffcf3a;}
-#ordFan button.horn{background:#ffcf3a;color:#1b1512;border-color:#1b1512;}
 #duelTag{position:fixed;left:0;top:0;z-index:30;pointer-events:auto;font:italic 17px Bangers,Impact,sans-serif;letter-spacing:.5px;color:#1b1512;background:#ffd23a;border:2.5px solid #1b1512;border-radius:16px;padding:5px 12px 4px;box-shadow:0 3px 0 #1b1512,0 0 14px rgba(255,210,58,.6);touch-action:none;white-space:nowrap;}
 #duelTag.accept{background:#fff;animation:dglow .45s ease-in-out infinite alternate;}
 @keyframes dglow{from{box-shadow:0 3px 0 #1b1512,0 0 6px rgba(255,210,58,.5)}to{box-shadow:0 3px 0 #1b1512,0 0 22px 6px rgba(255,210,58,.95)}}
