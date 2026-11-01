@@ -1,7 +1,7 @@
 // Terrain heights and map layouts. A layout is plain data (what stands where),
 // generated from a seed so every phone in an online match builds the same map.
 // Obstacles are circles {x,z,r} or boxes {box,x,z,hw,hd,rot}; `blockers` stop arrows below height h.
-import { TEAMS, CASTLE_R, HOLDS, FORT } from '../config.js';
+import { TEAMS, CASTLE_R, HOLDS, FORT, CENTRES } from '../config.js';
 import { G } from './state.js';
 
 export function mulberry(a) {
@@ -77,8 +77,11 @@ export const PONDS = [{ x: 0, z: 77.5, r: 8 }, { x: 0, z: -77.5, r: 8 }];
 export const onPond = (x, z) => PONDS.some(p => Math.hypot(x - p.x, z - p.z) < p.r + 1.5);
 export const onIce = (x, z) => G.map.id === 'frost' && PONDS.some(p => Math.hypot(x - p.x, z - p.z) < p.r);
 // speed multiplier for the ground at (x, z)
+export const ROAD_SPEED = 1.15;
+export function onRoad(x, z) { const R = G.layout && G.layout.roadGrid; if (!R) return false; const cx = Math.round((x + W.R) / 2), cz = Math.round((z + W.R) / 2); return cx >= 0 && cz >= 0 && cx < R.N && cz < R.N && R.g[cz * R.N + cx] === 1; }
 export function groundSlow(x, z) {
   const id = G.map.id;
+  if (onRoad(x, z) && !(id === 'valley' && fieldAt(x, z))) return ROAD_SPEED; // (the roads are the quick way in)
   if (id === 'river') return inFord(x, z) ? .6 : 1;
   if (id === 'valley') return fieldAt(x, z) ? .72 : 1;
   if (id === 'desert') return OASES.some(o => Math.hypot(x - o.x, z - o.z) < o.r) ? .6 : 1;
@@ -566,6 +569,10 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
     }
   }
 
+  // the prize in the middle (desert has its oasis; capture-the-fort and control have their own middles)
+  const C = CENTRES[mapId];
+  if (C && !withFort && !withCtrl) L.holds.unshift({ x: 0, z: 0, kind: C[0], name: C[1], r: HOLDS[C[0]].r, px: 4.8, pz: 0, centre: true });
+  for (const h of L.holds) { if (!h.name) h.name = h.kind === 'oasis' ? 'the Oasis' : 'a village'; if (!h.x && !h.z) h.centre = true; }
   for (const t of TEAMS) L.obstacles.push({ x: t.pos[0], z: t.pos[1], r: CASTLE_R, castle: true });
   if (withFort) {
     for (let i = 0; i < 12; i++) {
@@ -576,6 +583,15 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
     }
   }
   bakeRidges(L);
+  // the roads: a coarse grid of where they run (2 m cells), so the going on them can be quicker
+  if (L.roads.length) {
+    const N = Math.ceil(W.R * 2 / 2) + 1, g = new Uint8Array(N * N);
+    for (const p of L.roads) for (let i = 0; i < p.length - 1; i++) {
+      const [ax, az] = p[i], [bx, bz] = p[i + 1], n = Math.ceil(Math.hypot(bx - ax, bz - az) / .7);
+      for (let k = 0; k <= n; k++) { const x = ax + (bx - ax) * k / n, z = az + (bz - az) * k / n; for (const [ox, oz] of [[0, 0], [1.2, 0], [-1.2, 0], [0, 1.2], [0, -1.2]]) { const cx = Math.round((x + ox + W.R) / 2), cz = Math.round((z + oz + W.R) / 2); if (cx >= 0 && cz >= 0 && cx < N && cz < N) g[cz * N + cx] = 1; } }
+    }
+    L.roadGrid = { N, g };
+  }
   L.ctrlSpots = withCtrl ? makeCtrlSpots(L) : [];
   return L;
 }

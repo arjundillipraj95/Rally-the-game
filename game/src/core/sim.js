@@ -1,6 +1,6 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
-import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, HOLDS, EVADE, FORT, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT, DUEL } from '../config.js';
+import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, HOLDS, EVADE, FORT, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT, DUEL, CHEST } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, activeFrom, gateOff, ARMIES, rules, matchTime } from './state.js';
 import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W, groundSlow, onIce } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable, setPalSeg } from './nav.js';
@@ -51,7 +51,7 @@ export function startMatch(humans, active = activeFrom([0, 0, 0, 0])) {
   G.flag = G.mode === 'ctf' ? { state: 'home', x: 0, z: 0, carrier: null, dropT: 0 } : null;
   G.ctrlPoints = G.mode === 'ctrl' ? makeCtrlPoints(G.layout) : null;
   G.holds = makeHolds(G.layout);
-  G.duels = []; G.duelN = 0;
+  G.duels = []; G.duelN = 0; G.chestDone = false;
   initForts();
   for (let i = 0; i < ARMIES; i++) {
     if (!G.teams[i].active) continue;
@@ -1044,9 +1044,32 @@ function hitWall(u, w) {
 // only your side's men there; a fight inside freezes it; empty, a half-taken one slowly reverts.
 export const makeHolds = L => (L.holds || []).map((h, i) => ({ ...h, id: i, owner: -1, prog: 0, cap: -1, tick: 0 }));
 const allianceOf = ti => G.ALLY[colorOf(ti)];
+// the alliance clearly ahead on castle strength (conquest), or null when it's close
+function leadingSide() {
+  const sc = new Map(); for (let c = 0; c < 4; c++) if (G.teams[c].active) sc.set(G.ALLY[c], (sc.get(G.ALLY[c]) || 0) + (G.teams[c].alive ? G.teams[c].points : 0) / G.ALLY.filter(x => x === G.ALLY[c]).length);
+  const v = [...sc.entries()].sort((p, q) => q[1] - p[1]); return v.length > 2 && v[0][1] - v[1][1] >= 15 ? v[0][0] : null;
+}
 const sideArmies = a => activeArmies().filter(i => allianceOf(i) === a && !teamOut(i));
+// The war chest (CHEST): once a match it lands in the middle; the middle goes back up for grabs.
+function chestTick() {
+  const h = G.holds.find(x => x.centre); if (!h || G.chestDone || !(G.mode === 'conquest' || G.mode === 'dm')) return;
+  const at = CHEST.at * matchTime();
+  if (!h.chest && G.T >= at - CHEST.warn) { h.chest = 1; say('chestSoon', h.id, CHEST.warn); }
+  else if (h.chest === 1 && G.T >= at) { h.chest = 2; h.owner = -1; h.prog = 0; h.cap = -1; say('chestUp', h.id); G.teams.forEach(s => { if (!s.human) s.thinkT = Math.min(s.thinkT, rnd(.2, 1.5)); }); }
+  else if (h.chest === 2 && G.T >= at + CHEST.last) { // nobody's been able to hold it: it goes to the side with most men on the ground
+    const n = new Map(); for (const u of G.units) if (!u.dead && !u.routing && Math.hypot(u.x - h.x, u.z - h.z) < h.r * 1.6) { const a = allianceOf(u.ti); n.set(a, (n.get(a) || 0) + 1); }
+    const best = [...n.entries()].sort((p, q) => q[1] - p[1])[0];
+    if (best) { h.owner = best[0]; h.prog = 0; h.cap = -1; say('holdTaken', best[0], h.kind, h.id); chestTaken(h, best[0]); } else { h.chest = 0; G.chestDone = true; }
+  }
+}
+function chestTaken(h, a) {
+  h.chest = 0; G.chestDone = true;
+  for (const i of sideArmies(a)) { const s = G.teams[i]; s.gold += CHEST.gold; s.rally = 100; s.morale = Math.min(100, s.morale + 15); }
+  say('chestTaken', a, CHEST.gold); fx('netFlush');
+}
 function holdsTick(dt) {
   const hs = G.holds; if (!hs || !hs.length) return;
+  chestTick();
   for (const h of hs) {
     const n = new Map();
     for (const u of G.units) { if (u.dead || u.routing || Math.hypot(u.x - h.x, u.z - h.z) > h.r) continue; const a = allianceOf(u.ti); n.set(a, (n.get(a) || 0) + 1); }
@@ -1056,14 +1079,20 @@ function holdsTick(dt) {
       if (a === h.owner) { h.prog = 0; h.cap = -1; }
       else {
         if (h.cap !== a) { h.cap = a; h.prog = 0; }
-        h.prog += dt / HOLDS.capture * Math.min(2, .6 + n.get(a) / 5); // (more men take it quicker)
-        if (h.prog >= 1) { h.owner = a; h.prog = 0; h.cap = -1; h.tick = 0; say('holdTaken', a, h.kind); G.teams.forEach(s => { if (!s.human) s.thinkT = Math.min(s.thinkT, rnd(.5, 2)); }); }
+        h.prog += dt / (HOLDS.capture * (h.chest === 2 ? CHEST.hold : 1)) * Math.min(2, .6 + n.get(a) / 5); // (more men take it quicker; the war chest takes holding)
+        if (h.prog >= 1) {
+          h.owner = a; h.prog = 0; h.cap = -1; h.tick = 0; say('holdTaken', a, h.kind, h.id);
+          if (h.chest === 2) chestTaken(h, a);
+          G.teams.forEach(s => { if (!s.human) s.thinkT = Math.min(s.thinkT, rnd(.5, 2)); });
+        }
       }
     } else if (n.size === 0 && h.prog > 0) { h.prog = Math.max(0, h.prog - dt / HOLDS.capture * .5); if (!h.prog) h.cap = -1; }
     if (h.owner < 0) continue;
     if (h.kind === 'oasis') { // its water heals the men in it; its trade fills every purse on the side
       for (const u of G.units) if (!u.dead && u.hp < u.max && allianceOf(u.ti) === h.owner && Math.hypot(u.x - h.x, u.z - h.z) < h.r) u.hp = Math.min(u.max, u.hp + HOLDS.oasis.heal * dt);
       for (const i of sideArmies(h.owner)) G.teams[i].gold += HOLDS.oasis.gold * dt;
+    } else if (h.kind === 'shrine') { // the map's heart: tribute for the side that holds it, and its men's blood up (the horns fill)
+      for (const i of sideArmies(h.owner)) { const s = G.teams[i]; s.gold += HOLDS.shrine.gold * dt; s.rally = Math.min(100, (s.rally || 0) + HOLDS.shrine.rally * dt); }
     } else if (h.kind === 'village') { // now and then a lad picks up a spear and walks out to join you
       h.tick += dt;
       if (h.tick >= HOLDS.village.every) {
@@ -1081,12 +1110,16 @@ function holdsTick(dt) {
 function holdPlan(u, s) {
   const hs = G.holds; if (!hs || !hs.length) return null;
   const a = allianceOf(u.ti);
-  if (s.plan && s.plan.kind === 'hold') { const h = hs[s.plan.id]; if (h && (h.owner !== a || h.contested) && Math.random() > .12) return s.plan; }
+  if (s.plan && s.plan.kind === 'hold') { const h = hs[s.plan.id]; if (h && (h.owner !== a || h.contested) && (h.chest === 2 || Math.random() > .12)) return s.plan; }
   s.holdBias = s.holdBias ?? rnd(.3, .7);
   const d = h => Math.hypot(h.x - u.x, h.z - u.z);
+  // the war chest: everyone wants it (warned: most start that way; landed: nearly all)
+  const chest = hs.find(h => h.chest);
+  if (chest && chest.owner !== a && Math.random() < (chest.chest === 2 ? .85 : .55)) return { kind: 'hold', id: chest.id };
   const threatened = hs.filter(h => h.owner === a && (h.contested || h.cap >= 0) && d(h) < 70).sort((x, y) => d(x) - d(y))[0];
   if (threatened && Math.random() < .7) return { kind: 'hold', id: threatened.id };
-  const want = hs.filter(h => h.owner !== a).sort((x, y) => d(x) - d(y))[0];
+  const pull = h => d(h) - (h.centre ? 40 : 0); // (the middle draws them more than anything on the edge)
+  const want = hs.filter(h => h.owner !== a).sort((x, y) => pull(x) - pull(y))[0];
   if (want && Math.random() < s.holdBias) return { kind: 'hold', id: want.id };
   return null;
 }
@@ -1393,6 +1426,8 @@ function planLeader(u, s) {
       const opts = [0, 1, 2, 3].filter(c => isEnemyTi(c, u.ti) && G.teams[c].alive)
         .sort((a, b) => Math.hypot(TEAMS[a].pos[0] - u.x, TEAMS[a].pos[1] - u.z) - Math.hypot(TEAMS[b].pos[0] - u.x, TEAMS[b].pos[1] - u.z));
       if (opts.length) target = opts[Math.random() < .7 ? 0 : Math.min(1, opts.length - 1)];
+      // the side that's running away with it draws everyone's eye
+      const lead = leadingSide(); if (lead != null && lead !== allianceOf(u.ti) && Math.random() < .45) { const lc = opts.find(c => G.ALLY[c] === lead); if (lc != null) target = lc; }
     }
     s.plan = target == null ? { kind: 'defend' } : { kind: 'castle', ti: target };
   } else if (G.mode === 'dm') {
@@ -1400,7 +1435,7 @@ function planLeader(u, s) {
     if (squadN < gather && s.tickets > 0) { s.plan = { kind: 'defend' }; return; }
     { const hp = holdPlan(u, s); if (hp) { s.plan = hp; return; } }
     const [cap] = nearestFoe(u, 400, o => o.leader), [any] = nearestFoe(u, 400);
-    const bl = G.bounty >= 0 && isEnemyTi(G.bounty, u.ti) && Math.random() < .5 ? G.teams[G.bounty].leader : null;
+    const bl = G.bounty >= 0 && isEnemyTi(G.bounty, u.ti) && Math.random() < .65 ? G.teams[G.bounty].leader : null;
     s.plan = { kind: 'hunt', target: (bl && !bl.dead) ? bl : (cap || any) };
   } else if (G.mode === 'ctrl') {
     const gather = Math.round((s.plan && s.plan.kind === 'point' ? 4 : 9) * rules().gather);

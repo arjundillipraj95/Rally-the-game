@@ -134,7 +134,14 @@ export const MORALE = { death: 7, flankDeath: 5, captain: 35, regen: 3, calmR: 1
 // than anyone else's and, after capture s (quicker with more men), it turns your side's colour; allies
 // share it. oasis: your men in it heal, and every army on your side earns gold. village: every `every`
 // seconds a footman walks out to the army on your side with the most men there.
-export const HOLDS = { capture: 7, oasis: { r: 13, heal: 6, gold: 2.5, name: 'the Oasis' }, village: { r: 11, every: 15, name: 'a village' } };
+export const HOLDS = { capture: 7, oasis: { r: 13, heal: 6, gold: 2.5, name: 'the Oasis' }, village: { r: 11, every: 15, name: 'a village' }, shrine: { r: 12, gold: 1.5, rally: 1.4 } };
+// Every map's middle is worth having (conquest and deathmatch): a holding with the map's own name.
+// kind: what it gives (oasis: heals and pays; shrine: pays and fills the rally horns). Desert's oasis is its own.
+export const CENTRES = { forum: ['shrine', 'the Forum'], colosseum: ['shrine', 'the Arena'], wooden: ['shrine', 'the Market'], dunes: ['oasis', 'the Well'], river: ['shrine', 'the Ford'],
+  forest: ['shrine', 'the Grove'], frost: ['shrine', 'the Summit'], valley: ['shrine', 'the Stones'] };
+// Once a match, the war chest: warned warn s ahead, it lands in the middle at at of the match time and
+// the middle goes back up for grabs; the side that takes it gets gold for every army and full horns.
+export const CHEST = { at: .4, warn: 20, gold: 150, hold: 2.2, last: 75 }; // (hold: it takes this many times longer to take than the middle does; last: s after landing, it goes to whoever has most men there)
 // The evade (the Jump button, on foot): which way depends on the stick, judged against the enemy
 // you're facing. Toward him: a pounce; to the side: a sidestep; away (or no stick): a backstep. Each
 // starts with iframe s untouchable (joiners get remote more, for the trip to the host), then cd s

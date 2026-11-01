@@ -36,11 +36,15 @@ export function msgText(k, a) {
       : [`${nm(a[0])}'s army breaks and runs!`, ally(a[0]) ? 'Cover them' : 'Cut them down', css(a[0])];
     case 'focusDone': return mine(a[0]) ? ['Group destroyed', 'Your men fall back in', '#ffcf3a'] : null;
     case 'left': return [`${nm(a[0])}'s player left`, 'The computer takes over their army', css(a[0])];
-    case 'holdTaken': { // a[0]: the alliance that took it, a[1]: what it is
-      const ours = a[0] === G.ALLY[colorOf(myTi)], oasis = a[1] === 'oasis', what = oasis ? 'the Oasis' : 'a village';
-      return ours ? [`Your side holds ${what}!`, oasis ? 'Your men heal in it, and gold flows in' : 'It will send you footmen', '#ffcf3a']
-        : [`${allyNames(a[0])} took ${what}`, oasis ? 'They heal there and grow rich. Take it back' : 'It sends them men. Take it back', '#e0352b'];
+    case 'holdTaken': { // a[0]: the alliance that took it, a[1]: what it is, a[2]: which
+      const ours = a[0] === G.ALLY[colorOf(myTi)], h = G.holds && G.holds[a[2]], what = (h && h.name) || (a[1] === 'oasis' ? 'the Oasis' : 'a village');
+      const give = { oasis: ['Your men heal in it, and gold flows in', 'They heal there and grow rich. Take it back'], shrine: ['Gold flows in, and your rally horns fill', 'Their horns fill and they grow rich. Take it back'], village: ['It will send you footmen', 'It sends them men. Take it back'] }[a[1]] || ['', ''];
+      return ours ? [`Your side holds ${what}!`, give[0], '#ffcf3a'] : [`${allyNames(a[0])} took ${what}`, give[1], '#e0352b'];
     }
+    // the war chest: a[0] the hold it lands in
+    case 'chestSoon': return ['A war chest is coming!', `It lands in ${(G.holds && G.holds[a[0]] && G.holds[a[0]].name) || 'the middle'} in ${a[1]} seconds`, '#ffcf3a'];
+    case 'chestUp': return ['The war chest has landed!', `${(G.holds && G.holds[a[0]] && G.holds[a[0]].name) || 'The middle'} is up for grabs: take it`, '#ffcf3a'];
+    case 'chestTaken': return a[0] === G.ALLY[colorOf(myTi)] ? ['Your side took the war chest!', `+${a[1]} gold for every army, horns full`, '#ffcf3a'] : [`${allyNames(a[0])} took the war chest`, 'Their horns are full: brace yourself', '#e0352b'];
     case 'breach': { // a[0]: the castle (color) breached, a[1]: by whom
       if (colorOf(a[0]) === colorOf(myTi)) return ['Your palisade is breached!', 'Hold the gap', '#e0352b'];
       return !isEnemyTi(a[1], myTi) ? [`Breach in ${nm(a[0])}'s palisade!`, a[1] === myTi ? 'Your doing: through the gap!' : 'Through the gap!', css(a[0])] : null;
@@ -71,6 +75,8 @@ export function showMsg(k, a) {
   const myTi = G.myTi;
   if (k === 'gold') { if (a[0] === myTi) { floatText(a[1], groundY(a[1], a[2]) + 2.6, a[2], `+${a[3]} gold`, '#ffcf3a'); sfx.coin(); } return; }
   if (k === 'holdMen') { const p = G.player; if (a[0] === myTi && p && !p.dead) floatText(p.x, p.y + 3.4, p.z, '+1 footman from the village', '#ffcf3a'); return; }
+  if (k === 'chestUp') sfx.horn();
+  if (k === 'chestTaken') { sfx.capture(); if (a[0] === G.ALLY[colorOf(myTi)]) { sfx.coin(); sfx.cheer(); buzz([60, 40, 60]); } }
   if (k === 'holdTaken') { sfx.capture(); if (a[0] === G.ALLY[colorOf(myTi)]) { sfx.cheer(); buzz([50, 30, 50]); } }
   const m = msgText(k, a); if (!m) return;
   banner(m[0], m[1], m[2]);

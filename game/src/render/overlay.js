@@ -162,9 +162,10 @@ function drawHoldLabels() {
   for (const h of hs) {
     const px = h.px ?? h.x, pz = h.pz ?? h.z, [sx, sy, ok] = proj(px, groundY(px, pz) + 7.4, pz); if (!ok) continue;
     const d = Math.hypot(px - camera.position.x, pz - camera.position.z), sz = Math.round(clamp(900 / d, 12, 22));
-    const name = h.kind === 'oasis' ? 'OASIS' : 'VILLAGE';
+    const name = (h.name || (h.kind === 'oasis' ? 'the Oasis' : 'a village')).replace(/^(the|a) /i, '').toUpperCase();
     ctx.textAlign = 'center'; ctx.font = `italic ${sz}px Bangers, Impact, sans-serif`; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.6)';
     ctx.strokeText(name, sx, sy); ctx.fillStyle = h.owner >= 0 ? sideCss(h.owner) : '#efe9d8'; ctx.fillText(name, sx, sy);
+    if (h.chest) { ctx.font = `italic ${Math.round(sz * .85)}px Bangers, Impact, sans-serif`; const t = h.chest === 2 ? 'WAR CHEST!' : 'WAR CHEST COMING'; ctx.strokeText(t, sx, sy - sz * 1.05); ctx.fillStyle = (performance.now() / 300 | 0) % 2 ? '#ffd23a' : '#fff4c0'; ctx.fillText(t, sx, sy - sz * 1.05); ctx.font = `italic ${sz}px Bangers, Impact, sans-serif`; }
     if (h.contested) { ctx.font = `800 ${Math.round(sz * .6)}px "Barlow Semi Condensed", sans-serif`; ctx.fillStyle = '#ffcf3a'; ctx.strokeText('CONTESTED', sx, sy + sz * .8); ctx.fillText('CONTESTED', sx, sy + sz * .8); }
     else if (h.cap >= 0 && h.prog > 0) { const w = sz * 2.6; ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, sy + 6, w, 5); ctx.fillStyle = sideCss(h.cap); ctx.fillRect(sx - w / 2, sy + 6, w * Math.min(1, h.prog), 5); }
   }
