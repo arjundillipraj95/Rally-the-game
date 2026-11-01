@@ -358,6 +358,8 @@
 #ovEnd .sidemoments small{font:800 11px "Barlow Semi Condensed",sans-serif;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.65);}
 #ovEnd .sidemoments li{color:#fff;font-size:14px;}
 #ovEnd .sidemoments li::before{color:rgba(255,255,255,.6);}
+@keyframes lastp{from{background:rgba(224,53,43,0)}to{background:rgba(224,53,43,.45)}}
+.tp.last,[id^="tp"].last{animation:lastp .6s ease-in-out infinite alternate;border-radius:6px;}
 #ordFan{position:fixed;z-index:40;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:stretch;}
 #ordFan[hidden]{display:none;}
 #ordFan button{font:800 15px "Barlow Semi Condensed",sans-serif;letter-spacing:.4px;text-transform:uppercase;color:#fff;background:rgba(20,16,14,.82);border:2px solid rgba(255,255,255,.35);border-radius:14px;padding:9px 16px;min-width:132px;touch-action:none;white-space:nowrap;}

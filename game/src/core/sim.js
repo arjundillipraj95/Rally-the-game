@@ -1,6 +1,6 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
-import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, HOLDS, EVADE, FORT, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT, DUEL, CHEST, STREAK, BASH } from '../config.js';
+import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, HOLDS, EVADE, FORT, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT, DUEL, CHEST, STREAK, BASH, LAST } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, activeFrom, gateOff, ARMIES, rules, matchTime, isOut } from './state.js';
 import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W, groundSlow, onIce } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable, setPalSeg } from './nav.js';
@@ -94,6 +94,7 @@ function moraleTick(dt) {
     if (s.steadyT > 0) s.steadyT -= dt;
     const men = squadOf(ti), home = gatePos(TEAMS[colorOf(ti)], gateOff(ti), 0);
     const atHome = men.filter(u => Math.hypot(u.x - home[0], u.z - home[1]) < MORALE.homeR).length > men.length / 2;
+    if (G.mode === 'conquest' && G.teams[colorOf(ti)].breached && G.teams[colorOf(ti)].alive && L && !L.dead && lastStand(L)) s.morale = Math.max(s.morale, LAST.moraleFloor); // (a last stand: nobody runs)
     if (s.morale <= MORALE.rout && men.length >= 3 && !(s.steadyT > 0) && !atHome) { s.routT = MORALE.routT; say('rout', ti); fx('fxmsg', { k: 'fxrout', u: L || squadOf(ti)[0], ti }); return; }
     if (up && !nearestFoe(L, MORALE.calmR)[0]) s.morale = Math.min(100, s.morale + MORALE.regen * dt);
     else if (up) s.morale = Math.min(100, s.morale + MORALE.regen * .25 * dt); // (a captain on his feet steadies them, even in the thick of it)
@@ -303,6 +304,7 @@ function resolveSwing(u) {
     if (!s.alive || u.mounted || !isEnemyTi(tg.castle, u.ti)) return;
     if (Math.hypot(TEAMS[tg.castle].pos[0] - u.x, TEAMS[tg.castle].pos[1] - u.z) > CASTLE_REACH + .8) return;
     s.points -= (u.human ? 1.3 : u.leader ? .7 : u.kind === 'arch' ? .08 : .2) * rules().castle;
+    if (s.points < LAST.at && !s.breached && s.points > 0) breach(tg.castle, u);
     sound('wall', u.x, u.z); spark(u.x + Math.sin(u.face) * 1.2, 1.4, u.z + Math.cos(u.face) * 1.2, '#cfc8b8', 5);
     if (s.points <= 0) destroyCastle(tg.castle, u.ti);
     return;
@@ -374,6 +376,7 @@ function hit(a, b, mult = 1, extra) {
   if (a.y - b.y > .8) dmg *= 1.2; // fighting downhill
   if (!b.leader && (behind(b, a) || routing(b.ti))) dmg *= MORALE.flankX; // caught from the side or behind, or running
   if (a.rallyT > 0) dmg *= RALLY.dmg;
+  if (G.mode === 'conquest' && G.teams[colorOf(a.ti)].breached && lastStand(a)) dmg *= LAST.dmg; // (backs to the wall)
   b.lastHit = G.T;
   const spearedHorse = (a.kind === 'foot' && a.tier >= 1) || (a.leader && a.weapon === 'spear');
   if (b.mounted && (spearedHorse || Math.random() < .5)) { horseDamage(b, dmg * (spearedHorse ? 3 : 1)); return; }
@@ -947,6 +950,16 @@ function die(u, killer, ang, launch = 0) {
   }
   checkEnd();
 }
+// The breach: a castle beaten down to its last quarter. Its defenders make their last stand.
+function breach(c, by) {
+  const s = G.teams[c]; s.breached = true;
+  for (const i of activeArmies()) if (colorOf(i) === c) { const t = G.teams[i]; t.rally = 100; t.morale = Math.max(t.morale, 70); t.routT = 0; }
+  const L = G.teams[c].leader, near = G.units.filter(u => !u.dead && colorOf(u.ti) === c).sort((p, q) => Math.hypot(p.x - TEAMS[c].pos[0], p.z - TEAMS[c].pos[1]) - Math.hypot(q.x - TEAMS[c].pos[0], q.z - TEAMS[c].pos[1]))[0];
+  say('lastStand', c, by ? by.ti : -1); fx('fxmsg', { k: 'fxbreach', u: near || (L && !L.dead ? L : by), ti: c });
+  fx('netFlush');
+}
+// is this man making his castle's last stand? (its walls breached, and him near them)
+const lastStand = u => { const c = colorOf(u.ti), s = G.teams[c]; return G.mode === 'conquest' && s.breached && s.alive && Math.hypot(TEAMS[c].pos[0] - u.x, TEAMS[c].pos[1] - u.z) < LAST.r; };
 function destroyCastle(i, by) {
   const s = G.teams[i]; s.alive = false; s.points = 0;
   if (by != null) hl(by, 'castle');

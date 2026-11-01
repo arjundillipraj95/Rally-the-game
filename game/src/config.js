@@ -98,6 +98,10 @@ export const VOLLEY = { cd: 9, spread: 2.6 }; // spread: how far an aimed volley
 // open a window (no parrying by mashing); light: the tighter window for an ordinary, unannounced blow.
 // The streak: a player captain's blows that land, one after another, without being hit back (gap: the
 // most seconds between them). At n, his next Attack is a finisher: a whirlwind that can't be blocked.
+// The last stand (conquest): a castle beaten down below at its strength is breached. Once, the moment
+// is marked for everyone; its armies' horns fill, and from then on its men within r of it fight harder
+// (dmg x), never break, and keep their heart up (moraleFloor).
+export const LAST = { at: 25, r: 32, dmg: 1.3, moraleFloor: 45 };
 export const STREAK = { gap: 3, n: 8, mult: 2.2, kb: 2.2, stun: .9, cleaveN: 5 };
 // The shield bash: Block tapped, then Attack within window s (not at once: one after the other). A shove
 // with the shield: little damage, but it knocks a raised shield or guard aside (open s stunned). Unless

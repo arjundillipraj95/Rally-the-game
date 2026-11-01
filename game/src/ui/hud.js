@@ -1,5 +1,5 @@
 // Scoreboard, clock, health, gold, squad count and button labels.
-import { TEAMS, MODES, STATS, DM_TICKETS, CAPS_TO_WIN, CTRL, AL_LETTER, ORDER_NAMES, UPGRADES, WEAPON_NAMES, STREAK } from '../config.js';
+import { TEAMS, MODES, STATS, DM_TICKETS, CAPS_TO_WIN, CTRL, AL_LETTER, ORDER_NAMES, UPGRADES, WEAPON_NAMES, STREAK, LAST } from '../config.js';
 import { G, isFfa, colorOf, rules, matchTime, SLOT_NAME, isOut } from '../core/state.js';
 import { colorOut, colorScore, colorHuman, squadOf, canRecruit, horseMax, upgradeCost, javMax, execTarget } from '../core/sim.js';
 import { session, isClient } from '../net/session.js';
@@ -44,6 +44,7 @@ export function updateHud(lastSnapAt) {
     row.querySelector('i').style.transform = `scaleX(${Math.max(0, v) / max})`;
     row.querySelector('b').textContent = G.mode === 'ctf' ? `${v}/${rules().caps}` : Math.max(0, Math.ceil(v));
     const out = colorOut(i); row.classList.toggle('out', out);
+    row.classList.toggle('last', G.mode === 'conquest' && !out && G.teams[i].alive && G.teams[i].points < LAST.at); // (breached: the last stand)
     const pip = $('pip' + i); pip.classList.toggle('out', out); pip.classList.toggle('hum', colorHuman(i)); pip.textContent = out ? '✕' : t.name[0];
   });
   $('clockT').textContent = fmt(G.T);
