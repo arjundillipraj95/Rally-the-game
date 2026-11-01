@@ -1,7 +1,7 @@
 // Terrain heights and map layouts. A layout is plain data (what stands where),
 // generated from a seed so every phone in an online match builds the same map.
 // Obstacles are circles {x,z,r} or boxes {box,x,z,hw,hd,rot}; `blockers` stop arrows below height h.
-import { TEAMS, CASTLE_R, HOLDS } from '../config.js';
+import { TEAMS, CASTLE_R, HOLDS, FORT } from '../config.js';
 import { G } from './state.js';
 
 export function mulberry(a) {
@@ -239,6 +239,25 @@ function solid(L, pts, h, kind) {
   const ring = [...pts, pts[0]];
   for (let i = 0; i < ring.length - 1; i++) wallLine(L, ring[i][0], ring[i][1], ring[i + 1][0], ring[i + 1][1], 1.2, h, { ridge: true });
 }
+// Every castle's palisade (Fortify): laid out at the start, standing only once bought (or from the
+// start on the Wooden Fort). Gates face the middle and one side; sections are numbered from the
+// middle-facing gate round, so a breach can knock out one section at a time.
+function palisades(L) {
+  L.pal = TEAMS.map((t, c) => {
+    const [px, pz] = t.pos, toC = Math.atan2(-pz, -px), gates = [toC, toC + Math.PI / 2], half = FORT.gateW / FORT.r;
+    const n = Math.ceil(Math.PI * 2 * FORT.r / 1.04), obs = [], blk = [];
+    for (let i = 0; i < n; i++) {
+      const a = i / n * Math.PI * 2; if (gates.some(g => Math.abs(angDiff(a, g)) < half)) continue;
+      const k = Math.floor((((a - toC) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / (Math.PI * 2 / FORT.segs));
+      const x = px + Math.cos(a) * FORT.r, z = pz + Math.sin(a) * FORT.r;
+      const o = { x, z, r: .8, pal: true, c, k, off: true, segKey: c + ':' + k }, b = { x, z, r: .8, h: FORT.h, pal: true, c, k, off: true };
+      L.obstacles.push(o); L.blockers.push(b); obs.push(o); blk.push(b);
+    }
+    // the gate towers (Fortify's second level): just outside each gate, on its right
+    const towers = gates.map(g => { const a = g - (half + 2.2 / FORT.r); return { x: px + Math.cos(a) * (FORT.r + .2), z: pz + Math.sin(a) * (FORT.r + .2) }; });
+    return { c, gates, obs, blk, towers };
+  });
+}
 // The Desert's canyon country: sandstone mesas scattered so the gaps between them make a maze of
 // winding canyons (some running on, some ending blind), placed a quarter at a time and turned to the
 // other three quarters so every castle faces the same maze. Kept clear: the bowl round the fort, each
@@ -356,7 +375,8 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
   const R = mulberry(seed | 0), r = (a, b) => a + R() * (b - a), S = W.S;
   const L = { mapId, withFort, ridges: [], roads: [], passes: [], flats: [], hills: [], palisades: [], rocks: [], trees: [], stones: [], obstacles: [], blockers: [], fortSegments: [],
     buildings: [], columns: [], towers: [], rings: [], gates: [], palms: [], huts: [], statues: [], holds: [], solids: [], fences: [] };
-  const nearCastle = (x, z, pad) => TEAMS.some(t => Math.hypot(t.pos[0] - x, t.pos[1] - z) < 20 + pad);
+  palisades(L);
+  const nearCastle = (x, z, pad) => TEAMS.some(t => Math.hypot(t.pos[0] - x, t.pos[1] - z) < 25 + pad); // (clear of the palisade ring too)
   const clearOf = (x, z, pad = 0) => !nearCastle(x, z, pad) && Math.hypot(x, z) > (withFort ? 12 : 8) + pad && !(mapId === 'river' && Math.abs(z) < 9);
   for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2 + r(-.1, .1); L.hills.push({ a, d: r(150, 185) * S, rad: r(18, 34) * S, sy: r(.35, .6) }); }
   const scatterRocks = (n, ok = clearOf) => {
@@ -500,11 +520,11 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
   }
 
   if (mapId === 'wooden') {
-    // each castle sits inside a palisade ring with two gates: one toward the centre, one toward a neighbour
+    // each castle starts inside its palisade (Fortify's first level, already built; see palisades()),
+    // two gates: one toward the centre, one toward a neighbour, each flanked by watchtowers
+    L.fortStart = 1;
     TEAMS.forEach(t => {
       const toC = Math.atan2(-t.pos[1], -t.pos[0]), side = toC + Math.PI / 2;
-      ringWall(L, t.pos[0], t.pos[1], 22, .8, 3.4, a => angNear(a, [toC, side], 3.4 / 22));
-      L.rings.push({ x: t.pos[0], z: t.pos[1], r: 22, h: 3.4, gaps: [toC, side], gapW: 3.4 / 22, kind: 'logs' });
       for (const g of [toC, side]) for (const s of [-1, 1]) { const a = g + s * 3.9 / 22, x = t.pos[0] + Math.cos(a) * 22, z = t.pos[1] + Math.sin(a) * 22; L.towers.push({ x, z, r: 1.1, h: 6, kind: 'wood', small: true }); }
     });
     for (const a of AXES) { const x = Math.cos(a) * 33, z = Math.sin(a) * 33; L.obstacles.push({ x, z, r: 1.8 }); L.blockers.push({ x, z, r: 1.8, h: 4 }); L.towers.push({ x, z, r: 1.6, h: 8, kind: 'wood' }); }

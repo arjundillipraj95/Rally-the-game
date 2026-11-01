@@ -6,7 +6,7 @@ import { EVADE, TEAMS, MAPS, KINDS, STATS, RECRUITS, FACTIONS, factionFromCode, 
 import { G, bus, colorOf, isEnemyTi, activeFrom, ARMIES } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn, angDiff } from '../core/world.js';
 import { buildNav, syncGates } from '../core/nav.js';
-import { captainEvade, evadeKind, makeHolds, execTarget, rallyCry, blockPress, attackHold, attackRelease, rideRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainJump, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
+import { initForts, applyFort, fortLvl, captainEvade, evadeKind, makeHolds, execTarget, rallyCry, blockPress, attackHold, attackRelease, rideRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainJump, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
 import { session, isClient, isHost } from './session.js';
 import { showMsg } from '../ui/messages.js';
 import { sfx, buzz, gateS } from '../ui/audio.js';
@@ -65,7 +65,8 @@ function encodeSnap() {
   // the map's holdings, and control mode's points: who has each, and how far a capture has got
   const hd = (G.holds || []).map(h => [h.owner, Math.round(h.prog * 100), h.cap, h.contested ? 1 : 0].join(',')).join(';');
   const cp = (G.ctrlPoints || []).map(p => [p.owner, Math.round(p.prog * 100), p.capturer ?? -1].join(',')).join(';');
-  return [Math.round(G.T * 10), teams, us.join(';'), ars.join(';'), hs.join(';'), fl, pl, G.bounty, hd, cp].join('|');
+  const fo = (G.forts || []).map(f => f.broken).join(','); // (Fortify: each castle's broken palisade sections)
+  return [Math.round(G.T * 10), teams, us.join(';'), ars.join(';'), hs.join(';'), fl, pl, G.bounty, hd, cp, fo].join('|');
 }
 // a remote player's blow landing (or landing on them) goes out at once rather than waiting for the
 // next regular snapshot, so their hits register as quickly as the network allows
@@ -107,7 +108,7 @@ export function netHostReadInputs() {
     const ti = NET.seats[p.peer]; if (ti === undefined) continue;
     const pr = p.presence || {}; if (pr.seed !== G.seed || pr.ph !== 'play') continue;
     const s = G.teams[ti], L = s.leader; if (!s.human) continue;
-    const last = NET.inp[ti] || (NET.inp[ti] = { atk: 0, chg: 0, ride: 0, vly: 0, par: 0, ahN: 0, hold: '', rec: [0, 0, 0], up: [0, 0, 0, 0, 0] });
+    const last = NET.inp[ti] || (NET.inp[ti] = { atk: 0, chg: 0, ride: 0, vly: 0, par: 0, ahN: 0, hold: '', rec: [0, 0, 0], up: UPGRADES.map(() => 0) }); // (one count per upgrade: a short list once lost the Horse)
     if (L && !L.dead && Array.isArray(pr.cap) && pr.cap[0] === L.id) {
       L.x = +pr.cap[1]; L.z = +pr.cap[2]; L.face = +pr.cap[3]; L.vx = +pr.cap[4]; L.vz = +pr.cap[5];
       L.blocking = !!pr.blk; L.jy = Math.max(0, +pr.cap[6] || 0); L.ahHeld = !!pr.ah;
@@ -145,11 +146,12 @@ export function clientStart(hp) {
   const humans = new Array(ARMIES).fill(0); Object.values(hp.seats || {}).forEach(ti => humans[ti] = 1);
   const active = activeFrom(G.duo);
   G.teams = newTeams(humans, active);
+  initForts(); C.fortSig = '';
   G.flag = G.mode === 'ctf' ? { state: 'home', x: 0, z: 0, carrier: null, dropT: 0 } : null;
   G.ctrlPoints = G.mode === 'ctrl' ? makeCtrlPoints(G.layout) : null;
   G.holds = makeHolds(G.layout);
   Object.assign(C, { byId: new Map(), lastN: -1, lastMsgN: (hp.m && hp.m.length) ? hp.m[hp.m.length - 1][0] : 0, meId: null, meInit: false, kickN: 0, localCd: 0, lastSnapAt: performance.now(),
-    inp: { atk: 0, ride: 0, vly: 0, chg: 0, evN: 0, evK: '', par: 0, ahN: 0, ahD: 0, ah: false, rly: 0, foc: null, vat: null, rec: [0, 0, 0], up: [0, 0, 0, 0, 0], ord: 'follow', hold: null, face: 0 }, sendAt: 0, sendNow: false, pred: null, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
+    inp: { atk: 0, ride: 0, vly: 0, chg: 0, evN: 0, evK: '', par: 0, ahN: 0, ahD: 0, ah: false, rly: 0, foc: null, vat: null, rec: [0, 0, 0], up: UPGRADES.map(() => 0), ord: 'follow', hold: null, face: 0 }, sendAt: 0, sendNow: false, pred: null, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
   G.player = null;
   cam.yaw = Math.atan2(-TEAMS[colorOf(G.myTi)].pos[0], -TEAMS[colorOf(G.myTi)].pos[1]); cam.pitch = CAM_PITCH;
   G.state = 'play';
@@ -192,6 +194,11 @@ function clientApply(hp) {
   });
   G.bounty = +secs[7];
   if (secs[8] && G.holds) secs[8].split(';').forEach((r, i) => { const h = G.holds[i], v = r.split(',').map(Number); if (h) { h.owner = v[0]; h.prog = v[1] / 100; h.cap = v[2]; h.contested = !!v[3]; } });
+  if (secs[10] != null && G.forts) { // palisades: built (the castle's Fortify level) and broken
+    secs[10].split(',').forEach((v, c) => { if (G.forts[c]) G.forts[c].broken = +v || 0; });
+    const sig = secs[10] + '/' + [0, 1, 2, 3].map(fortLvl).join('');
+    if (sig !== C.fortSig) { C.fortSig = sig; for (let c = 0; c < 4; c++) applyFort(c); }
+  }
   if (secs[9] && G.ctrlPoints) secs[9].split(';').forEach((r, i) => { const p = G.ctrlPoints[i], v = r.split(',').map(Number); if (p) { p.owner = v[0]; p.prog = v[1] / 100; p.capturer = v[2] < 0 ? null : v[2]; } });
   const mine = secs[6] ? secs[6].split(';').map(r => r.split(',')).find(r => +r[0] === myTi) : null;
   let myId = null;
@@ -509,7 +516,7 @@ export const actions = {
     if (cost == null) { banner(`${u.name} is maxed`, 'Try another upgrade'); return; }
     if (me.gold < cost) { banner('Not enough gold', `${u.name} costs ${cost} gold`, '#ffcf3a'); return; }
     if (isClient()) {
-      C.inp.up[UPGRADES.indexOf(u)]++; me.gold -= cost; me.up[id]++; C.goldLocalAt = C.upLocalAt = performance.now();
+      C.inp.up[UPGRADES.indexOf(u)]++; me.gold -= cost; if (id !== 'fort') me.up[id]++; C.goldLocalAt = C.upLocalAt = performance.now();
       sfx.coin(); showMsg('upgrade', [G.myTi, id, me.up[id]]);
     } else buyUpgrade(G.myTi, id);
     bus.emit('hud');

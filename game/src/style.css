@@ -87,7 +87,7 @@
   .sbar .tray{right:auto;left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100vw - 20px);}
   .sbar .tray button{width:168px;min-width:0;}
   /* upgrades: three labelled columns (who it's for), two cards each */
-  .sbar .tray.up{display:grid;grid-template-columns:repeat(3,136px);gap:8px;}
+  .sbar .tray.up{display:grid;grid-template-columns:repeat(4,136px);gap:8px;}
   .ucol{display:grid;gap:5px;align-content:start;}
   .ucol h4{margin:0;font:800 11px var(--body);letter-spacing:.1em;text-transform:uppercase;color:#fff;text-shadow:0 1px 2px #000;padding-left:4px;}
   .sbar .tray.up button{width:136px;grid-template-columns:1fr auto;column-gap:4px;align-items:baseline;}
@@ -116,7 +116,7 @@
     .sbar{right:10px;left:auto;transform:none;bottom:212px;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100vw - 20px);}
     #hp{top:50px;left:auto;right:calc(max(12px, env(safe-area-inset-right,0px)) + 100px);transform:none;width:min(26vw,120px);}
     #points{top:50px;}
-    .sbar .tray.up{left:auto;right:0;transform:none;width:calc(100vw - 20px);grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;}
+    .sbar .tray.up{left:auto;right:0;transform:none;width:calc(100vw - 20px);grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;}
     .sbar .tray.up button{width:auto;padding:6px 7px;} .tray.up button b{font-size:15px;}
   }
   /* keyboard players see the key on each button */

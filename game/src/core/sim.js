@@ -1,9 +1,9 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
-import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, HOLDS, EVADE, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT } from '../config.js';
+import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, HOLDS, EVADE, FORT, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, activeFrom, gateOff, ARMIES, rules, matchTime } from './state.js';
 import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W, groundSlow, onIce } from './world.js';
-import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable } from './nav.js';
+import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable, setPalSeg } from './nav.js';
 
 // ---------- announcements & effects (presentation listens) ----------
 export const say = (k, ...a) => bus.emit('msg', { k, a });
@@ -18,7 +18,7 @@ const sound = (name, x, z) => fx('sfx', { name, x, z });
 export function newTeams(humans, active = activeFrom([0, 0, 0, 0])) {
   return Array.from({ length: ARMIES }, (_, i) => ({ points: 100, tickets: rules().tickets, caps: 0, ctrlScore: 0, gold: Math.round(ECON.startGold * rules().gold), alive: true, plan: null, leaderDeadT: 0, recruitT: rnd(2, 6), thinkT: 0,
     human: !!humans[i], active: !!active[i], order: 'follow', holdPt: null, morale: 100, rally: 0, routT: 0, focus: null, towerT: rnd(0, 1.4), leader: null,
-    up: { foot1: 0, foot2: 0, arch1: 0, arch2: 0, aura: 0, horse: 0 }, arrowHits: 0, shieldwallT: 0, volleyCd: 0, upT: rnd(20, 40) }));
+    up: { foot1: 0, foot2: 0, arch1: 0, arch2: 0, aura: 0, horse: 0, fort: 0 }, arrowHits: 0, shieldwallT: 0, volleyCd: 0, upT: rnd(20, 40) }));
 }
 export function mkUnit(ti, x, z, kind, human = false) {
   const st = STATS[kind];
@@ -51,6 +51,7 @@ export function startMatch(humans, active = activeFrom([0, 0, 0, 0])) {
   G.flag = G.mode === 'ctf' ? { state: 'home', x: 0, z: 0, carrier: null, dropT: 0 } : null;
   G.ctrlPoints = G.mode === 'ctrl' ? makeCtrlPoints(G.layout) : null;
   G.holds = makeHolds(G.layout);
+  initForts();
   for (let i = 0; i < ARMIES; i++) {
     if (!G.teams[i].active) continue;
     const t = TEAMS[colorOf(i)], off = gateOff(i); // a castle's captains muster side by side along its gate
@@ -124,7 +125,7 @@ export const archTier = ti => Math.min(2, lvl(ti, 'arch1') + lvl(ti, 'arch2'));
 export const upgradeCost = (ti, id) => {
   const def = UPGRADES.find(u => u.id === id);
   if (!def) return null;
-  const l = lvl(ti, id);
+  const l = lvl(id === 'fort' ? colorOf(ti) : ti, id); // (Fortify is the castle's, shared by everyone in it)
   return l >= def.cost.length ? null : def.cost[l];
 };
 // Applying a tier retroactively updates every already-recruited unit of that kind, matching
@@ -157,7 +158,9 @@ export function buyUpgrade(ti, id) {
   if (!s || cost == null || s.gold < cost || !UPGRADES.some(u => u.id === id)) return false;
   if (id === 'foot2' && lvl(ti, 'foot1') < 1) return false;
   if (id === 'arch2' && lvl(ti, 'arch1') < 1) return false;
-  s.gold -= cost; s.up[id]++;
+  s.gold -= cost;
+  if (id === 'fort') { G.teams[colorOf(ti)].up.fort++; applyFort(colorOf(ti)); say('fortUp', colorOf(ti), G.teams[colorOf(ti)].up.fort); return true; }
+  s.up[id]++;
   if (id === 'foot1' || id === 'foot2') applyFootTier(ti);
   if (id === 'arch1' || id === 'arch2') applyArchTier(ti);
   if (id === 'horse' && s.leader && !s.leader.mounted) s.leader.horseHp = horseMax(ti);
@@ -284,6 +287,7 @@ function resolveSwing(u) {
     }
     return;
   }
+  if (tg && tg.wall) { hitWall(u, tg.wall); return; }
   if (tg && tg.castle !== undefined) {
     const s = G.teams[tg.castle];
     if (!s.alive || u.mounted || !isEnemyTi(tg.castle, u.ti)) return;
@@ -824,6 +828,41 @@ function updateControlPoints(dt) {
   checkEnd();
 }
 
+// ---------- Fortify: a castle's palisade and gate towers ----------
+// Each castle's state: which sections are broken (a bitmask) and how much each has left. The level
+// is the castle army's 'fort' upgrade. Every phone applies the same thing (applyFort) to the
+// obstacles, the arrow blockers and the walking grid.
+export function initForts() {
+  G.forts = [0, 1, 2, 3].map(() => ({ broken: 0, hp: new Array(FORT.segs).fill(FORT.segHp), towerT: rnd(0, FORT.towerEvery) }));
+  const start = (G.layout && G.layout.fortStart) || 0;
+  for (let c = 0; c < 4; c++) { if (G.teams[c]) G.teams[c].up.fort = start; applyFort(c); }
+}
+export const fortLvl = c => (G.teams[c] && G.teams[c].up && G.teams[c].up.fort) || 0;
+export function applyFort(c) {
+  const P = G.layout && G.layout.pal && G.layout.pal[c], f = G.forts && G.forts[c]; if (!P || !f) return;
+  const lv = fortLvl(c), on = k => lv >= 1 && !((f.broken >> k) & 1);
+  for (const o of P.obs) o.off = !on(o.k);
+  for (const b of P.blk) b.off = !on(b.k);
+  for (let k = 0; k < FORT.segs; k++) setPalSeg(c + ':' + k, on(k));
+}
+// the nearest standing section of an enemy palisade within a man's reach, in front of him
+function wallInReach(u, cone = 1.3) {
+  let best = null, bd = 1e9;
+  for (const o of nearObstacles(u.x, u.z)) {
+    if (!o.pal || o.off || !isEnemyTi(o.c, u.ti)) continue;
+    const d = Math.hypot(o.x - u.x, o.z - u.z); if (d > u.r + o.r + u.reach + .4 || d > bd) continue;
+    if (Math.abs(angDiff(u.face, Math.atan2(o.x - u.x, o.z - u.z))) > cone) continue;
+    bd = d; best = o;
+  }
+  return best;
+}
+function hitWall(u, w) {
+  const f = G.forts[w.c]; if (!f || fortLvl(w.c) < 1 || ((f.broken >> w.k) & 1)) return;
+  f.hp[w.k] -= u.dmg * FORT.wallDmg * (u.leader ? FORT.capWall : 1) * aiDmg(u.ti);
+  sound('wall', w.x, w.z); spark(w.x, groundY(w.x, w.z) + 1.4, w.z, '#a3825a', 4);
+  if (f.hp[w.k] <= 0) { f.broken |= 1 << w.k; applyFort(w.c); say('breach', w.c, u.ti); }
+}
+
 // ---------- holdings: places on the map worth taking ----------
 // Owned by an alliance (G.ALLY value), not an army: allies share them. Taken by standing in one with
 // only your side's men there; a fight inside freezes it; empty, a half-taken one slowly reverts.
@@ -1053,7 +1092,8 @@ export function captainAttack(p) {
   const best = softAim(p, spear ? (skewer ? SK.aim : CC.spear.aim) : S.aim);
   if (p.isMe && G.capStats) { G.capStats.press++; if (!best) G.capStats.noTarget++; }
   let target = best;
-  if (!best) {
+  if (!best) { const w = wallInReach(p, 1.5); if (w) { target = { wall: w }; p.face = Math.atan2(w.x - p.x, w.z - p.z); } } // (an enemy palisade: hack at it)
+  if (!best && !target) {
     const [ci, cd] = nearestEnemyCastle(p);
     if (ci >= 0 && cd < CASTLE_REACH + .6) { target = { castle: ci }; p.face = Math.atan2(TEAMS[ci].pos[0] - p.x, TEAMS[ci].pos[1] - p.z); }
   }
@@ -1459,6 +1499,7 @@ export function integrate(u, dt, pz) {
   for (const o of nearObstacles(u.x, u.z)) {
     if (o.gate && !gateShut(o)) continue;
     if (o.fence && u.vaultT > 0) continue; // (a pounce goes over a low wall or a hedge)
+    if (o.off) continue; // (a palisade section not built yet, or broken down)
     const dx = u.x - o.x, dz = u.z - o.z;
     if (o.box) {
       const c = Math.cos(o.rot), s = Math.sin(o.rot), lx = dx * c - dz * s, lz = dx * s + dz * c;
@@ -1534,7 +1575,7 @@ export function update(dt, input) {
       if (s.upT <= 0) {
         s.upT = rnd(6, 12);
         if (squadOf(i).length >= G.squadCap - 3 || !canRecruit(i)) {
-          const opts = UPGRADES.map(u => u.id).filter(id => upgradeCost(i, id) != null && s.gold >= upgradeCost(i, id) + 30);
+          const opts = UPGRADES.map(u => u.id).filter(id => upgradeCost(i, id) != null && s.gold >= upgradeCost(i, id) + 30 && (id !== 'fort' || (i < 4 && G.mode !== 'ctrl')));
           if (opts.length) buyUpgrade(i, opts[Math.floor(Math.random() * opts.length)]);
         }
       }
@@ -1625,7 +1666,11 @@ export function update(dt, input) {
     if (u.evadeFollowT > 0) { u.evadeFollowT -= dt; if (u.evadeFollowT <= 0 && u.foe && u.fd < 4 && u.cd <= 0) { u.face = Math.atan2(u.foe.x - u.x, u.foe.z - u.z); captainAttack(u); } }
     if (u.stun > 0 && !u.mounted) { moveToward(u, u.x, u.z, 0, dt); continue; } // (reeling: he can't turn to face you, so a stagger is the moment to get round him)
     if (u.leader) { stepJump(u, dt); regenJavs(u, dt); thinkLeader(u, G.teams[u.ti], dt); }
-    else { u.slot = u.kind === 'arch' ? archIdx[u.ti]++ : slotIdx[u.ti]++; u.meleeN = meleeN[u.ti]; u.archN = archN[u.ti]; thinkSoldier(u, dt); }
+    else {
+      u.slot = u.kind === 'arch' ? archIdx[u.ti]++ : slotIdx[u.ti]++; u.meleeN = meleeN[u.ti]; u.archN = archN[u.ti]; thinkSoldier(u, dt);
+      // besiegers up against the palisade of the castle they're after (nobody to fight close by) hack at it
+      if (u.kind === 'foot' && u.cd <= 0 && !(u.fd < 3.5)) { const pl = G.teams[u.ti].plan; if (pl && pl.kind === 'castle') { const w = wallInReach(u, 1.7); if (w && w.c === colorOf(pl.ti)) startSwing(u, { wall: w }); } }
+    }
   }
 
   for (const h of G.horses) {
@@ -1721,6 +1766,12 @@ export function update(dt, input) {
     const [f] = nearestFoe({ x: t.pos[0], z: t.pos[1], ti: i }, 24);
     if (f) shoot({ x: t.pos[0], z: t.pos[1], y: 0, vx: 0, vz: 0, ti: i, tower: true }, f, 5.5);
   });
+  // Fortify's gate towers: each covers the ground outside its gate
+  if (G.forts) for (let c = 0; c < 4; c++) {
+    if (fortLvl(c) < 2 || (G.mode === 'conquest' && !G.teams[c].alive)) continue;
+    const f = G.forts[c]; f.towerT -= dt; if (f.towerT > 0) continue; f.towerT = FORT.towerEvery;
+    for (const tw of G.layout.pal[c].towers) { const [e] = nearestFoe({ x: tw.x, z: tw.z, ti: c }, FORT.towerRange); if (e) shoot({ x: tw.x, z: tw.z, y: 0, vx: 0, vz: 0, ti: c, tower: true, arrow: FORT.towerDmg }, e, 5.2); }
+  }
 
   arrowsTick(dt, true);
   updateFlag(dt);
@@ -1761,7 +1812,7 @@ export function arrowsTick(dt, authoritative) {
     a.px = a.x; a.py = a.y; a.pz = a.z; a.x = x; a.y = y; a.z = z;
     if (y < 15 && a.t > .12) { // trees, walls, buildings and ridges stop arrows
       for (const tr of nearBlockers(x, z)) {
-        if (y > tr.h + groundY(tr.x, tr.z) || (tr.gate && !gateShut(tr))) continue;
+        if (tr.off || y > tr.h + groundY(tr.x, tr.z) || (tr.gate && !gateShut(tr))) continue;
         if (Math.abs(tr.x - x) < tr.r && Math.abs(tr.z - z) < tr.r && Math.hypot(tr.x - x, tr.z - z) < tr.r) { a.stuck = true; a.life = 2; sound('thud', x, z); spark(x, y, z, '#8a7a62', 3); break; }
       }
       if (a.stuck) continue;

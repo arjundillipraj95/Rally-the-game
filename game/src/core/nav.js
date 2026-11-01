@@ -5,7 +5,7 @@ import { inRiver, inFord, onBridge, arenaGatesOpen, W, inPoly } from './world.js
 
 const CS = 1.5, HALF = 122, N = Math.ceil(HALF * 2 / CS), INFL = .55; // cell size, half-extent, cells per side, unit radius
 const BS = 6, BN = Math.ceil(HALF * 2 / BS);                         // obstacle buckets
-let blocked = new Uint8Array(N * N), buckets = [], blockBuckets = [], gateCells = [], gatesOpen = true;
+let blocked = new Uint8Array(N * N), buckets = [], blockBuckets = [], gateCells = [], gatesOpen = true, palCells = {}, palOn = {};
 
 const ci = x => Math.max(0, Math.min(N - 1, Math.floor((x + HALF) / CS)));
 const cx = i => -HALF + (i + .5) * CS;
@@ -26,7 +26,7 @@ export function buildNav(L) {
   blocked = new Uint8Array(N * N);
   buckets = Array.from({ length: BN * BN }, () => []);
   blockBuckets = Array.from({ length: BN * BN }, () => []);
-  gateCells = [];
+  gateCells = []; palCells = {}; palOn = {};
   const mark = (o, list) => {
     const e = extent(o) + INFL, i0 = ci(o.x - e), i1 = ci(o.x + e), j0 = ci(o.z - e), j1 = ci(o.z + e);
     for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) if (inside(o, cx(i), cx(j), INFL)) { if (list) list.push(j * N + i); else blocked[j * N + i]++; }
@@ -35,6 +35,7 @@ export function buildNav(L) {
   for (const o of L.obstacles) {
     bucket(o, buckets);
     if (o.gate) { const list = []; mark(o, list); gateCells.push(...list); }
+    else if (o.pal) { const list = []; mark(o, list); (palCells[o.segKey] = palCells[o.segKey] || []).push(...list); } // (a palisade section: walkable until it's built, again once it's broken)
     else if (o.box || o.r >= .7) mark(o, null); // columns, palms and posts are small enough to slip past
   }
   for (const b of L.blockers) bucket(b, blockBuckets);
@@ -51,6 +52,11 @@ export function buildNav(L) {
   syncGates();
 }
 
+// A palisade section (Fortify) going up, or being broken down.
+export function setPalSeg(key, on) {
+  if (!!palOn[key] === on) return; palOn[key] = on;
+  for (const c of palCells[key] || []) blocked[c] += on ? 1 : -1;
+}
 // Timed gates (the Colosseum): shut gates block the grid and stop units.
 export function syncGates() {
   const open = G.layout && G.layout.gates.length ? arenaGatesOpen(G.T) : true;

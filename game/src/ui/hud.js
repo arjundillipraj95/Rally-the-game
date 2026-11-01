@@ -68,7 +68,7 @@ export function updateHud(lastSnapAt) {
   });
   document.querySelectorAll('#upTray button').forEach(b => {
     const id = b.dataset.up, def = UPGRADES.find(u => u.id === id), max = def ? def.cost.length : 0;
-    const l = me.up ? me.up[id] : 0, cost = upgradeCost(G.myTi, id);
+    const own = id === 'fort' ? G.teams[colorOf(G.myTi)] : me, l = own && own.up ? own.up[id] : 0, cost = upgradeCost(G.myTi, id); // (Fortify: the castle's)
     const locked = (id === 'foot2' && !(me.up && me.up.foot1)) || (id === 'arch2' && !(me.up && me.up.arch1));
     b.querySelector('.lv').dataset.pips = '●'.repeat(l) + '○'.repeat(Math.max(0, max - l));
     b.querySelector('em').textContent = cost == null ? 'Maxed' : locked ? (id === 'foot2' ? 'Needs Arms first' : 'Needs Training first') : cost + 'g';

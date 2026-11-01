@@ -41,6 +41,13 @@ export function msgText(k, a) {
       return ours ? [`Your side holds ${what}!`, oasis ? 'Your men heal in it, and gold flows in' : 'It will send you footmen', '#ffcf3a']
         : [`${allyNames(a[0])} took ${what}`, oasis ? 'They heal there and grow rich. Take it back' : 'It sends them men. Take it back', '#e0352b'];
     }
+    case 'breach': { // a[0]: the castle (color) breached, a[1]: by whom
+      if (colorOf(a[0]) === colorOf(myTi)) return ['Your palisade is breached!', 'Hold the gap', '#e0352b'];
+      return !isEnemyTi(a[1], myTi) ? [`Breach in ${nm(a[0])}'s palisade!`, a[1] === myTi ? 'Your doing: through the gap!' : 'Through the gap!', css(a[0])] : null;
+    }
+    case 'fortUp': // a[0]: the castle, a[1]: its Fortify level now
+      if (colorOf(a[0]) === colorOf(myTi)) return [a[1] >= 2 ? 'Gate towers built' : 'Palisade built', a[1] >= 2 ? 'They shoot whoever comes at your gates' : 'Two gates: hold them (drag Order onto a gate)', '#ffcf3a'];
+      return !isEnemyTi(a[0], myTi) ? null : [`${nm(a[0])} ${a[1] >= 2 ? 'built gate towers' : 'built a palisade'}`, 'Find a gate, or hack a breach', css(a[0])];
     case 'pointCaptured': return mine(a[0]) ? [`You captured Point ${a[1]}!`, '', css(a[0])] : [`${nm(a[0])} captured Point ${a[1]}!`, ally(a[0]) ? 'Reinforce them' : 'Take it back', css(a[0])];
   }
   return null;

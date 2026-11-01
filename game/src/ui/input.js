@@ -179,8 +179,8 @@ export function bindInput(actions) {
     if (e.code === 'KeyC') A.jump();
     if (e.code === 'KeyR') A.weapon();
     if (e.code === 'KeyU') upOpen(!inp.upIsOpen);
-    const up = ['Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8'].indexOf(e.code);
-    if (up >= 0) A.upgrade(['foot1', 'foot2', 'arch1', 'arch2', 'aura', 'horse'][up]);
+    const up = ['Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'].indexOf(e.code);
+    if (up >= 0) A.upgrade(['foot1', 'foot2', 'arch1', 'arch2', 'aura', 'horse', 'fort'][up]);
     if (e.code === 'KeyH') A.ride();
     if (e.code === 'Digit1') A.recruit('foot'); if (e.code === 'Digit2') A.recruit('arch');
   });
