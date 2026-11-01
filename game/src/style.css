@@ -354,6 +354,10 @@
 #ovEnd .moments{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:4px;}
 #ovEnd .moments li{font:800 15px "Barlow Semi Condensed",sans-serif;color:#ffcf3a;}
 #ovEnd .moments li::before{content:"★ ";color:#ffcf3a;}
+#ovEnd .sidemoments{margin-top:8px;}
+#ovEnd .sidemoments small{font:800 11px "Barlow Semi Condensed",sans-serif;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.65);}
+#ovEnd .sidemoments li{color:#fff;font-size:14px;}
+#ovEnd .sidemoments li::before{color:rgba(255,255,255,.6);}
 #ordFan{position:fixed;z-index:40;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:stretch;}
 #ordFan[hidden]{display:none;}
 #ordFan button{font:800 15px "Barlow Semi Condensed",sans-serif;letter-spacing:.4px;text-transform:uppercase;color:#fff;background:rgba(20,16,14,.82);border:2px solid rgba(255,255,255,.35);border-radius:14px;padding:9px 16px;min-width:132px;touch-action:none;white-space:nowrap;}

@@ -303,7 +303,7 @@ export function clientTick(dt) {
     if (hp.ph === 'lobby') { hooks.onLobby(); return false; }
     if (hp.seed === G.seed && (hp.ph === 'play' || hp.ph === 'end')) clientApply(hp);
     if (hp.ph === 'end' && hp.kl) G.kills = +String(hp.kl).split(',')[G.myTi] || 0; // your captain's kills, as the host counted them
-    if (hp.ph === 'end' && typeof hp.hl === 'string' && G.teams[G.myTi]) { const h = {}; for (const kv of (hp.hl.split(';')[G.myTi] || '').split(',')) { const [k, v] = kv.split(':'); if (k && /^[a-z]+$/.test(k)) h[k] = +v || 0; } G.teams[G.myTi].hl = h; } // (and your moments)
+    if (hp.ph === 'end' && typeof hp.hl === 'string') hp.hl.split(';').forEach((row, i) => { const s = G.teams[i]; if (!s) return; const h = {}; for (const kv of row.split(',')) { const [k, v] = kv.split(':'); if (k && /^[a-z]+$/.test(k)) h[k] = +v || 0; } s.hl = h; }); // (everyone's moments: yours, and your side's)
     if (hp.ph === 'end' && G.state === 'play' && Array.isArray(hp.res)) bus.emit('hostEnd', hp.res);
   }
   if (G.state !== 'play' && G.state !== 'end') return false;

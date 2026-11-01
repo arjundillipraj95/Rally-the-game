@@ -172,7 +172,7 @@ bus.on('end', ({ w, why }) => {
   $('endText').textContent = `${MODES[G.mode].name} on ${G.map.name}. ${endText(w, why)}`;
   const qs = QUIPS[result]; $('endQuip').textContent = qs[(Math.random() * qs.length) | 0];
   $('sKills').textContent = G.kills; $('sSquad').textContent = G.recruited; $('sTime').textContent = fmt(G.T);
-  showMoments((G.teams[G.myTi] && G.teams[G.myTi].hl) || {});
+  showMoments((G.teams[G.myTi] && G.teams[G.myTi].hl) || {}); showSideMoments();
   showRank(G.awarded ? null : awardMatch({ result, kills: G.kills, diff: G.diff })); G.awarded = true;
   const host = isHost(), client = isClient();
   $('againBtn').hidden = client;
@@ -196,10 +196,32 @@ function showMoments(h) {
     h.streak >= 5 ? `Landed ${h.streak} blows in a row` : null,
     n('bash', 'Bashed a guard open', 'Bashed # guards open'),
     n('parry', 'Parried a blow', 'Parried # blows'),
-  ].filter(Boolean).slice(0, 4);
+  ].filter(Boolean).slice(0, 3);
   const ul = $('endMoments'); ul.innerHTML = '';
   for (const t of lines) { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); }
   ul.hidden = !lines.length;
+}
+// Results screen: your side's moments (when there's more than you on it), totals with who did them.
+function showSideMoments() {
+  const ul = $('endSide'); ul.innerHTML = '';
+  const side = G.teams.map((s, i) => i).filter(i => G.teams[i].active && G.ALLY[colorOf(i)] === G.ALLY[colorOf(G.myTi)]);
+  if (side.length < 2) { $('endSideWrap').hidden = true; return; }
+  const who = i => i === G.myTi ? 'you' : nickFor(i) || (TEAMS[colorOf(i)].name + (i >= 4 ? ' ' + SLOT_NAME[i >> 2].toLowerCase() : ''));
+  const sum = k => side.reduce((n, i) => n + ((G.teams[i].hl || {})[k] || 0), 0);
+  const by = k => side.filter(i => (G.teams[i].hl || {})[k]).map(i => { const n = G.teams[i].hl[k]; return who(i) + (n > 1 ? ' ×' + n : ''); }).join(', ');
+  const line = (k, one, many) => { const n = sum(k); return n ? (n === 1 ? one : many.replace('#', n)) + ' (' + by(k) + ')' : null; };
+  let best = null; for (const i of side) { const v = (G.teams[i].hl || {}).streak || 0; if (v >= 5 && (!best || v > best.v)) best = { i, v }; }
+  const lines = [
+    line('castle', 'Brought down a castle', 'Brought down # castles'),
+    sum('chest') ? 'Took the war chest' : null,
+    line('duel', 'Won a duel', 'Won # duels'),
+    line('exec', 'Executed a captain', 'Executed # captains'),
+    line('capkill', 'Cut down an enemy captain', 'Cut down # enemy captains'),
+    line('rampage', 'Went on a rampage', 'Went on # rampages'),
+    best ? `Longest streak: ${best.v} blows (${who(best.i)})` : null,
+  ].filter(Boolean).slice(0, 3); // (three of yours, three of your side's: it has to fit a phone on its side)
+  for (const t of lines) { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); }
+  $('endSideWrap').hidden = !lines.length;
 }
 // Results screen: XP gained, the bar filling toward the next rank, and any crest it unlocked.
 function showRank(aw) {

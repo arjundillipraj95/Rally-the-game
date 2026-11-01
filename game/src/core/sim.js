@@ -40,9 +40,9 @@ export function mkUnit(ti, x, z, kind, human = false) {
     jy: 0, jvy: 0, jumpCd: 0, javAmmo: CAPTAIN_COMBAT.jav.ammo + tier, javRegen: 0, combo: 0, lastSwingT: -9, atkBuf: 0 };
   G.units.push(u); return u;
 }
-// A player's moments of the match, for the results screen: counts (and the best streak).
+// Every army's moments of the match, for the results screen (yours, and your side's): counts (and the best streak).
 export function hl(ti, k, v) {
-  const s = G.teams[ti]; if (!s || !s.human) return;
+  const s = G.teams[ti]; if (!s || !s.active) return;
   const h = s.hl || (s.hl = {});
   if (k === 'streak') h.streak = Math.max(h.streak || 0, v); else h[k] = (h[k] || 0) + (v ?? 1);
 }
@@ -923,7 +923,7 @@ function die(u, killer, ang, launch = 0) {
   // the army takes it to heart: more so for a man cut down from the side or behind, most of all its captain
   loseHeart(u.ti, u.leader ? MORALE.captain : MORALE.death + (killer && behind(u, killer) ? MORALE.flankDeath : 0));
   if (killer && killer.leader) gainRally(killer, u.leader ? RALLY.capKill : RALLY.kill);
-  if (killer && killer.leader && u.leader && killer.human) hl(killer.ti, 'capkill');
+  if (killer && killer.leader && u.leader) hl(killer.ti, 'capkill');
   if (killer && killer.leader && u.leader && G.teams[killer.ti]) G.teams[killer.ti].morale = Math.min(100, G.teams[killer.ti].morale + 20);
   // a captain cut down by a captain: the moment of the battle. The two of them, in slow motion.
   if (killer && killer.leader && u.leader) { killer.slowT = Math.max(killer.slowT || 0, CAPKILL_SLOW); u.slowT = CAPKILL_SLOW; if (!u.execBy) fx('fxmsg', { k: 'fxcapkill', u, a: killer }); } // (an execution has its own moment)
