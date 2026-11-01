@@ -1,6 +1,6 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
-import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, HOLDS, EVADE, FORT, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT } from '../config.js';
+import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, HOLDS, EVADE, FORT, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT, DUEL } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, activeFrom, gateOff, ARMIES, rules, matchTime } from './state.js';
 import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W, groundSlow, onIce } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable, setPalSeg } from './nav.js';
@@ -51,6 +51,7 @@ export function startMatch(humans, active = activeFrom([0, 0, 0, 0])) {
   G.flag = G.mode === 'ctf' ? { state: 'home', x: 0, z: 0, carrier: null, dropT: 0 } : null;
   G.ctrlPoints = G.mode === 'ctrl' ? makeCtrlPoints(G.layout) : null;
   G.holds = makeHolds(G.layout);
+  G.duels = []; G.duelN = 0;
   initForts();
   for (let i = 0; i < ARMIES; i++) {
     if (!G.teams[i].active) continue;
@@ -230,6 +231,7 @@ export function toggleHorseFor(p) {
   if (p.mounted) { dismount(p, false); return; }
   if (p.summon) return;
   if (p.carrying) { say('rideNo', p.ti, 'banner'); return; }
+  if (p.duelId) { say('rideNo', p.ti, 'duel'); return; }
   if (p.horseCd > 0) { say('rideNo', p.ti, 'rest', Math.ceil(p.horseCd)); return; }
   if (G.T - p.lastHit < 2) { say('rideNo', p.ti, 'hot'); return; }
   summonHorse(p);
@@ -238,7 +240,8 @@ export function toggleHorseFor(p) {
 // ---------- combat ----------
 export function nearestFoe(u, maxD, filter) {
   let best = null, bd = maxD * maxD;
-  for (const o of G.units) { if (o.dead || !isEnemy(o, u) || (filter && !filter(o))) continue; const dx = o.x - u.x, dz = o.z - u.z, d = dx * dx + dz * dz; if (d < bd) { bd = d; best = o; } }
+  const ds = G.duels && G.duels.length > 0;
+  for (const o of G.units) { if (o.dead || !isEnemy(o, u) || (filter && !filter(o)) || (ds && !duelFoe(u, o))) continue; const dx = o.x - u.x, dz = o.z - u.z, d = dx * dx + dz * dz; if (d < bd) { bd = d; best = o; } }
   return [best, Math.sqrt(bd)];
 }
 export function nearestEnemyCastle(u) {
@@ -340,6 +343,7 @@ function resolveLeap(u) {
 }
 function hit(a, b, mult = 1, extra) {
   if (!isEnemy(a, b) || b.execT > 0 || a.execT > 0) return; // (an execution plays out untouched)
+  if ((a.duelId || b.duelId) && a.duelId !== b.duelId) return; // (a duel: the two of them, and nobody else)
   if (b.iframeT > 0) { // (evaded: the blow passes through where he was)
     if (b.leader && a.leader && !b.evadedAt) { b.evadedAt = G.T; gainRally(b, EVADE.rally); fx('fxmsg', { k: 'fxevade', u: b, a }); }
     return;
@@ -411,6 +415,177 @@ function hit(a, b, mult = 1, extra) {
   // heavy blows, slams and captains' finishers launch the body; now and then any captain's kill does
   if (b.hp <= 0) die(b, a, ang, mult >= 1.35 || (extra && extra.unblockable) || (a.leader && Math.random() < .18) ? 1 : 0);
 }
+// ---------- the duel ----------
+// A captain calls out an enemy captain close by; if he takes it up, both armies' men near them form
+// a ring round the two and hold off everyone else while they fight it out. See DUEL in config.js.
+// G.duels: { id, a (who called it), b, state 'offer' | 'on', t (time left), x, z (the ring), v0 (where
+// b stood when called out), aiT, aiYes (a computer captain's answer), graceT, slotT }
+const duels = () => G.duels || (G.duels = []);
+export const duelOf = u => u && u.duelId ? duels().find(d => d.id === u.duelId) : null;
+export const duelOffer = p => duels().find(d => d.state === 'offer' && d.b === p) || null;
+export const duelAsked = p => duels().find(d => d.state === 'offer' && d.a === p) || null;
+// who o may fight while duels are on: a duellist only his man; nobody else a duellist; a man of the
+// ring not the other duellist's men
+function duelFoe(u, o) {
+  if ((u.duelId || o.duelId) && u.duelId !== o.duelId) return false;
+  const g = u.guardOf; if (g && (o.ti === g.a.ti || o.ti === g.b.ti)) return false;
+  return true;
+}
+const busy = u => u.mounted || u.carrying || u.dueled || u.duelId || u.execReady || u.execT > 0 || u.execA || u.execV || u.summon;
+export function canChallenge(p, v) {
+  if (!p || !v || p === v || !p.leader || !v.leader || p.dead || v.dead || !isEnemy(p, v) || busy(p) || busy(v)) return false;
+  if ((p.duelAskT || 0) > G.T) return false;
+  if (duels().some(d => d.a === p || d.b === p || d.a === v || d.b === v)) return false;
+  return Math.hypot(v.x - p.x, v.z - p.z) <= DUEL.offerR;
+}
+// the enemy captain the ⚔ tag hangs over: the nearest one you could call out
+export function duelTarget(p) {
+  let best = null, bd = 1e9;
+  for (const v of G.units) { if (!v.leader || !canChallenge(p, v)) continue; const d = Math.hypot(v.x - p.x, v.z - p.z); if (d < bd) { bd = d; best = v; } }
+  return best;
+}
+// One press for a player: take up a challenge made to you, else call out the captain the tag is over.
+export function duelAct(p, id) {
+  if (!p || p.dead || G.state !== 'play') return false;
+  const o = duelOffer(p); if (o) { startDuel(o); return true; }
+  const v = id != null ? G.units.find(u => u.id === id && !u.dead) : duelTarget(p);
+  return challenge(p, v);
+}
+export function challenge(p, v) {
+  const back = v && duels().find(d => d.state === 'offer' && d.a === v && d.b === p); // (he already called you out: calling him out is a yes)
+  if (back) { startDuel(back); return true; }
+  if (!canChallenge(p, v)) return false;
+  const d = { id: ++G.duelN, a: p, b: v, state: 'offer', t: DUEL.offerT, x: v.x, z: v.z, v0: { x: v.x, z: v.z }, aiT: rnd(.9, 1.7) };
+  if (!v.human) { const hurt = v.hp / v.max < p.hp / p.max - .25; d.aiYes = Math.random() < DUEL.accept[G.diff] * (hurt ? .4 : 1); }
+  duels().push(d); p.duelAskT = G.T + 15;
+  if (!p.human) { p.face = Math.atan2(v.x - p.x, v.z - p.z); p.vx = p.vz = 0; }
+  say('duelAsk', p.ti, v.ti); fx('fxmsg', { k: 'fxduelask', u: v, a: p });
+  if (p.remote || v.remote) fx('netFlush');
+  return true;
+}
+function startDuel(d) {
+  const { a, b } = d;
+  if (!canFight(a) || !canFight(b)) { endDuel(d, 'off'); return; }
+  d.state = 'on'; d.t = DUEL.time; d.graceT = 1.2; d.slotT = 0;
+  d.x = (a.x + b.x) / 2; d.z = (a.z + b.z) / 2;
+  a.duelId = b.duelId = d.id; a.dueled = b.dueled = true;
+  a.foe = b; b.foe = a; a.fd = b.fd = Math.hypot(a.x - b.x, a.z - b.z);
+  for (const u of [a, b]) { u.guardT = 0; u.windup = 0; u.heavyCharge = 0; u.pending = null; }
+  say('duelOn', a.ti, b.ti); fx('fxmsg', { k: 'fxduel', u: b, a });
+  fx('netFlush');
+}
+const canFight = u => u && !u.dead && !u.mounted && !u.carrying && !(u.execT > 0) && !u.execV;
+function endDuel(d, why, w, by) {
+  const { a, b } = d;
+  G.duels = duels().filter(x => x !== d); d.end = why; G.lastDuel = d;
+  if (a.duelId === d.id) a.duelId = 0; if (b.duelId === d.id) b.duelId = 0;
+  for (const u of G.units) if (u.guardOf === d) { u.guardOf = null; u.rt = 0; }
+  if (d.state !== 'on' || why === 'off') return;
+  if (why === 'win') { // the winner's men roar; the loser's break and run
+    const l = w === a ? b : a, sw = G.teams[w.ti], sl = G.teams[l.ti];
+    sw.rally = 100; sw.morale = Math.min(100, sw.morale + DUEL.winMorale);
+    if (squadOf(l.ti).length) { sl.morale = 0; sl.routT = MORALE.routT; fx('fxmsg', { k: 'fxrout', u: squadOf(l.ti)[0], ti: l.ti }); }
+    say('duelWon', w.ti, l.ti); fx('fxmsg', { k: 'fxduelwin', u: w, a: l });
+  } else if (why === 'draw') {
+    for (const u of [a, b]) { const s = G.teams[u.ti]; s.morale = Math.min(100, s.morale + DUEL.draw); }
+    say('duelDraw', a.ti, b.ti); fx('fxmsg', { k: 'fxdueldraw', u: a, a: b });
+  } else if (why === 'broken') { // somebody forced his way in: his own men think the less of him, and theirs take heart
+    loseHeart(by.ti, DUEL.broken); gainRally(a, DUEL.brokenRally); gainRally(b, DUEL.brokenRally);
+    say('duelBroken', by.ti, a.ti, b.ti); fx('fxmsg', { k: 'fxduelbreak', u: by, a });
+  }
+  fx('netFlush');
+}
+function refuse(d) {
+  G.duels = duels().filter(x => x !== d);
+  loseHeart(d.b.ti, DUEL.decline);
+  say('duelNo', d.b.ti, d.a.ti); fx('fxmsg', { k: 'fxduelno', u: d.b, a: d.a });
+}
+function duelTick(dt) {
+  const ds = duels();
+  // computer captains call out a captain close by now and then: a player more than one of their own
+  ds.aiT = (ds.aiT || 0) - dt;
+  if (ds.aiT <= 0) {
+    ds.aiT = 1;
+    for (const s of G.teams) {
+      const u = s.leader; if (!s.active || s.human || !u || u.dead || u.hp < u.max * .55 || routing(u.ti)) continue;
+      const v = duelTarget(u); if (!v) continue;
+      if (Math.random() < (v.human ? DUEL.aiChallenge[G.diff] : DUEL.aiVsAi)) challenge(u, v);
+    }
+  }
+  for (const d of [...ds]) {
+    const { a, b } = d, dist = Math.hypot(a.x - b.x, a.z - b.z);
+    if (d.state === 'offer') {
+      d.t -= dt;
+      if (!canFight(a) || !canFight(b) || a.duelId || b.duelId || !isEnemy(a, b)) { endDuel(d, 'off'); continue; }
+      if (!a.human) { a.vx *= .5; a.vz *= .5; } // (a computer captain who's called you out waits for your answer)
+      if (!b.human) { d.aiT -= dt; if (d.aiT <= 0) { if (d.aiYes) startDuel(d); else refuse(d); } continue; }
+      // a player answers by stepping up to him (or the ⚔ tag), and refuses by turning away or letting it pass
+      const dx = a.x - d.v0.x, dz = a.z - d.v0.z, L = Math.hypot(dx, dz) || 1, prog = ((b.x - d.v0.x) * dx + (b.z - d.v0.z) * dz) / L;
+      if (prog > 2.2) startDuel(d);
+      else if (d.t <= 0 || prog < -3 || dist > DUEL.offerR + 6) { if (prog < -3 || d.t <= 0) refuse(d); else endDuel(d, 'off'); }
+      continue;
+    }
+    d.t -= dt; if (d.graceT > 0) d.graceT -= dt;
+    if (d.t <= 0) { endDuel(d, 'draw'); continue; }
+    if (a.dead || b.dead || a.mounted || b.mounted) { endDuel(d, 'off'); continue; } // (an execution between them plays out: die() settles it)
+    // the ring: both armies' men close by (not running) keep it, spaced evenly round it
+    d.slotT -= dt;
+    const gs = [];
+    for (const u of G.units) {
+      if (u.dead || u.leader || (u.ti !== a.ti && u.ti !== b.ti)) continue;
+      if (routing(u.ti)) { u.guardOf = null; continue; }
+      if (u.guardOf !== d && Math.hypot(u.x - d.x, u.z - d.z) < DUEL.guardR) { u.guardOf = d; u.rt = 0; d.slotT = 0; }
+      if (u.guardOf === d) gs.push(u);
+    }
+    if (d.slotT <= 0 && gs.length) {
+      d.slotT = .6;
+      for (const g of gs) g.ringA0 = Math.atan2(g.x - d.x, g.z - d.z);
+      gs.sort((p, q) => p.ringA0 - q.ringA0);
+      let sx = 0, sz = 0; gs.forEach((g, i) => { const o = g.ringA0 - i / gs.length * Math.PI * 2; sx += Math.sin(o); sz += Math.cos(o); });
+      const off = Math.atan2(sx, sz); gs.forEach((g, i) => { g.ringA = off + i / gs.length * Math.PI * 2; });
+    }
+    // anyone at war with both who forces his way well inside breaks it (only a player's captain can:
+    // everyone else is held at the edge, see duelBounds)
+    for (const u of G.units) {
+      if (u.dead || u === a || u === b || !u.human || !u.leader || !(d.graceT <= 0)) continue;
+      if (!isEnemy(u, a) || !isEnemy(u, b)) { if (Math.hypot(u.x - d.x, u.z - d.z) < DUEL.ring + .6 && (u.sacredT || 0) < G.T) { u.sacredT = G.T + 6; say('duelSacred', u.ti); } continue; }
+      if (Math.hypot(u.x - d.x, u.z - d.z) < DUEL.ring * .65) { endDuel(d, 'broken', null, u); break; }
+    }
+  }
+}
+// Where the ring keeps people: the two inside it, everyone else out at its edge, except a player's
+// captain at war with both, who can force his way in (and break it). Runs wherever a unit is moved.
+export function duelBounds(u) {
+  if (u.dead) return;
+  for (const d of G.duels) {
+    if (d.state !== 'on') continue;
+    const dx = u.x - d.x, dz = u.z - d.z, dd = Math.hypot(dx, dz) || .01;
+    if (u === d.a || u === d.b) { const m = DUEL.ring - .9; if (dd > m) { u.x = d.x + dx / dd * m; u.z = d.z + dz / dd * m; } continue; }
+    const m = DUEL.ring + .3; if (dd >= m) continue;
+    if (u.human && u.leader && isEnemy(u, d.a) && isEnemy(u, d.b) && !(d.graceT > 0)) continue;
+    u.x = d.x + dx / dd * m; u.z = d.z + dz / dd * m;
+  }
+}
+// A man keeping the ring: watching the fight from his place, turning out to fight off anyone who comes at it.
+function guardRing(u, d, dt) {
+  u.holding = false; u.aim = false;
+  const R = DUEL.ring + (u.kind === 'arch' ? 2.4 : .9), A = u.ringA ?? Math.atan2(u.x - d.x, u.z - d.z);
+  const gx = d.x + Math.sin(A) * R, gz = d.z + Math.cos(A) * R;
+  const foe = u.foe, fd = u.fd;
+  if (foe && !foe.dead && Math.hypot(foe.x - d.x, foe.z - d.z) < R + 8) {
+    const reach = u.r + foe.r + u.reach;
+    if (u.kind === 'arch' && fd > reach) {
+      u.aim = true; go(u, gx, gz, speedOf(u), dt, .3); faceTo(u, foe.x, foe.z, dt, 8);
+      if (fd <= u.range && u.shootCd <= 0 && u.stun <= 0 && Math.abs(angDiff(u.face, Math.atan2(foe.x - u.x, foe.z - u.z))) < .3) { shoot(u, foe); u.shootCd = u.shootBase * rnd(.85, 1.2); }
+      return;
+    }
+    go(u, foe.x, foe.z, speedOf(u), dt, reach * .7); faceTo(u, foe.x, foe.z, dt);
+    if (fd < reach) startSwing(u, foe);
+    return;
+  }
+  const dd = go(u, gx, gz, speedOf(u) * (Math.hypot(gx - u.x, gz - u.z) > 5 ? 1.15 : 1), dt, .2);
+  if (dd < 1.2) faceTo(u, d.x, d.z, dt, 5); // (eyes on the fight)
+}
 // ---------- the execution ----------
 // An enemy captain beaten down, with none of his men near him, can be finished: marked (execReady,
 // shown on every phone), and a captain's Attack within reach does it. He drops to his knees, the blow
@@ -425,8 +600,8 @@ export function execMark() {
     for (const o of G.units) {
       if (o.dead || o === v) continue;
       const d = Math.hypot(o.x - v.x, o.z - v.z);
-      if (!isEnemy(o, v)) { if (!o.leader && d < EXEC.clearR) { guarded = true; break; } }
-      else if (o.leader && o.human && !o.mounted && d < EXEC.markR) hunter = true;
+      if (!isEnemy(o, v)) { if (!o.leader && d < EXEC.clearR && !v.duelId) { guarded = true; break; } } // (in a duel his men keep the ring: nobody steps in to save him)
+      else if (o.leader && o.human && !o.mounted && d < EXEC.markR && (o.duelId || 0) === (v.duelId || 0)) hunter = true;
     }
     v.execReady = hunter && !guarded;
   }
@@ -719,6 +894,7 @@ function die(u, killer, ang, launch = 0) {
   if (u.mounted) dismount(u, false);
   if (u.summon) { u.summon.state = 'leaving'; u.summon.t = 0; u.summon = null; }
   if (u.carrying) dropFlag(u);
+  if (u.leader) { const dl = (G.duels || []).find(d => d.a === u || d.b === u); if (dl) { if (dl.state === 'on' && killer && (killer === dl.a || killer === dl.b)) endDuel(dl, 'win', killer); else endDuel(dl, 'off'); } }
   const s = G.teams[u.ti];
   // the army takes it to heart: more so for a man cut down from the side or behind, most of all its captain
   loseHeart(u.ti, u.leader ? MORALE.captain : MORALE.death + (killer && behind(u, killer) ? MORALE.flankDeath : 0));
@@ -949,7 +1125,7 @@ function updateFlag(dt) {
 export function softAim(p, range = 3.4) {
   let best = null, bs = 1e9;
   for (const o of G.units) {
-    if (o.dead || !isEnemy(o, p)) continue;
+    if (o.dead || !isEnemy(o, p) || !duelFoe(p, o)) continue;
     const d = Math.hypot(o.x - p.x, o.z - p.z); if (d > range) continue;
     const front = Math.abs(angDiff(o.face, Math.atan2(p.x - o.x, p.z - o.z))) < 1.1;
     const score = d + Math.abs(angDiff(p.face, Math.atan2(o.x - p.x, o.z - p.z))) * 1.5 + (o.blockT > 0 && front && !o.leader ? 1.6 : 0); // (a man with his shield down is the better target)
@@ -1333,7 +1509,7 @@ function thinkLeader(u, s, dt) {
   s.thinkT -= dt;
   if (s.thinkT <= 0 || !s.plan) { s.thinkT = rnd(1.2, 2.4); planLeader(u, s); aiHold(u, s); }
   const foe = u.foe, fd = u.fd;
-  if (foe && fd < (u.mounted ? 12 : 10) && !u.carrying && !(s.plan && s.plan.kind === 'escort' && fd > 5)) {
+  if (foe && (u.duelId || (fd < (u.mounted ? 12 : 10) && !u.carrying && !(s.plan && s.plan.kind === 'escort' && fd > 5)))) {
     if (u.mounted) {
       if (spearNear(u, 7)) dismount(u, false);
       const inv = 1 / Math.max(fd, .1);
@@ -1409,6 +1585,7 @@ function thinkSoldier(u, dt) {
   // a broken army runs for home, weapons forgotten
   u.routing = s.routT > 0;
   if (u.routing) { u.aim = false; u.holding = false; const [gx, gz] = gatePos(TEAMS[colorOf(u.ti)], gateOff(u.ti), 6); go(u, gx, gz, speedOf(u), dt, 2); return; }
+  if (u.guardOf) { guardRing(u, u.guardOf, dt); return; }
   // ordered at one enemy group: go for the men around it
   if (orderOf(u.ti) === 'focus' && s.focus) {
     let best = null, bd = 1e9;
@@ -1520,6 +1697,7 @@ export function integrate(u, dt, pz) {
     if (inRiver(u.x, u.z) && !onBridge(u.x) && Math.abs(u.x) >= 14) u.z = (pz >= 0 ? 1 : -1) * 5.05;
     if (Math.abs(u.z) < 5 && onBridge(u.x) && Math.abs(u.x) > 20) { const bx = u.x < 0 ? -32 : 32; u.x = clamp(u.x, bx - 2.1, bx + 2.1); }
   }
+  if (G.duels && G.duels.length) duelBounds(u);
   u.x = clamp(u.x, -W.R + 3, W.R - 3); u.z = clamp(u.z, -W.R + 3, W.R - 3);
   u.y = groundY(u.x, u.z) + (u.jy || 0);
 }
@@ -1628,7 +1806,7 @@ export function update(dt, input) {
     u.tkey = G.teams[u.ti].human ? 1 - k : k;
   }
   for (const k of [0, 1]) for (const u of G.units) if (!u.dead && !u.leader && u.tkey === k) u.tslot = tIdx[u.ti]++;
-  moraleTick(dt);
+  moraleTick(dt); duelTick(dt);
   // captains locked in single combat on foot: the men round them give them room
   for (const u of G.units) u.duel = null;
   const caps = G.units.filter(u => u.leader && !u.dead && !u.mounted);
@@ -1691,7 +1869,7 @@ export function update(dt, input) {
     if (r.dead || !r.mounted) continue;
     const sp = Math.hypot(r.vx, r.vz);
     for (const o of G.units) {
-      if (o.dead || !isEnemy(o, r) || o.mounted || o.execT > 0) continue;
+      if (o.dead || !isEnemy(o, r) || o.mounted || o.execT > 0 || o.duelId) continue;
       const dx = o.x - r.x, dz = o.z - r.z; if (Math.abs(dx) > 4 || Math.abs(dz) > 4) continue;
       const d = Math.hypot(dx, dz);
       if (o.kind === 'foot' && o.tier >= 1 && d < o.r + r.r + 1.6 && braced(o) && sp > 4 && Math.abs(angDiff(o.face, Math.atan2(r.x - o.x, r.z - o.z))) < 1.0) {
@@ -1820,7 +1998,7 @@ export function arrowsTick(dt, authoritative) {
     if (a.t >= 1) {
       if (authoritative) {
         let best = null, bd = 1.0;
-        for (const o of G.units) { if (o.dead || !isEnemyTi(o.ti, a.ti)) continue; const d = Math.hypot(o.x - a.x1, o.z - a.z1) - (o.mounted ? .5 : 0); if (d < bd) { bd = d; best = o; } }
+        for (const o of G.units) { if (o.dead || !isEnemyTi(o.ti, a.ti) || (o.duelId && !(a.shooter && a.shooter.duelId === o.duelId))) continue; const d = Math.hypot(o.x - a.x1, o.z - a.z1) - (o.mounted ? .5 : 0); if (d < bd) { bd = d; best = o; } }
         if (best) { arrowHit(a, best); a.done = true; } else { a.stuck = true; a.life = 3; }
       } else { a.stuck = true; a.life = 2.5; }
     }

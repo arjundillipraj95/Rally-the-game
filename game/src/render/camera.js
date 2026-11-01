@@ -32,7 +32,8 @@ function direct(tgt, dt) {
       if (u.leader && u !== tgt && d < 4.5 && !u.mounted && !tgt.mounted && isEnemyTi(u.ti, tgt.ti)) duel = true;
     }
     const scale = Math.min(1, Math.max(0, (fighting - 6) / 16));
-    if (duel && near <= 6) { dir.want = .86; dir.wantLift = -.6; }
+    if (tgt.duelId) { dir.want = 1.05; dir.wantLift = 1.8; } // (a called duel: up over the heads of the ring, the two of you inside it)
+    else if (duel && near <= 6) { dir.want = .86; dir.wantLift = -.6; }
     else { dir.want = 1 + .38 * scale; dir.wantLift = 2.2 * scale; }
   }
   // an execution: in close and low on the two of them, quickly

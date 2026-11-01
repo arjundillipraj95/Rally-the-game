@@ -349,6 +349,10 @@
 .faultNote{position:fixed;left:8px;bottom:4px;z-index:99;max-width:70vw;font:600 11px/1.3 system-ui,sans-serif;color:#fff;background:rgba(160,20,20,.85);padding:3px 7px;border-radius:5px;pointer-events:none;}
 
 /* a beaten enemy captain in reach: the Attack button burns red, and Attack executes him */
+#duelTag{position:fixed;left:0;top:0;z-index:30;pointer-events:auto;font:italic 17px Bangers,Impact,sans-serif;letter-spacing:.5px;color:#1b1512;background:#ffd23a;border:2.5px solid #1b1512;border-radius:16px;padding:5px 12px 4px;box-shadow:0 3px 0 #1b1512,0 0 14px rgba(255,210,58,.6);touch-action:none;white-space:nowrap;}
+#duelTag.accept{background:#fff;animation:dglow .45s ease-in-out infinite alternate;}
+@keyframes dglow{from{box-shadow:0 3px 0 #1b1512,0 0 6px rgba(255,210,58,.5)}to{box-shadow:0 3px 0 #1b1512,0 0 22px 6px rgba(255,210,58,.95)}}
+#duelTag[hidden]{display:none;}
 #atk.execReady{box-shadow:0 0 0 3px #ff3b2e,0 0 18px 4px rgba(255,59,46,.8);animation:xglow .5s ease-in-out infinite alternate;}
 @keyframes xglow{from{transform:scale(1)}to{transform:scale(1.08)}}
 

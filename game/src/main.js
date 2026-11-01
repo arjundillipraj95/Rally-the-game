@@ -5,9 +5,9 @@ import '@fontsource/barlow-semi-condensed/latin-600.css';
 import '@fontsource/barlow-semi-condensed/latin-800.css';
 import '@fontsource/barlow-semi-condensed/latin-800-italic.css';
 import './style.css';
-import { TEAMS, MODES, MAPS, PRESETS, RANKS, CRESTS, QUIPS, TIPS, AL_LETTER, TARGETS } from './config.js';
+import { TEAMS, MODES, MAPS, PRESETS, RANKS, CRESTS, QUIPS, TIPS, AL_LETTER, TARGETS, DUEL } from './config.js';
 import { G, bus, colorOf, rules, matchTime, modeDesc, activeFrom, targetFor, SLOT_NAME } from './core/state.js';
-import { startMatch, mkUnit, newTeams, update, fallStep, endMatch, auraRange, endStep, setOrder, applyFort } from './core/sim.js';
+import { challenge, canChallenge, startMatch, mkUnit, newTeams, update, fallStep, endMatch, auraRange, endStep, setOrder, applyFort } from './core/sim.js';
 import { makeLayout, gatePos, groundY } from './core/world.js';
 import { buildNav } from './core/nav.js';
 import { renderer, scene, camera, resize, applyPixelRatio, applyShadowQuality, followSun } from './render/scene.js';
@@ -19,6 +19,7 @@ import { updateSeeThrough } from './render/seethrough.js';
 import { drawVolleyAim } from './ui/volleyaim.js';
 import { drawHoldAim, drawJavAim, drawRideAim } from './ui/holdaim.js';
 import './ui/fighttips.js';
+import { duelTagTick, hideDuelTag } from './ui/dueltag.js';
 import { spawnCritters, updateCritters, clearCritters } from './render/critters.js';
 import { drawHorses, clearHorses } from './render/horses.js';
 import { spark, splat, dust, drawAura, floatText, pow, shockwave, castleFx, effectsTick, drawEffects, clearEffects } from './render/effects.js';
@@ -69,7 +70,7 @@ bus.on('hitstop', t => { hitstop = Math.max(hitstop, t); });
 bus.on('buzz', ms => buzz(ms));
 // the big moments of a fight: a parry, a guard smashed open, a rider skewered or knocked off his horse.
 // (On the host these come straight from the rules; on a joining player's phone, with the next snapshot.)
-const FIGHT_POW = { fxevade: ['EVADED!', '#9fe3ff'], fxback: ['BACKSTAB!', '#ff8a3a'], fxexec: ['EXECUTED!', '#ff3b2e'], fxexecgo: ['', ''], fxcapkill: ['CAPTAIN SLAIN!', '#ffd23a'], fxrally: ['RALLY!', '#ffd23a'], fxrout: ['', ''], fxride: ['', ''], fxjoust: ['JOUSTED!', '#ffd23a'], fxparry: ['PARRY!', '#ffffff'], fxbreak: ['GUARD BROKEN!', '#ff8a3a'], fximpale: ['SKEWERED!', '#ffd23a'], fxunhorse: ['UNHORSED!', '#ffd23a'], fxint: ['STAGGERED!', '#ffd23a'] };
+const FIGHT_POW = { fxduelask: ['', ''], fxduel: ['', ''], fxduelwin: ['', ''], fxdueldraw: ['', ''], fxduelbreak: ['', ''], fxduelno: ['', ''], fxevade: ['EVADED!', '#9fe3ff'], fxback: ['BACKSTAB!', '#ff8a3a'], fxexec: ['EXECUTED!', '#ff3b2e'], fxexecgo: ['', ''], fxcapkill: ['CAPTAIN SLAIN!', '#ffd23a'], fxrally: ['RALLY!', '#ffd23a'], fxrout: ['', ''], fxride: ['', ''], fxjoust: ['JOUSTED!', '#ffd23a'], fxparry: ['PARRY!', '#ffffff'], fxbreak: ['GUARD BROKEN!', '#ff8a3a'], fximpale: ['SKEWERED!', '#ffd23a'], fxunhorse: ['UNHORSED!', '#ffd23a'], fxint: ['STAGGERED!', '#ffd23a'] };
 bus.on('fxmsg', d => {
   const u = d.u, me = G.player;
   if (d.k === 'fxopen') { if (u && d.a === me) bus.emit('fighttip', 'shield'); return; } // (your blow knocked his shield aside)
@@ -90,6 +91,17 @@ bus.on('fxmsg', d => {
   if (d.k === 'fxrout') { // an army breaks
     if (near) { pow(u.x, u.y + 3.4, u.z, 'ROUT!', '#e0352b'); sfx.heavy(u.x, u.z); }
     const ti = d.ti ?? u.ti; musicCue(ti === G.myTi ? 'routMine' : G.ALLY[ti % 4] !== G.ALLY[G.myTi % 4] ? 'routEnemy' : 'capdown');
+    return;
+  }
+  if (d.k.startsWith('fxduel')) { // the duel: called out, on, won, drawn, broken, refused
+    const inIt = mine || d.a === me;
+    if (!near && !inIt) return;
+    if (d.k === 'fxduelask') { const a = d.a || u; pow(a.x, a.y + 3.2, a.z, 'I CHALLENGE YOU!', '#ffd23a'); sfx.windup(a.x, a.z); if (mine) buzz([40, 40, 40]); }
+    else if (d.k === 'fxduel') { const a = d.a || u, mx = (a.x + u.x) / 2, mz = (a.z + u.z) / 2; pow(mx, u.y + 3.4, mz, 'DUEL!', '#ffd23a'); shockwave(mx, mz, DUEL.ring + 1, '#ffd23a'); sfx.horn(); if (inIt) { buzz(80); cam.shake = Math.max(cam.shake, .4); musicCue('rally'); } }
+    else if (d.k === 'fxduelwin') { pow(u.x, u.y + 3.4, u.z, mine ? 'DUEL WON!' : 'VICTOR!', '#ffd23a'); shockwave(u.x, u.z, 16, '#ffd23a'); sfx.cheer(); if (mine) buzz([60, 40, 90]); }
+    else if (d.k === 'fxdueldraw') pow(u.x, u.y + 3.2, u.z, 'DRAW', '#ffffff');
+    else if (d.k === 'fxduelbreak') { pow(u.x, u.y + 3.2, u.z, 'DISHONOUR!', '#e0352b'); sfx.heavy(u.x, u.z); }
+    else if (d.k === 'fxduelno') pow(u.x, u.y + 3.2, u.z, 'REFUSED!', '#c9c2b2');
     return;
   }
   if (d.k === 'fxexecgo') { // an execution begins: a drum, the camera closes in (render/camera.js reads the pose flags)
@@ -254,7 +266,7 @@ function demo(dt) {
   drawHorses(G.horses.map(h => ({ key: h.id, ti: h.ti, x: h.x, z: h.z, face: h.face, spd: h.spd, state: h.state, t: h.t, fall: h.fall })), dt);
   drawEffects();
   updateWorldView(dt, () => {});
-  orbitCamera(demoT);
+  orbitCamera(demoT); hideDuelTag();
   followSun(0, 0, demoT);
   renderer.render(scene, camera);
   clearOverlay();
@@ -426,6 +438,7 @@ function drawMatch(dt) {
   try { drawScene(dt); } catch (e) { fault('draw', e); }
   try { if (!(import.meta.env.DEV && window.__noRender)) renderer.render(scene, camera); } catch (e) { fault('render', e); } // (dev: network tests skip drawing)
   try { drawOverlay({ joy: inp.joy, nickFor }); } catch (e) { fault('overlay', e); }
+  try { duelTagTick(); } catch (e) { fault('duel tag', e); }
 }
 function drawScene(dt) {
   try { audioTick(dt); } catch (e) { fault('sound', e); } // (sound can never freeze the screen)
@@ -501,9 +514,9 @@ window.__fb = {
   step(n, dt = 1 / 30, drive) { const inp = drive ? Object.assign({ wx: 0, wz: 0, mag: 0, block: false, attackHeld: false, camYaw: 0 }, drive === true ? {} : drive) : null; for (let i = 0; i < n && G.state === 'play'; i++) update(dt, inp); },
   ride() { if (G.player) { G.player.lastHit = -9; actions.ride(); } },
   volley(pt) { actions.volley(pt); }, order(o, pt) { actions.order(o, pt); }, rally() { actions.rally(); },
-  attack() { actions.attack(); }, jump() { actions.jump(); }, weapon(w) { actions.weapon(w); }, upgrade(id) { actions.upgrade(id); },
+  attack() { actions.attack(); }, duel() { actions.duel(); }, jump() { actions.jump(); }, weapon(w) { actions.weapon(w); }, upgrade(id) { actions.upgrade(id); },
   fort(c, lv) { G.teams[c].up.fort = lv; applyFort(c); },
-  setOrder, mkUnit, G, cam, scene, audio: () => audioStats(),
+  setOrder, mkUnit, challenge, canChallenge, G, cam, scene, audio: () => audioStats(),
 };
 
 function onResize() { resize(); resizeOverlay(); }

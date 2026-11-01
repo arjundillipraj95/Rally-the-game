@@ -6,7 +6,7 @@ import { EVADE, TEAMS, MAPS, KINDS, STATS, RECRUITS, FACTIONS, factionFromCode, 
 import { G, bus, colorOf, isEnemyTi, activeFrom, ARMIES } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn, angDiff } from '../core/world.js';
 import { buildNav, syncGates } from '../core/nav.js';
-import { initForts, applyFort, fortLvl, captainEvade, evadeKind, makeHolds, execTarget, rallyCry, blockPress, attackHold, attackRelease, rideRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainJump, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
+import { duelAct, duelOffer, duelTarget, initForts, applyFort, fortLvl, captainEvade, evadeKind, makeHolds, execTarget, rallyCry, blockPress, attackHold, attackRelease, rideRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainJump, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
 import { session, isClient, isHost } from './session.js';
 import { showMsg } from '../ui/messages.js';
 import { sfx, buzz, gateS } from '../ui/audio.js';
@@ -48,7 +48,7 @@ function encodeSnap() {
     if (u.dead) continue;
     const kt = KINDS.indexOf(u.kind) * 16 + u.ti;
     const fl = (u.swing > 0 ? 1 : 0) | (u.mounted ? 2 : 0) | ((u.blockT > 0 || (u.human && u.blocking)) ? 4 : 0) | (u.carrying ? 8 : 0) | (u.stun > 0 ? 16 : 0) | (u.aim ? 32 : 0) | (u.shieldwall ? 64 : 0) | (u.weapon === 'spear' ? 128 : u.weapon === 'jav' ? 256 : u.weapon === 'sword' ? 512 : 0) | (u.charge > 0 ? 1024 : 0)
-      | (u.windup > 0 ? 2048 : 0) | (u.glint ? 4096 : 0) | (u.heavyCharge > 0 ? 8192 : 0) | (u.bracing ? 16384 : 0) | (u.javDraw > 0 ? 32768 : 0) | (u.couch || u.rideReady ? 65536 : 0) | (u.routing ? 131072 : 0) | (u.rallyT > 0 ? 262144 : 0) | (u.execReady ? 524288 : 0) | (u.execA ? 1048576 : 0) | (u.execV ? 2097152 : 0) | (u.leader && u.swing > 0 ? (u.swingKind & 7) * 4194304 : 0); // (bits 22-24: which blow a captain is swinging)
+      | (u.windup > 0 ? 2048 : 0) | (u.glint ? 4096 : 0) | (u.heavyCharge > 0 ? 8192 : 0) | (u.bracing ? 16384 : 0) | (u.javDraw > 0 ? 32768 : 0) | (u.couch || u.rideReady ? 65536 : 0) | (u.routing ? 131072 : 0) | (u.rallyT > 0 ? 262144 : 0) | (u.execReady ? 524288 : 0) | (u.execA ? 1048576 : 0) | (u.execV ? 2097152 : 0) | (u.leader && u.swing > 0 ? (u.swingKind & 7) * 4194304 : 0) | (u.dueled ? 33554432 : 0); // (bits 22-24: which blow a captain is swinging)
     const row = [b36(u.id), kt.toString(16), encX(u.x), encX(u.z), encF(u.face), b36(clamp(u.hp / u.max, 0, 1) * 35), b36(fl)];
     if (u.jy > .05) row.push(b36(u.jy * 10));
     us.push(row.join(','));
@@ -66,7 +66,8 @@ function encodeSnap() {
   const hd = (G.holds || []).map(h => [h.owner, Math.round(h.prog * 100), h.cap, h.contested ? 1 : 0].join(',')).join(';');
   const cp = (G.ctrlPoints || []).map(p => [p.owner, Math.round(p.prog * 100), p.capturer ?? -1].join(',')).join(';');
   const fo = (G.forts || []).map(f => f.broken).join(','); // (Fortify: each castle's broken palisade sections)
-  return [Math.round(G.T * 10), teams, us.join(';'), ars.join(';'), hs.join(';'), fl, pl, G.bounty, hd, cp, fo].join('|');
+  const du = (G.duels || []).map(d => [d.id, b36(d.a.id), b36(d.b.id), d.state === 'on' ? 1 : 0, encX(d.x), encX(d.z), Math.max(0, Math.ceil(d.t))].join(',')).join(';'); // (duels: called out, or on)
+  return [Math.round(G.T * 10), teams, us.join(';'), ars.join(';'), hs.join(';'), fl, pl, G.bounty, hd, cp, fo, du].join('|');
 }
 // a remote player's blow landing (or landing on them) goes out at once rather than waiting for the
 // next regular snapshot, so their hits register as quickly as the network allows
@@ -120,6 +121,7 @@ export function netHostReadInputs() {
     if (typeof pr.ride === 'number' && pr.ride > last.ride) { if (L) toggleHorseFor(L); last.ride = pr.ride; }
     if (typeof pr.chg === 'number' && pr.chg > last.chg) { if (L && !L.dead) captainCharge(L); last.chg = pr.chg; }
     if (typeof pr.evN === 'number' && pr.evN > (last.evN || 0)) { if (L && !L.dead && ['pounce', 'left', 'right', 'back'].includes(pr.evK)) captainEvade(L, pr.evK, true); last.evN = pr.evN; } // (a joiner's evade: their phone moved them; here, the untouchable moment and the follow-up)
+    if (typeof pr.dl === 'number' && pr.dl > (last.dl || 0)) { if (L && !L.dead) duelAct(L, pr.dlId == null ? null : pr.dlId | 0); last.dl = pr.dl; } // (⚔: a challenge, or taking one up)
     if (typeof pr.vly === 'number' && pr.vly > last.vly) { orderVolley(ti, Array.isArray(pr.vat) ? { x: +pr.vat[0], z: +pr.vat[1] } : null); last.vly = pr.vly; }
     if (Array.isArray(pr.up)) for (let k = 0; k < UPGRADES.length; k++) while ((pr.up[k] | 0) > last.up[k]) { last.up[k]++; buyUpgrade(ti, UPGRADES[k].id); }
     const holdKey = pr.ord === 'hold' && Array.isArray(pr.hold) ? pr.hold.join(',') : pr.ord === 'focus' && Array.isArray(pr.foc) ? 'f' + pr.foc.join(',') : '';
@@ -149,9 +151,9 @@ export function clientStart(hp) {
   initForts(); C.fortSig = '';
   G.flag = G.mode === 'ctf' ? { state: 'home', x: 0, z: 0, carrier: null, dropT: 0 } : null;
   G.ctrlPoints = G.mode === 'ctrl' ? makeCtrlPoints(G.layout) : null;
-  G.holds = makeHolds(G.layout);
+  G.holds = makeHolds(G.layout); G.duels = [];
   Object.assign(C, { byId: new Map(), lastN: -1, lastMsgN: (hp.m && hp.m.length) ? hp.m[hp.m.length - 1][0] : 0, meId: null, meInit: false, kickN: 0, localCd: 0, lastSnapAt: performance.now(),
-    inp: { atk: 0, ride: 0, vly: 0, chg: 0, evN: 0, evK: '', par: 0, ahN: 0, ahD: 0, ah: false, rly: 0, foc: null, vat: null, rec: [0, 0, 0], up: UPGRADES.map(() => 0), ord: 'follow', hold: null, face: 0 }, sendAt: 0, sendNow: false, pred: null, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
+    inp: { dl: 0, dlId: null, atk: 0, ride: 0, vly: 0, chg: 0, evN: 0, evK: '', par: 0, ahN: 0, ahD: 0, ah: false, rly: 0, foc: null, vat: null, rec: [0, 0, 0], up: UPGRADES.map(() => 0), ord: 'follow', hold: null, face: 0 }, sendAt: 0, sendNow: false, pred: null, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
   G.player = null;
   cam.yaw = Math.atan2(-TEAMS[colorOf(G.myTi)].pos[0], -TEAMS[colorOf(G.myTi)].pos[1]); cam.pitch = CAM_PITCH;
   G.state = 'play';
@@ -227,6 +229,7 @@ function clientApply(hp) {
     if ((fl & 1) && u.swing <= 0 && id !== myId) { u.swing = .38; sfx.swing(u.x, u.z); if (kind === 'captain') u.swingKind = (fl >> 22) & 7; }
     u.mounted = !!(fl & 2); u.carrying = !!(fl & 8);
     u.shieldwall = !!(fl & 64);
+    u.dueled = !!(fl & 33554432);
     u.execReady = !!(fl & 524288); u.execA = !!(fl & 1048576); u.execV = !!(fl & 2097152); // (an execution: who's marked, who's doing it, who's kneeling)
     if (id !== myId) {
       u.blockT = (fl & 4) ? .2 : 0; u.stun = (fl & 16) ? .1 : 0; u.aim = !!(fl & 32);
@@ -242,6 +245,11 @@ function clientApply(hp) {
     } else if (!C.meInit || C.meId !== id || u.execA || u.execV) { u.x = x; u.z = z; u.face = face; } // (in an execution the host places you)
   }
   for (const u of [...C.byId.values()]) if (!seen.has(u.id)) clientKill(u);
+  if (secs[11] != null) { // duels: who's called out whom, and the rings that are up
+    for (const u of G.units) u.duelId = 0;
+    G.duels = secs[11] ? secs[11].split(';').map(r => { const f = r.split(','); return { id: +f[0], a: C.byId.get(p36(f[1])), b: C.byId.get(p36(f[2])), state: f[3] === '1' ? 'on' : 'offer', x: decX(f[4]), z: decX(f[5]), t: +f[6] }; }).filter(d => d.a && d.b) : [];
+    for (const d of G.duels) if (d.state === 'on') d.a.duelId = d.b.duelId = d.id;
+  }
   if (myId != null && C.byId.get(myId)) {
     const me = C.byId.get(myId);
     if (C.meId !== myId) { C.meId = myId; C.meInit = true; G.player = me; cam.yaw = me.face; C.kickN = C.meInfo ? C.meInfo.kn : 0; }
@@ -358,7 +366,7 @@ export function clientTick(dt) {
   // send my captain and my buttons
   if ((performance.now() - C.sendAt > 66 || C.sendNow) && G.state === 'play') {
     C.sendAt = performance.now(); C.sendNow = false;
-    const pres = { role: 'player', nick: session.myNick || 'Captain', ph: 'play', seed: G.seed, evN: C.inp.evN, evK: C.inp.evK, rly: C.inp.rly, foc: C.inp.foc, par: C.inp.par, ahN: C.inp.ahN, ahD: C.inp.ahD, ah: C.inp.ah, atk: C.inp.atk, ride: C.inp.ride, vly: C.inp.vly, vat: C.inp.vat, chg: C.inp.chg, rec: C.inp.rec, up: C.inp.up, ord: C.inp.ord, hold: C.inp.hold, face: C.inp.face, blk: inp.blockHeld ? 1 : 0 };
+    const pres = { role: 'player', nick: session.myNick || 'Captain', ph: 'play', seed: G.seed, evN: C.inp.evN, evK: C.inp.evK, rly: C.inp.rly, dl: C.inp.dl, dlId: C.inp.dlId, foc: C.inp.foc, par: C.inp.par, ahN: C.inp.ahN, ahD: C.inp.ahD, ah: C.inp.ah, atk: C.inp.atk, ride: C.inp.ride, vly: C.inp.vly, vat: C.inp.vat, chg: C.inp.chg, rec: C.inp.rec, up: C.inp.up, ord: C.inp.ord, hold: C.inp.hold, face: C.inp.face, blk: inp.blockHeld ? 1 : 0 };
     if (me && !me.dead) pres.cap = [me.id, r2(me.x), r2(me.z), r2(me.face), r1(me.vx), r1(me.vz), r2(me.jy || 0), Math.max(0, WEAPONS.indexOf(me.weapon || 'sword'))];
     NET.room.presence(pres).catch(() => {});
   }
@@ -472,6 +480,14 @@ export const actions = {
       C.inp.ride++; C.sendNow = true; return;
     }
     toggleHorseFor(p);
+  },
+  // ⚔: call out the enemy captain the tag is over, or take up his challenge
+  duel() {
+    const p = G.player; if (G.state !== 'play' || !p || p.dead) return;
+    const o = duelOffer(p), v = o ? o.a : duelTarget(p); if (!v) return;
+    buzz(25);
+    if (isClient()) { C.inp.dl++; C.inp.dlId = o ? null : v.id; C.sendNow = true; return; }
+    duelAct(p, o ? null : v.id);
   },
   // squad-wide "fire at will": every ready archer/javelin-thrower shoots at once, shared cooldown
   // pt: where you aimed it ({x, z}); without one, everyone picks their own nearest target

@@ -1,7 +1,7 @@
 // The 2D layer drawn over the 3D view: sparks, floating text, health bars, names,
 // the banner pointer, the joystick and the red tint while you are down. Also the minimap.
 import * as THREE from 'three';
-import { TEAMS } from '../config.js';
+import { TEAMS, DUEL } from '../config.js';
 import { G, isEnemyTi, isFfa, colorOf } from '../core/state.js';
 import { groundY, clamp, W } from '../core/world.js';
 import { camera, view } from './scene.js';
@@ -15,7 +15,7 @@ const mini = document.getElementById('mini'), mctx = mini.getContext('2d');
 const v3 = new THREE.Vector3(), v3b = new THREE.Vector3();
 
 export function resizeOverlay() { fx.width = Math.round(view.W * view.DPR); fx.height = Math.round(view.H * view.DPR); }
-function proj(x, y, z) { v3.set(x, y, z).project(camera); return v3.z <= 1 ? [(v3.x + 1) / 2 * view.W, (1 - v3.y) / 2 * view.H, true] : [0, 0, false]; }
+export function proj(x, y, z) { v3.set(x, y, z).project(camera); return v3.z <= 1 ? [(v3.x + 1) / 2 * view.W, (1 - v3.y) / 2 * view.H, true] : [0, 0, false]; }
 export function clearOverlay() { ctx.setTransform(view.DPR, 0, 0, view.DPR, 0, 0); ctx.clearRect(0, 0, view.W, view.H); }
 
 // opts: { joy, nickFor(ti) }
@@ -54,7 +54,7 @@ export function drawOverlay(opts) {
         ctx.strokeText('BOUNTY', sx, sy - 20); ctx.fillStyle = '#ffcf3a'; ctx.fillText('BOUNTY', sx, sy - 20);
       }
     }
-    drawStars(); drawFinish();
+    drawDuels(); drawStars(); drawFinish();
     drawBubbles();
     if (G.flag) drawFlagPointer();
     if (G.mode === 'ctrl') drawControlLabels(); drawHoldLabels();
@@ -116,6 +116,30 @@ function drawFinish() {
     const p = 1 + .1 * Math.sin(now * 9), sz = Math.round(17 * p);
     ctx.textAlign = 'center'; ctx.font = `900 italic ${sz}px Bangers, Impact, sans-serif`; ctx.lineWidth = 5; ctx.strokeStyle = '#1a0606';
     ctx.strokeText('FINISH HIM', sx, sy); ctx.fillStyle = '#ff3b2e'; ctx.fillText('FINISH HIM', sx, sy);
+  }
+}
+// The duels: a gold ring on the ground round each one that's on, the time left over it; a challenge
+// waiting for an answer shows over the man called out.
+function drawDuels() {
+  const ds = G.duels; if (!ds || !ds.length) return;
+  const now = performance.now() / 1000;
+  for (const d of ds) {
+    if (Math.hypot(d.x - camera.position.x, d.z - camera.position.z) > 60) continue;
+    if (d.state === 'on') {
+      ctx.beginPath(); let pen = false;
+      for (let k = 0; k <= 64; k++) {
+        const a = k / 64 * Math.PI * 2, x = d.x + Math.sin(a) * DUEL.ring, z = d.z + Math.cos(a) * DUEL.ring, [sx, sy, ok] = proj(x, groundY(x, z) + .08, z);
+        if (!ok) { pen = false; continue; } if (pen) ctx.lineTo(sx, sy); else { ctx.moveTo(sx, sy); pen = true; }
+      }
+      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,210,58,.75)'; ctx.setLineDash([10, 7]); ctx.lineDashOffset = -now * 12; ctx.stroke(); ctx.setLineDash([]);
+      const [sx, sy, ok] = proj(d.x, groundY(d.x, d.z) + 5.2, d.z);
+      if (ok) { const t = Math.max(0, d.t | 0), txt = `⚔ ${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
+        ctx.textAlign = 'center'; ctx.font = 'italic 20px Bangers, Impact, sans-serif'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.strokeText(txt, sx, sy); ctx.fillStyle = t <= 10 ? '#ff8a3a' : '#ffd23a'; ctx.fillText(txt, sx, sy); }
+    } else if (d.a === G.player) { // you called him out: his answer is coming
+      const v = d.b, [sx, sy, ok] = proj(v.x, v.y + 3.6, v.z); if (!ok) continue;
+      ctx.textAlign = 'center'; ctx.font = 'italic 17px Bangers, Impact, sans-serif'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.6)';
+      const txt = `CHALLENGED ${Math.max(0, Math.ceil(d.t))}`; ctx.strokeText(txt, sx, sy); ctx.fillStyle = '#ffd23a'; ctx.fillText(txt, sx, sy);
+    }
   }
 }
 // Stunned soldiers see stars: three little ones circling the head.

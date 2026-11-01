@@ -25,7 +25,7 @@ export function msgText(k, a) {
     case 'fell': return mine(a[0]) ? ['You fell!', a[1] ? 'Back in the fight in 5 seconds' : 'No way back. Your allies fight on.', '#e0352b'] : null;
     case 'respawn': return mine(a[0]) ? ['Back on your feet', 'Rally your squad'] : null;
     case 'horseDown': return mine(a[0]) ? ['Your horse is down!', `New horse in ${horseCooldown(a[0])} seconds`, '#e0352b'] : null;
-    case 'rideNo': return mine(a[0]) ? (a[1] === 'banner' ? ['Not with the banner', 'Carry it home on foot'] : a[1] === 'rest' ? ['Your horse is resting', `Ready in ${a[2]} seconds`] : ['Too hot to call your horse', 'Get clear of the fight first']) : null;
+    case 'rideNo': return mine(a[0]) ? (a[1] === 'banner' ? ['Not with the banner', 'Carry it home on foot'] : a[1] === 'rest' ? ['Your horse is resting', `Ready in ${a[2]} seconds`] : a[1] === 'duel' ? ['Not in a duel', 'Fight it out on foot'] : ['Too hot to call your horse', 'Get clear of the fight first']) : null;
     case 'flagTaken': return mine(a[0]) ? ['You have the banner!', 'Carry it home. Your squad will escort you.', css(a[0])]
       : [`${nm(a[0])} has the banner!`, ally(a[0]) ? 'Escort them home' : 'Stop the carrier', css(a[0])];
     case 'flagDropped': return mine(a[0]) ? ['Banner dropped!', 'Grab it again before it returns'] : [`${nm(a[0])} dropped the banner`, '', css(a[0])];
@@ -48,6 +48,19 @@ export function msgText(k, a) {
     case 'fortUp': // a[0]: the castle, a[1]: its Fortify level now
       if (colorOf(a[0]) === colorOf(myTi)) return [a[1] >= 2 ? 'Gate towers built' : 'Palisade built', a[1] >= 2 ? 'They shoot whoever comes at your gates' : 'Two gates: hold them (drag Order onto a gate)', '#ffcf3a'];
       return !isEnemyTi(a[0], myTi) ? null : [`${nm(a[0])} ${a[1] >= 2 ? 'built gate towers' : 'built a palisade'}`, 'Find a gate, or hack a breach', css(a[0])];
+    // the duel. duelAsk: a[0] calls out a[1]; duelOn/duelDraw: a[0] and a[1]; duelWon: a[0] beat a[1];
+    // duelBroken: a[0] forced his way into a[1] and a[2]'s; duelNo: a[0] turned a[1] down
+    case 'duelAsk': return mine(a[1]) ? ['⚔ You are challenged!', `${nm(a[0])}'s captain calls you out. Walk up to him, or tap ⚔ Accept`, css(a[0])]
+      : mine(a[0]) ? ['⚔ Challenge made', `Waiting for ${nm(a[1])}'s answer`, '#ffcf3a'] : null;
+    case 'duelOn': return mine(a[0]) || mine(a[1]) ? ['DUEL!', 'Your men hold the ring. Win it, and his army breaks', '#ffcf3a']
+      : ally(a[0]) || ally(a[1]) ? [`${nm(ally(a[0]) ? a[0] : a[1])} is in a duel!`, 'A duel is sacred: you can only watch', '#ffcf3a'] : null;
+    case 'duelWon': return mine(a[0]) ? ['You won the duel!', 'Rally horn full. His army breaks!', '#ffcf3a'] : mine(a[1]) ? ['Duel lost', 'Your men break and run', '#e0352b']
+      : ally(a[0]) ? [`${nm(a[0])} wins the duel!`, `${nm(a[1])}'s army breaks: cut them down`, css(a[0])] : ally(a[1]) ? [`${nm(a[1])} lost the duel`, 'Cover his men', css(a[0])] : null;
+    case 'duelDraw': return mine(a[0]) || mine(a[1]) ? ['Honours even', 'Time ran out: the duel is a draw', '#ffcf3a'] : null;
+    case 'duelBroken': return mine(a[0]) ? ['You broke the duel!', 'Your men think the less of you', '#e0352b']
+      : mine(a[1]) || mine(a[2]) ? ['The duel is broken!', `${nm(a[0])} forced his way in. Your men take heart`, css(a[0])] : null;
+    case 'duelNo': return mine(a[1]) ? [`${nm(a[0])} refuses!`, 'His men lose heart', css(a[0])] : mine(a[0]) ? ['You refused the duel', 'Your men lose heart', '#e0352b'] : null;
+    case 'duelSacred': return mine(a[0]) ? ['A duel is sacred', 'You can watch, not step in'] : null;
     case 'pointCaptured': return mine(a[0]) ? [`You captured Point ${a[1]}!`, '', css(a[0])] : [`${nm(a[0])} captured Point ${a[1]}!`, ally(a[0]) ? 'Reinforce them' : 'Take it back', css(a[0])];
   }
   return null;

@@ -144,6 +144,15 @@ export const HOLDS = { capture: 7, oasis: { r: 13, heal: 6, gold: 2.5, name: 'th
 export const EVADE = { iframe: .2, remote: .12, cd: .45, tired: 1.3, chain: 1.1, follow: .45, rally: 8,
   pounce: { v: 12.5, dash: .2, hop: 5.5 }, side: { v: 9, dash: .16, hop: 3.2 }, back: { v: 10, dash: .17, hop: 3.2 },
   flank: { mult: 1.35, stun: .45 }, counter: { mult: 1.3, lunge: 8, dash: .14, reachB: .7 }, ai: [.12, .25, .4] };
+// The duel: a captain challenges an enemy captain within offerR (both on foot, neither marked for
+// execution, neither duelled yet this life); he has offerT s to accept. Then both armies' men within
+// guardR form a guard ring (ring metres round the two) facing outward and only fight outsiders; the
+// two fight it out inside, untouchable by anyone else, for up to time s (then it's a draw). The winner's
+// army: rally horn full, morale +winMorale; the loser's army breaks. Refusing costs morale (decline).
+// An outsider's man or an enemy captain getting into the ring breaks it: his army loses heart (broken)
+// and the duellists' armies get rally (brokenRally). Computer captains accept at accept[difficulty];
+// they challenge a player at aiChallenge[difficulty] per second when in range (aiVsAi between themselves).
+export const DUEL = { offerR: 10, ring: 6, guardR: 25, offerT: 5, time: 60, accept: [.55, .75, .9], aiChallenge: [.02, .045, .08], aiVsAi: .02, decline: 8, winMorale: 30, broken: 20, brokenRally: 25, draw: 10 };
 // A blow from behind (a captain's): harder, and it staggers. Circle him.
 export const BACKSTAB = { mult: 1.6, stun: .5 };
 // The execution: an enemy captain beaten down (hp at or under hp of his max, or hpStunned while

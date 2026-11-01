@@ -12,7 +12,7 @@ import { RALLY } from '../config.js';
 
 const $ = id => document.getElementById(id);
 export const inp = { joy: { active: false, id: null, ox: 0, oy: 0, x: 0, y: 0 }, look: { id: null, lx: 0, ly: 0 }, keys: {}, attackHeld: false, blockHeld: false, trayIsOpen: false, upIsOpen: false };
-let A = { rally() {}, attack() {}, ride() {}, order() {}, recruit() {}, upgrade() {}, volley() {}, jump() {}, weapon() {} };
+let A = { rally() {}, attack() {}, ride() {}, order() {}, recruit() {}, upgrade() {}, volley() {}, jump() {}, weapon() {}, duel() {} };
 
 export function trayOpen(on) { inp.trayIsOpen = on; $('tray').hidden = !on; $('recBtn').classList.toggle('open', on); if (on) upOpen(false); }
 export function upOpen(on) { inp.upIsOpen = on; $('upTray').hidden = !on; $('upBtn').classList.toggle('open', on); if (on) trayOpen(false); }
@@ -177,6 +177,7 @@ export function bindInput(actions) {
     if (e.code === 'KeyG') A.rally();
     if (e.code === 'KeyV') { if (aimStart(mouse.x, mouse.y)) aimMove(mouse.x, mouse.y, false, true); else A.volley(); } // aims at the mouse
     if (e.code === 'KeyC') A.jump();
+    if (e.code === 'KeyX') A.duel();
     if (e.code === 'KeyR') A.weapon();
     if (e.code === 'KeyU') upOpen(!inp.upIsOpen);
     const up = ['Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'].indexOf(e.code);
