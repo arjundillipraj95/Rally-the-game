@@ -215,11 +215,27 @@ function drawMini() {
     mctx.lineWidth = 3; mctx.strokeStyle = h.contested || (h.cap >= 0 && h.prog > 0) ? '#ffcf3a' : h.owner >= 0 ? sideCss(h.owner) : 'rgba(255,255,255,.75)';
     mctx.beginPath(); mctx.arc(h.x * k, h.z * k, Math.max(6, h.r * k), 0, Math.PI * 2); mctx.stroke();
   }
-  for (const u of G.units) { if (u.dead) continue; mctx.fillStyle = TEAMS[colorOf(u.ti)].css; const s = u.leader ? 6 : 3.5; mctx.fillRect(u.x * k - s / 2, u.z * k - s / 2, s, s); }
+  for (const u of G.units) { if (u.dead || u.leader) continue; mctx.fillStyle = TEAMS[colorOf(u.ti)].css; mctx.fillRect(u.x * k - 1.75, u.z * k - 1.75, 3.5, 3.5); }
+  // captains stand out: your side's in a white ring (a bigger one for a player), the enemy's in a dark one
+  const me = G.player, now = performance.now() / 1000;
+  for (const u of G.units) {
+    if (u.dead || !u.leader || u === me) continue;
+    const ally = !isEnemyTi(u.ti, G.myTi), r = u.human ? 7.5 : 6;
+    mctx.beginPath(); mctx.arc(u.x * k, u.z * k, r, 0, Math.PI * 2); mctx.fillStyle = TEAMS[colorOf(u.ti)].css; mctx.fill();
+    mctx.lineWidth = ally ? 3 : 2; mctx.strokeStyle = ally ? '#ffffff' : 'rgba(10,8,6,.9)'; mctx.stroke();
+  }
+  // you: a white arrow pointing the way you face, in a pulsing ring
+  if (me && !me.dead) {
+    const x = me.x * k, z = me.z * k;
+    mctx.beginPath(); mctx.arc(x, z, 11 + Math.sin(now * 5) * 2.5, 0, Math.PI * 2); mctx.strokeStyle = 'rgba(255,255,255,.7)'; mctx.lineWidth = 2.5; mctx.stroke();
+    mctx.save(); mctx.translate(x, z); mctx.rotate(Math.PI - me.face);
+    mctx.beginPath(); mctx.moveTo(0, -10); mctx.lineTo(7, 7); mctx.lineTo(0, 3.5); mctx.lineTo(-7, 7); mctx.closePath();
+    mctx.fillStyle = '#ffffff'; mctx.fill(); mctx.lineWidth = 2; mctx.strokeStyle = TEAMS[colorOf(G.myTi)].css; mctx.stroke();
+    mctx.restore();
+  }
   if (G.flag) {
     const fc = G.flag.state === 'carried' && G.flag.carrier ? G.flag.carrier : G.flag;
     mctx.fillStyle = '#fff'; mctx.strokeStyle = '#000'; mctx.lineWidth = 1.5; mctx.beginPath(); mctx.arc(fc.x * k, fc.z * k, 5, 0, Math.PI * 2); mctx.fill(); mctx.stroke();
   }
   mctx.restore();
-  mctx.fillStyle = '#fff'; mctx.beginPath(); mctx.moveTo(o, o - 8); mctx.lineTo(o - 5, o + 5); mctx.lineTo(o + 5, o + 5); mctx.fill();
 }
