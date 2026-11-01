@@ -3,7 +3,9 @@
 // large, and tumbleweeds bowling across the sand. Scenery only (the stalls and oasis palms are solid,
 // and set out in the layout).
 import * as THREE from 'three';
-import { terrainMeshY, mulberry, OASES, W } from '../core/world.js';
+import { terrainMeshY, mulberry, OASES, W, inPoly } from '../core/world.js';
+import { G } from '../core/state.js';
+import { camera } from './scene.js';
 import { stoneTex, woodTex, uvScale } from './look.js';
 
 // ground colour hook: grass round the oases, gravel and pale salt in patches
@@ -42,6 +44,27 @@ export function buildDesert(world, L) {
     const reeds = new THREE.InstancedMesh(new THREE.ConeGeometry(.06, 1.4, 4), M.reed, 60), mx = new THREE.Matrix4();
     for (let k = 0; k < 60; k++) { const a = R() * Math.PI * 2, d = o.r - .3 + R() * 1.2, x = o.x + Math.cos(a) * d, z = o.z + Math.sin(a) * d; mx.makeRotationZ((R() - .5) * .4); mx.setPosition(x, y + .5, z); reeds.setMatrixAt(k, mx); }
     world.add(reeds);
+  }
+
+  // ---- the mesas: flat-topped sandstone, banded, a smaller tier on the bigger ones ----
+  anim.mesas = [];
+  const band = (() => { const c = document.createElement('canvas'); c.width = 8; c.height = 64; const x = c.getContext('2d');
+    const cols = ['#c98f55', '#d9a46a', '#b97c48', '#e2b37a', '#c58a50', '#a86e40']; for (let i = 0; i < 16; i++) { x.fillStyle = cols[Math.floor(R() * cols.length)]; x.fillRect(0, i * 4, 8, 4); }
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; })();
+  for (const s of (L.solids || []).filter(s => s.kind === 'mesa')) {
+    let cx = 0, cz = 0, lo = 1e9; for (const [x, z] of s.pts) { cx += x / s.pts.length; cz += z / s.pts.length; lo = Math.min(lo, terrainMeshY(x, z)); }
+    const mat = lam(0xffffff, band, { transparent: true, opacity: 1 }), topMat = lam(0xe0be86, null, { transparent: true, opacity: 1 }), g = new THREE.Group();
+    const tier = (pts, h, y0) => {
+      const sh = new THREE.Shape(pts.map(([x, z]) => new THREE.Vector2(x - cx, -(z - cz))));
+      const geo = new THREE.ExtrudeGeometry(sh, { depth: h, bevelEnabled: true, bevelThickness: .5, bevelSize: .6, bevelSegments: 1 }); geo.rotateX(-Math.PI / 2);
+      // (stripes run round the sides: v from height)
+      const pos = geo.attributes.position, uv = geo.attributes.uv; for (let i = 0; i < pos.count; i++) uv.setXY(i, (pos.getX(i) + pos.getZ(i)) * .05, pos.getY(i) / 8);
+      const m = new THREE.Mesh(geo, [topMat, mat]); m.position.y = y0; g.add(m);
+    };
+    tier(s.pts, s.h + 1.2, -1.2);
+    if (s.pts.length && Math.hypot(s.pts[0][0] - cx, s.pts[0][1] - cz) > 8.5) tier(s.pts.map(([x, z]) => [cx + (x - cx) * .62, cz + (z - cz) * .62]), 1.8, s.h);
+    g.position.set(cx, lo, cz); world.add(shadowy(g));
+    anim.mesas.push({ s, mats: [mat, topMat], cx, cz, fade: 1 });
   }
 
   // ---- the spring in the old fort (the map's prize): a pool in a ring of stones, reeds round it ----
@@ -119,6 +142,13 @@ export function buildDesert(world, L) {
 
 export function updateDesert(dt, t) {
   if (!anim) return;
+  // a mesa between the camera and your captain goes see-through, so a fight in a canyon stays in view
+  const me = G.player;
+  if (me && anim.mesas) for (const m of anim.mesas) {
+    let block = false;
+    if (Math.hypot(m.cx - me.x, m.cz - me.z) < 40) for (let k = 1; k <= 6 && !block; k++) { const f = k / 7, x = camera.position.x + (me.x - camera.position.x) * f, z = camera.position.z + (me.z - camera.position.z) * f; if (inPoly(m.s.pts, x, z)) block = true; }
+    m.fade += ((block ? .3 : 1) - m.fade) * Math.min(1, dt * 8); for (const mt of m.mats) { mt.opacity = m.fade; mt.depthWrite = m.fade > .95; }
+  }
   for (const w of anim.weeds) {
     w.x += w.sp * dt; w.z += Math.sin(t * .6 + w.ph) * .8 * dt;
     if (w.x > 50) { w.x = -50; w.z = w.side * (72 + Math.random() * 10); }

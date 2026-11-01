@@ -194,6 +194,7 @@ function buildMiniLayer(S, k) {
     if (ob.box) { c.save(); c.translate(ob.x * k, ob.z * k); c.rotate(-ob.rot); c.fillRect(-ob.hw * k, -ob.hd * k, ob.hw * 2 * k, ob.hd * 2 * k); c.restore(); }
     else { const r = Math.max(1.2, ob.r * k); c.fillRect(ob.x * k - r, ob.z * k - r, r * 2, r * 2); }
   }
+  for (const s of G.layout.solids || []) { c.beginPath(); s.pts.forEach(([x, z], i) => i ? c.lineTo(x * k, z * k) : c.moveTo(x * k, z * k)); c.closePath(); c.fill(); } // (mesas: solid)
   if (G.layout.round) { c.strokeStyle = 'rgba(20,18,16,.6)'; c.lineWidth = 3; c.beginPath(); c.arc(0, 0, G.layout.round * k, 0, Math.PI * 2); c.stroke(); }
   c.restore();
 }

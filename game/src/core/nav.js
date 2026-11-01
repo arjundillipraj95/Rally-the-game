@@ -1,7 +1,7 @@
 // Navigation for walled maps: a walkable grid, straight-line checks and A* paths,
 // plus a bucket grid so collision only looks at nearby obstacles. Pure data, no engine code.
 import { G } from './state.js';
-import { inRiver, inFord, onBridge, arenaGatesOpen, W } from './world.js';
+import { inRiver, inFord, onBridge, arenaGatesOpen, W, inPoly } from './world.js';
 
 const CS = 1.5, HALF = 122, N = Math.ceil(HALF * 2 / CS), INFL = .55; // cell size, half-extent, cells per side, unit radius
 const BS = 6, BN = Math.ceil(HALF * 2 / BS);                         // obstacle buckets
@@ -38,6 +38,11 @@ export function buildNav(L) {
     else if (o.box || o.r >= .7) mark(o, null); // columns, palms and posts are small enough to slip past
   }
   for (const b of L.blockers) bucket(b, blockBuckets);
+  // a mesa is solid right through, not just round its edge
+  for (const s of L.solids || []) {
+    let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; for (const [x, z] of s.pts) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
+    for (let j = ci(z0); j <= ci(z1); j++) for (let i = ci(x0); i <= ci(x1); i++) if (inPoly(s.pts, cx(i), cx(j))) blocked[j * N + i]++;
+  }
   // deep water is not walkable (bridges and the ford are)
   if (L.mapId === 'river') for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const x = cx(i), z = cx(j); if (inRiver(x, z) && !inFord(x, z) && !onBridge(x) && Math.abs(z) < 4.5) blocked[j * N + i]++; }
   // every battlefield is round (the arena's wall, or the hills at the edge): nothing past it

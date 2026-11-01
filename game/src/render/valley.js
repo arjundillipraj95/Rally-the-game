@@ -29,6 +29,28 @@ export function buildValley(world, L) {
   anim = { sails: null, birds: [] };
   const face = (x, z) => Math.atan2(-x, -z); // turned to look at the middle of the field
 
+  // ---- field boundaries: dry-stone walls (stacked, uneven) and hedgerows (round bushes, close-set) ----
+  {
+    const walls = (L.fences || []).filter(f => f.kind === 'wall'), hedges = (L.fences || []).filter(f => f.kind === 'hedge');
+    const stones = [], bushes = [];
+    for (const f of walls) { const len = Math.hypot(f.bx - f.ax, f.bz - f.az), n = Math.ceil(len / .9), a = Math.atan2(f.bx - f.ax, f.bz - f.az);
+      for (let i = 0; i <= n; i++) for (let row = 0; row < 3; row++) { const t = (i + (row % 2) * .5) / n; if (t > 1) continue; stones.push([f.ax + (f.bx - f.ax) * t, f.az + (f.bz - f.az) * t, row, a]); } }
+    for (const f of hedges) { const len = Math.hypot(f.bx - f.ax, f.bz - f.az), n = Math.ceil(len / 1.1);
+      for (let i = 0; i <= n; i++) { const t = i / n; bushes.push([f.ax + (f.bx - f.ax) * t + (R() - .5) * .4, f.az + (f.bz - f.az) * t + (R() - .5) * .4]); } }
+    const mx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3();
+    if (stones.length) {
+      const m = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(.5, 0), M.stone, stones.length);
+      stones.forEach(([x, z, row, a], i) => { e.set(R() * .6, a + R() * .5, R() * .6); q.setFromEuler(e); mx.compose(v.set(x, terrainMeshY(x, z) + .28 + row * .36, z), q, sc.set(1.1 + R() * .4, .62 + R() * .2, .8 + R() * .3)); m.setMatrixAt(i, mx); });
+      world.add(shadowy(m));
+    }
+    if (bushes.length) {
+      const hedgeMat = lam(0x4f7a34), m = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), hedgeMat, bushes.length);
+      const col = new THREE.Color();
+      bushes.forEach(([x, z], i) => { const s = .95 + R() * .35; mx.compose(v.set(x, terrainMeshY(x, z) + .9, z), q.identity(), sc.set(s, s * (1 + R() * .3), s)); m.setMatrixAt(i, mx); m.setColorAt(i, col.setHSL(.27 + R() * .05, .42, .26 + R() * .08)); });
+      hedgeMat.flatShading = true; world.add(shadowy(m));
+    }
+  }
+
   // ---- the villages in the passes: whitewashed cottages under thatch, a door facing the lane ----
   for (const b of L.buildings.filter(b => b.kind === 'cottage')) {
     const g = new THREE.Group(); g.position.set(b.x, terrainMeshY(b.x, b.z) - .1, b.z); g.rotation.y = b.rot;

@@ -103,7 +103,7 @@ export function ridgeH(x, z) {
   return (g[k] * (1 - tx) + g[k + 1] * tx) * (1 - tz) + (g[k + n] * (1 - tx) + g[k + n + 1] * tx) * tz;
 }
 function bakeRidges(L) {
-  if (!L.ridges.length) { RH = null; FLATS = []; return; }
+  if (!L.ridges.length) { RH = null; FLATS = []; for (const f of L.flats) FLATS.push(Object.assign({ y: groundBase(f.x, f.z) }, f)); return; } // (no ridges, but still the basins)
   const cs = 1, half = W.R + 14, n = Math.ceil(half * 2 / cs) + 1, g = new Float32Array(n * n);
   for (const r of L.ridges) {
     if (!r.H) continue;
@@ -192,6 +192,58 @@ function ridge(L, pts, w, h, kind, H = 5, flank = 7) {
 }
 // polar point at angle a (radians, 0 = +x axis) and distance d
 const P = (a, d) => [Math.cos(a) * d, Math.sin(a) * d];
+export function inPoly(pts, x, z) { let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [xi, zi] = pts[i], [xj, zj] = pts[j]; if ((zi > z) !== (zj > z) && x < (xj - xi) * (z - zi) / (zj - zi) + xi) c = !c; } return c; }
+const rot4 = ([x, z], k) => k === 0 ? [x, z] : k === 1 ? [-z, x] : k === 2 ? [-x, -z] : [z, -x]; // (a quarter turn, k times: the big maps are fair under it)
+// A solid block of rock (a mesa): its outline walls you in, its inside is solid (L.solids, for the
+// walking grid and for keeping scenery out), and it stops arrows below its height.
+function solid(L, pts, h, kind) {
+  L.solids.push({ pts, h, kind });
+  const ring = [...pts, pts[0]];
+  for (let i = 0; i < ring.length - 1; i++) wallLine(L, ring[i][0], ring[i][1], ring[i + 1][0], ring[i + 1][1], 1.2, h, { ridge: true });
+}
+// The Desert's canyon country: sandstone mesas scattered so the gaps between them make a maze of
+// winding canyons (some running on, some ending blind), placed a quarter at a time and turned to the
+// other three quarters so every castle faces the same maze. Kept clear: the bowl round the fort, each
+// castle's yard, the two oases (each sits in a canyon junction), and the edge.
+function canyons(L, R) {
+  const r = (a, b) => a + R() * (b - a), keep = [];
+  const clear = (x, z, rad) => Math.hypot(x, z) < 37 + rad || Math.hypot(x, z) > W.R - 3 - rad * .4
+    || TEAMS.some(t => Math.hypot(t.pos[0] - x, t.pos[1] - z) < 27 + rad)
+    || [[77.5, 0], [-77.5, 0], [0, 77.5], [0, -77.5]].some(([ox, oz]) => Math.hypot(ox - x, oz - z) < 11 + rad);
+  for (let tries = 0; tries < 2500 && keep.length < 18; tries++) {
+    const a = r(0, Math.PI / 2), d = r(40, W.R - 4), x = Math.cos(a) * d, z = Math.sin(a) * d, rad = r(9.5, 16);
+    if (clear(x, z, rad * .8)) continue;
+    const gap = 5.5; // (the narrowest canyon: room for a few men abreast)
+    if (keep.some(m => [0, 1, 2, 3].some(k => { const [qx, qz] = rot4([m.x, m.z], k); return Math.hypot(qx - x, qz - z) < m.rad + rad + gap; }))) continue;
+    if ([1, 2, 3].some(k => { const [qx, qz] = rot4([x, z], k); return Math.hypot(qx - x, qz - z) < rad * 2 + gap; })) continue;
+    keep.push({ x, z, rad, h: r(4.4, 6.2), n: 9 + Math.floor(R() * 3), stretch: r(.7, 1.45), tilt: r(0, Math.PI), wob: Array.from({ length: 12 }, () => r(.78, 1.12)) });
+  }
+  for (const m of keep) {
+    const pts = []; for (let i = 0; i < m.n; i++) { const a = i / m.n * Math.PI * 2, rr = m.rad * m.wob[i], lx = Math.cos(a) * rr * m.stretch, lz = Math.sin(a) * rr / m.stretch; pts.push([m.x + lx * Math.cos(m.tilt) - lz * Math.sin(m.tilt), m.z + lx * Math.sin(m.tilt) + lz * Math.cos(m.tilt)]); }
+    for (let k = 0; k < 4; k++) solid(L, pts.map(p => rot4(p, k)), m.h, 'mesa');
+  }
+  L.ctrlBase = [[0, 0], [77.5, 0], [-77.5, 0], [0, 77.5], [0, -77.5]]; // (Control mode: the fort and the four canyon junctions)
+}
+// Grass Valley's open country: no ridges, just fields bounded here and there by dry-stone walls and
+// hedgerows (short runs with gaps: they shape a fight without walling anyone in), so any direction is
+// a way through. A quarter at a time, turned to the other three for fairness.
+function fieldBounds(L, R) {
+  const r = (a, b) => a + R() * (b - a), segs = [];
+  const clear = (x, z, pad) => TEAMS.some(t => Math.hypot(t.pos[0] - x, t.pos[1] - z) < 24 + pad) || Math.hypot(x, z) < 15 + pad || Math.hypot(x, z) > W.R - 8
+    || [[77.5, 0], [-77.5, 0]].some(([ox, oz]) => Math.hypot(ox - x, oz - z) < 15 + pad) || [[0, 77.5], [0, -77.5]].some(([ox, oz]) => Math.hypot(ox - x, oz - z) < 6 + pad);
+  for (let tries = 0; tries < 500 && segs.length < 11; tries++) {
+    const a = r(0, Math.PI / 2), d = r(22, W.R - 12), x = Math.cos(a) * d, z = Math.sin(a) * d, len = r(9, 17);
+    const ang = (R() < .5 ? 0 : Math.PI / 2) + r(-.25, .25), dx = Math.cos(ang) * len / 2, dz = Math.sin(ang) * len / 2;
+    if (clear(x, z, len / 2) || clear(x + dx, z + dz, 1) || clear(x - dx, z - dz, 1)) continue;
+    if (segs.some(s => [0, 1, 2, 3].some(k => { const [qx, qz] = rot4([s.x, s.z], k); return Math.hypot(qx - x, qz - z) < (s.len + len) / 2 + 6; }))) continue;
+    segs.push({ x, z, len, dx, dz, kind: R() < .5 ? 'wall' : 'hedge' });
+  }
+  for (const s of segs) for (let k = 0; k < 4; k++) {
+    const [ax, az] = rot4([s.x - s.dx, s.z - s.dz], k), [bx, bz] = rot4([s.x + s.dx, s.z + s.dz], k);
+    L.fences.push({ ax, az, bx, bz, kind: s.kind });
+    wallLine(L, ax, az, bx, bz, .75, s.kind === 'hedge' ? 2 : 1.1, { fence: true }); // (a hedge stops arrows; a low wall only the flat ones)
+  }
+}
 // Distance from (x,z) to a polyline.
 export function distToLine(pts, x, z) {
   let best = 1e9;
@@ -257,7 +309,7 @@ function findClearSpot(L, x, z) {
   return [x, z];
 }
 function makeCtrlSpots(L) {
-  const base = L.passes.length ? [[0, 0], ...L.passes.map(p => [p.x, p.z])] : [[0, 0], [42, 0], [-42, 0], [0, 42], [0, -42]]; // (big maps: hold the passes)
+  const base = L.ctrlBase || (L.passes.length ? [[0, 0], ...L.passes.map(p => [p.x, p.z])] : [[0, 0], [42, 0], [-42, 0], [0, 42], [0, -42]]); // (big maps: hold the passes)
   return base.map(([x, z], i) => { const [gx, gz] = findClearSpot(L, x, z); return { id: i, letter: CTRL_LETTERS[i], x: gx, z: gz }; });
 }
 
@@ -265,7 +317,7 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
   sizeWorld(mapId);
   const R = mulberry(seed | 0), r = (a, b) => a + R() * (b - a), S = W.S;
   const L = { mapId, withFort, ridges: [], roads: [], passes: [], flats: [], hills: [], palisades: [], rocks: [], trees: [], stones: [], obstacles: [], blockers: [], fortSegments: [],
-    buildings: [], columns: [], towers: [], rings: [], gates: [], palms: [], huts: [], statues: [], holds: [] };
+    buildings: [], columns: [], towers: [], rings: [], gates: [], palms: [], huts: [], statues: [], holds: [], solids: [], fences: [] };
   const nearCastle = (x, z, pad) => TEAMS.some(t => Math.hypot(t.pos[0] - x, t.pos[1] - z) < 20 + pad);
   const clearOf = (x, z, pad = 0) => !nearCastle(x, z, pad) && Math.hypot(x, z) > (withFort ? 12 : 8) + pad && !(mapId === 'river' && Math.abs(z) < 9);
   for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2 + r(-.1, .1); L.hills.push({ a, d: r(150, 185) * S, rad: r(18, 34) * S, sy: r(.35, .6) }); }
@@ -281,7 +333,8 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
 
   // big maps: somewhere for cover that keeps off the roads, the ridges and the passes
   const onRoad = (x, z, pad) => L.roads.some(p => distToLine(p, x, z) < pad);
-  const nearRidge = (x, z, pad) => L.ridges.some(g => distToLine(g.pts, x, z) < g.w + pad);
+  const nearRidge = (x, z, pad) => L.ridges.some(g => distToLine(g.pts, x, z) < g.w + pad) || L.solids.some(s => inPoly(s.pts, x, z) || distToLine([...s.pts, s.pts[0]], x, z) < 1.5 + pad)
+    || L.fences.some(f => distToLine([[f.ax, f.az], [f.bx, f.bz]], x, z) < 1 + pad);
   const ok = (x, z, pad = 0) => clearOf(x, z, pad) && !onRoad(x, z, 5 + pad) && !nearRidge(x, z, 2 + pad) && !L.passes.some(p => Math.hypot(x - p.x, z - p.z) < 14) && Math.hypot(x, z) < W.R - 4;
   const copses = (n, size, sz = [.8, 1.25]) => { for (let c = 0; c < n; c++) { const cx = r(-110, 110), cz = r(-110, 110); if (!ok(cx, cz, 2)) continue; const k = size[0] + (R() * (size[1] - size[0] + 1) | 0); for (let i = 0; i < k; i++) { const x = cx + r(-5, 5), z = cz + r(-5, 5); if (ok(x, z, 0)) trees(x, z, r(sz[0], sz[1])); } } };
   const bigRocks = (n, pred = () => true) => { for (let i = 0; i < n; i++) { const x = r(-110, 110), z = r(-110, 110), rad = r(.6, 1.7); if (!ok(x, z) || !pred(x, z)) continue; L.rocks.push({ x, z, r: rad, rx: r(0, 3), ry: r(0, 3) }); if (rad > 1.1) L.obstacles.push({ x, z, r: rad * .9 }); } };
@@ -392,8 +445,8 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
     ringWall(L, 0, 0, DESERT.wall, 1.1, 4.2, a => angNear(a, AXES, (DESERT.lane + .4) / DESERT.wall) || angNear(a, DIAG, 3 / DESERT.wall));
     L.rings.push({ r: DESERT.wall, h: 4.2, gaps: AXES, gapW: (DESERT.lane + .4) / DESERT.wall, towersAt: DIAG });
     for (const a of DIAG) { const x = Math.cos(a) * DESERT.wall, z = Math.sin(a) * DESERT.wall; L.obstacles.push({ x, z, r: 2.6 }); L.blockers.push({ x, z, r: 2.6, h: 7 }); L.towers.push({ x, z, r: 2.4, h: 7.5, kind: 'sand' }); }
-    // sandstone mesas carve the sands into routes; the oases sit in two of the passes
-    carveRoutes(L, R, { axis: 'sand', arc: 'sand', H: 7 });
+    // sandstone mesas: a maze of canyons between the castles and the fort; the oases sit at junctions
+    canyons(L, R);
     for (const o of OASES) L.flats.push({ x: o.x, z: o.z, r: o.r + 1.5, dip: .5, dipR: o.r });
     const nearOasis = (x, z, pad) => OASES.some(o => Math.hypot(x - o.x, z - o.z) < o.r + pad);
     // palms round the oases, leaving the way through the pass open along it
@@ -428,7 +481,9 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
   }
 
   if (mapId === 'valley') {
-    carveRoutes(L, R);
+    fieldBounds(L, R);
+    // farm tracks: from each gate to the middle and out to the villages (they read from the saddle)
+    for (const t of TEAMS) { const [gx, gz] = gatePos(t, 0, 4), jit = () => (R() - .5) * 8; L.roads.push(smooth([[gx, gz], [gx * .6 + jit(), gz * .6 + jit()], [gx * .25 + jit(), gz * .25 + jit()], [0, 0]], 3)); for (const vx of [-77.5, 77.5]) if (Math.sign(vx) === Math.sign(t.pos[0])) L.roads.push(smooth([[gx, gz], [(gx + vx) / 2 + jit(), gz * .45 + jit()], [vx, gz > 0 ? 9 : -9]], 3)); }
     // copses of oak in each corner, tucked against the ridges (cover beside the lanes, never in them)
     copses(60, [3, 6]);
     // a ring of old standing stones in the middle: cover to fight round, never a wall
