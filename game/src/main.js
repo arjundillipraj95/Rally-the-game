@@ -181,7 +181,9 @@ bus.on('end', ({ w, why }) => {
   $('endTitle').innerHTML = `<span>${title}</span>`;
   $('endText').textContent = `${MODES[G.mode].name} on ${G.map.name}. ${endText(w, why)}`;
   const qs = QUIPS[result]; $('endQuip').textContent = qs[(Math.random() * qs.length) | 0];
-  $('sKills').textContent = G.kills; $('sSquad').textContent = G.recruited; $('sTime').textContent = fmt(G.T);
+  const T0 = G.teams[G.myTi] || {}, capK = Math.max(G.kills | 0, T0.capK | 0), menK = T0.menK | 0, falls = T0.falls | 0, lost = T0.lost | 0;
+  $('sKills').textContent = capK; $('sArmyK').textContent = menK; $('sTotalK').textContent = capK + menK; $('sFalls').textContent = falls; $('sLost').textContent = lost;
+  $('endQuip').textContent = tallyQuip({ capK, menK, falls, lost, result }) || $('endQuip').textContent;
   showMoments((G.teams[G.myTi] && G.teams[G.myTi].hl) || {}); showSideMoments();
   showRank(G.awarded ? null : awardMatch({ result, kills: G.kills, diff: G.diff })); G.awarded = true;
   const host = isHost(), client = isClient();
@@ -192,6 +194,19 @@ bus.on('end', ({ w, why }) => {
   if (host) netHostSend(true);
   setTimeout(() => { if (G.state === 'end') $('ovEnd').hidden = false; }, 1600);
 });
+// The note under the result, from how the battle went for you (the first that fits, else the usual quip).
+function tallyQuip({ capK, menK, falls, lost, result }) {
+  const tot = capK + menK, pick = a => a[(Math.random() * a.length) | 0];
+  if (tot === 0) return pick(['Not a single kill. A pacifist, or just very lost?', 'Zero kills. The enemy would like to thank you for your cooperation.']);
+  if (falls === 0 && capK >= 10) return pick([`${capK} kills and not one fall. The bards are already arguing over what rhymes with that.`, `Untouched, with ${capK} to your name. Someone check that captain for witchcraft.`]);
+  if (falls >= 4) return pick([`You fell ${falls} times. The healers have started charging you rent.`, `${falls} falls. At this point the ground knows you by name.`]);
+  if (capK >= 20) return pick([`${capK} by your own hand. Someone take that sword off you.`, `${capK} kills yourself. Your men are wondering what they're for.`]);
+  if (menK >= 15 && menK >= capK * 3) return pick([`Your men took ${menK}. You mostly did the pointing.`, `${menK} kills by your army, ${capK} by you. Delegation: a fine art.`]);
+  if (capK > menK && menK < 5) return pick(['You did the fighting. Your army mostly did the watching.', `You took ${capK}, your army ${menK}. Someone tell them the battle's over here.`]);
+  if (lost >= 2 * tot && lost >= 10) return pick([`${lost} men lost for ${tot} taken. The recruiters are not pleased.`, `You spent ${lost} men like loose change.`]);
+  if (result === 'win' && falls === 0) return 'A win without a scratch. Insufferable at dinner tonight, surely.';
+  return null;
+}
 // Results screen: your moments of the match, the biggest first (up to four).
 function showMoments(h) {
   const n = (k, one, many) => h[k] ? (h[k] === 1 ? one : many.replace('#', h[k])) : null;

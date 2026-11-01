@@ -927,6 +927,10 @@ function die(u, killer, ang, launch = 0) {
   if (u.mounted) dismount(u, false);
   if (u.summon) { u.summon.state = 'leaving'; u.summon.t = 0; u.summon = null; }
   if (u.carrying) dropFlag(u);
+  { // the tally, for the results screen: kills by each captain and by his men, his falls and his men lost
+    const vs = G.teams[u.ti]; if (vs) { if (u.leader) vs.falls = (vs.falls | 0) + 1; else vs.lost = (vs.lost | 0) + 1; }
+    const ks = killer && G.teams[killer.ti]; if (ks && isEnemyTi(killer.ti, u.ti)) { if (killer.leader) ks.capK = (ks.capK | 0) + 1; else ks.menK = (ks.menK | 0) + 1; }
+  }
   if (u.leader) { const dl = (G.duels || []).find(d => d.a === u || d.b === u); if (dl) { if (dl.state === 'on' && killer && (killer === dl.a || killer === dl.b)) endDuel(dl, 'win', killer); else endDuel(dl, 'off'); } }
   const s = G.teams[u.ti];
   // the army takes it to heart: more so for a man cut down from the side or behind, most of all its captain

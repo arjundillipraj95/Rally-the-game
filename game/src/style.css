@@ -262,9 +262,9 @@
     .actions .go{font-size:20px;padding:8px 14px;}
   }
   @media (orientation:landscape){ .rotate{display:none;} }
-  .stats{display:flex;gap:20px;font-variant-numeric:tabular-nums;flex-wrap:wrap;}
+  .stats{display:flex;gap:14px 18px;font-variant-numeric:tabular-nums;flex-wrap:wrap;}
   .stats div{display:grid;}
-  .stats b{font-family:var(--display);font-weight:400;font-size:34px;font-style:italic;line-height:1;}
+  .stats b{font-family:var(--display);font-weight:400;font-size:30px;font-style:italic;line-height:1;}
   .stats small{font-weight:800;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);}
   .err{position:absolute;inset:0;display:grid;place-items:center;padding:16px;text-align:center;font-size:18px;}
   .note{font-size:13px;line-height:1.4;color:var(--dim);}
