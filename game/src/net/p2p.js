@@ -57,7 +57,9 @@ const peerOpts = async () => {
 // WebSockets instead. No sign-up, works on nearly any network; a little more lag. The host listens on
 // every broker; a joiner uses the first one that gets an answer from the host. Topics:
 // rallygame/v1/<code>/h (to the host, {f: joiner id, d}) and rallygame/v1/<code>/c/<joiner id> (to a joiner).
-const BROKERS = ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://test.mosquitto.org:8081/mqtt'];
+// (Eclipse's is on the standard secure port 443, which gets through where Safari's privacy relay or a
+// strict network blocks the others' unusual ports)
+const BROKERS = ['wss://mqtt.eclipseprojects.io:443/mqtt', 'wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://test.mosquitto.org:8081/mqtt'];
 const brokers = () => window.__MQTT_URLS || BROKERS;
 const rtopic = code => `rallygame/v1/${code}`;
 async function mqttLib() { const m = await import('mqtt'); return m.default || m; }
@@ -98,7 +100,7 @@ async function hostRelay(code, onConn) {
   return { end() { for (const c of [...fakes.values()]) c.close(); for (const cl of clients) try { cl.end(true); } catch (e) {} } };
 }
 // joiner: says hello on every broker until the host answers on one; resolves with the link to the host
-async function joinRelay(code, myId, hello, waitMs = 14000) {
+async function joinRelay(code, myId, hello, waitMs = 20000) {
   const mqtt = await mqttLib(), T = rtopic(code), cls = [];
   return new Promise((resolve, reject) => {
     let picked = null;
