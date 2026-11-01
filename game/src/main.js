@@ -9,7 +9,7 @@ import { TEAMS, MODES, MAPS, PRESETS, RANKS, CRESTS, QUIPS, TIPS, AL_LETTER, TAR
 import { G, bus, colorOf, rules, matchTime, modeDesc, activeFrom, targetFor, SLOT_NAME } from './core/state.js';
 import { orderVolley, challenge, canChallenge, startMatch, mkUnit, newTeams, update, fallStep, endMatch, auraRange, endStep, setOrder, applyFort } from './core/sim.js';
 import { makeLayout, gatePos, groundY } from './core/world.js';
-import { buildNav } from './core/nav.js';
+import { buildNav, findPath } from './core/nav.js';
 import { renderer, scene, camera, resize, applyPixelRatio, applyShadowQuality, followSun } from './render/scene.js';
 import { quality, saveSetting, stepDown, LEVELS } from './render/quality.js';
 import { buildWorldView, updateWorldView, grassTime } from './render/world.js';
@@ -607,7 +607,7 @@ window.__fb = {
   volley(pt) { actions.volley(pt); }, order(o, pt) { actions.order(o, pt); }, rally() { actions.rally(); },
   attack() { actions.attack(); }, duel() { actions.duel(); }, jump() { actions.jump(); }, weapon(w) { actions.weapon(w); }, upgrade(id) { actions.upgrade(id); },
   fort(c, lv) { G.teams[c].up.fort = lv; applyFort(c); },
-  setOrder, orderVolley, mkUnit, challenge, canChallenge, G, cam, scene, audio: () => audioStats(),
+  setOrder, findPath, gatePos, orderVolley, mkUnit, challenge, canChallenge, G, cam, scene, audio: () => audioStats(),
 };
 
 function onResize() { resize(); resizeOverlay(); }

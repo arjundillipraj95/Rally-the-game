@@ -460,6 +460,8 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
     // the city: rows of houses, stepping along the same lines as the other big maps' ridges, wall off
     // the corners; the streets between them are the lanes, and the gaps in the rows are the passes
     const CS = 5.5, hgt = (x, z) => 5 + ((Math.abs(x * 7 + z * 3) | 0) % 3);
+    // the Via: a straight street from each castle's gate to the forum square, through the row of houses in front of it
+    const onVia = (x, z, pad = 0) => DIAG.some(a => { const ux = Math.cos(a), uz = Math.sin(a), t = x * ux + z * uz; return t > 8 && Math.abs(-x * uz + z * ux) < 5.5 + pad; });
     const houseLine = (pts, w) => {
       L.ridges.push({ pts, w, h: 0, kind: 'houses', H: 0, flank: 0 });
       let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; for (const [x, z] of pts) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
@@ -468,21 +470,22 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
         const flush = () => { if (!run.length) return; const i0 = run[0], i1 = run[run.length - 1], x = (i0 + i1 + 1) / 2 * CS, z = (j + .5) * CS; if (Math.hypot(x, z) < W.R + 6 && !nearCastle(x, z, -6)) box(L, x, z, (i1 - i0 + 1) * CS / 2, CS / 2, 0, hgt(x, z), 'house'); run = []; };
         for (let i = Math.floor((x0 - w) / CS); i <= Math.ceil((x1 + w) / CS); i++) {
           const cx = (i + .5) * CS, cz = (j + .5) * CS;
-          if (distToLine(pts, cx, cz) < w + CS * .35) { run.push(i); if (run.length === 3) flush(); } else flush();
+          if (distToLine(pts, cx, cz) < w + CS * .35 && !onVia(cx, cz, CS * .5)) { run.push(i); if (run.length === 3) flush(); } else flush();
         }
         flush();
       }
     };
     carveRoutes(L, R, { line: (pts, w) => houseLine(pts, w * .9), axIn: 59 });
+    for (const a of DIAG) L.roads.push([[Math.cos(a) * 92, Math.sin(a) * 92], [Math.cos(a) * 52, Math.sin(a) * 52], [Math.cos(a) * 14, Math.sin(a) * 14]]); // (paved, so it reads, and quick going)
     // insulae in each corner: side streets and cover off the main roads
     for (let k = 0; k < 70; k++) {
       const i = Math.round(r(-20, 20)), j = Math.round(r(-20, 20)), wN = 1 + (R() < .5 ? 1 : 0), dN = 1 + (R() < .35 ? 1 : 0);
       const x = (i + wN / 2) * CS, z = (j + dN / 2) * CS, hw = wN * CS / 2, hd = dN * CS / 2;
-      if (!ok(x, z, 2 + Math.max(hw, hd)) || Math.hypot(x, z) < 22 || !clearSpot(L, x, z, 4)) continue;
+      if (!ok(x, z, 2 + Math.max(hw, hd)) || Math.hypot(x, z) < 22 || !clearSpot(L, x, z, 4) || onVia(x, z, Math.max(hw, hd))) continue;
       box(L, x, z, hw, hd, 0, hgt(x, z), 'house');
     }
     // a few more blocks in the middle, making side streets round the forum square
-    const blocks = [[26, 26, 6, 6], [33, 8, 4, 3.5], [8, 33, 3.5, 4]];
+    const blocks = [[33, 8, 4, 3.5], [8, 33, 3.5, 4]]; // (the corner blocks on the diagonals gave way to the Via)
     for (const [bx, bz, hw, hd] of blocks) for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
       const x = bx * sx, z = bz * sz, h = 5 + ((Math.abs(x * 7 + z * 3) | 0) % 3);
       box(L, x, z, hw, hd, 0, h, 'house');
