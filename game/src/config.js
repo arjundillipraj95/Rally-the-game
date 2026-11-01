@@ -96,7 +96,14 @@ export const VOLLEY = { cd: 9, spread: 2.6 }; // spread: how far an aimed volley
 // window: how long before the blow a Block tap still parries (s); remote: extra allowance for a
 // joining player's press crossing the network; lock: a second tap this soon after the last doesn't
 // open a window (no parrying by mashing); light: the tighter window for an ordinary, unannounced blow.
-export const PARRY = { window: .26, light: .14, remote: .28, lock: .6, slow: .25, slowT: .4, stun: .8, heavyStun: 1.3, riposteT: 1.8, riposteN: 2, riposteMult: 1.5 };
+// The streak: a player captain's blows that land, one after another, without being hit back (gap: the
+// most seconds between them). At n, his next Attack is a finisher: a whirlwind that can't be blocked.
+export const STREAK = { gap: 3, n: 8, mult: 2.2, kb: 2.2, stun: .9, cleaveN: 5 };
+// The shield bash: Block tapped, then Attack within window s (not at once: one after the other). A shove
+// with the shield: little damage, but it knocks a raised shield or guard aside (open s stunned). Unless
+// that Block press parried something: then it's the riposte as ever.
+export const BASH = { window: .3, cd: 1.5, mult: .3, kb: 1.8, stun: .45, open: 1.1, reach: 2.6 };
+export const PARRY = { perfect: .08, disarm: 2.5, window: .26, light: .14, remote: .28, lock: .6, slow: .25, slowT: .4, stun: .8, heavyStun: 1.3, riposteT: 1.8, riposteN: 2, riposteMult: 1.5 };
 // slow/slowT: a parry slows the two men in it (only them) to this speed for this long.
 // Enemy captains raise their guard in spells you can see (shield up, pressing in). While guarded they
 // turn most light blows aside, staggering the attacker; a heavy blow smashes the guard and leaves them

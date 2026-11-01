@@ -515,6 +515,11 @@ function pose(u, dt) {
     if (blocking) { a.bodyY -= .05; a.bodyRX += .08; } // brace behind the shield
   }
   if (air && !u.mounted && t < 0 && u.weapon !== 'jav') a.sArmX = near(a.sArmX, -1.1, k12); // arms up on the rise
+  if (t >= 0 && kind === 6 && !u.mounted) { // the shield bash: shoulder down behind the shield, driven into him
+    const into = Math.max(0, -P);
+    a.sArmX = near(a.sArmX, -1.4, Math.min(1, dt * 24)); a.sArmPX = .28; a.wArmX = near(a.wArmX, -.5, k12);
+    a.bodyRX += .32 * into; a.bodyRY -= .55; a.legL[0] -= .55 * into; a.legR[0] += .3 * into; a.expr = 'yell';
+  }
   if (a.stumble > 0) { // reeling back from a big hit: a step back, leaning away, arms thrown up
     a.stumble -= dt;
     const s = Math.sin(Math.PI * Math.max(0, a.stumble) / .4);

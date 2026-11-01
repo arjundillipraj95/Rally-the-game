@@ -70,7 +70,7 @@ bus.on('hitstop', t => { hitstop = Math.max(hitstop, t); });
 bus.on('buzz', ms => buzz(ms));
 // the big moments of a fight: a parry, a guard smashed open, a rider skewered or knocked off his horse.
 // (On the host these come straight from the rules; on a joining player's phone, with the next snapshot.)
-const FIGHT_POW = { fxduelask: ['', ''], fxduel: ['', ''], fxduelwin: ['', ''], fxdueldraw: ['', ''], fxduelbreak: ['', ''], fxduelno: ['', ''], fxevade: ['EVADED!', '#9fe3ff'], fxback: ['BACKSTAB!', '#ff8a3a'], fxexec: ['EXECUTED!', '#ff3b2e'], fxexecgo: ['', ''], fxcapkill: ['CAPTAIN SLAIN!', '#ffd23a'], fxrally: ['RALLY!', '#ffd23a'], fxrout: ['', ''], fxride: ['', ''], fxjoust: ['JOUSTED!', '#ffd23a'], fxparry: ['PARRY!', '#ffffff'], fxbreak: ['GUARD BROKEN!', '#ff8a3a'], fximpale: ['SKEWERED!', '#ffd23a'], fxunhorse: ['UNHORSED!', '#ffd23a'], fxint: ['STAGGERED!', '#ffd23a'] };
+const FIGHT_POW = { fxdisarm: ['DISARMED!', '#ff8a3a'], fxbash: ['BASH!', '#ffffff'], fxstreak: ['RAMPAGE!', '#ffd23a'], fxduelask: ['', ''], fxduel: ['', ''], fxduelwin: ['', ''], fxdueldraw: ['', ''], fxduelbreak: ['', ''], fxduelno: ['', ''], fxevade: ['EVADED!', '#9fe3ff'], fxback: ['BACKSTAB!', '#ff8a3a'], fxexec: ['EXECUTED!', '#ff3b2e'], fxexecgo: ['', ''], fxcapkill: ['CAPTAIN SLAIN!', '#ffd23a'], fxrally: ['RALLY!', '#ffd23a'], fxrout: ['', ''], fxride: ['', ''], fxjoust: ['JOUSTED!', '#ffd23a'], fxparry: ['PARRY!', '#ffffff'], fxbreak: ['GUARD BROKEN!', '#ff8a3a'], fximpale: ['SKEWERED!', '#ffd23a'], fxunhorse: ['UNHORSED!', '#ffd23a'], fxint: ['STAGGERED!', '#ffd23a'] };
 bus.on('fxmsg', d => {
   const u = d.u, me = G.player;
   if (d.k === 'fxopen') { if (u && d.a === me) bus.emit('fighttip', 'shield'); return; } // (your blow knocked his shield aside)
@@ -91,6 +91,25 @@ bus.on('fxmsg', d => {
   if (d.k === 'fxrout') { // an army breaks
     if (near) { pow(u.x, u.y + 3.4, u.z, 'ROUT!', '#e0352b'); sfx.heavy(u.x, u.z); }
     const ti = d.ti ?? u.ti; musicCue(ti === G.myTi ? 'routMine' : G.ALLY[ti % 4] !== G.ALLY[G.myTi % 4] ? 'routEnemy' : 'capdown');
+    return;
+  }
+  if (d.k === 'fxdisarm') { // a perfect parry: his blade knocked from his hand
+    if (!near && !mine && d.a !== me) return;
+    pow(u.x, u.y + 3.1, u.z, mine ? 'DISARMED!' : 'DISARMED!', '#ff8a3a'); sfx.parry(u.x, u.z); sfx.heavy(u.x, u.z);
+    if (mine) { buzz([40, 30, 40]); if (G.role === 'client') C.localCd = Math.max(C.localCd || 0, PARRY.disarm); }
+    if (d.a === me) { buzz(50); cam.shake = Math.max(cam.shake, .35); }
+    return;
+  }
+  if (d.k === 'fxbash') { // the shield bash: a thud, and his guard flung open (heavy: it was up)
+    if (!near && !mine && d.a !== me) return;
+    pow(u.x, u.y + 2.9, u.z, d.heavy ? 'GUARD OPEN!' : 'BASH!', d.heavy ? '#ff8a3a' : '#ffffff'); sfx.guardbreak(u.x, u.z);
+    if (d.a === me) { buzz(35); cam.shake = Math.max(cam.shake, .25); bus.emit('hitstop', .06); }
+    return;
+  }
+  if (d.k === 'fxstreak') { // the streak's whirlwind
+    if (!near && !mine) return;
+    pow(u.x, u.y + 3.4, u.z, 'RAMPAGE!', '#ffd23a'); shockwave(u.x, u.z, 8, '#ffd23a'); sfx.heavy(u.x, u.z);
+    if (mine) { buzz([50, 30, 80]); cam.shake = Math.max(cam.shake, .45); }
     return;
   }
   if (d.k.startsWith('fxduel')) { // the duel: called out, on, won, drawn, broken, refused

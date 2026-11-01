@@ -1,6 +1,6 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
-import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, HOLDS, EVADE, FORT, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT, DUEL, CHEST } from '../config.js';
+import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, HOLDS, EVADE, FORT, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT, DUEL, CHEST, STREAK, BASH } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, activeFrom, gateOff, ARMIES, rules, matchTime } from './state.js';
 import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W, groundSlow, onIce } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable, setPalSeg } from './nav.js';
@@ -300,7 +300,7 @@ function resolveSwing(u) {
     if (s.points <= 0) destroyCastle(tg.castle, u.ti);
     return;
   }
-  const reach = u.reach + (pend.reachB || 0), ex = pend.kb || pend.heavy || pend.stun ? { kb: pend.kb || 1, heavy: !!pend.heavy, stun: pend.stun, shove: pend.shove } : undefined;
+  const reach = u.reach + (pend.reachB || 0), ex = pend.kb || pend.heavy || pend.stun || pend.bash ? { kb: pend.kb || 1, heavy: !!pend.heavy, stun: pend.stun, shove: pend.shove, bash: pend.bash, unblockable: pend.streak, unparryable: pend.streak || pend.bash, streak: pend.streak } : undefined;
   let landed = false;
   const slack = u.human ? .9 : .5; // (a player's blow at a man who has just stepped back still connects)
   if (tg && !tg.dead && Math.hypot(tg.x - u.x, tg.z - u.z) <= u.r + tg.r + reach + slack) { hit(u, tg, mult, ex); landed = true; }
@@ -312,7 +312,7 @@ function resolveSwing(u) {
       if (o === tg || o.dead || !isEnemy(o, u)) continue;
       if (Math.hypot(o.x - u.x, o.z - u.z) > u.r + o.r + reach + .3) continue;
       if (!pend.spin && Math.abs(angDiff(u.face, Math.atan2(o.x - u.x, o.z - u.z))) > 1.1) continue; // (the spin cuts all the way round)
-      hit(u, o, mult * .8, ex); if (++n >= (pend.spin ? CC.sword.spinN : 2)) break;
+      hit(u, o, mult * .8, ex); if (++n >= (pend.streak ? STREAK.cleaveN : pend.spin ? CC.sword.spinN : 2)) break;
     }
   }
   // spear thrust: runs through to the man standing right behind the target
@@ -357,7 +357,7 @@ function hit(a, b, mult = 1, extra) {
   // a captain's Block tapped just before the blow lands turns it aside
   if (a.isMe && G.capStats) G.capStats.blows++;
   if (b.human && !b.mounted && b.stun <= 0 && !b.carrying && G.T - (b.parryT ?? -9) <= (heavy || (extra && extra.shown) ? PARRY.window : PARRY.light) + (b.remote ? PARRY.remote : 0)
-    && Math.abs(angDiff(b.face, Math.atan2(a.x - b.x, a.z - b.z))) < 1.5 && !(extra && extra.unparryable)) { parry(b, a, heavy); return; }
+    && Math.abs(angDiff(b.face, Math.atan2(a.x - b.x, a.z - b.z))) < 1.5 && !(extra && extra.unparryable)) { parry(b, a, heavy, false, G.T - b.parryT <= PARRY.perfect + (b.remote ? PARRY.remote * .4 : 0)); return; }
   // a computer captain on guard turns most light blows from another captain aside
   const onGuard = !b.human && b.guardT > 0 && b.stun <= 0 && !b.mounted && Math.abs(angDiff(b.face, Math.atan2(a.x - b.x, a.z - b.z))) < 1.2;
   if (onGuard && a.leader && !heavy && !(extra && (extra.unblockable || extra.unparryable)) && Math.random() < GUARD.parry) { if (a.isMe && G.capStats) G.capStats.parried++; parry(b, a, false, true); return; }
@@ -384,6 +384,13 @@ function hit(a, b, mult = 1, extra) {
   // a heavy blow smashes through a guard: no block, and the blocker is knocked off balance
   let broke = false;
   if (heavy && frontal && (blocked || (b.human && b.blocking))) { blocked = false; broke = true; dmg *= HEAVY.guardDmg; }
+  if (extra && extra.bash) { // the shield bash: through any guard, and knocks it aside
+    const guard = frontal && (blocked || b.guardUp || (b.human && b.blocking) || b.guardT > 0 || b.blockT > 0);
+    blocked = false; b.guardUp = false; b.gT = SHIELD.open; b.guardT = 0; b.guardCd = Math.max(b.guardCd || 0, 1.2); b.blockT = 0;
+    extra = Object.assign({}, extra, { stun: guard ? BASH.open : BASH.stun });
+    if (b.windup > 0) { b.windup = 0; b.glint = false; }
+    fx('fxmsg', { k: 'fxbash', u: b, a, heavy: guard });
+  }
   // a heavy blow (or any big hit) knocks a man out of his own wind-up
   if (b.windup > 0 && (heavy || mult >= 1.35 || (extra && extra.unblockable))) { b.windup = 0; b.glint = false; b.stun = Math.max(b.stun, .5); fx('fxmsg', { k: 'fxint', u: b }); }
   const hx = (a.x + b.x) / 2, hz = (a.z + b.z) / 2, hy = (a.y + b.y) / 2 + 1.2;
@@ -400,6 +407,12 @@ function hit(a, b, mult = 1, extra) {
     if (b.isMe) { fx('shake', .35); fx('buzz', 35); }
   }
   b.hp -= dmg;
+  if (!blocked && dmg > 0) { // the streak: a player captain's blows that land, broken when he's hit
+    if (a.human && a.leader && !(extra && extra.streak) && a.streakBlow !== a.lastSwingT) { // (one per blow that lands, however many it cuts; not the whirlwind's own)
+      a.streakBlow = a.lastSwingT; a.streak = G.T - (a.streakT ?? -9) > STREAK.gap ? 1 : (a.streak || 0) + 1; a.streakT = G.T;
+    }
+    if (b.human && b.leader) b.streak = 0;
+  }
   if (a.isMe && G.capStats) { G.capStats[blocked ? 'blocked' : 'landed']++; G.capStats.dmg += dmg; if (b.hp <= 0 && !b.dead) G.capStats.kills++; }
   if (b.human && b.remote && !blocked) b.lastBlow = { a, dmg, heavy, t: G.T }; // (their parry press may still be on its way)
   if (broke) { gainRally(a, RALLY.guardBreak); b.stun = Math.max(b.stun, onGuard ? GUARD.broken : HEAVY.guardBreak); if (onGuard) { b.guardT = 0; b.guardCd = 2; } fx('fxmsg', { k: 'fxbreak', u: b }); }
@@ -710,7 +723,11 @@ function aiRide(u, foe, fd) {
 }
 
 // ---------- parries, heavy blows and held attacks ----------
-function parry(b, a, heavy, byAI) {
+function parry(b, a, heavy, byAI, perfect) {
+  if (perfect && a.leader && !a.mounted) { // a perfect parry: the blade turned so hard it leaves his hand
+    a.disarmT = G.T + PARRY.disarm; a.cd = Math.max(a.cd, PARRY.disarm); a.combo = 0;
+    fx('fxmsg', { k: 'fxdisarm', u: a, a: b }); gainRally(b, RALLY.parry);
+  }
   b.parryT = -9; b.lastBlow = null; b.cd = 0; b.stun = 0;
   b.riposteT = G.T + PARRY.riposteT; b.ripN = PARRY.riposteN; b.parries = (b.parries || 0) + 1; gainRally(b, RALLY.parry);
   if (byAI) { b.guardT = 0; b.guardCd = 1.5; } // (he turned your blow: now he comes at you)
@@ -1292,6 +1309,7 @@ export function captainAttack(p) {
     if (p.isMe) fx('float', { x: p.x, y: p.y + 3.2, z: p.z, text: 'Out of javelins', color: '#fff' });
   }
   if (p.human) { const v = execTarget(p); if (v) { startExec(p, v); return; } } // (a beaten captain: finish him)
+  if (p.human && (p.streak || 0) >= STREAK.n && G.T - (p.streakT ?? -9) <= STREAK.gap) { streakFinisher(p); return; }
   // straight out of an evade: its follow-up
   const ev = p.evade && G.T - p.evade.t < (EVADE[p.evade.kind] ? EVADE[p.evade.kind].dash : .2) + EVADE.follow ? p.evade.kind : null;
   if (ev) p.evade = null;
@@ -1339,6 +1357,29 @@ export function captainAttack(p) {
   }
   if (best && best.leader && !best.human && p.pending) aiEvade(best, p); // (he may see it coming)
   p.lastSwingT = G.T;
+}
+// The streak's payoff: a whirlwind all the way round, harder than the spin, that no guard stops.
+function streakFinisher(p) {
+  const best = softAim(p, 4); if (best) p.face = Math.atan2(best.x - p.x, best.z - p.z);
+  if (!startSwing(p, best)) return;
+  Object.assign(p.pending, { t: .14, mult: STREAK.mult, cleave: true, spin: true, kb: STREAK.kb, stun: STREAK.stun, streak: true });
+  p.cd = .9; p.combo = 0; p.swingKind = 4; p.streak = 0; p.lastSwingT = G.T;
+  fx('fxmsg', { k: 'fxstreak', u: p });
+  if (p.remote) fx('netFlush');
+}
+// The shield bash (BASH): Block tapped, then Attack. If that Block press turned a blow, it's the riposte instead.
+export function captainBash(p) {
+  if (!p || p.dead || p.mounted || p.carrying || airborne(p)) return false;
+  if (p.ripN > 0 && p.riposteT > G.T) return false; // (a parry just now: the riposte)
+  if ((p.bashCd || 0) > G.T || p.cd > 0 || p.stun > 0) return false;
+  const v = softAim(p, BASH.reach + 1); if (!v) return false;
+  p.face = Math.atan2(v.x - p.x, v.z - p.z);
+  if (!startSwing(p, v)) return false;
+  Object.assign(p.pending, { t: .1, mult: BASH.mult, kb: BASH.kb, bash: true, reachB: .3 });
+  p.vx += Math.sin(p.face) * 5; p.vz += Math.cos(p.face) * 5; // (shoulder behind the shield)
+  p.cd = .55; p.bashCd = G.T + BASH.cd; p.blockT = .3; p.swingKind = 6; p.combo = 0; p.lastSwingT = G.T;
+  sound('thud', p.x, p.z);
+  return true;
 }
 // Missile volley: every archer with a target in range fires immediately, and every javelin-ready
 // footman (tier 1+) throws immediately, together, on a shared team cooldown. Aimed (pt = {x, z}):
@@ -1824,6 +1865,7 @@ export function update(dt, input) {
     if (p.atkBuf > 0 && p.cd <= 0 && p.stun <= 0 && !p.mounted) captainAttack(p);
   }
   for (const s of G.teams) { const L = s.leader; if (L && L.human && !L.dead && L.remote) attackHold(L, !!L.ahHeld, dt, true); }
+  for (const s of G.teams) { const L = s.leader; if (L && L.human && L.streak && G.T - (L.streakT ?? -9) > STREAK.gap) L.streak = 0; }
   for (const s of G.teams) { const L = s.leader; if (L && L.human && !L.dead) { if (L.atkBuf > 0) { L.atkBuf -= dt; if (L.remote && L.cd <= 0 && L.stun <= 0) captainAttack(L); } regenJavs(L, dt); } }
   for (const s of G.teams) { const L = s.leader; if (L && L.human && !L.dead) { const [f] = nearestFoe(L, 12); if (!f && L.hp < L.max) L.hp = Math.min(L.max, L.hp + dt * 6); } }
 

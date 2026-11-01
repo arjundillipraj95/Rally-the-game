@@ -1,7 +1,7 @@
 // The 2D layer drawn over the 3D view: sparks, floating text, health bars, names,
 // the banner pointer, the joystick and the red tint while you are down. Also the minimap.
 import * as THREE from 'three';
-import { TEAMS, DUEL } from '../config.js';
+import { TEAMS, DUEL, STREAK } from '../config.js';
 import { G, isEnemyTi, isFfa, colorOf } from '../core/state.js';
 import { groundY, clamp, W } from '../core/world.js';
 import { camera, view } from './scene.js';
@@ -54,7 +54,7 @@ export function drawOverlay(opts) {
         ctx.strokeText('BOUNTY', sx, sy - 20); ctx.fillStyle = '#ffcf3a'; ctx.fillText('BOUNTY', sx, sy - 20);
       }
     }
-    drawDuels(); drawStars(); drawFinish();
+    drawDuels(); drawStars(); drawFinish(); drawStreak();
     drawBubbles();
     if (G.flag) drawFlagPointer();
     if (G.mode === 'ctrl') drawControlLabels(); drawHoldLabels();
@@ -141,6 +141,16 @@ function drawDuels() {
       const txt = `CHALLENGED ${Math.max(0, Math.ceil(d.t))}`; ctx.strokeText(txt, sx, sy); ctx.fillStyle = '#ffd23a'; ctx.fillText(txt, sx, sy);
     }
   }
+}
+// Your streak: blows landed in a row, over your captain's head from the second; full, the whirlwind's ready.
+function drawStreak() {
+  const p = G.player; if (!p || p.dead || p.mounted) return;
+  const n = p.streak | 0; if (n < 2) return;
+  const [sx, sy, ok] = proj(p.x, p.y + 3.5, p.z); if (!ok) return;
+  const full = n >= STREAK.n, pulse = full ? 1 + .1 * Math.sin(performance.now() / 1000 * 10) : 1;
+  ctx.textAlign = 'center'; ctx.font = `italic ${Math.round((full ? 20 : 15 + Math.min(5, n * .6)) * pulse)}px Bangers, Impact, sans-serif`; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.65)';
+  const txt = full ? 'RAMPAGE READY' : `x${n}`;
+  ctx.strokeText(txt, sx, sy); ctx.fillStyle = full ? '#ffd23a' : n >= 5 ? '#ffb13a' : '#ffffff'; ctx.fillText(txt, sx, sy);
 }
 // Stunned soldiers see stars: three little ones circling the head.
 function drawStars() {

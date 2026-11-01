@@ -1,5 +1,5 @@
 // Scoreboard, clock, health, gold, squad count and button labels.
-import { TEAMS, MODES, STATS, DM_TICKETS, CAPS_TO_WIN, CTRL, AL_LETTER, ORDER_NAMES, UPGRADES, WEAPON_NAMES } from '../config.js';
+import { TEAMS, MODES, STATS, DM_TICKETS, CAPS_TO_WIN, CTRL, AL_LETTER, ORDER_NAMES, UPGRADES, WEAPON_NAMES, STREAK } from '../config.js';
 import { G, isFfa, colorOf, rules, matchTime, SLOT_NAME } from '../core/state.js';
 import { colorOut, colorScore, colorHuman, squadOf, canRecruit, horseMax, upgradeCost, javMax, execTarget } from '../core/sim.js';
 import { session, isClient } from '../net/session.js';
@@ -61,7 +61,7 @@ export function updateHud(lastSnapAt) {
     mb.firstChild.style.width = m + '%'; mb.classList.toggle('rout', !!(T && T.routT > 0)); mb.classList.toggle('waver', !(T && T.routT > 0) && m <= 40);
     const r = Math.max(0, Math.min(100, (T && T.rally) || 0)); $('rallyFill').firstChild.style.width = r + '%';
     $('cmdBtn').classList.toggle('rallyReady', r >= 100);
-    $('atk').classList.toggle('execReady', !!execTarget(G.player)); // (a beaten captain in reach: Attack finishes him)
+    $('atk').classList.toggle('execReady', !!execTarget(G.player) || (G.player && (G.player.streak || 0) >= STREAK.n)); // (a beaten captain in reach: Attack finishes him; a full streak: the whirlwind)
   }
   document.querySelectorAll('#tray button').forEach(b => {
     b.setAttribute('aria-disabled', (gold < STATS[b.dataset.kind].cost || sq.length >= G.squadCap || !canRecruit(G.myTi)) ? 'true' : 'false');
