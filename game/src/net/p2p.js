@@ -24,6 +24,8 @@ async function openRelay() {
   const h = 'staticauth.openrelay.metered.ca';
   return { urls: [`turn:${h}:80`, `turn:${h}:443?transport=tcp`, `turns:${h}:443?transport=tcp`], username: user, credential: btoa(String.fromCharCode(...sig)) };
 }
+// freeturn.net: a public relay with fixed credentials (best effort, like any free one)
+const FREETURN = { urls: ['turn:freeturn.net:3478', 'turn:freeturn.net:3478?transport=tcp', 'turns:freeturn.tel:5349'], username: 'free', credential: 'free' };
 let iceCache = null;
 export async function iceServers() {
   if (iceCache) return iceCache;
@@ -37,7 +39,10 @@ export async function iceServers() {
       if (Array.isArray(extra)) { const turn = extra.filter(s => /turns?:/.test([].concat(s.urls || s.url).join(' '))); list.push(...turn); keyed = turn.length > 0; }
     } catch (e) {}
   }
-  if (!keyed) try { const r = await openRelay(); if (r) list.push(r); } catch (e) {}
+  if (!keyed) {
+    try { const r = await openRelay(); if (r) list.push(r); } catch (e) {}
+    list.push(FREETURN); // (a second public relay, no sign-up: if one's down or overloaded, the other may get through)
+  }
   return (iceCache = list);
 }
 const peerOpts = async () => {
