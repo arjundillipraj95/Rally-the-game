@@ -138,7 +138,8 @@ bus.on('fxmsg', d => {
   }
   if (d.k === 'fxexec') { // ...and the blow falls
     if (!near && !mine && d.a !== me) return;
-    pow(u.x, u.y + 3.4, u.z, mine ? 'EXECUTED!' : 'EXECUTED!', '#ff3b2e'); shockwave(u.x, u.z, 14, '#ff3b2e'); sfx.heavy(u.x, u.z);
+    pow(u.x, u.y + 3.4, u.z, { spear: 'RUN THROUGH!', jav: 'PINNED!' }[d.q] || 'EXECUTED!', '#ff3b2e'); shockwave(u.x, u.z, 14, '#ff3b2e'); sfx.heavy(u.x, u.z);
+    if (d.q === 'spear') sfx.trample(u.x, u.z); if (d.q === 'jav') sfx.thud(u.x, u.z);
     musicCue(mine ? 'fell' : d.a === me ? 'slain' : 'capdown'); cam.shake = Math.max(cam.shake, .6); if (d.a === me || mine) buzz(120);
     return;
   }

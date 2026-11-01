@@ -598,7 +598,12 @@ function pose(u, dt) {
     a.expr = 'yell'; a.legL[0] = -.5 + .2 * fall; a.legR[0] = .4; a.legL[2] = .14; a.legR[2] = -.14;
     if (e >= .5 && !a.exGlint) { a.exGlint = true; if (nearCam(u, 26)) { spark(u.x - Math.sin(u.face) * .2, u.y + 3.6, u.z - Math.cos(u.face) * .2, '#ffffff', 16); bus.emit('sfx', { name: 'glint', x: u.x, z: u.z }); } } // (the blade at its height catches the light)
     a.bodyRX = -.24 * raise * (1 - fall) + .55 * fall; a.bodyY -= .05 * raise + .1 * fall; a.bodyRY = 0;
-    if (spearArmed) { a.wArmX = -2.5 * (1 - fall) - 1.35 * fall; a.spearRX = 2.2; a.spearZ = -.6 + 1.5 * fall; }
+    if (u.weapon === 'spear') { // run him through: drawn back level at the hip, then the whole body behind one thrust
+      a.wArmX = -1.45; a.spearRX = 1.45; a.spearZ = -.85 * raise * (1 - fall) + 1.9 * fall; a.bodyRX = -.12 * raise * (1 - fall) + .5 * fall; a.bodyRY = .35 * raise * (1 - fall);
+      a.legL[0] = -.25 - .7 * fall; a.legR[0] = .4 + .35 * fall; a.bodyY -= .12 * fall;
+    } else if (spearArmed) { // the javelin: hefted high, point down, and driven into him where he kneels
+      a.wArmX = -2.5 * (1 - fall) - 1.35 * fall; a.spearRX = 2.2; a.spearZ = -.6 + 1.5 * fall; a.sArmX = near(a.sArmX, -1.6 * (1 - fall), k12);
+    }
     else { a.wArmX = (1 - fall) * (-1.2 - 1.05 * raise) + fall * .2; a.wArmZ = -.08; } // (arm raised up and forward: the blade points at the sky, then comes down through him)
   }
   if (u.execV && !u.dead) {

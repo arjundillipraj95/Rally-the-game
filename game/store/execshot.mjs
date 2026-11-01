@@ -4,7 +4,7 @@ import { chromium } from 'playwright';
 import { open, frames, OUT } from './stage.mjs';
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const page = await open(browser, 844, 390);
-await page.evaluate(() => { document.querySelector('#segMap button[data-v="valley"]').click(); document.querySelector('#goBtn').click(); });
+await page.evaluate(w => { window.__W = w; document.querySelector('#segMap button[data-v="valley"]').click(); document.querySelector('#goBtn').click(); }, process.env.W || 'sword');
 await frames(page, 5);
 await page.evaluate(() => {
   const F = window.__fb, G = F.G, me = G.myTi, p = G.player, X = -40, Z = 10;
@@ -13,7 +13,7 @@ await page.evaluate(() => {
   for (const u of G.units) if (u !== p && u !== L) u.dead = true; G.units = G.units.filter(u => !u.dead);
   for (const s of G.teams) { s.recruitT = 1e9; s.gold = -1e9; s.thinkT = 1e9; }
   L.x = X + 2.2; L.z = Z; L.face = -Math.PI / 2; L.max = 180; L.hp = 40; L.stun = 0; L.guardT = 0; L.guardCd = 99; L.cd = 99;
-  p.x = X; p.z = Z; p.face = Math.PI / 2; p.cd = 0; F.cam.yaw = Math.PI / 2 + .5;
+  p.x = X; p.z = Z; p.face = Math.PI / 2; p.cd = 0; F.cam.yaw = Math.PI / 2 + .5; p.weapon = window.__W || 'sword';
   F.step(3, 1 / 30, true);
 });
 await frames(page, 25);

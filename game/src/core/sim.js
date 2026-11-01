@@ -657,8 +657,11 @@ function execTick(u, dt) {
         const ang = Math.atan2(v.x - u.x, v.z - u.z);
         v.execT = 0; v.execV = false; v.hp = 0; v.lastHit = G.T;
         spark(v.x, v.y + 1.4, v.z, TEAMS[colorOf(v.ti)].css, 14); sound('heavy', v.x, v.z); sound('hit', v.x, v.z);
-        fx('fxmsg', { k: 'fxexec', u: v, a: u });
-        die(v, u, ang, 1); hl(u.ti, 'exec');
+        const w = u.weapon || 'sword'; // (each weapon finishes him its own way: the sword's chop, the spear run through him, the javelin driven down)
+        fx('fxmsg', { k: 'fxexec', u: v, a: u, q: w });
+        die(v, u, ang, w === 'jav' ? 0 : 1); hl(u.ti, 'exec');
+        if (w === 'spear') { v.vx *= 1.5; v.vz *= 1.5; v.vy *= .55; } // (run through: thrown back flat, not up)
+        if (w === 'jav') { v.vx *= .2; v.vz *= .2; v.vy = 1; } // (pinned where he knelt)
         loseHeart(v.ti, EXEC.morale); gainRally(u, EXEC.rally);
         if (u.isMe) { fx('hitstop', .16); fx('shake', .6); }
         if (u.remote) fx('netFlush');
@@ -814,7 +817,7 @@ export function attackHold(p, held, dt, remote) {
 }
 export function attackRelease(p, w, t) {
   p.heavyCharge = 0; p.bracing = false; p.javDraw = 0; p.heavyReady = false;
-  if (!p || p.dead || p.mounted || p.stun > 0) return;
+  if (!p || p.dead || p.mounted || p.stun > 0 || p.execT > 0 || p.execA) return; // (mid-execution: the press was the finishing blow)
   if (w === 'sword' && G.T - (p.chargeBrokeT ?? -9) < t) return; // (struck while winding it up: the blow is lost)
   if (w === 'sword' && t >= HOLD_ATK.sword + .12) heavySwing(p, Math.min(1, (t - HOLD_ATK.sword) / (HOLD_ATK.swordFull - HOLD_ATK.sword)));
   if (w === 'jav') { const k = t > HOLD_ATK.jav ? Math.min(1, (t - HOLD_ATK.jav) / (HOLD_ATK.javFull - HOLD_ATK.jav)) : 0; javThrow(p, k); }
@@ -1327,13 +1330,13 @@ export function captainAttack(p) {
     return;
   }
   if (airborne(p)) { leapSlam(p); return; }
+  if (p.human) { const v = execTarget(p); if (v) { startExec(p, v); return; } } // (a beaten captain: finish him)
   if (wpn === 'jav') {
     if (p.human && (p.javAmmo || 0) >= 1) return; // (a captain on foot throws when Attack is let go: a tap throws, a hold draws it back)
     if (throwCaptainJav(p)) return;
     p.weapon = 'sword'; if (G.teams[p.ti]) G.teams[p.ti].weapon = 'sword';
     if (p.isMe) fx('float', { x: p.x, y: p.y + 3.2, z: p.z, text: 'Out of javelins', color: '#fff' });
   }
-  if (p.human) { const v = execTarget(p); if (v) { startExec(p, v); return; } } // (a beaten captain: finish him)
   if (p.human && (p.streak || 0) >= STREAK.n && G.T - (p.streakT ?? -9) <= STREAK.gap) { streakFinisher(p); return; }
   // straight out of an evade: its follow-up
   const ev = p.evade && G.T - p.evade.t < (EVADE[p.evade.kind] ? EVADE[p.evade.kind].dash : .2) + EVADE.follow ? p.evade.kind : null;

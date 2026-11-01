@@ -386,6 +386,7 @@ export function clientHorses() {
 // Attack let go after holding it: the sword's heavy blow, or a javelin (drawn back for t seconds)
 function predictRelease(p, t) {
   const w = p.weapon || 'sword';
+  if (p.execA || p.execV || execTarget(p)) return; // (the press finished a beaten captain: nothing to let go)
   if (p.mounted && w !== 'jav') { if (C.localCd <= 0) { p.swing = .38; p.swingKind = 0; sfx.swing(p.x, p.z); C.localCd = .7; C.lastAtkAt = performance.now(); } return; }
   if (w === 'sword' && t >= HOLD_ATK.sword + .12) { p.swing = .38; p.swingKind = 5; sfx.swing(p.x, p.z); C.localCd = .7; C.lastAtkAt = performance.now(); }
   if (w === 'jav' && p.javAmmo >= 1 && C.localCd <= 0) {
@@ -407,11 +408,11 @@ function predictAttack(p) {
   if (ev === 'pounce') { C.localCd = CC.leap.cd; p.jvy = Math.min(p.jvy || 0, -9); p.jy = Math.max(p.jy || 0, .3); p.vx += Math.sin(p.face) * 3; p.vz += Math.cos(p.face) * 3; p.swingKind = 2; return; }
   if (ev === 'back') { p.vx = Math.sin(p.face) * EVADE.counter.lunge; p.vz = Math.cos(p.face) * EVADE.counter.lunge; p.dashT = EVADE.counter.dash; }
   if (airborne(p)) { C.localCd = CC.leap.cd; p.jvy = Math.min(p.jvy, -9); p.vx += Math.sin(p.face) * 3; p.vz += Math.cos(p.face) * 3; p.swingKind = 2; return; }
+  if (execTarget(p)) { C.localCd = 1.3; return; } // (a marked captain: the host plays out the execution)
   if (p.weapon === 'jav') {
     if (p.javAmmo >= 1) return; // (on foot the javelin goes when Attack is let go: see predictRelease)
     p.weapon = 'sword'; G.teams[G.myTi].weapon = 'sword'; floatText(p.x, p.y + 3.2, p.z, 'Out of javelins', '#fff'); bus.emit('hud');
   }
-  if (execTarget(p)) { C.localCd = 1.3; return; } // (a marked captain: the host plays out the execution)
   const spear = p.weapon === 'spear', now = performance.now() / 1000, SK = CC.spear.skewer;
   const sCombo = spear ? (now - p.lastSwingT < CC.spear.window && p.swingKind >= 3 ? (p.combo + 1) % 3 : 0) : 0, skewer = sCombo === 2;
   const best = softAim(p, spear && skewer ? SK.aim : aimRange(p));
