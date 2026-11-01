@@ -124,11 +124,17 @@ export const RIDE = { gallop: 1.6, turnLoss: 1.1, lockR: 16, lockCone: .9, perfe
 // Blows from the side or behind always land flankX harder on soldiers.
 export const MORALE = { death: 7, flankDeath: 5, captain: 35, regen: 3, calmR: 15, rout: 20, waver: 40, regroup: 45, routT: 6, steady: 12, homeR: 32, flankAng: 2.0, flankX: 1.25 };
 // (steady: after regrouping, an army can't break again for this long; homeR: men this close to their own castle fight with their backs to the wall and don't break)
+// A blow from behind (a captain's): harder, and it staggers. Circle him.
+export const BACKSTAB = { mult: 1.6, stun: .5 };
+// The execution: an enemy captain beaten down (hp at or under hp of his max, or hpStunned while
+// reeling) with none of his own men within clearR of him is marked to finish. Attack within reach
+// executes him: he drops to his knees, the blow comes down at strikeAt into dur; both untouchable.
+export const EXEC = { hp: .3, hpStunned: .45, clearR: 5, reach: 2.9, markR: 7, dur: 1.3, strikeAt: .75, gap: 1.95, beatenSpd: .7, beatenCd: 1.8, morale: 15, rally: 20 };
+// a captain cut down by another: the two of them in slow motion for this long (like a parry, only them)
+export const CAPKILL_SLOW = .7;
 // The rally horn. A captain fills it fighting well (per kill, captain kill, parry, perfect ride-by, guard
 // smashed, rider unhorsed); full, he can sound it: his army's morale +morale and any rout ends, his men
 // within r surge (dmg, spd) for buffT s, and enemies within enemyR flinch and lose enemyMorale.
-// a captain cut down by another: the two of them in slow motion for this long (like a parry, only them)
-export const CAPKILL_SLOW = .7;
 export const RALLY = { kill: 9, capKill: 30, parry: 15, ride: 12, guardBreak: 10, unhorse: 15, r: 18, morale: 45, buffT: 8, dmg: 1.25, spd: 1.15, enemyR: 11, enemyMorale: 15, hold: .45 };
 // A held line: footmen in their places take this share of the damage and knockback from the front,
 // and a charge into them stalls, hurting the horse.
@@ -140,8 +146,8 @@ export const CHARGE = { dur: 2.2, cd: 12, spd: 1.45, dmg: 32, kb: 15 };
 export const WEAPONS = ['sword', 'spear', 'jav'];
 export const WEAPON_NAMES = { sword: 'Sword', spear: 'Spear', jav: 'Javelins' };
 export const CAPTAIN_COMBAT = {
-  sword: { cd: .36, finisherCd: .62, window: .85, mult: 1, finisherMult: 1.5, aim: 3.6 },
-  spear: { cd: .78, reachB: 1.1, mult: 1.45, pierce: .8, pierceN: 1, kb: 1.7, stun: .45, lunge: 5, aim: 4.6, shieldDmg: .3 }, // fewer, heavier thrusts: a lunge that shoves and runs through
+  sword: { cd: .36, finisherCd: .62, window: .85, mult: 1, finisherMult: 1.5, aim: 3.6, step: 2.2, spinN: 3 }, // the third blow of a combo is a spin that cuts all round
+  spear: { cd: .78, reachB: 1.1, mult: 1.45, pierce: .8, pierceN: 1, kb: 1.7, stun: .35, lunge: 5, aim: 4.6, shieldDmg: .3 }, // fewer, heavier thrusts: a lunge that shoves and runs through
   jav: { cd: .8, dmg: 30, range: 16, ammo: Infinity, regen: 4 }, // unlimited: the gap between throws is the limit
   jump: { v: 7.6, g: 22, cd: .3 },
   leap: { mult: 1.4, range: 3, arc: 1.3, stun: .6, cd: .7 },

@@ -6,7 +6,7 @@ import { TEAMS, MAPS, KINDS, STATS, RECRUITS, FACTIONS, factionFromCode, ORDERS,
 import { G, bus, colorOf, isEnemyTi, activeFrom, ARMIES } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn, angDiff } from '../core/world.js';
 import { buildNav, syncGates } from '../core/nav.js';
-import { rallyCry, blockPress, attackHold, attackRelease, rideRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainJump, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
+import { execTarget, rallyCry, blockPress, attackHold, attackRelease, rideRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainJump, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
 import { session, isClient, isHost } from './session.js';
 import { showMsg } from '../ui/messages.js';
 import { sfx, buzz, gateS } from '../ui/audio.js';
@@ -48,7 +48,7 @@ function encodeSnap() {
     if (u.dead) continue;
     const kt = KINDS.indexOf(u.kind) * 16 + u.ti;
     const fl = (u.swing > 0 ? 1 : 0) | (u.mounted ? 2 : 0) | ((u.blockT > 0 || (u.human && u.blocking)) ? 4 : 0) | (u.carrying ? 8 : 0) | (u.stun > 0 ? 16 : 0) | (u.aim ? 32 : 0) | (u.shieldwall ? 64 : 0) | (u.weapon === 'spear' ? 128 : u.weapon === 'jav' ? 256 : u.weapon === 'sword' ? 512 : 0) | (u.charge > 0 ? 1024 : 0)
-      | (u.windup > 0 ? 2048 : 0) | (u.glint ? 4096 : 0) | (u.heavyCharge > 0 ? 8192 : 0) | (u.bracing ? 16384 : 0) | (u.javDraw > 0 ? 32768 : 0) | (u.couch || u.rideReady ? 65536 : 0) | (u.routing ? 131072 : 0) | (u.rallyT > 0 ? 262144 : 0);
+      | (u.windup > 0 ? 2048 : 0) | (u.glint ? 4096 : 0) | (u.heavyCharge > 0 ? 8192 : 0) | (u.bracing ? 16384 : 0) | (u.javDraw > 0 ? 32768 : 0) | (u.couch || u.rideReady ? 65536 : 0) | (u.routing ? 131072 : 0) | (u.rallyT > 0 ? 262144 : 0) | (u.execReady ? 524288 : 0) | (u.execA ? 1048576 : 0) | (u.execV ? 2097152 : 0) | (u.leader && u.swing > 0 ? (u.swingKind & 7) * 4194304 : 0); // (bits 22-24: which blow a captain is swinging)
     const row = [b36(u.id), kt.toString(16), encX(u.x), encX(u.z), encF(u.face), b36(clamp(u.hp / u.max, 0, 1) * 35), b36(fl)];
     if (u.jy > .05) row.push(b36(u.jy * 10));
     us.push(row.join(','));
@@ -210,9 +210,10 @@ function clientApply(hp) {
         if (!shown && me && performance.now() - (C.lastAtkAt || 0) < 700 && Math.hypot(u.x - me.x, u.z - me.z) < 5) { bus.emit('hitstop', .05); cam.shake = Math.max(cam.shake, .15); }
         if (Math.random() < .35) bus.emit('splat', { x: u.x + rnd(-.4, .4), z: u.z + rnd(-.4, .4), s: rnd(.6, 1.1), ti: u.ti }); }
     }
-    if ((fl & 1) && u.swing <= 0 && id !== myId) { u.swing = .38; sfx.swing(u.x, u.z); }
+    if ((fl & 1) && u.swing <= 0 && id !== myId) { u.swing = .38; sfx.swing(u.x, u.z); if (kind === 'captain') u.swingKind = (fl >> 22) & 7; }
     u.mounted = !!(fl & 2); u.carrying = !!(fl & 8);
     u.shieldwall = !!(fl & 64);
+    u.execReady = !!(fl & 524288); u.execA = !!(fl & 1048576); u.execV = !!(fl & 2097152); // (an execution: who's marked, who's doing it, who's kneeling)
     if (id !== myId) {
       u.blockT = (fl & 4) ? .2 : 0; u.stun = (fl & 16) ? .1 : 0; u.aim = !!(fl & 32);
       if (kind === 'captain') u.weapon = (fl & 128) ? 'spear' : (fl & 256) ? 'jav' : (fl & 512) ? 'sword' : undefined;
@@ -224,7 +225,7 @@ function clientApply(hp) {
     if (id !== myId) {
       u.tx = x; u.tz = z; u.tface = face;
       if (Math.hypot(u.x - x, u.z - z) > 8) { u.x = x; u.z = z; }
-    } else if (!C.meInit || C.meId !== id) { u.x = x; u.z = z; u.face = face; }
+    } else if (!C.meInit || C.meId !== id || u.execA || u.execV) { u.x = x; u.z = z; u.face = face; } // (in an execution the host places you)
   }
   for (const u of [...C.byId.values()]) if (!seen.has(u.id)) clientKill(u);
   if (myId != null && C.byId.get(myId)) {
@@ -379,6 +380,7 @@ function predictAttack(p) {
     if (p.javAmmo >= 1) return; // (on foot the javelin goes when Attack is let go: see predictRelease)
     p.weapon = 'sword'; G.teams[G.myTi].weapon = 'sword'; floatText(p.x, p.y + 3.2, p.z, 'Out of javelins', '#fff'); bus.emit('hud');
   }
+  if (execTarget(p)) { C.localCd = 1.3; return; } // (a marked captain: the host plays out the execution)
   const spear = p.weapon === 'spear', best = softAim(p, aimRange(p));
   if (best) {
     const ang = Math.atan2(best.x - p.x, best.z - p.z), d = Math.hypot(best.x - p.x, best.z - p.z);
@@ -391,7 +393,8 @@ function predictAttack(p) {
   if (spear) { C.localCd = CC.spear.cd; p.swingKind = 3; p.combo = 0; p.vx += Math.sin(p.face) * CC.spear.lunge; p.vz += Math.cos(p.face) * CC.spear.lunge; }
   else {
     const combo = performance.now() / 1000 - p.lastSwingT < CC.sword.window ? (p.combo + 1) % 3 : 0;
-    p.combo = combo; p.swingKind = combo; C.localCd = combo === 2 ? CC.sword.finisherCd : CC.sword.cd;
+    p.combo = combo; p.swingKind = combo === 2 ? 4 : combo; C.localCd = combo === 2 ? CC.sword.finisherCd : CC.sword.cd;
+    if (combo !== 2) { p.vx += Math.sin(p.face) * CC.sword.step; p.vz += Math.cos(p.face) * CC.sword.step; } // (the half-step, as on the host)
   }
   p.lastSwingT = performance.now() / 1000;
 }

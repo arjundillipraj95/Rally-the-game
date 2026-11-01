@@ -67,7 +67,7 @@ bus.on('hitstop', t => { hitstop = Math.max(hitstop, t); });
 bus.on('buzz', ms => buzz(ms));
 // the big moments of a fight: a parry, a guard smashed open, a rider skewered or knocked off his horse.
 // (On the host these come straight from the rules; on a joining player's phone, with the next snapshot.)
-const FIGHT_POW = { fxcapkill: ['CAPTAIN SLAIN!', '#ffd23a'], fxrally: ['RALLY!', '#ffd23a'], fxrout: ['', ''], fxride: ['', ''], fxjoust: ['JOUSTED!', '#ffd23a'], fxparry: ['PARRY!', '#ffffff'], fxbreak: ['GUARD BROKEN!', '#ff8a3a'], fximpale: ['SKEWERED!', '#ffd23a'], fxunhorse: ['UNHORSED!', '#ffd23a'], fxint: ['STAGGERED!', '#ffd23a'] };
+const FIGHT_POW = { fxback: ['BACKSTAB!', '#ff8a3a'], fxexec: ['EXECUTED!', '#ff3b2e'], fxexecgo: ['', ''], fxcapkill: ['CAPTAIN SLAIN!', '#ffd23a'], fxrally: ['RALLY!', '#ffd23a'], fxrout: ['', ''], fxride: ['', ''], fxjoust: ['JOUSTED!', '#ffd23a'], fxparry: ['PARRY!', '#ffffff'], fxbreak: ['GUARD BROKEN!', '#ff8a3a'], fximpale: ['SKEWERED!', '#ffd23a'], fxunhorse: ['UNHORSED!', '#ffd23a'], fxint: ['STAGGERED!', '#ffd23a'] };
 bus.on('fxmsg', d => {
   const u = d.u, me = G.player;
   if (d.k === 'fxopen') { if (u && d.a === me) bus.emit('fighttip', 'shield'); return; } // (your blow knocked his shield aside)
@@ -90,6 +90,17 @@ bus.on('fxmsg', d => {
     const ti = d.ti ?? u.ti; musicCue(ti === G.myTi ? 'routMine' : G.ALLY[ti % 4] !== G.ALLY[G.myTi % 4] ? 'routEnemy' : 'capdown');
     return;
   }
+  if (d.k === 'fxexecgo') { // an execution begins: a drum, the camera closes in (render/camera.js reads the pose flags)
+    if (near || mine || d.a === me) { sfx.windup(u.x, u.z); if (d.a === me) buzz(40); }
+    return;
+  }
+  if (d.k === 'fxexec') { // ...and the blow falls
+    if (!near && !mine && d.a !== me) return;
+    pow(u.x, u.y + 3.4, u.z, mine ? 'EXECUTED!' : 'EXECUTED!', '#ff3b2e'); shockwave(u.x, u.z, 14, '#ff3b2e'); sfx.heavy(u.x, u.z);
+    musicCue(mine ? 'fell' : d.a === me ? 'slain' : 'capdown'); cam.shake = Math.max(cam.shake, .6); if (d.a === me || mine) buzz(120);
+    return;
+  }
+  if (d.k === 'fxback' && d.a === me) sfx.heavy(u.x, u.z); // (a backstab of yours: a heavier thud under the word)
   if (d.k === 'fxride') { // your ride-by blow: how well you timed it
     if (d.a !== me) return;
     const R = { perfect: ['PERFECT!', '#ffd23a'], good: ['HIT!', '#ffffff'], graze: ['TOO LATE', '#c9c2b2'], miss: ['TOO EARLY', '#c9c2b2'] }[d.q] || ['', ''];

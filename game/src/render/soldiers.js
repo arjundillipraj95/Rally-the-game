@@ -4,7 +4,7 @@
 // Factions change the look only: Romans (galea, scutum, gladius), Greeks (bronze Corinthian helmet,
 // round hoplon), barbarians (hair and beards, bare chests, round wooden shields, axes).
 import * as THREE from 'three';
-import { TEAMS, CRESTS } from '../config.js';
+import { TEAMS, CRESTS, EXEC } from '../config.js';
 import { G, isEnemyTi, isFfa, colorOf, bus } from '../core/state.js';
 import { braced } from '../core/sim.js';
 import { scene, shadowsOn, camera } from './scene.js';
@@ -323,6 +323,7 @@ const HIT_WORDS = ['WHACK!', 'THWACK!', 'WHAM!', 'SMACK!', 'BAM!'], KO_WORDS = [
 
 // ---------- per-unit animation state ----------
 const anim = new WeakMap();
+if (import.meta.env.DEV) window.__anim = anim; // (dev: tests read poses)
 function exprOf(u) { const a = anim.get(u); return (a && a.expr) || 'normal'; }
 function stateOf(u) {
   let a = anim.get(u);
@@ -568,6 +569,27 @@ function pose(u, dt) {
       a.sArmX = -2.3 + Math.sin(a.walk * 2) * .7; a.wArmX = -2.3 + Math.sin(a.walk * 2 + 2) * .7; a.bodyRX = -.12;
     }
   }
+  // the spin (a sword combo's third blow): the whole body turns once round, blade out at arm's length
+  if (t >= 0 && kind === 4 && !u.mounted && !spearArmed) {
+    const r = ease(Math.min(1, Math.max(0, (t - .06) / .5)));
+    a.yaw -= Math.PI * 2 * r; a.wArmX = -1.55; a.wArmZ = -1.3; a.bodyRX += .1; a.bodyY -= .06; a.legL[2] += .16; a.legR[2] -= .16; a.expr = 'yell';
+  }
+  // the execution: the executioner hauls his weapon high and brings it down; the beaten man kneels
+  if (u.execA || u.execV) a.exT = (a.exT || 0) + dt; else { a.exT = 0; a.exGlint = false; }
+  if (u.execA && !u.mounted) {
+    const e = a.exT, raise = ease(Math.min(1, e / .55)), fall = e < EXEC.strikeAt - .1 ? 0 : ease(Math.min(1, (e - (EXEC.strikeAt - .1)) / .12));
+    a.expr = 'yell'; a.legL[0] = -.5 + .2 * fall; a.legR[0] = .4; a.legL[2] = .14; a.legR[2] = -.14;
+    if (e >= .5 && !a.exGlint) { a.exGlint = true; if (nearCam(u, 26)) { spark(u.x - Math.sin(u.face) * .2, u.y + 3.6, u.z - Math.cos(u.face) * .2, '#ffffff', 16); bus.emit('sfx', { name: 'glint', x: u.x, z: u.z }); } } // (the blade at its height catches the light)
+    a.bodyRX = -.24 * raise * (1 - fall) + .55 * fall; a.bodyY -= .05 * raise + .1 * fall; a.bodyRY = 0;
+    if (spearArmed) { a.wArmX = -2.5 * (1 - fall) - 1.35 * fall; a.spearRX = 2.2; a.spearZ = -.6 + 1.5 * fall; }
+    else { a.wArmX = (1 - fall) * (-1.2 - 1.05 * raise) + fall * .2; a.wArmZ = -.08; } // (arm raised up and forward: the blade points at the sky, then comes down through him)
+  }
+  if (u.execV && !u.dead) {
+    const k = ease(Math.min(1, a.exT / .3));
+    a.expr = 'scared'; a.sink = Math.max(a.sink || 0, .42 * k); a.dizzy = 0; u.seesStars = false;
+    a.legL[0] = -1.5 * k; a.legR[0] = .25 * k; a.legL[2] = .1; a.legR[2] = -.1;
+    a.bodyRX = .5 * k; a.bodyRZ = 0; a.bodyRY = 0; a.wArmX = near(a.wArmX, .15, k12); a.wArmZ = 0; a.sArmX = near(a.sArmX, .1, k12);
+  }
   a.block = near(a.block, blocking ? 1 : 0, Math.min(1, dt * 16));
   return a;
 }
@@ -633,6 +655,21 @@ export function drawSoldiers(units, dt) {
       trail(tipV.x, tipV.y, tipV.z, '#eef2f5');
       // the moment the blade starts through: a crescent swoosh along its path (near your captain only)
       const a = anim.get(u), st = 1 - u.swing / .38;
+      const kind0 = u.mounted ? 0 : u.swingKind | 0;
+      if (a && !a.slashed && kind0 === 4 && st >= .14 && !spearOut(u) && nearCam(u, 22)) { // the spin: a whole ring of steel
+        a.slashed = true;
+        for (let k = 0; k < 3; k++) {
+          eu.set(0, u.face + k * 2.1 - 1, 0); qq.setFromEuler(eu);
+          slashM.compose(vp.set(u.x, u.y + a.lift + 1.2, u.z), qq, vs.set(1, 1, 1)); slashM.multiply(tmp.makeRotationX(-.25)).multiply(tmp.makeScale(2.5, 1, 2.5));
+          slash(slashM, '#fff6d8', 1);
+        }
+      }
+      if (a && !a.slashed && u.kind === 'captain' && spearOut(u) && u.weapon === 'spear' && st >= .17 && st < .45 && nearCam(u, 22)) { // the spear: a straight streak down the thrust
+        a.slashed = true;
+        eu.set(0, u.face, 0); qq.setFromEuler(eu);
+        slashM.compose(vp.set(u.x + Math.sin(u.face) * .4, u.y + a.lift + 1.35, u.z + Math.cos(u.face) * .4), qq, vs.set(1, 1, 1)); slashM.multiply(tmp.makeRotationX(-.3)).multiply(tmp.makeScale(.28, 1, 3.6));
+        slash(slashM, '#fff6d8', .9);
+      }
       if (a && !a.slashed && st >= .17 && st < .4 && !spearOut(u) && u.weapon !== 'jav' && nearCam(u, 22)) {
         a.slashed = true;
         const kind = u.mounted ? 0 : u.swingKind | 0, s = u.kind === 'captain' ? 1.18 : 1, R = u.mounted ? 2.3 : 2;
