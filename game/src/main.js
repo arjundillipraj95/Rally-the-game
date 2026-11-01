@@ -7,7 +7,7 @@ import '@fontsource/barlow-semi-condensed/latin-800-italic.css';
 import './style.css';
 import { TEAMS, MODES, MAPS, PRESETS, RANKS, CRESTS, QUIPS, TIPS, AL_LETTER, TARGETS, DUEL } from './config.js';
 import { G, bus, colorOf, rules, matchTime, modeDesc, activeFrom, targetFor, SLOT_NAME } from './core/state.js';
-import { challenge, canChallenge, startMatch, mkUnit, newTeams, update, fallStep, endMatch, auraRange, endStep, setOrder, applyFort } from './core/sim.js';
+import { orderVolley, challenge, canChallenge, startMatch, mkUnit, newTeams, update, fallStep, endMatch, auraRange, endStep, setOrder, applyFort } from './core/sim.js';
 import { makeLayout, gatePos, groundY } from './core/world.js';
 import { buildNav } from './core/nav.js';
 import { renderer, scene, camera, resize, applyPixelRatio, applyShadowQuality, followSun } from './render/scene.js';
@@ -70,7 +70,7 @@ bus.on('hitstop', t => { hitstop = Math.max(hitstop, t); });
 bus.on('buzz', ms => buzz(ms));
 // the big moments of a fight: a parry, a guard smashed open, a rider skewered or knocked off his horse.
 // (On the host these come straight from the rules; on a joining player's phone, with the next snapshot.)
-const FIGHT_POW = { fxbreach: ['', ''], fxdisarm: ['DISARMED!', '#ff8a3a'], fxbash: ['BASH!', '#ffffff'], fxstreak: ['RAMPAGE!', '#ffd23a'], fxduelask: ['', ''], fxduel: ['', ''], fxduelwin: ['', ''], fxdueldraw: ['', ''], fxduelbreak: ['', ''], fxduelno: ['', ''], fxevade: ['EVADED!', '#9fe3ff'], fxback: ['BACKSTAB!', '#ff8a3a'], fxexec: ['EXECUTED!', '#ff3b2e'], fxexecgo: ['', ''], fxcapkill: ['CAPTAIN SLAIN!', '#ffd23a'], fxrally: ['RALLY!', '#ffd23a'], fxrout: ['', ''], fxride: ['', ''], fxjoust: ['JOUSTED!', '#ffd23a'], fxparry: ['PARRY!', '#ffffff'], fxbreak: ['GUARD BROKEN!', '#ff8a3a'], fximpale: ['SKEWERED!', '#ffd23a'], fxunhorse: ['UNHORSED!', '#ffd23a'], fxint: ['STAGGERED!', '#ffd23a'] };
+const FIGHT_POW = { fxvland: ['', ''], fxvcharge: ['', ''], fxbreach: ['', ''], fxdisarm: ['DISARMED!', '#ff8a3a'], fxbash: ['BASH!', '#ffffff'], fxstreak: ['RAMPAGE!', '#ffd23a'], fxduelask: ['', ''], fxduel: ['', ''], fxduelwin: ['', ''], fxdueldraw: ['', ''], fxduelbreak: ['', ''], fxduelno: ['', ''], fxevade: ['EVADED!', '#9fe3ff'], fxback: ['BACKSTAB!', '#ff8a3a'], fxexec: ['EXECUTED!', '#ff3b2e'], fxexecgo: ['', ''], fxcapkill: ['CAPTAIN SLAIN!', '#ffd23a'], fxrally: ['RALLY!', '#ffd23a'], fxrout: ['', ''], fxride: ['', ''], fxjoust: ['JOUSTED!', '#ffd23a'], fxparry: ['PARRY!', '#ffffff'], fxbreak: ['GUARD BROKEN!', '#ff8a3a'], fximpale: ['SKEWERED!', '#ffd23a'], fxunhorse: ['UNHORSED!', '#ffd23a'], fxint: ['STAGGERED!', '#ffd23a'] };
 bus.on('fxmsg', d => {
   const u = d.u, me = G.player;
   if (d.k === 'fxopen') { if (u && d.a === me) bus.emit('fighttip', 'shield'); return; } // (your blow knocked his shield aside)
@@ -99,6 +99,8 @@ bus.on('fxmsg', d => {
     if (me && Math.hypot(x - me.x, z - me.z) < 60) cam.shake = Math.max(cam.shake, .5);
     return;
   }
+  if (d.k === 'fxvland') { if (mine) bus.emit('fighttip', 'vcharge'); return; } // (your volley's landed: the moment to charge)
+  if (d.k === 'fxvcharge') { pow(u.x, u.y + 3.4, u.z, 'VOLLEY & CHARGE!', '#ffd23a'); shockwave(u.x, u.z, 12, '#ffd23a'); sfx.charge && sfx.charge(u.x, u.z); if (mine) { buzz([40, 30, 60]); cam.shake = Math.max(cam.shake, .35); } return; }
   if (d.k === 'fxdisarm') { // a perfect parry: his blade knocked from his hand
     if (!near && !mine && d.a !== me) return;
     pow(u.x, u.y + 3.1, u.z, mine ? 'DISARMED!' : 'DISARMED!', '#ff8a3a'); sfx.parry(u.x, u.z); sfx.heavy(u.x, u.z);
@@ -201,6 +203,7 @@ function showMoments(h) {
     n('disarm', 'Disarmed a captain with a perfect parry', 'Disarmed # captains with perfect parries'),
     h.streak >= 5 ? `Landed ${h.streak} blows in a row` : null,
     n('bash', 'Bashed a guard open', 'Bashed # guards open'),
+    n('vcharge', 'Charged in hard on a volley', 'Charged in hard on # volleys'),
     n('parry', 'Parried a blow', 'Parried # blows'),
   ].filter(Boolean).slice(0, 3);
   const ul = $('endMoments'); ul.innerHTML = '';
@@ -586,7 +589,7 @@ window.__fb = {
   volley(pt) { actions.volley(pt); }, order(o, pt) { actions.order(o, pt); }, rally() { actions.rally(); },
   attack() { actions.attack(); }, duel() { actions.duel(); }, jump() { actions.jump(); }, weapon(w) { actions.weapon(w); }, upgrade(id) { actions.upgrade(id); },
   fort(c, lv) { G.teams[c].up.fort = lv; applyFort(c); },
-  setOrder, mkUnit, challenge, canChallenge, G, cam, scene, audio: () => audioStats(),
+  setOrder, orderVolley, mkUnit, challenge, canChallenge, G, cam, scene, audio: () => audioStats(),
 };
 
 function onResize() { resize(); resizeOverlay(); }

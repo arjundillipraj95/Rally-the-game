@@ -1,6 +1,6 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
-import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, HOLDS, EVADE, FORT, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT, DUEL, CHEST, STREAK, BASH, LAST } from '../config.js';
+import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, HOLDS, EVADE, FORT, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT, DUEL, CHEST, STREAK, BASH, LAST, VCHARGE } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, activeFrom, gateOff, ARMIES, rules, matchTime, isOut } from './state.js';
 import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W, groundSlow, onIce } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable, setPalSeg } from './nav.js';
@@ -77,6 +77,7 @@ export function startMatch(humans, active = activeFrom([0, 0, 0, 0])) {
 // line forms a couple of paces in front of the captain, facing where he faces.
 export function setOrder(ti, o, pt) {
   const s = G.teams[ti]; s.order = o;
+  if (o === 'charge') volleyCharge(ti);
   const cap = s.leader;
   if (o === 'hold') s.holdPt = pt ? { x: +pt.x, z: +pt.z, face: +pt.face } : cap ? { x: cap.x + Math.sin(cap.face) * 2.5, z: cap.z + Math.cos(cap.face) * 2.5, face: cap.face } : null;
   if (o === 'focus') { if (pt) s.focus = { id: pt.id | 0, x: +pt.x, z: +pt.z }; else s.order = 'follow'; }
@@ -376,11 +377,12 @@ function hit(a, b, mult = 1, extra) {
   if (a.y - b.y > .8) dmg *= 1.2; // fighting downhill
   if (!b.leader && (behind(b, a) || routing(b.ti))) dmg *= MORALE.flankX; // caught from the side or behind, or running
   if (a.rallyT > 0) dmg *= RALLY.dmg;
+  if (!a.leader && G.teams[a.ti] && G.teams[a.ti].vcT > G.T) dmg *= VCHARGE.dmg; // (charging in behind a volley)
   if (G.mode === 'conquest' && G.teams[colorOf(a.ti)].breached && lastStand(a)) dmg *= LAST.dmg; // (backs to the wall)
   b.lastHit = G.T;
   const spearedHorse = (a.kind === 'foot' && a.tier >= 1) || (a.leader && a.weapon === 'spear');
   if (b.mounted && (spearedHorse || Math.random() < .5)) { horseDamage(b, dmg * (spearedHorse ? 3 : 1)); return; }
-  let kb = (a.leader ? (a.mounted ? 10 : 8) : 5) * (extra && extra.kb || 1);
+  let kb = (a.leader ? (a.mounted ? 10 : 8) : 5) * (extra && extra.kb || 1) * (!a.leader && G.teams[a.ti] && G.teams[a.ti].vcT > G.T ? VCHARGE.kb : 1);
   const frontal = Math.abs(angDiff(b.face, Math.atan2(a.x - b.x, a.z - b.z))) < 1.1;
   const held = frontal && b.holding && !b.human; // a footman standing his place in a held line
   let blocked = onGuard;
@@ -861,7 +863,7 @@ function shoot(u, tg, fromY = 1.6) {
   const lead = .35 + Math.hypot(tg.x - u.x, tg.z - u.z) / 30;
   const tx = tg.x + tg.vx * lead + rnd(-j, j), tz = tg.z + tg.vz * lead + rnd(-j, j);
   const d = Math.hypot(tx - u.x, tz - u.z), y0 = (u.y || 0) + fromY;
-  G.arrows.push(makeArrow({ id: ++G.arrowN, x0: u.x, y0, z0: u.z, x1: tx, z1: tz, y1: groundY(tx, tz) + 1.1, dur: .25 + d / 28, peak: Math.min(6, d * .16), ti: u.ti, t: 0, shooter: u }));
+  G.arrows.push(makeArrow({ id: ++G.arrowN, x0: u.x, y0, z0: u.z, x1: tx, z1: tz, y1: groundY(tx, tz) + 1.1, dur: .25 + d / 28, peak: Math.min(6, d * .16), ti: u.ti, t: 0, shooter: u, volley: volleying >= 0 }));
   if (!u.tower) u.swing = .38;
   sound('bow', u.x, u.z);
 }
@@ -869,7 +871,7 @@ function shoot(u, tg, fromY = 1.6) {
 // reusing the arrow flight/hit pipeline (flat damage, no headshot roll) rather than a new system.
 function throwJavelin(u, tg, dmg) {
   const d = Math.hypot(tg.x - u.x, tg.z - u.z), y0 = (u.y || 0) + 1.5;
-  G.arrows.push(makeArrow({ id: ++G.arrowN, x0: u.x, y0, z0: u.z, x1: tg.x, z1: tg.z, y1: groundY(tg.x, tg.z) + 1.1, dur: .18 + d / 22, peak: Math.min(3.5, d * .09), ti: u.ti, t: 0, shooter: u, javelin: true, jd: dmg }));
+  G.arrows.push(makeArrow({ id: ++G.arrowN, x0: u.x, y0, z0: u.z, x1: tg.x, z1: tg.z, y1: groundY(tg.x, tg.z) + 1.1, dur: .18 + d / 22, peak: Math.min(3.5, d * .09), ti: u.ti, t: 0, shooter: u, javelin: true, jd: dmg, volley: volleying >= 0 }));
   u.javCd = JAVELIN.cd; u.swing = .3;
   sound('bow', u.x, u.z);
 }
@@ -891,6 +893,7 @@ function arrowHit(a, b) {
     else if (roll > .82) { dmg *= .6; loc = 'legs'; }
   }
   if (G.teams[b.ti]) G.teams[b.ti].arrowHits++;
+  if (a.volley) { const s = G.teams[a.ti]; if (s) (s.vHit || (s.vHit = new Set())).add(b.ti); }
   const frontal = Math.abs(angDiff(b.face, Math.atan2(a.x0 - b.x, a.z0 - b.z))) < 1.1;
   // a shieldwall turns arrows from the front only — locked shields don't cover the sides or back
   if (b.shieldwall && frontal && (b.kind === 'foot' || Math.random() < .6)) { spark(b.x, b.y + 2.2, b.z, '#e8d9b0', 4); sound('thud', b.x, b.z); return; }
@@ -1406,9 +1409,16 @@ export function captainBash(p) {
 // Missile volley: every archer with a target in range fires immediately, and every javelin-ready
 // footman (tier 1+) throws immediately, together, on a shared team cooldown. Aimed (pt = {x, z}):
 // everyone who can reach the mark rains it there, scattered a little around it.
+let volleying = -1; // (while a volley is loosed: the army whose arrows these are)
 export function orderVolley(ti, pt) {
   const s = G.teams[ti];
   if (!s || !s.active || s.volleyCd > 0) return false;
+  let fired = false; volleying = ti;
+  try { fired = loose(ti, pt); } finally { volleying = -1; }
+  if (fired) { s.volleyCd = VOLLEY.cd; s.vHit = new Set(); s.vLandT = -9; }
+  return fired;
+}
+function loose(ti, pt) {
   let fired = false;
   for (const u of G.units) {
     if (u.dead || u.ti !== ti || u.stun > 0) continue;
@@ -1432,8 +1442,17 @@ export function orderVolley(ti, pt) {
       if (foe) { u.face = Math.atan2(foe.x - u.x, foe.z - u.z); throwJavelin(u, foe); fired = true; }
     }
   }
-  if (fired) s.volleyCd = VOLLEY.cd;
   return fired;
+}
+// Charge ordered hard on a volley that landed: the charge goes in on shaken men
+export function volleyCharge(ti) {
+  const s = G.teams[ti]; if (!s || !(G.T - (s.vLandT ?? -9) <= VCHARGE.window)) return false;
+  s.vcT = G.T + VCHARGE.dur; s.vLandT = -9;
+  for (const t of s.vHit || []) loseHeart(t, VCHARGE.morale);
+  s.vHit = new Set(); hl(ti, 'vcharge');
+  const L = s.leader; if (L && !L.dead) fx('fxmsg', { k: 'fxvcharge', u: L });
+  say('volleyCharge', ti); fx('netFlush');
+  return true;
 }
 
 // ---------- navigation ----------
@@ -2098,6 +2117,7 @@ export function arrowsTick(dt, authoritative) {
       if (authoritative) {
         let best = null, bd = 1.0;
         for (const o of G.units) { if (o.dead || !isEnemyTi(o.ti, a.ti) || (o.duelId && !(a.shooter && a.shooter.duelId === o.duelId))) continue; const d = Math.hypot(o.x - a.x1, o.z - a.z1) - (o.mounted ? .5 : 0); if (d < bd) { bd = d; best = o; } }
+        if (a.volley) { const s = G.teams[a.ti]; if (s && G.units.some(o => !o.dead && isEnemyTi(o.ti, a.ti) && Math.hypot(o.x - a.x1, o.z - a.z1) < 6)) { if (!(s.vLandT > G.T - .5) && s.human && s.leader && !s.leader.dead) fx('fxmsg', { k: 'fxvland', u: s.leader }); s.vLandT = G.T; } } // (a volley's come down among them)
         if (best) { arrowHit(a, best); a.done = true; } else { a.stuck = true; a.life = 3; }
       } else { a.stuck = true; a.life = 2.5; }
     }

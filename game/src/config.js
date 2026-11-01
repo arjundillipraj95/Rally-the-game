@@ -87,7 +87,10 @@ export const CAPTAIN_TIERS = [
 export const JAVELIN = { dmg: 24, range: 10, cd: 6.5 };
 // Missile volley: a squad-wide "fire at will" command on its own team cooldown, separate from
 // individual archer/javelin cooldowns so it stays a burst rather than a free DPS button.
-export const VOLLEY = { cd: 9, spread: 2.6 }; // spread: how far an aimed volley scatters around the mark
+export const VOLLEY = { cd: 9, spread: 2.6 };
+// Volley, then charge: Charge ordered within window s of your volley landing: for dur s your men hit
+// dmg x harder (and shove further), and every army the volley hit loses morale.
+export const VCHARGE = { window: 4, dur: 8, dmg: 1.3, kb: 1.25, morale: 12 }; // spread: how far an aimed volley scatters around the mark
 // Horse charge: a burst of speed that bowls over everyone in front (braced spears still stop it)
 // Fighting as a captain. Enemy captains (and veteran footmen) wind up their heavy blows where you can
 // see them: a raised weapon, a shout, then a glint as it comes down. Tap Block during the glint to

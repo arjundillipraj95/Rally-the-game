@@ -6,7 +6,7 @@ import { BASH, STREAK, EVADE, TEAMS, MAPS, KINDS, STATS, RECRUITS, FACTIONS, fac
 import { G, bus, colorOf, isEnemyTi, activeFrom, ARMIES, duoStr, duoParse } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn, angDiff } from '../core/world.js';
 import { buildNav, syncGates } from '../core/nav.js';
-import { captainBash, duelAct, duelOffer, duelTarget, initForts, applyFort, fortLvl, captainEvade, evadeKind, makeHolds, execTarget, rallyCry, blockPress, attackHold, attackRelease, rideRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainJump, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
+import { volleyCharge, captainBash, duelAct, duelOffer, duelTarget, initForts, applyFort, fortLvl, captainEvade, evadeKind, makeHolds, execTarget, rallyCry, blockPress, attackHold, attackRelease, rideRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainJump, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
 import { session, isClient, isHost } from './session.js';
 import { showMsg } from '../ui/messages.js';
 import { sfx, buzz, gateS } from '../ui/audio.js';
@@ -127,7 +127,7 @@ export function netHostReadInputs() {
     if (Array.isArray(pr.up)) for (let k = 0; k < UPGRADES.length; k++) while ((pr.up[k] | 0) > last.up[k]) { last.up[k]++; buyUpgrade(ti, UPGRADES[k].id); }
     const holdKey = pr.ord === 'hold' && Array.isArray(pr.hold) ? pr.hold.join(',') : pr.ord === 'focus' && Array.isArray(pr.foc) ? 'f' + pr.foc.join(',') : '';
     if (pr.ord && (ORDERS.includes(pr.ord) || pr.ord === 'focus') && (pr.ord !== s.order || holdKey !== last.hold)) { // (a hold moved to a new spot, or a new group to attack, counts as a new order)
-      s.order = pr.ord; last.hold = holdKey;
+      s.order = pr.ord; last.hold = holdKey; if (pr.ord === 'charge') volleyCharge(ti); // (a charge hard on a volley)
       if (pr.ord === 'hold') setOrder(ti, 'hold', Array.isArray(pr.hold) ? { x: +pr.hold[0], z: +pr.hold[1], face: +pr.hold[2] } : null);
       if (pr.ord === 'focus') setOrder(ti, 'focus', Array.isArray(pr.foc) ? { x: +pr.foc[0], z: +pr.foc[1], id: pr.foc[2] | 0 } : null);
     }
