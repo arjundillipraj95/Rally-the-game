@@ -282,6 +282,7 @@ export function clientTick(dt) {
   } else {
     NET.hostGoneAt = 0;
     const hp = hostP.presence || {};
+    if (hp.ph === 'gone') { hooks.onAbort('The host ended the battle.'); return false; } // (the host chose to leave)
     if (hp.ph === 'lobby') { hooks.onLobby(); return false; }
     if (hp.seed === G.seed && (hp.ph === 'play' || hp.ph === 'end')) clientApply(hp);
     if (hp.ph === 'end' && hp.kl) G.kills = +String(hp.kl).split(',')[G.myTi] || 0; // your captain's kills, as the host counted them

@@ -344,6 +344,32 @@ $('againBtn').addEventListener('click', () => {
   if (isHost()) { portal.midgameAd(() => showLobby()); return; }
   portal.midgameAd(() => soloStart());
 });
+// ---------- in battle: the menu button (back to the battle, or leave it) ----------
+// Solo, the battle stops while the panel is open. Online it can't: the battle goes on (and a joiner's
+// captain stands still); leaving hands a joiner's army to the computer, and ends it for everyone if
+// it's the host who goes (the joiners are told at once, see netgame.js).
+function openPause() {
+  if (G.state !== 'play') return;
+  const NET = session.NET, host = NET && NET.role === 'host', others = host ? Object.keys(NET.seats).filter(k => k !== NET.me).length : 0;
+  $('pauseNote').textContent = !NET ? 'Leaving now ends this battle (it won\u2019t count as a win).'
+    : host ? (others ? `You\u2019re the host: leaving ends the battle for ${others === 1 ? 'the other player' : 'all ' + others + ' other players'}.` : 'You\u2019re the host: leaving ends the battle.')
+    : 'The battle goes on without you: a computer captain takes over your army.';
+  $('ovPause').querySelector('h2').textContent = NET ? 'Battle menu' : 'Battle paused';
+  if (!NET) paused = true;
+  $('ovPause').hidden = false;
+}
+function closePause() { $('ovPause').hidden = true; paused = false; }
+$('pauseBtn').addEventListener('click', e => { e.stopPropagation(); openPause(); });
+$('resumeBtn').addEventListener('click', closePause);
+$('quitBtn').addEventListener('click', async () => {
+  closePause(); portal.gameplayStop();
+  if (session.NET) {
+    if (session.NET.role === 'host') { try { await session.NET.room.presence({ ph: 'gone' }); } catch (e) {} await new Promise(r => setTimeout(r, 300)); } // (tell the joiners first)
+    netLeave(); return;
+  }
+  G.state = 'title'; resetSolo(); newTip(); clearCritters(); $('ovEnd').hidden = true; $('hudWrap').hidden = true; $('ovTitle').hidden = false; seedDemo();
+});
+document.addEventListener('keydown', e => { if (e.code === 'Escape' && G.state === 'play') { if ($('ovPause').hidden) openPause(); else closePause(); } });
 $('menuBtn').addEventListener('click', () => {
   if (session.NET) { portal.gameplayStop(); netLeave(); return; }
   portal.midgameAd(() => { G.state = 'title'; resetSolo(); newTip(); clearCritters(); $('ovEnd').hidden = true; $('hudWrap').hidden = true; $('ovTitle').hidden = false; seedDemo(); });
