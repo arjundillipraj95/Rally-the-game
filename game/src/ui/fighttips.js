@@ -7,7 +7,7 @@ const TIPS = {
   parry: 'Tap Block as his blade glints!',
   break: "Holding Block won't stop a heavy blow. Tap it as the blade glints!",
   sword: 'Hold Attack for a heavy blow that smashes guards',
-  spear: 'Each thrust drives them back. Hold Attack to plant it against riders',
+  spear: 'Three thrusts in a row: the third lunges through the whole line',
   shield: 'Shield knocked aside: strike now! Or wait for him to lower it',
   jav: 'Hold Attack to draw back: a full draw knocks riders off their horses',
   guard: "He's on guard: hold Attack for a heavy blow to smash it",

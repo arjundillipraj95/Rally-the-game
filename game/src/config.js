@@ -147,7 +147,9 @@ export const WEAPONS = ['sword', 'spear', 'jav'];
 export const WEAPON_NAMES = { sword: 'Sword', spear: 'Spear', jav: 'Javelins' };
 export const CAPTAIN_COMBAT = {
   sword: { cd: .36, finisherCd: .62, window: .85, mult: 1, finisherMult: 1.5, aim: 3.6, step: 2.2, spinN: 3 }, // the third blow of a combo is a spin that cuts all round
-  spear: { cd: .78, reachB: 1.1, mult: 1.45, pierce: .8, pierceN: 1, kb: 1.7, stun: .35, lunge: 5, aim: 4.6, shieldDmg: .3 }, // fewer, heavier thrusts: a lunge that shoves and runs through
+  spear: { cd: .8, reachB: 1.1, mult: 1.3, pierce: .8, pierceN: 1, kb: 1.7, stun: .35, lunge: 5, aim: 4.6, shieldDmg: .3,
+    window: 1.15, cd2: .7, // thrust, a quicker second thrust from the hip, then the skewer: a running lunge through the whole line
+    skewer: { mult: 1.6, reachB: 2.6, pierce: .75, pierceN: 3, kb: 2.4, stun: .6, lunge: 11, dash: .19, aim: 6, cd: 1.05, t: .2, line: .45 } }, // fewer, heavier thrusts: a lunge that shoves and runs through
   jav: { cd: .8, dmg: 30, range: 16, ammo: Infinity, regen: 4 }, // unlimited: the gap between throws is the limit
   jump: { v: 7.6, g: 22, cd: .3 },
   leap: { mult: 1.4, range: 3, arc: 1.3, stun: .6, cd: .7 },

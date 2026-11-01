@@ -312,8 +312,8 @@ function resolveSwing(u) {
   if (pend.pierce && landed) {
     for (const o of G.units) {
       if (o === tg || o.dead || !isEnemy(o, u)) continue;
-      if (Math.hypot(o.x - u.x, o.z - u.z) > u.r + o.r + reach + 2.4) continue;
-      if (Math.abs(angDiff(u.face, Math.atan2(o.x - u.x, o.z - u.z))) > .4) continue;
+      if (Math.hypot(o.x - u.x, o.z - u.z) > u.r + o.r + reach + (pend.line ? 1.2 : 2.4)) continue;
+      if (Math.abs(angDiff(u.face, Math.atan2(o.x - u.x, o.z - u.z))) > (pend.line || .4)) continue;
       hit(u, o, mult * pend.pierce, ex); if (++pn >= (pend.pierceN || 1)) break;
     }
   }
@@ -948,7 +948,8 @@ export function captainAttack(p) {
   }
   if (p.human) { const v = execTarget(p); if (v) { startExec(p, v); return; } } // (a beaten captain: finish him)
   const spear = p.weapon === 'spear', S = CC.sword;
-  const best = softAim(p, spear ? CC.spear.aim : S.aim);
+  const sCombo = spear ? (G.T - p.lastSwingT < CC.spear.window && p.swingKind >= 3 ? (p.combo + 1) % 3 : 0) : 0, skewer = sCombo === 2, SK = CC.spear.skewer;
+  const best = softAim(p, spear ? (skewer ? SK.aim : CC.spear.aim) : S.aim);
   if (p.isMe && G.capStats) { G.capStats.press++; if (!best) G.capStats.noTarget++; }
   let target = best;
   if (!best) {
@@ -962,12 +963,16 @@ export function captainAttack(p) {
     p.face = ang;
     // step into a target at the edge of reach, so a press always connects
     const edge = p.r + best.r + p.reach + (spear ? CC.spear.reachB : 0) - .2;
-    if (d > edge) { p.vx += Math.sin(ang) * 4; p.vz += Math.cos(ang) * 4; }
+    if (d > edge && !skewer) { p.vx += Math.sin(ang) * 4; p.vz += Math.cos(ang) * 4; }
   }
-  if (spear) {
+  if (spear && skewer) { // the third thrust: a running lunge, the spear level, through everyone in the line
+    Object.assign(p.pending, { t: SK.t, mult: SK.mult, reachB: SK.reachB, pierce: SK.pierce, pierceN: SK.pierceN, line: SK.line, kb: SK.kb, stun: SK.stun, shove: true });
+    p.vx = Math.sin(p.face) * SK.lunge; p.vz = Math.cos(p.face) * SK.lunge; p.dashT = SK.dash; // (a moment where his feet don't brake: the lunge carries)
+    p.cd = SK.cd; p.combo = 2; p.swingKind = 5;
+  } else if (spear) {
     Object.assign(p.pending, { mult: CC.spear.mult, reachB: CC.spear.reachB, pierce: CC.spear.pierce, pierceN: CC.spear.pierceN, kb: CC.spear.kb, stun: CC.spear.stun, shove: true });
     p.vx += Math.sin(p.face) * CC.spear.lunge; p.vz += Math.cos(p.face) * CC.spear.lunge; // (the whole body goes into the thrust)
-    p.cd = CC.spear.cd; p.combo = 0; p.swingKind = 3;
+    p.cd = sCombo === 1 ? CC.spear.cd2 : CC.spear.cd; p.combo = sCombo; p.swingKind = 3;
   } else {
     const combo = G.T - p.lastSwingT < S.window ? (p.combo + 1) % 3 : 0, fin = combo === 2;
     Object.assign(p.pending, { mult: fin ? S.finisherMult : S.mult, cleave: fin, spin: fin, kb: fin ? 1.25 : .25 }); // light hits keep him in reach, the finisher spins and launches
@@ -1376,7 +1381,8 @@ export function driveCaptain(p, input, dt) {
   if (air) {
     const k = Math.min(1, dt * 2.5);
     p.vx += (input.wx * spd * input.mag - p.vx) * k; p.vz += (input.wz * spd * input.mag - p.vz) * k;
-  } else moveToward(p, p.x + input.wx * 3, p.z + input.wz * 3, spd * input.mag, dt, .05);
+  } else if (p.dashT > 0) p.dashT -= dt; // (mid-lunge: momentum carries him)
+  else moveToward(p, p.x + input.wx * 3, p.z + input.wz * 3, spd * input.mag, dt, .05);
   const face0 = p.face;
   if (input.mag > .15) p.face = turn(p.face, Math.atan2(input.wx, input.wz), dt * (p.mounted ? 4.5 : p.blocking ? 5 : swinging ? 6 : 12));
   if (p.mounted) { // the gallop: built riding straight on, lost turning hard or reining in

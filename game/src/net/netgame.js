@@ -381,22 +381,25 @@ function predictAttack(p) {
     p.weapon = 'sword'; G.teams[G.myTi].weapon = 'sword'; floatText(p.x, p.y + 3.2, p.z, 'Out of javelins', '#fff'); bus.emit('hud');
   }
   if (execTarget(p)) { C.localCd = 1.3; return; } // (a marked captain: the host plays out the execution)
-  const spear = p.weapon === 'spear', best = softAim(p, aimRange(p));
+  const spear = p.weapon === 'spear', now = performance.now() / 1000, SK = CC.spear.skewer;
+  const sCombo = spear ? (now - p.lastSwingT < CC.spear.window && p.swingKind >= 3 ? (p.combo + 1) % 3 : 0) : 0, skewer = sCombo === 2;
+  const best = softAim(p, spear && skewer ? SK.aim : aimRange(p));
   if (best) {
     const ang = Math.atan2(best.x - p.x, best.z - p.z), d = Math.hypot(best.x - p.x, best.z - p.z);
     p.face = ang;
-    if (d > p.r + best.r + 1.3 + (spear ? CC.spear.reachB : 0) - .2) { p.vx += Math.sin(ang) * 4; p.vz += Math.cos(ang) * 4; }
+    if (d > p.r + best.r + 1.3 + (spear ? CC.spear.reachB : 0) - .2 && !skewer) { p.vx += Math.sin(ang) * 4; p.vz += Math.cos(ang) * 4; }
   }
   // the host lands the blow ~.12s into the swing; show the impact here at the same moment instead of
   // waiting for the host's word (the damage itself still comes from the host)
-  if (best) C.pred = { at: performance.now() + 120, tg: best, reach: STATS.captain.reach + (spear ? CC.spear.reachB : 0), spear };
-  if (spear) { C.localCd = CC.spear.cd; p.swingKind = 3; p.combo = 0; p.vx += Math.sin(p.face) * CC.spear.lunge; p.vz += Math.cos(p.face) * CC.spear.lunge; }
+  if (best) C.pred = { at: performance.now() + (skewer ? SK.t * 1000 : 120), tg: best, reach: STATS.captain.reach + (spear ? (skewer ? SK.reachB : CC.spear.reachB) : 0), spear };
+  if (spear && skewer) { C.localCd = SK.cd; p.swingKind = 5; p.combo = 2; p.vx = Math.sin(p.face) * SK.lunge; p.vz = Math.cos(p.face) * SK.lunge; p.dashT = SK.dash; } // (the skewer: a running lunge)
+  else if (spear) { C.localCd = sCombo === 1 ? CC.spear.cd2 : CC.spear.cd; p.swingKind = 3; p.combo = sCombo; p.vx += Math.sin(p.face) * CC.spear.lunge; p.vz += Math.cos(p.face) * CC.spear.lunge; }
   else {
     const combo = performance.now() / 1000 - p.lastSwingT < CC.sword.window ? (p.combo + 1) % 3 : 0;
     p.combo = combo; p.swingKind = combo === 2 ? 4 : combo; C.localCd = combo === 2 ? CC.sword.finisherCd : CC.sword.cd;
     if (combo !== 2) { p.vx += Math.sin(p.face) * CC.sword.step; p.vz += Math.cos(p.face) * CC.sword.step; } // (the half-step, as on the host)
   }
-  p.lastSwingT = performance.now() / 1000;
+  p.lastSwingT = now;
 }
 
 // ---------- player actions (solo, host and client) ----------

@@ -482,6 +482,11 @@ function pose(u, dt) {
     a.spearZ = t >= 0 ? (P > 0 ? -.5 * P : 1.0 * -P) : 0;
     a.bodyRY += t >= 0 ? .3 * P : 0;
     if (t >= 0) a.bodyRX += .15 * Math.max(0, -P);
+    if (t >= 0 && kind === 5 && !u.mounted) { // the skewer: low and long, back leg straight, the whole body behind the point
+      const into = Math.max(0, -P);
+      a.spearZ = P > 0 ? -.8 * P : 1.7 * into; a.bodyRX += .3 * into; a.bodyY -= .14 * into; a.bodyRY = 0;
+      a.legL[0] = -.95 * into; a.legR[0] = .75 * into; a.expr = 'yell';
+    }
     a.sArmX = near(a.sArmX, -.6 - .25 * a.ready, k8);
   } else if (u.kind === 'arch') {
     a.sArmX = near(a.sArmX, u.aim ? -1.5 : -.3 - armSw, Math.min(1, dt * 10));
@@ -666,9 +671,11 @@ export function drawSoldiers(units, dt) {
       }
       if (a && !a.slashed && u.kind === 'captain' && spearOut(u) && u.weapon === 'spear' && st >= .17 && st < .45 && nearCam(u, 22)) { // the spear: a straight streak down the thrust
         a.slashed = true;
+        const sk = kind0 === 5; // (the skewer: a long one, and dust kicked up behind the lunge)
         eu.set(0, u.face, 0); qq.setFromEuler(eu);
-        slashM.compose(vp.set(u.x + Math.sin(u.face) * .4, u.y + a.lift + 1.35, u.z + Math.cos(u.face) * .4), qq, vs.set(1, 1, 1)); slashM.multiply(tmp.makeRotationX(-.3)).multiply(tmp.makeScale(.28, 1, 3.6));
-        slash(slashM, '#fff6d8', .9);
+        slashM.compose(vp.set(u.x + Math.sin(u.face) * .4, u.y + a.lift + (sk ? 1.15 : 1.35), u.z + Math.cos(u.face) * .4), qq, vs.set(1, 1, 1)); slashM.multiply(tmp.makeRotationX(-.3)).multiply(tmp.makeScale(sk ? .36 : .28, 1, sk ? 6 : 3.6));
+        slash(slashM, sk ? '#ffe9a8' : '#fff6d8', sk ? 1 : .9);
+        if (sk) { dust(u.x - Math.sin(u.face) * .6, u.z - Math.cos(u.face) * .6); dust(u.x, u.z); }
       }
       if (a && !a.slashed && st >= .17 && st < .4 && !spearOut(u) && u.weapon !== 'jav' && nearCam(u, 22)) {
         a.slashed = true;
