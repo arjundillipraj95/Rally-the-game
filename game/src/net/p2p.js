@@ -8,35 +8,36 @@ export function newCode() { let c = ''; for (let i = 0; i < 4; i++) c += CODE_CH
 export const p2pAvailable = () => typeof window.RTCPeerConnection === 'function' && /^https?:$/.test(location.protocol);
 
 // How two phones find a way to each other. A direct link is tried first (STUN tells each phone its
-// public address). When that's impossible, as it often is on mobile data or behind strict routers,
-// the traffic goes through a relay (TURN). PeerJS's own free relay only listens on UDP 3478, which
-// many networks block, so the Open Relay Project's is added too: it also answers over TCP and TLS on
-// ports 80 and 443, which get through almost anywhere. Its credentials are made here from its
-// published shared secret (the standard TURN REST scheme: an expiry time, signed with HMAC-SHA1).
-// TURN_KEY_URL: optionally, a Metered.ca credentials URL (with its API key) for a private relay.
+// public address). When that's impossible, as it is on most mobile data (carrier NAT) and on strict
+// Wi-Fi, the traffic has to go through a relay (TURN). PeerJS's own free relay was shut down (Dec 2023).
+// TURN_KEY_URL: a Metered.ca credentials URL (https://<app>.metered.live/api/v1/turn/credentials?apiKey=...)
+// for a private relay (free tier: 20 GB a month). Fetched once per page; if it fails, the Open Relay
+// Project's public relay (credentials made from its published shared secret: an expiry time signed
+// with HMAC-SHA1, the standard TURN REST scheme) is the fallback.
 export const TURN_KEY_URL = '';
-const STUN = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }, { urls: 'stun:stun.cloudflare.com:3478' }];
-const PEERJS_TURN = { urls: ['turn:eu-0.turn.peerjs.com:3478', 'turn:us-0.turn.peerjs.com:3478'], username: 'peerjs', credential: 'peerjsp' };
+const STUN = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }];
 async function openRelay() {
   if (!(window.crypto && crypto.subtle)) return null;
   const user = `${Math.floor(Date.now() / 1000) + 24 * 3600}:rally`, enc = new TextEncoder();
   const key = await crypto.subtle.importKey('raw', enc.encode('openrelayprojectsecret'), { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']);
   const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode(user)));
   const h = 'staticauth.openrelay.metered.ca';
-  return { urls: [`turn:${h}:80`, `turn:${h}:80?transport=tcp`, `turn:${h}:443`, `turns:${h}:443?transport=tcp`], username: user, credential: btoa(String.fromCharCode(...sig)) };
+  return { urls: [`turn:${h}:80`, `turn:${h}:443?transport=tcp`, `turns:${h}:443?transport=tcp`], username: user, credential: btoa(String.fromCharCode(...sig)) };
 }
 let iceCache = null;
 export async function iceServers() {
   if (iceCache) return iceCache;
-  const list = [...STUN, PEERJS_TURN];
-  try { const r = await openRelay(); if (r) list.push(r); } catch (e) {}
+  const list = [...STUN];
+  let keyed = false;
   if (TURN_KEY_URL) {
     try {
-      const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 3000);
+      const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 4000);
       const r = await fetch(TURN_KEY_URL, { signal: ctl.signal }); clearTimeout(t);
-      const extra = await r.json(); if (Array.isArray(extra)) list.push(...extra);
+      const extra = await r.json();
+      if (Array.isArray(extra)) { const turn = extra.filter(s => /turns?:/.test([].concat(s.urls || s.url).join(' '))); list.push(...turn); keyed = turn.length > 0; }
     } catch (e) {}
   }
+  if (!keyed) try { const r = await openRelay(); if (r) list.push(r); } catch (e) {}
   return (iceCache = list);
 }
 const peerOpts = async () => {
