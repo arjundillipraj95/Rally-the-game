@@ -66,6 +66,7 @@ export function msgText(k, a) {
     case 'duelNo': return mine(a[1]) ? [`${nm(a[0])} refuses!`, 'His men lose heart', css(a[0])] : mine(a[0]) ? ['You refused the duel', 'Your men lose heart', '#e0352b'] : null;
     case 'duelSacred': return mine(a[0]) ? ['A duel is sacred', 'You can watch, not step in'] : null;
     case 'volleyCharge': return mine(a[0]) ? ['Volley and charge!', 'They\'re reeling: your men hit harder while it lasts', '#ffcf3a'] : null;
+    case 'armourOn': return mine(a[0]) ? ['Armour on', 'It soaks most of each blow. It won\'t mend: buy it again when it\'s gone', '#ffcf3a'] : null;
     case 'lastStand': // a[0]: the castle (color) breached, a[1]: by whom
       if (colorOf(a[0]) === colorOf(myTi)) return ['Last stand!', 'Your walls are breached. By the castle your men hit harder and won\'t run. Horn ready!', '#e0352b'];
       return !isEnemyTi(a[0], myTi) ? [`${nm(a[0])}'s castle is breached!`, 'Their last stand: get back and help them hold', css(a[0])] : [`${nm(a[0])}'s castle is breached!`, a[1] === myTi ? 'Your doing. Their last stand: finish it' : 'Their last stand: finish it', css(a[0])];

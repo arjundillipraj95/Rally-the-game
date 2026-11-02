@@ -1,6 +1,6 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
-import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, HOLDS, EVADE, FORT, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT, DUEL, CHEST, STREAK, BASH, LAST, VCHARGE, RHYTHM, PUSH } from '../config.js';
+import { ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, HOLDS, EVADE, FORT, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT, DUEL, CHEST, STREAK, BASH, LAST, VCHARGE, RHYTHM, PUSH, ARMOUR } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, activeFrom, gateOff, ARMIES, rules, matchTime, isOut } from './state.js';
 import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W, groundSlow, onIce } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable, setPalSeg } from './nav.js';
@@ -18,7 +18,7 @@ const sound = (name, x, z) => fx('sfx', { name, x, z });
 export function newTeams(humans, active = activeFrom([0, 0, 0, 0])) {
   return Array.from({ length: ARMIES }, (_, i) => ({ points: 100, tickets: rules().tickets, caps: 0, ctrlScore: 0, gold: Math.round(ECON.startGold * rules().gold), alive: true, plan: null, leaderDeadT: 0, recruitT: rnd(2, 6), thinkT: 0,
     human: !!humans[i], active: !!active[i], order: 'follow', holdPt: null, morale: 100, rally: 0, routT: 0, focus: null, towerT: rnd(0, 1.4), leader: null,
-    up: { foot1: 0, foot2: 0, arch1: 0, arch2: 0, aura: 0, horse: 0, fort: 0 }, arrowHits: 0, shieldwallT: 0, volleyCd: 0, upT: rnd(20, 40) }));
+    up: { foot1: 0, foot2: 0, arch1: 0, arch2: 0, aura: 0, horse: 0, arm: 0, fort: 0 }, armBuys: 0, arrowHits: 0, shieldwallT: 0, volleyCd: 0, upT: rnd(20, 40) }));
 }
 export function mkUnit(ti, x, z, kind, human = false) {
   const st = STATS[kind];
@@ -135,6 +135,8 @@ export const archTier = ti => Math.min(2, lvl(ti, 'arch1') + lvl(ti, 'arch2'));
 export const upgradeCost = (ti, id) => {
   const def = UPGRADES.find(u => u.id === id);
   if (!def) return null;
+  if (id === 'arm') { const s = G.teams[ti], L = (ti === G.myTi && G.player) || (s && s.leader); // (a joiner's phone knows its own captain, not the team's)
+    return !L || L.dead || (L.armour || 0) >= ARMOUR.hp - .5 ? null : Math.min(ARMOUR.maxCost, ARMOUR.cost + ARMOUR.step * (s.armBuys | 0)); } // (armour: whenever it's not whole, again and again)
   const l = lvl(id === 'fort' ? colorOf(ti) : ti, id); // (Fortify is the castle's, shared by everyone in it)
   return l >= def.cost.length ? null : def.cost[l];
 };
@@ -169,6 +171,7 @@ export function buyUpgrade(ti, id) {
   if (id === 'foot2' && lvl(ti, 'foot1') < 1) return false;
   if (id === 'arch2' && lvl(ti, 'arch1') < 1) return false;
   s.gold -= cost;
+  if (id === 'arm') { s.armBuys = (s.armBuys | 0) + 1; s.leader.armour = ARMOUR.hp; sound('clang', s.leader.x, s.leader.z); if (ti === G.myTi || s.human) say('armourOn', ti); if (s.leader.remote) fx('netFlush'); return true; }
   if (id === 'fort') { G.teams[colorOf(ti)].up.fort++; applyFort(colorOf(ti)); say('fortUp', colorOf(ti), G.teams[colorOf(ti)].up.fort); return true; }
   s.up[id]++;
   if (id === 'foot1' || id === 'foot2') applyFootTier(ti);
@@ -418,6 +421,7 @@ function hit(a, b, mult = 1, extra) {
     if (Math.random() < .4) fx('splat', { x: b.x + rnd(-.4, .4), z: b.z + rnd(-.4, .4), s: rnd(.6, 1.1), ti: b.ti });
     if (b.isMe) { fx('shake', .35); fx('buzz', 35); }
   }
+  if (b.leader && b.armour > 0 && !blocked && dmg > 0) dmg = soak(b, dmg, heavy || broke || back || !!(extra && extra.unblockable));
   b.hp -= dmg;
   if (!blocked && dmg > 0) { // the streak: a player captain's blows that land, broken when he's hit
     if (a.human && a.leader && !(extra && extra.streak) && a.streakBlow !== a.lastSwingT) { // (one per blow that lands, however many it cuts; not the whirlwind's own)
@@ -610,6 +614,12 @@ function guardRing(u, d, dt) {
   }
   const dd = go(u, gx, gz, speedOf(u) * (Math.hypot(gx - u.x, gz - u.z) > 5 ? 1.15 : 1), dt, .2);
   if (dd < 1.2) faceTo(u, d.x, d.z, dt, 5); // (eyes on the fight)
+}
+// A captain's armour takes its share of a blow (less of a crushing one); when it's gone, he hears it go.
+function soak(b, dmg, crushing) {
+  const a = Math.min(b.armour, dmg * (crushing ? ARMOUR.pierce : ARMOUR.soak));
+  b.armour -= a; if (b.armour <= .01) { b.armour = 0; fx('fxmsg', { k: 'fxarmour', u: b }); if (b.remote) fx('netFlush'); }
+  return dmg - a;
 }
 // ---------- the execution ----------
 // An enemy captain beaten down, with none of his men near him, can be finished: marked (execReady,
@@ -909,6 +919,7 @@ function arrowHit(a, b) {
     if (b.leader && (b.human ? b.blocking : Math.random() < .35)) blocked = true;
   }
   if (blocked) { spark(b.x, b.y + 1.3, b.z, '#e8d9b0', 4); sound('thud', b.x, b.z); b.blockT = Math.max(b.blockT, .2); return; }
+  if (b.leader && b.armour > 0) dmg = soak(b, dmg, false);
   b.hp -= dmg; spark(b.x, b.y + 1.3, b.z, TEAMS[colorOf(b.ti)].css, 4); sound('hit', b.x, b.z);
   push(b, 0, 0, .12);
   if (b.isMe) { fx('shake', .25); fx('buzz', 20); }
@@ -1911,7 +1922,7 @@ export function update(dt, input) {
       if (s.upT <= 0) {
         s.upT = rnd(6, 12);
         if (squadOf(i).length >= G.squadCap - 3 || !canRecruit(i)) {
-          const opts = UPGRADES.map(u => u.id).filter(id => upgradeCost(i, id) != null && s.gold >= upgradeCost(i, id) + 30 && (id !== 'fort' || (i < 4 && G.mode !== 'ctrl')));
+          const opts = UPGRADES.map(u => u.id).filter(id => upgradeCost(i, id) != null && s.gold >= upgradeCost(i, id) + 30 && (id !== 'fort' || (i < 4 && G.mode !== 'ctrl')) && (id !== 'arm' || G.diff >= 2));
           if (opts.length) buyUpgrade(i, opts[Math.floor(Math.random() * opts.length)]);
         }
       }

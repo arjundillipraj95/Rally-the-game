@@ -50,7 +50,8 @@ export function updateHud(lastSnapAt) {
   $('clockT').textContent = fmt(G.T);
   const p = G.player, me = G.teams[G.myTi];
   if (p) {
-    $('hpT').textContent = `${Math.max(0, Math.ceil(p.hp))}/${p.max}`;
+    $('hpT').textContent = `${Math.max(0, Math.ceil(p.hp))}/${p.max}` + (p.armour > .5 ? `  ⛨ ${Math.ceil(p.armour)}` : '');
+    $('hpWrap') && $('hpWrap').classList.toggle('armoured', p.armour > .5);
     $('hpBar').style.transform = `scaleX(${Math.max(0, p.hp) / p.max})`;
     $('horseBarWrap').hidden = !p.mounted;
     $('horseBar').style.transform = `scaleX(${Math.min(1, Math.max(0, p.horseHp) / horseMax(G.myTi))})`;
@@ -72,8 +73,8 @@ export function updateHud(lastSnapAt) {
     const id = b.dataset.up, def = UPGRADES.find(u => u.id === id), max = def ? def.cost.length : 0;
     const own = id === 'fort' ? G.teams[colorOf(G.myTi)] : me, l = own && own.up ? own.up[id] : 0, cost = upgradeCost(G.myTi, id); // (Fortify: the castle's)
     const locked = (id === 'foot2' && !(me.up && me.up.foot1)) || (id === 'arch2' && !(me.up && me.up.arch1));
-    b.querySelector('.lv').dataset.pips = '●'.repeat(l) + '○'.repeat(Math.max(0, max - l));
-    b.querySelector('em').textContent = cost == null ? 'Maxed' : locked ? (id === 'foot2' ? 'Needs Arms first' : 'Needs Training first') : cost + 'g';
+    b.querySelector('.lv').dataset.pips = id === 'arm' ? '' : '●'.repeat(l) + '○'.repeat(Math.max(0, max - l));
+    b.querySelector('em').textContent = cost == null ? (id === 'arm' ? (G.player && !G.player.dead ? 'Whole' : '—') : 'Maxed') : locked ? (id === 'foot2' ? 'Needs Arms first' : 'Needs Training first') : cost + 'g';
     b.dataset.state = cost == null ? 'max' : locked ? 'locked' : gold < cost ? 'poor' : 'ok';
     b.setAttribute('aria-disabled', (cost == null || gold < cost || locked) ? 'true' : 'false');
   });

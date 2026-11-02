@@ -2,7 +2,7 @@
 // presses and draws the host's snapshots (a compact text string, roughly 1-4KB depending on
 // how many soldiers are alive — more in a full 12-army Trio match — sent
 // about 12 times a second).
-import { RHYTHM, BASH, STREAK, EVADE, TEAMS, MAPS, KINDS, STATS, RECRUITS, FACTIONS, factionFromCode, ORDERS, ORDER_NAMES, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT, HOLD_ATK, PARRY } from '../config.js';
+import { ARMOUR, RHYTHM, BASH, STREAK, EVADE, TEAMS, MAPS, KINDS, STATS, RECRUITS, FACTIONS, factionFromCode, ORDERS, ORDER_NAMES, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT, HOLD_ATK, PARRY } from '../config.js';
 import { G, bus, colorOf, isEnemyTi, activeFrom, ARMIES, duoStr, duoParse } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn, angDiff } from '../core/world.js';
 import { buildNav, syncGates } from '../core/nav.js';
@@ -48,7 +48,7 @@ function encodeSnap() {
     if (u.dead) continue;
     const kt = KINDS.indexOf(u.kind) * 16 + u.ti;
     const fl = (u.swing > 0 ? 1 : 0) | (u.mounted ? 2 : 0) | ((u.blockT > 0 || (u.human && u.blocking)) ? 4 : 0) | (u.carrying ? 8 : 0) | (u.stun > 0 ? 16 : 0) | (u.aim ? 32 : 0) | (u.shieldwall ? 64 : 0) | (u.weapon === 'spear' ? 128 : u.weapon === 'jav' ? 256 : u.weapon === 'sword' ? 512 : 0) | (u.charge > 0 ? 1024 : 0)
-      | (u.windup > 0 ? 2048 : 0) | (u.glint ? 4096 : 0) | (u.heavyCharge > 0 ? 8192 : 0) | (u.bracing ? 16384 : 0) | (u.javDraw > 0 ? 32768 : 0) | (u.couch || u.rideReady ? 65536 : 0) | (u.routing ? 131072 : 0) | (u.rallyT > 0 ? 262144 : 0) | (u.execReady ? 524288 : 0) | (u.execA ? 1048576 : 0) | (u.execV ? 2097152 : 0) | (u.leader && u.swing > 0 ? (u.swingKind & 7) * 4194304 : 0) | (u.dueled ? 33554432 : 0); // (bits 22-24: which blow a captain is swinging)
+      | (u.windup > 0 ? 2048 : 0) | (u.glint ? 4096 : 0) | (u.heavyCharge > 0 ? 8192 : 0) | (u.bracing ? 16384 : 0) | (u.javDraw > 0 ? 32768 : 0) | (u.couch || u.rideReady ? 65536 : 0) | (u.routing ? 131072 : 0) | (u.rallyT > 0 ? 262144 : 0) | (u.execReady ? 524288 : 0) | (u.execA ? 1048576 : 0) | (u.execV ? 2097152 : 0) | (u.leader && u.swing > 0 ? (u.swingKind & 7) * 4194304 : 0) | (u.dueled ? 33554432 : 0) | (u.armour > 0 ? Math.max(1, Math.round(u.armour / ARMOUR.hp * 7)) * 67108864 : 0); // (bits 26-28: a captain's armour, in sevenths) // (bits 22-24: which blow a captain is swinging)
     const row = [b36(u.id), kt.toString(16), encX(u.x), encX(u.z), encF(u.face), b36(clamp(u.hp / u.max, 0, 1) * 35), b36(fl)];
     if (u.jy > .05) row.push(b36(u.jy * 10));
     us.push(row.join(','));
@@ -60,7 +60,7 @@ function encodeSnap() {
   const pl = G.teams.map((s, i) => {
     if (!s.human || i === G.myTi) return ''; const L = s.leader, k = L.kick;
     if (k.dirty) { k.n++; k.dirty = false; k.lvx = k.vx; k.lvz = k.vz; k.lst = k.st; k.vx = 0; k.vz = 0; k.st = 0; }
-    return [i, b36(L.id), L.dead ? 1 : 0, Math.round(L.horseHp), Math.ceil(L.horseCd), L.summon ? 1 : 0, k.n, r1(k.lvx || 0), r1(k.lvz || 0), r2(k.lst || 0), Math.round(L.hp), '', L.streak | 0].join(','); // (11: unused; 12: the streak)
+    return [i, b36(L.id), L.dead ? 1 : 0, Math.round(L.horseHp), Math.ceil(L.horseCd), L.summon ? 1 : 0, k.n, r1(k.lvx || 0), r1(k.lvz || 0), r2(k.lst || 0), Math.round(L.hp), '', L.streak | 0, Math.round(L.armour || 0)].join(','); // (11: unused; 12: the streak)
   }).filter(Boolean).join(';');
   // the map's holdings, and control mode's points: who has each, and how far a capture has got
   const hd = (G.holds || []).map(h => [h.owner, Math.round(h.prog * 100), h.cap, h.contested ? 1 : 0, h.chest | 0].join(',')).join(';');
@@ -206,7 +206,7 @@ function clientApply(hp) {
   if (secs[9] && G.ctrlPoints) secs[9].split(';').forEach((r, i) => { const p = G.ctrlPoints[i], v = r.split(',').map(Number); if (p) { p.owner = v[0]; p.prog = v[1] / 100; p.capturer = v[2] < 0 ? null : v[2]; } });
   const mine = secs[6] ? secs[6].split(';').map(r => r.split(',')).find(r => +r[0] === myTi) : null;
   let myId = null;
-  if (mine) { myId = p36(mine[1]); C.meInfo = { dead: +mine[2], horseHp: +mine[3], horseCd: +mine[4], summon: +mine[5], kn: +mine[6], kvx: +mine[7], kvz: +mine[8], kst: +mine[9], hp: +mine[10], streak: +mine[12] || 0 }; }
+  if (mine) { myId = p36(mine[1]); C.meInfo = { dead: +mine[2], horseHp: +mine[3], horseCd: +mine[4], summon: +mine[5], kn: +mine[6], kvx: +mine[7], kvz: +mine[8], kst: +mine[9], hp: +mine[10], streak: +mine[12] || 0, armour: +mine[13] || 0 }; }
   const seen = new Set();
   if (secs[2]) for (const row of secs[2].split(';')) {
     const f = row.split(','), id = p36(f[0]), kt = parseInt(f[1], 16);
@@ -232,6 +232,7 @@ function clientApply(hp) {
     u.mounted = !!(fl & 2); u.carrying = !!(fl & 8);
     u.shieldwall = !!(fl & 64);
     u.dueled = !!(fl & 33554432);
+    if (id !== myId) u.armour = ((fl / 67108864) & 7) / 7 * ARMOUR.hp; // (others' armour, roughly: for the bar over their heads)
     u.execReady = !!(fl & 524288); u.execA = !!(fl & 1048576); u.execV = !!(fl & 2097152); // (an execution: who's marked, who's doing it, who's kneeling)
     if (id !== myId) {
       u.blockT = (fl & 4) ? .2 : 0; u.stun = (fl & 16) ? .1 : 0; u.aim = !!(fl & 32);
@@ -256,7 +257,7 @@ function clientApply(hp) {
     const me = C.byId.get(myId);
     if (C.meId !== myId) { C.meId = myId; C.meInit = true; G.player = me; cam.yaw = me.face; C.kickN = C.meInfo ? C.meInfo.kn : 0; }
     G.player = me;
-    me.horseHp = C.meInfo.horseHp; me.horseCd = C.meInfo.horseCd; me.summon = !!C.meInfo.summon; me.hp = C.meInfo.hp; me.streak = C.meInfo.streak;
+    me.horseHp = C.meInfo.horseHp; me.horseCd = C.meInfo.horseCd; me.summon = !!C.meInfo.summon; me.hp = C.meInfo.hp; me.streak = C.meInfo.streak; me.armour = C.meInfo.armour;
     if (C.meInfo.kn !== C.kickN) {
       C.kickN = C.meInfo.kn; me.vx += C.meInfo.kvx; me.vz += C.meInfo.kvz; me.stun = Math.max(me.stun, C.meInfo.kst);
       if (C.meInfo.kvx || C.meInfo.kvz) { cam.shake = .35; buzz(30); bus.emit('spark', { x: me.x, y: me.y + 1.2, z: me.z, c: TEAMS[colorOf(me.ti)].css, n: 5 }); sfx.hit(me.x, me.z); }
@@ -545,11 +546,11 @@ export const actions = {
     if (G.state !== 'play') return;
     const me = G.teams[G.myTi], cost = upgradeCost(G.myTi, id), u = UPGRADES.find(x => x.id === id);
     if (!u) return;
-    if (cost == null) { banner(`${u.name} is maxed`, 'Try another upgrade'); return; }
+    if (cost == null) { banner(id === 'arm' ? 'Your armour is whole' : `${u.name} is maxed`, id === 'arm' ? 'Buy it again once it\'s been hacked away' : 'Try another upgrade'); return; }
     if (me.gold < cost) { banner('Not enough gold', `${u.name} costs ${cost} gold`, '#ffcf3a'); return; }
     if (isClient()) {
-      C.inp.up[UPGRADES.indexOf(u)]++; me.gold -= cost; if (id !== 'fort') me.up[id]++; C.goldLocalAt = C.upLocalAt = performance.now();
-      sfx.coin(); showMsg('upgrade', [G.myTi, id, me.up[id]]);
+      C.inp.up[UPGRADES.indexOf(u)]++; me.gold -= cost; if (id !== 'fort' && id !== 'arm') me.up[id]++; C.goldLocalAt = C.upLocalAt = performance.now();
+      if (id === 'arm') { me.armBuys = (me.armBuys | 0) + 1; if (G.player) G.player.armour = ARMOUR.hp; sfx.draw(); showMsg('armourOn', [G.myTi]); } else { sfx.coin(); showMsg('upgrade', [G.myTi, id, me.up[id]]); }
     } else buyUpgrade(G.myTi, id);
     bus.emit('hud');
   },

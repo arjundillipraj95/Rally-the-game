@@ -70,7 +70,7 @@ bus.on('hitstop', t => { hitstop = Math.max(hitstop, t); });
 bus.on('buzz', ms => buzz(ms));
 // the big moments of a fight: a parry, a guard smashed open, a rider skewered or knocked off his horse.
 // (On the host these come straight from the rules; on a joining player's phone, with the next snapshot.)
-const FIGHT_POW = { fxpush: ['', ''], fxrhythm: ['', ''], fxvland: ['', ''], fxvcharge: ['', ''], fxbreach: ['', ''], fxdisarm: ['DISARMED!', '#ff8a3a'], fxbash: ['BASH!', '#ffffff'], fxstreak: ['RAMPAGE!', '#ffd23a'], fxduelask: ['', ''], fxduel: ['', ''], fxduelwin: ['', ''], fxdueldraw: ['', ''], fxduelbreak: ['', ''], fxduelno: ['', ''], fxevade: ['EVADED!', '#9fe3ff'], fxback: ['BACKSTAB!', '#ff8a3a'], fxexec: ['EXECUTED!', '#ff3b2e'], fxexecgo: ['', ''], fxcapkill: ['CAPTAIN SLAIN!', '#ffd23a'], fxrally: ['RALLY!', '#ffd23a'], fxrout: ['', ''], fxride: ['', ''], fxjoust: ['JOUSTED!', '#ffd23a'], fxparry: ['PARRY!', '#ffffff'], fxbreak: ['GUARD BROKEN!', '#ff8a3a'], fximpale: ['SKEWERED!', '#ffd23a'], fxunhorse: ['UNHORSED!', '#ffd23a'], fxint: ['STAGGERED!', '#ffd23a'] };
+const FIGHT_POW = { fxarmour: ['', ''], fxpush: ['', ''], fxrhythm: ['', ''], fxvland: ['', ''], fxvcharge: ['', ''], fxbreach: ['', ''], fxdisarm: ['DISARMED!', '#ff8a3a'], fxbash: ['BASH!', '#ffffff'], fxstreak: ['RAMPAGE!', '#ffd23a'], fxduelask: ['', ''], fxduel: ['', ''], fxduelwin: ['', ''], fxdueldraw: ['', ''], fxduelbreak: ['', ''], fxduelno: ['', ''], fxevade: ['EVADED!', '#9fe3ff'], fxback: ['BACKSTAB!', '#ff8a3a'], fxexec: ['EXECUTED!', '#ff3b2e'], fxexecgo: ['', ''], fxcapkill: ['CAPTAIN SLAIN!', '#ffd23a'], fxrally: ['RALLY!', '#ffd23a'], fxrout: ['', ''], fxride: ['', ''], fxjoust: ['JOUSTED!', '#ffd23a'], fxparry: ['PARRY!', '#ffffff'], fxbreak: ['GUARD BROKEN!', '#ff8a3a'], fximpale: ['SKEWERED!', '#ffd23a'], fxunhorse: ['UNHORSED!', '#ffd23a'], fxint: ['STAGGERED!', '#ffd23a'] };
 bus.on('fxmsg', d => {
   const u = d.u, me = G.player;
   if (d.k === 'fxopen') { if (u && d.a === me) bus.emit('fighttip', 'shield'); return; } // (your blow knocked his shield aside)
@@ -99,6 +99,7 @@ bus.on('fxmsg', d => {
     if (me && Math.hypot(x - me.x, z - me.z) < 60) cam.shake = Math.max(cam.shake, .5);
     return;
   }
+  if (d.k === 'fxarmour') { pow(u.x, u.y + 3.1, u.z, mine ? 'ARMOUR BROKEN!' : 'ARMOUR BROKEN!', '#c9d2dc'); spark(u.x, u.y + 1.8, u.z, '#c9d2dc', 18); sfx.guardbreak(u.x, u.z); if (mine) { buzz([60, 30, 60]); cam.shake = Math.max(cam.shake, .4); bus.emit('fighttip', 'armour'); } return; }
   if (d.k === 'fxpush') { const f = u.face; pow(u.x + Math.sin(f) * 3, u.y + 2.6, u.z + Math.cos(f) * 3, 'PUSH!', '#ffffff'); if (d.heavy) { dust(u.x + Math.sin(f) * 3, u.z + Math.cos(f) * 3); cam.shake = Math.max(cam.shake, mine ? .4 : .2); } if (mine) buzz(d.heavy ? [40, 20, 60] : 20); return; }
   if (d.k === 'fxrhythm') { pow(u.x, u.y + 3.3, u.z, 'RHYTHM!', '#ffd23a'); sfx.heavy(u.x, u.z); if (mine) { buzz([30, 20, 30, 20, 60]); cam.shake = Math.max(cam.shake, .4); } return; }
   if (d.k === 'fxvland') { if (mine) bus.emit('fighttip', 'vcharge'); return; } // (your volley's landed: the moment to charge)

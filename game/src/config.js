@@ -112,6 +112,10 @@ export const RHYTHM = { at: .52, w: .12, mult: 1.45, kb: 1.5, stun: .75 };
 // whole wall heaves forward a step, and every enemy right in front of it is shoved back (kb), knocked
 // off balance (stun) with his shield knocked aside, for a little damage (mult of a footman's blow).
 export const PUSH = { cd: 4, reach: 2.4, kb: 9, stun: .7, mult: .4, step: 6 };
+// Captain's armour (the Armour upgrade): hp more to get through, taking soak of each blow that lands
+// (pierce of a heavy blow, a backstab or a broken guard). It never mends; when it's gone it can be
+// bought again (cost, then step more each time, up to maxCost). Lost when the captain falls.
+export const ARMOUR = { hp: 60, cost: 70, step: 20, maxCost: 150, soak: .8, pierce: .45 };
 export const STREAK = { gap: 3, n: 8, mult: 2.2, kb: 2.2, stun: .9, cleaveN: 5 };
 // The shield bash: Block tapped, then Attack within window s (not at once: one after the other). A shove
 // with the shield: little damage, but it knocks a raised shield or guard aside (open s stunned). Unless
@@ -259,6 +263,7 @@ export const UPGRADES = [
   { id: 'arch2', name: 'Marksman', desc: 'Archers: +range, +accuracy',                              cost: [160] },
   { id: 'aura',  name: 'Aura',     desc: 'Bigger, stronger aura',                                   cost: [80, 140, 220] },
   { id: 'horse', name: 'Horse',    desc: 'Tougher, faster, back sooner',                             cost: [80, 140, 220] },
+  { id: 'arm',   name: 'Armour',   desc: 'Your captain: plate that soaks most of each blow. Never mends, buy it again', cost: [70] },
   { id: 'fort',  name: 'Fortify',  desc: 'Your castle: a palisade with two gates, then gate towers that shoot', cost: [110, 170] },
 ];
 // Fortify (bought for the castle, shared by everyone in it): a palisade ring of r with two open gates

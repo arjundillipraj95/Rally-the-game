@@ -1,7 +1,7 @@
 // The 2D layer drawn over the 3D view: sparks, floating text, health bars, names,
 // the banner pointer, the joystick and the red tint while you are down. Also the minimap.
 import * as THREE from 'three';
-import { TEAMS, DUEL, STREAK, RHYTHM, CAPTAIN_COMBAT } from '../config.js';
+import { TEAMS, DUEL, STREAK, RHYTHM, CAPTAIN_COMBAT, ARMOUR } from '../config.js';
 import { G, isEnemyTi, isFfa, colorOf, isOut } from '../core/state.js';
 import { groundY, clamp, W } from '../core/world.js';
 import { camera, view } from './scene.js';
@@ -45,6 +45,7 @@ export function drawOverlay(opts) {
       const w = u.leader ? 40 : 26;
       ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, sy, w, 4);
       ctx.fillStyle = TEAMS[colorOf(u.ti)].css; ctx.fillRect(sx - w / 2, sy, w * Math.max(0, u.hp / u.max), 4);
+      if (u.leader && u.armour > .5) { ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, sy - 4, w, 3); ctx.fillStyle = '#c9d2dc'; ctx.fillRect(sx - w / 2, sy - 4, w * Math.min(1, u.armour / ARMOUR.hp), 3); } // (armour: a steel bar over the health)
       if (u.leader && G.teams[u.ti] && G.teams[u.ti].human && opts.nickFor) {
         const nick = opts.nickFor(u.ti);
         if (nick) { ctx.font = '800 12px "Barlow Semi Condensed", sans-serif'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.strokeText(nick, sx, sy - 6); ctx.fillStyle = '#fff'; ctx.fillText(nick, sx, sy - 6); }

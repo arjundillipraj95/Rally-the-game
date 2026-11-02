@@ -19,6 +19,7 @@ const TIPS = {
   attack: 'Drag the Order button onto enemies to send your men at them',
   vcharge: 'Volley landed! Order Charge now: they hit harder',
   push: 'Shieldwall: press Attack to heave the whole wall forward',
+  armour: 'Your armour is gone. Buy it again from Upgrades',
 };
 let lastAt = 0; const shown = new Set(); // (each tip at most once a match; the parry ones jump the queue)
 const URGENT = new Set(['parry', 'break', 'guard', 'rider', 'horn', 'vcharge']);
