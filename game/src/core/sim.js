@@ -636,7 +636,7 @@ export function execMark() {
       if (o.dead || o === v) continue;
       const d = Math.hypot(o.x - v.x, o.z - v.z);
       if (!isEnemy(o, v)) { if (!o.leader && d < EXEC.clearR && !v.duelId) { guarded = true; break; } } // (in a duel his men keep the ring: nobody steps in to save him)
-      else if (o.leader && o.human && !o.mounted && d < EXEC.markR && (o.duelId || 0) === (v.duelId || 0)) hunter = true;
+      else if (o.leader && o.human && d < (o.mounted ? EXEC.markR * 2 : EXEC.markR) && (o.duelId || 0) === (v.duelId || 0)) hunter = true; // (a rider marks him from further off: he'll be on him in a moment)
     }
     v.execReady = hunter && !guarded;
   }
@@ -719,6 +719,8 @@ function rideStrike(p, tg, q) {
   if (p.human) fx('fxmsg', { k: 'fxride', u: tg || p, a: p, q });
   if (!tg || q === 'miss') return;
   const ang = Math.atan2(tg.x - p.x, tg.z - p.z); p.face = turn(p.face, ang, .5);
+  // a beaten captain, marked, taken at full gallop with a perfect release: ridden down
+  if (q === 'perfect' && p.human && tg.leader && tg.execReady && !tg.dead && (p.gallop || 0) >= .6 && (tg.duelId || 0) === (p.duelId || 0)) { rideDown(p, tg, ang); return; }
   const mult = RIDE[w].mult * (q === 'perfect' ? RIDE.perfectX : q === 'good' ? RIDE.goodX : RIDE.grazeX) * (.5 + .6 * sf);
   if (q === 'perfect' && w === 'spear' && tg.mounted) { horseDamage(tg, 999); if (tg.mounted) dismount(tg, true); gainRally(p, RALLY.unhorse); fx('fxmsg', { k: 'fxjoust', u: tg, a: p }); } // a lance square on another rider: off he goes
   hit(p, tg, mult, { heavy: q !== 'graze', shown: true, kb: q === 'perfect' ? 2.2 : 1.2, stun: q === 'perfect' ? 1 : .4 }); // (shown: a rider's blow is always announced, so always parryable on the glint)
@@ -731,6 +733,15 @@ function rideStrike(p, tg, q) {
     } }
     if (p.isMe) { fx('hitstop', .08); fx('shake', .4); }
   }
+}
+function rideDown(p, v, ang) {
+  v.execReady = false; v.hp = 0; v.lastHit = G.T;
+  p.slowT = Math.max(p.slowT || 0, .7); v.slowT = .7;
+  spark(v.x, v.y + 1.4, v.z, TEAMS[colorOf(v.ti)].css, 16); sound('heavy', v.x, v.z); sound('trample', v.x, v.z);
+  fx('fxmsg', { k: 'fxridedown', u: v, a: p });
+  die(v, p, ang, 1); loseHeart(v.ti, EXEC.morale); gainRally(p, EXEC.rally); hl(p.ti, 'exec'); hl(p.ti, 'ridedown');
+  if (p.isMe) { fx('hitstop', .16); fx('shake', .6); }
+  if (p.remote) fx('netFlush');
 }
 // a computer rider: lines up on a target, lowers his weapon (a red "!"), glints just before the blow
 // (the moment for a man on foot to parry), and strikes with a timing that depends on the difficulty

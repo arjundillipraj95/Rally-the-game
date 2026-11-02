@@ -7,7 +7,7 @@ import '@fontsource/barlow-semi-condensed/latin-800-italic.css';
 import './style.css';
 import { TEAMS, MODES, MAPS, PRESETS, RANKS, CRESTS, QUIPS, TIPS, AL_LETTER, TARGETS, DUEL } from './config.js';
 import { G, bus, colorOf, rules, matchTime, modeDesc, activeFrom, targetFor, SLOT_NAME } from './core/state.js';
-import { orderVolley, challenge, canChallenge, startMatch, mkUnit, newTeams, update, fallStep, endMatch, auraRange, endStep, setOrder, applyFort } from './core/sim.js';
+import { rideRelease, orderVolley, challenge, canChallenge, startMatch, mkUnit, newTeams, update, fallStep, endMatch, auraRange, endStep, setOrder, applyFort } from './core/sim.js';
 import { makeLayout, gatePos, groundY } from './core/world.js';
 import { buildNav, findPath } from './core/nav.js';
 import { renderer, scene, camera, resize, applyPixelRatio, applyShadowQuality, followSun } from './render/scene.js';
@@ -70,7 +70,7 @@ bus.on('hitstop', t => { hitstop = Math.max(hitstop, t); });
 bus.on('buzz', ms => buzz(ms));
 // the big moments of a fight: a parry, a guard smashed open, a rider skewered or knocked off his horse.
 // (On the host these come straight from the rules; on a joining player's phone, with the next snapshot.)
-const FIGHT_POW = { fxarmour: ['', ''], fxpush: ['', ''], fxrhythm: ['', ''], fxvland: ['', ''], fxvcharge: ['', ''], fxbreach: ['', ''], fxdisarm: ['DISARMED!', '#ff8a3a'], fxbash: ['BASH!', '#ffffff'], fxstreak: ['RAMPAGE!', '#ffd23a'], fxduelask: ['', ''], fxduel: ['', ''], fxduelwin: ['', ''], fxdueldraw: ['', ''], fxduelbreak: ['', ''], fxduelno: ['', ''], fxevade: ['EVADED!', '#9fe3ff'], fxback: ['BACKSTAB!', '#ff8a3a'], fxexec: ['EXECUTED!', '#ff3b2e'], fxexecgo: ['', ''], fxcapkill: ['CAPTAIN SLAIN!', '#ffd23a'], fxrally: ['RALLY!', '#ffd23a'], fxrout: ['', ''], fxride: ['', ''], fxjoust: ['JOUSTED!', '#ffd23a'], fxparry: ['PARRY!', '#ffffff'], fxbreak: ['GUARD BROKEN!', '#ff8a3a'], fximpale: ['SKEWERED!', '#ffd23a'], fxunhorse: ['UNHORSED!', '#ffd23a'], fxint: ['STAGGERED!', '#ffd23a'] };
+const FIGHT_POW = { fxridedown: ['', ''], fxarmour: ['', ''], fxpush: ['', ''], fxrhythm: ['', ''], fxvland: ['', ''], fxvcharge: ['', ''], fxbreach: ['', ''], fxdisarm: ['DISARMED!', '#ff8a3a'], fxbash: ['BASH!', '#ffffff'], fxstreak: ['RAMPAGE!', '#ffd23a'], fxduelask: ['', ''], fxduel: ['', ''], fxduelwin: ['', ''], fxdueldraw: ['', ''], fxduelbreak: ['', ''], fxduelno: ['', ''], fxevade: ['EVADED!', '#9fe3ff'], fxback: ['BACKSTAB!', '#ff8a3a'], fxexec: ['EXECUTED!', '#ff3b2e'], fxexecgo: ['', ''], fxcapkill: ['CAPTAIN SLAIN!', '#ffd23a'], fxrally: ['RALLY!', '#ffd23a'], fxrout: ['', ''], fxride: ['', ''], fxjoust: ['JOUSTED!', '#ffd23a'], fxparry: ['PARRY!', '#ffffff'], fxbreak: ['GUARD BROKEN!', '#ff8a3a'], fximpale: ['SKEWERED!', '#ffd23a'], fxunhorse: ['UNHORSED!', '#ffd23a'], fxint: ['STAGGERED!', '#ffd23a'] };
 bus.on('fxmsg', d => {
   const u = d.u, me = G.player;
   if (d.k === 'fxopen') { if (u && d.a === me) bus.emit('fighttip', 'shield'); return; } // (your blow knocked his shield aside)
@@ -97,6 +97,13 @@ bus.on('fxmsg', d => {
     const c = colorOf(d.ti ?? u.ti), [x, z] = TEAMS[c].pos;
     pow(x, groundY(x, z) + 9, z, 'BREACH!', '#e0352b'); shockwave(x, z, 26, '#e0352b');
     if (me && Math.hypot(x - me.x, z - me.z) < 60) cam.shake = Math.max(cam.shake, .5);
+    return;
+  }
+  if (d.k === 'fxridedown') { // a beaten captain ridden down at full gallop
+    if (!near && !mine && d.a !== me) return;
+    pow(u.x, u.y + 3.4, u.z, 'RIDDEN DOWN!', '#ff3b2e'); shockwave(u.x, u.z, 14, '#ff3b2e'); sfx.heavy(u.x, u.z); sfx.trample(u.x, u.z);
+    u.slowT = Math.max(u.slowT || 0, .7); if (d.a) d.a.slowT = Math.max(d.a.slowT || 0, .7);
+    musicCue(mine ? 'fell' : d.a === me ? 'slain' : 'capdown'); cam.shake = Math.max(cam.shake, .6); if (d.a === me || mine) buzz(120);
     return;
   }
   if (d.k === 'fxarmour') { pow(u.x, u.y + 3.1, u.z, mine ? 'ARMOUR BROKEN!' : 'ARMOUR BROKEN!', '#c9d2dc'); spark(u.x, u.y + 1.8, u.z, '#c9d2dc', 18); sfx.guardbreak(u.x, u.z); if (mine) { buzz([60, 30, 60]); cam.shake = Math.max(cam.shake, .4); bus.emit('fighttip', 'armour'); } return; }
@@ -215,6 +222,7 @@ function showMoments(h) {
   const lines = [
     n('duel', 'Won a duel', 'Won # duels'),
     n('exec', 'Executed a captain', 'Executed # captains'),
+    n('ridedown', 'Rode down a beaten captain', 'Rode down # beaten captains'),
     n('rampage', 'Went on a rampage', 'Went on # rampages'),
     n('castle', 'Brought down a castle', 'Brought down # castles'),
     n('chest', 'Took the war chest', 'Took the war chest'),
@@ -610,7 +618,7 @@ window.__fb = {
   volley(pt) { actions.volley(pt); }, order(o, pt) { actions.order(o, pt); }, rally() { actions.rally(); },
   attack() { actions.attack(); }, duel() { actions.duel(); }, jump() { actions.jump(); }, weapon(w) { actions.weapon(w); }, upgrade(id) { actions.upgrade(id); },
   fort(c, lv) { G.teams[c].up.fort = lv; applyFort(c); },
-  setOrder, findPath, gatePos, orderVolley, mkUnit, challenge, canChallenge, G, cam, scene, audio: () => audioStats(),
+  setOrder, rideRelease, findPath, gatePos, orderVolley, mkUnit, challenge, canChallenge, G, cam, scene, audio: () => audioStats(),
 };
 
 function onResize() { resize(); resizeOverlay(); }

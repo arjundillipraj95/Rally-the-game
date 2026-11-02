@@ -108,15 +108,15 @@ function drawBubbles() {
 // A beaten enemy captain with none of his men about him: FINISH over his head, pulsing, while your
 // captain is close enough to see it (Attack in reach executes him).
 function drawFinish() {
-  const me = G.player; if (!me || me.dead || me.mounted) return;
-  const now = performance.now() / 1000;
+  const me = G.player; if (!me || me.dead) return;
+  const now = performance.now() / 1000, txt = me.mounted ? 'RIDE HIM DOWN' : 'FINISH HIM'; // (on horseback: a perfect ride-by at full gallop does it)
   for (const u of G.units) {
     if (!u.leader || u.dead || !u.execReady || !isEnemyTi(u.ti, me.ti)) continue;
-    if (Math.hypot(u.x - me.x, u.z - me.z) > 9) continue;
+    if (Math.hypot(u.x - me.x, u.z - me.z) > (me.mounted ? 18 : 9)) continue;
     const [sx, sy, ok] = proj(u.x, u.y + 3.5, u.z); if (!ok) continue;
     const p = 1 + .1 * Math.sin(now * 9), sz = Math.round(17 * p);
     ctx.textAlign = 'center'; ctx.font = `900 italic ${sz}px Bangers, Impact, sans-serif`; ctx.lineWidth = 5; ctx.strokeStyle = '#1a0606';
-    ctx.strokeText('FINISH HIM', sx, sy); ctx.fillStyle = '#ff3b2e'; ctx.fillText('FINISH HIM', sx, sy);
+    ctx.strokeText(txt, sx, sy); ctx.fillStyle = '#ff3b2e'; ctx.fillText(txt, sx, sy);
   }
 }
 // The duels: a gold ring on the ground round each one that's on, the time left over it; a challenge
