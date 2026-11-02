@@ -264,13 +264,13 @@ export const UPGRADES = [
   { id: 'aura',  name: 'Aura',     desc: 'Bigger, stronger aura',                                   cost: [80, 140, 220] },
   { id: 'horse', name: 'Horse',    desc: 'Tougher, faster, back sooner',                             cost: [80, 140, 220] },
   { id: 'arm',   name: 'Armour',   desc: 'Your captain: plate that soaks most of each blow. Never mends, buy it again', cost: [70] },
-  { id: 'fort',  name: 'Fortify',  desc: 'Your castle: a palisade with two gates, then gate towers that shoot', cost: [110, 170] },
+  { id: 'fort',  name: 'Fortify',  desc: 'Your castle: a palisade, then gates only your men can pass and gate towers that shoot. A broken gate can be mended', cost: [110, 170] },
 ];
 // Fortify (bought for the castle, shared by everyone in it): a palisade ring of r with two open gates
 // (gateW wide), in segs sections; then a tower at each gate shooting every towerEvery s. It can't be
 // shut: a gate is held by men (the Hold order). And it can be broken: each section has segHp, and a
 // blow does wallDmg of the striker's damage (a captain's more), so a squad hacks a breach in seconds.
-export const FORT = { r: 22, h: 3.4, segs: 12, gateW: 3.4, segHp: 360, wallDmg: .7, capWall: 1.4, towerEvery: 1.8, towerRange: 20, towerDmg: 6 };
+export const FORT = { gateHp: 480, repair: 60, r: 22, h: 3.4, segs: 12, gateW: 3.4, segHp: 360, wallDmg: .7, capWall: 1.4, towerEvery: 1.8, towerRange: 20, towerDmg: 6 };
 // The captain's aura: soldiers this close fight harder, block more and move a little faster.
 export const AURA = { range: 8, perRange: 3, bonus: .1, perBonus: .05 };
 export const CASTLE_R = 9.5, CASTLE_REACH = 11;

@@ -138,6 +138,7 @@ export const upgradeCost = (ti, id) => {
   if (id === 'arm') { const s = G.teams[ti], L = (ti === G.myTi && G.player) || (s && s.leader); // (a joiner's phone knows its own captain, not the team's)
     return !L || L.dead || (L.armour || 0) >= ARMOUR.hp - .5 ? null : Math.min(ARMOUR.maxCost, ARMOUR.cost + ARMOUR.step * (s.armBuys | 0)); } // (armour: whenever it's not whole, again and again)
   const l = lvl(id === 'fort' ? colorOf(ti) : ti, id); // (Fortify is the castle's, shared by everyone in it)
+  if (id === 'fort' && l >= def.cost.length) { const f = G.forts && G.forts[colorOf(ti)]; return f && (f.broken >> FORT.segs) & 3 ? FORT.repair : null; } // (built: then mending a broken gate)
   return l >= def.cost.length ? null : def.cost[l];
 };
 // Applying a tier retroactively updates every already-recruited unit of that kind, matching
@@ -172,6 +173,9 @@ export function buyUpgrade(ti, id) {
   if (id === 'arch2' && lvl(ti, 'arch1') < 1) return false;
   s.gold -= cost;
   if (id === 'arm') { s.armBuys = (s.armBuys | 0) + 1; s.leader.armour = ARMOUR.hp; sound('clang', s.leader.x, s.leader.z); if (ti === G.myTi || s.human) say('armourOn', ti); if (s.leader.remote) fx('netFlush'); return true; }
+  if (id === 'fort' && fortLvl(colorOf(ti)) >= UPGRADES.find(u => u.id === 'fort').cost.length) { // mend the broken gates
+    const c = colorOf(ti), f = G.forts[c]; f.broken &= ~(3 << FORT.segs); f.hp[FORT.segs] = f.hp[FORT.segs + 1] = FORT.gateHp; applyFort(c); say('gateRepaired', c); return true;
+  }
   if (id === 'fort') { G.teams[colorOf(ti)].up.fort++; applyFort(colorOf(ti)); say('fortUp', colorOf(ti), G.teams[colorOf(ti)].up.fort); return true; }
   s.up[id]++;
   if (id === 'foot1' || id === 'foot2') applyFootTier(ti);
@@ -1080,14 +1084,14 @@ function updateControlPoints(dt) {
 // is the castle army's 'fort' upgrade. Every phone applies the same thing (applyFort) to the
 // obstacles, the arrow blockers and the walking grid.
 export function initForts() {
-  G.forts = [0, 1, 2, 3].map(() => ({ broken: 0, hp: new Array(FORT.segs).fill(FORT.segHp), towerT: rnd(0, FORT.towerEvery) }));
+  G.forts = [0, 1, 2, 3].map(() => ({ broken: 0, hp: [...new Array(FORT.segs).fill(FORT.segHp), FORT.gateHp, FORT.gateHp], towerT: rnd(0, FORT.towerEvery) }));
   const start = (G.layout && G.layout.fortStart) || 0;
   for (let c = 0; c < 4; c++) { if (G.teams[c]) G.teams[c].up.fort = isOut(c) ? 0 : start; applyFort(c); }
 }
 export const fortLvl = c => (G.teams[c] && G.teams[c].up && G.teams[c].up.fort) || 0;
 export function applyFort(c) {
   const P = G.layout && G.layout.pal && G.layout.pal[c], f = G.forts && G.forts[c]; if (!P || !f) return;
-  const lv = fortLvl(c), on = k => lv >= 1 && !((f.broken >> k) & 1);
+  const lv = fortLvl(c), on = k => lv >= (k >= FORT.segs ? 2 : 1) && !((f.broken >> k) & 1); // (the gates come with the second level)
   for (const o of P.obs) o.off = !on(o.k);
   for (const b of P.blk) b.off = !on(b.k);
   for (let k = 0; k < FORT.segs; k++) setPalSeg(c + ':' + k, on(k));
@@ -1107,7 +1111,7 @@ function hitWall(u, w) {
   const f = G.forts[w.c]; if (!f || fortLvl(w.c) < 1 || ((f.broken >> w.k) & 1)) return;
   f.hp[w.k] -= u.dmg * FORT.wallDmg * (u.leader ? FORT.capWall : 1) * aiDmg(u.ti);
   sound('wall', w.x, w.z); spark(w.x, groundY(w.x, w.z) + 1.4, w.z, '#a3825a', 4);
-  if (f.hp[w.k] <= 0) { f.broken |= 1 << w.k; applyFort(w.c); say('breach', w.c, u.ti); }
+  if (f.hp[w.k] <= 0) { f.broken |= 1 << w.k; applyFort(w.c); if (w.k >= FORT.segs) { say('gateBroken', w.c, u.ti); fx('fxmsg', { k: 'fxgate', u, ti: w.c }); fx('netFlush'); } else say('breach', w.c, u.ti); }
 }
 
 // ---------- holdings: places on the map worth taking ----------
@@ -1857,6 +1861,7 @@ export function integrate(u, dt, pz) {
     if (o.gate && !gateShut(o)) continue;
     if (o.fence && u.vaultT > 0) continue; // (a pounce goes over a low wall or a hedge)
     if (o.off) continue; // (a palisade section not built yet, or broken down)
+    if (o.door && !isEnemyTi(o.c, u.ti)) continue; // (a castle's gate opens for its own)
     const dx = u.x - o.x, dz = u.z - o.z;
     if (o.box) {
       const c = Math.cos(o.rot), s = Math.sin(o.rot), lx = dx * c - dz * s, lz = dx * s + dz * c;

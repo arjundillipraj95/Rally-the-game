@@ -50,7 +50,7 @@ export function msgText(k, a) {
       return !isEnemyTi(a[1], myTi) ? [`Breach in ${nm(a[0])}'s palisade!`, a[1] === myTi ? 'Your doing: through the gap!' : 'Through the gap!', css(a[0])] : null;
     }
     case 'fortUp': // a[0]: the castle, a[1]: its Fortify level now
-      if (colorOf(a[0]) === colorOf(myTi)) return [a[1] >= 2 ? 'Gate towers built' : 'Palisade built', a[1] >= 2 ? 'They shoot whoever comes at your gates' : 'Two gates: hold them (drag Order onto a gate)', '#ffcf3a'];
+      if (colorOf(a[0]) === colorOf(myTi)) return [a[1] >= 2 ? 'Gates and towers built' : 'Palisade built', a[1] >= 2 ? 'The gates open for your men only; the towers shoot whoever comes at them' : 'Two gates: hold them (drag Order onto a gate)', '#ffcf3a'];
       return !isEnemyTi(a[0], myTi) ? null : [`${nm(a[0])} ${a[1] >= 2 ? 'built gate towers' : 'built a palisade'}`, 'Find a gate, or hack a breach', css(a[0])];
     // the duel. duelAsk: a[0] calls out a[1]; duelOn/duelDraw: a[0] and a[1]; duelWon: a[0] beat a[1];
     // duelBroken: a[0] forced his way into a[1] and a[2]'s; duelNo: a[0] turned a[1] down
@@ -66,6 +66,10 @@ export function msgText(k, a) {
     case 'duelNo': return mine(a[1]) ? [`${nm(a[0])} refuses!`, 'His men lose heart', css(a[0])] : mine(a[0]) ? ['You refused the duel', 'Your men lose heart', '#e0352b'] : null;
     case 'duelSacred': return mine(a[0]) ? ['A duel is sacred', 'You can watch, not step in'] : null;
     case 'volleyCharge': return mine(a[0]) ? ['Volley and charge!', 'They\'re reeling: your men hit harder while it lasts', '#ffcf3a'] : null;
+    case 'gateBroken': // a[0]: the castle whose gate fell, a[1]: by whom
+      if (colorOf(a[0]) === colorOf(myTi)) return ['Your gate is broken!', 'Mend it from Upgrades: Fortify', '#e0352b'];
+      return !isEnemyTi(a[0], myTi) ? [`${nm(a[0])}'s gate is broken!`, 'Help them hold it', css(a[0])] : [`${nm(a[0])}'s gate is down!`, a[1] === myTi ? 'Your doing: through it!' : 'Through it!', css(a[0])];
+    case 'gateRepaired': return colorOf(a[0]) === colorOf(myTi) ? ['Gate mended', 'It holds again', '#ffcf3a'] : null;
     case 'armourOn': return mine(a[0]) ? ['Armour on', 'It soaks most of each blow. It won\'t mend: buy it again when it\'s gone', '#ffcf3a'] : null;
     case 'lastStand': // a[0]: the castle (color) breached, a[1]: by whom
       if (colorOf(a[0]) === colorOf(myTi)) return ['Last stand!', 'Your walls are breached. By the castle your men hit harder and won\'t run. Horn ready!', '#e0352b'];

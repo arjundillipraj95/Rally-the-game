@@ -264,6 +264,16 @@ function palisades(L) {
       const o = { x, z, r: .8, pal: true, c, k, off: true, segKey: c + ':' + k }, b = { x, z, r: .8, h: FORT.h, pal: true, c, k, off: true };
       L.obstacles.push(o); L.blockers.push(b); obs.push(o); blk.push(b);
     }
+    // the gates themselves (Fortify's second level): a wall of logs across each gap that opens for the
+    // castle's own men and holds against everyone else until it's hacked down (sections segs and segs+1)
+    gates.forEach((g, gi) => {
+      const m = Math.max(3, Math.round(FORT.gateW * 2 / 1.04));
+      for (let j = 0; j <= m; j++) {
+        const a = g - half + (j / m) * half * 2, x = px + Math.cos(a) * FORT.r, z = pz + Math.sin(a) * FORT.r, k = FORT.segs + gi;
+        const o = { x, z, r: .8, pal: true, door: true, c, k, off: true, segKey: 'door' }, b = { x, z, r: .8, h: FORT.h, pal: true, door: true, c, k, off: true };
+        L.obstacles.push(o); L.blockers.push(b); obs.push(o); blk.push(b);
+      }
+    });
     // the gate towers (Fortify's second level): just outside each gate, on its right
     const towers = gates.map(g => { const a = g - (half + 2.2 / FORT.r); return { x: px + Math.cos(a) * (FORT.r + .2), z: pz + Math.sin(a) * (FORT.r + .2) }; });
     return { c, gates, obs, blk, towers };
