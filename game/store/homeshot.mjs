@@ -6,15 +6,15 @@ const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromi
 const page = await open(browser, W, H, { home: true });
 const errs = []; page.on('pageerror', e => errs.push(e.message));
 await frames(page, 30);
-await page.screenshot({ path: OUT + 'home.png' });
+await page.screenshot({ path: OUT + 'home.png', timeout: 120000 });
 await page.click('#wardBtn'); await frames(page, 10);
-for (const [slot, v] of [[0, 1], [3, 1], [5, 1], [6, 2]]) await page.click(`#wardSlots [data-slot="${slot}"] button[data-v="${v}"]`);
+for (const [c, v] of [['helm', 1], ['emblem', 1], ['cape', 1], ['face', 2], ['emblem', 1]]) { await page.click(`.wcats [data-c="${c}"]`); await page.click(`.witem[data-i="${v}"]`); }
 await frames(page, 40);
-await page.screenshot({ path: OUT + 'ward.png' });
+await page.screenshot({ path: OUT + 'ward.png', timeout: 120000 });
 await page.click('#wardDone'); await page.click('#cpuBtn'); await frames(page, 30);
-await page.screenshot({ path: OUT + 'cpusheet.png' });
+await page.screenshot({ path: OUT + 'cpusheet.png', timeout: 120000 });
 await page.click('#sheetBack'); await page.click('#setBtn'); await frames(page, 10);
-await page.screenshot({ path: OUT + 'setsheet.png' });
+await page.screenshot({ path: OUT + 'setsheet.png', timeout: 120000 });
 const look = await page.evaluate(() => localStorage.getItem('rally-look'));
 console.log('look', look, 'errors:', errs.slice(0, 3));
 await browser.close();

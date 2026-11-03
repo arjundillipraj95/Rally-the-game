@@ -7,7 +7,7 @@ export async function open(browser, w, h, opts = {}) {
   page.on('pageerror', e => console.log('PAGEERROR', e.message)); page.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') console.log('CONSOLE', m.type(), m.text().slice(0, 300)); });
   await page.addInitScript(sheet => { window.__testSheet = sheet; }, !opts.home); // (older tests: start on the Battle the computer sheet, where their buttons live)
   await page.addInitScript(() => {
-    localStorage.setItem('rally-quality', 'high'); window.__testSheet = true; localStorage.setItem('rally-tutorial-done', '1');
+    localStorage.setItem('rally-quality', 'high'); localStorage.setItem('rally-tutorial-done', '1');
     window.__raf = []; window.__t = 0;
     window.requestAnimationFrame = cb => { window.__raf.push(cb); return window.__raf.length; };
     window.__frame = (n = 1, dt = 1000 / 30) => { for (let i = 0; i < n; i++) { window.__t += dt; const q = window.__raf; window.__raf = []; q.forEach(cb => cb(window.__t)); } };

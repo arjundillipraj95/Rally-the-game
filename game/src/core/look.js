@@ -5,21 +5,32 @@
 // Team colour never changes: it stays on the plume, the shield face and the cape.
 import { G } from './state.js';
 
+// The catalog. Each slot lists its items; an item's place in the list is what an outfit stores, so new
+// items go on the end (an outfit saved today keeps meaning the same thing). An item can carry `lock`:
+// { rank: n } (earned by rank), { shop: true } or { season: n }: the wardrobe shows how to get it.
+// `army: true` slots are worn by the whole army; the rest by the captain alone.
 export const SLOTS = [
-  { id: 'helm', name: 'Helmet', opts: ['Galea', 'Corinthian', 'Wild hair'] },
-  { id: 'armour', name: 'Armour', opts: ['Steel bands', 'Bronze', 'Leather & fur'] },
-  { id: 'shield', name: 'Shield', opts: ['Tower', 'Hoplon', 'Wooden round'] },
-  { id: 'emblem', name: 'Emblem', opts: ['Eagle', 'Sun', 'Thunder'] },
-  { id: 'weapon', name: 'Weapon', opts: ['Gladius', 'Long blade', 'Axe'] },
-  { id: 'cape', name: 'Cape', opts: ['Long cape', 'Short cape', 'Fur mantle'] },
-  { id: 'face', name: 'Face', opts: ['Clean', 'Bearded', 'Big beard'] },
+  { id: 'helm', name: 'Helmet', army: true, items: [{ name: 'Galea' }, { name: 'Corinthian' }, { name: 'Wild hair' }] },
+  { id: 'armour', name: 'Armour', army: true, items: [{ name: 'Steel bands' }, { name: 'Bronze' }, { name: 'Leather & fur' }] },
+  { id: 'shield', name: 'Shield', army: true, items: [{ name: 'Tower' }, { name: 'Hoplon' }, { name: 'Wooden round' }] },
+  { id: 'emblem', name: 'Emblem', army: true, items: [{ name: 'Eagle' }, { name: 'Sun' }, { name: 'Thunder' }] },
+  { id: 'weapon', name: 'Weapon', army: true, items: [{ name: 'Gladius' }, { name: 'Long blade' }, { name: 'Axe' }] },
+  { id: 'cape', name: 'Cape', items: [{ name: 'Long cape' }, { name: 'Short cape' }, { name: 'Fur mantle' }] },
+  { id: 'face', name: 'Face', items: [{ name: 'Clean' }, { name: 'Bearded' }, { name: 'Big beard' }] },
 ];
+for (const s of SLOTS) s.opts = s.items.map(i => i.name); // (the plain names, for older code)
 export const SLOT_IX = Object.fromEntries(SLOTS.map((s, i) => [s.id, i]));
-export const DEFAULT_LOOK = [0, 0, 0, 0, 0, 0, 0];
+export const DEFAULT_LOOK = SLOTS.map(() => 0);
 
 const okLook = v => Array.isArray(v) && v.length === SLOTS.length && v.every((x, i) => Number.isInteger(x) && x >= 0 && x < SLOTS[i].opts.length);
-export const lookCode = v => (okLook(v) ? v : DEFAULT_LOOK).join('');
-export const lookFrom = s => { const v = String(s || '').split('').map(Number); return okLook(v) ? v : null; };
+// An outfit as text: one base-36 character per slot (room for 36 items a slot). A code saved before a
+// slot was added is short: the new slots read as their first item.
+export const lookCode = v => (okLook(v) ? v : DEFAULT_LOOK).map(x => x.toString(36)).join('');
+export const lookFrom = s => {
+  const str = String(s || ''); if (!str || str.length > SLOTS.length) return null;
+  const v = SLOTS.map((_, i) => i < str.length ? parseInt(str[i], 36) : 0);
+  return okLook(v) ? v : null;
+};
 // an old faction becomes a matching outfit (Romans 0, Greeks 1, Barbarians 2)
 export const lookOfFaction = f => { const b = { roman: 0, greek: 1, barbarian: 2 }[f] ?? 0; return [b, b, b, b % 3, b, b === 2 ? 2 : 0, b === 2 ? 1 : 0]; };
 

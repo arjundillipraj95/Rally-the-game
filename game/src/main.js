@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { walkable } from './core/nav.js';
 // Rally! Boots the game, runs the frame loop and wires the rules to the screen.
 // fonts ship with the game (no calls to Google's servers): Latin only, just the weights we use
 import '@fontsource/bangers/latin-400.css';
@@ -17,6 +18,7 @@ import { buildWorldView, updateWorldView, grassTime } from './render/world.js';
 import { drawSoldiers, drawCalls, clearProps } from './render/soldiers.js';
 import { banterTick, clearBanter } from './render/banter.js';
 import { initFeed, clearFeed, feedTick } from './ui/feed.js';
+import { spawnMeadow, updateMeadow, clearMeadow } from './render/meadow.js';
 import { buildReport, renderCaptains, renderAwards, myLine, shareText, clearReport } from './ui/report.js';
 import { updateSeeThrough } from './render/seethrough.js';
 import { drawVolleyAim } from './ui/volleyaim.js';
@@ -37,7 +39,8 @@ import { startTutorial, stopTutorial, tutorialTick, bindTutorial } from './ui/tu
 import { progress, awardMatch, rankProgress, rankOf, crestUnlocked, setCrest } from './ui/progress.js';
 import { session, isClient, isHost, prefs } from './net/session.js';
 import { allyFor, describeTeams } from './core/teams.js';
-import { assignLooks, SLOTS } from './core/look.js';
+import { assignLooks } from './core/look.js';
+import { wardrobe } from './ui/wardrobe.js';
 import { actions, netHostReadInputs, netHostTick, netHostSend, clientTick, clientHorses, setNetHooks, C } from './net/netgame.js';
 import { bindLobby, showLobby, hostLobbyTick, clientLobbyTick, netLeave } from './net/lobby.js';
 import { CAPS_TO_WIN, PARRY, CAPKILL_SLOW } from './config.js';
@@ -309,18 +312,14 @@ function buildCrests() {
   const r = rankOf(progress.xp), next = RANKS[r + 1];
   $('rankLine').textContent = `Rank: ${RANKS[r].name}`; $('hRank').innerHTML = `${RANKS[r].name}<span>${next ? `${progress.xp} / ${next.xp} XP` : `${progress.xp} XP`}</span>`; $('rankJoke').textContent = RANKS[r].joke;
   $('rankNext').textContent = next ? `${progress.xp} / ${next.xp} XP` : `${progress.xp} XP`;
-  $('segCrest').innerHTML = CRESTS.map((c, i) => {
+  if ($('segCrest')) $('segCrest').innerHTML = CRESTS.map((c, i) => {
     const open = crestUnlocked(i);
     const label = open ? `${c.name} crest` : `${c.name} crest, unlocks at ${RANKS[i].name}`;
     return `<button type="button" data-v="${i}" aria-pressed="${i === progress.crest}" aria-disabled="${!open}" aria-label="${label}" title="${label}" style="background:${c.css}">${open ? '' : LOCK}</button>`;
   }).join('');
   const nc = CRESTS[r + 1];
-  $('crestNote').textContent = `Crest: ${CRESTS[progress.crest].name}` + (nc ? ` · ${RANKS[r + 1].name} unlocks ${nc.name}` : '');
+  if ($('crestNote')) $('crestNote').textContent = `Crest: ${CRESTS[progress.crest].name}` + (nc ? ` · ${RANKS[r + 1].name} unlocks ${nc.name}` : '');
 }
-$('segCrest').addEventListener('click', e => {
-  const b = e.target.closest('button'); if (!b || b.getAttribute('aria-disabled') === 'true') return;
-  if (setCrest(+b.dataset.v)) { buildCrests(); if (G.state === 'title' && G.crests) G.crests[G.myTi] = progress.crest; }
-});
 buildCrests();
 // a fresh tip every time the menu shows
 function newTip() { $('tip').textContent = 'Tip: ' + TIPS[(Math.random() * TIPS.length) | 0]; }
@@ -349,6 +348,7 @@ function endText(w, why) {
 
 // ---------- match start ----------
 function viewForMatch() {
+  clearMeadow();
   buildWorldView(G.layout);
   clearEffects(); clearHorses(); clearProps(); clearBanter(); clearFeed(); clearReport(); spawnCritters(G.seed);
   buildHud(); showHud(); trayOpen(false); upOpen(false);
@@ -372,34 +372,47 @@ bindInput(actions); bindTutorial();
 // ---------- the home stage: your captain before his castle, his men behind him ----------
 // The camera stands in front of him; with a sheet open (the wardrobe, the battle setup) it slides so
 // he stays in view beside it. Two "+" places stand either side of him for friends.
+let soloMap = G.map; // the map picked for Battle the computer
 let demoT = 0, homeCap = null, homeView = 'home'; // 'home' | 'sheet' | 'ward'
 const homeV = { sx: 0, k: 0 }; // (the camera's eased slide)
 function seedDemo() {
+  G.map = MAPS.valley; // (the home is always out in the green valley; the battle's map is kept in soloMap)
   G.layout = makeLayout(G.map.id, false, false, 7); buildNav(G.layout);
   G.units = []; G.horses = []; G.arrows = []; G.flag = null; G.player = null; G.uid = 0; clearCritters();
   G.teams = newTeams([0, 0, 0, 0]);
   G.looks = assignLooks({ [G.myTi]: prefs.look }, 7);
   G.crests = []; G.crests[G.myTi] = progress.crest;
   buildWorldView(G.layout); clearEffects(); clearHorses(); clearProps();
+  // out in the meadow in front of his castle, looking back at it (the camera stands between): behind him,
+  // the open valley, the flock and the shepherd
   const t = TEAMS[colorOf(G.myTi)];
-  const [cx, cz] = gatePos(t, 0, 8); homeCap = mkUnit(G.myTi, cx, cz, 'captain'); homeCap.demo = true;
-  homeCap.face = Math.atan2(-cx, -cz); homeCap.y = groundY(cx, cz);
+  // a clear patch of meadow: nothing in the way within a few metres (hedges, walls, trees)
+  let sp0 = 0, ex0 = 15;
+  search: for (const ex of [15, 18, 12, 21, 24]) for (const sp of [0, 6, -6, 12, -12]) {
+    const [x, z] = gatePos(t, sp, ex); let ok = true;
+    for (let a = 0; a < 16 && ok; a++) for (const r of [2, 4, 6, 8]) if (!walkable(x + Math.cos(a / 16 * Math.PI * 2) * r, z + Math.sin(a / 16 * Math.PI * 2) * r)) { ok = false; break; }
+    if (ok) { sp0 = sp; ex0 = ex; break search; }
+  }
+  const [cx, cz] = gatePos(t, sp0, ex0); homeCap = mkUnit(G.myTi, cx, cz, 'captain'); homeCap.demo = true;
+  const d = Math.hypot(cx, cz) || 1, lx = cx / d, lz = cz / d; // (the way he looks: back toward his castle and the camera)
+  homeCap.face = Math.atan2(lx, lz); homeCap.y = groundY(cx, cz);
   // his men, two ranks behind him
-  [[-2.4, 4.2, 'foot'], [0, 4.6, 'foot'], [2.4, 4.2, 'foot'], [-3.4, 2.2, 'arch'], [3.4, 2.2, 'arch']].forEach(([sp, ex, k]) => {
-    const [x, z] = gatePos(t, sp, ex); const u = mkUnit(G.myTi, x, z, k); u.face = homeCap.face; u.demo = true;
+  [[-2.4, -4.2, 'foot'], [0, -4.6, 'foot'], [2.4, -4.2, 'foot'], [-3.4, -2.2, 'arch'], [3.4, -2.2, 'arch']].forEach(([sp, ex, k]) => {
+    const [x, z] = gatePos(t, sp0 + sp, ex0 - ex); const u = mkUnit(G.myTi, x, z, k); u.face = homeCap.face; u.demo = true;
   });
+  spawnMeadow(cx, cz, lx, lz);
 }
 const _v = new THREE.Vector3();
 function homeCamera(dt) {
   const c = homeCap; if (!c) { orbitCamera(demoT); return; }
-  const d = Math.hypot(c.x, c.z) || 1, fx = -c.x / d, fz = -c.z / d, rx = -fz, rz = fx; // (toward the centre, and to his right as we look at him)
+  const d = Math.hypot(c.x, c.z) || 1, fx = c.x / d, fz = c.z / d, rx = -fz, rz = fx; // (from him toward the camera, and sideways)
   const wide = innerWidth / Math.max(1, innerHeight) > 1.5;
-  const want = homeView === 'home' ? -.7 : homeView === 'ward' ? (wide ? -1.9 : -1.4) : (wide ? -4.4 : -2.4); // (he slides left of the sheet)
+  const want = homeView === 'home' ? -.7 : homeView === 'ward' ? (wide ? 1.7 : 1.3) : (wide ? -4.4 : -2.4); // (beside the sheet: right of the wardrobe, left of the setup)
   homeV.sx += (want - homeV.sx) * Math.min(1, dt * 5);
   // the captain turns to face you, swaying a little in the wardrobe so the cape shows
   const sway = homeView === 'ward' ? Math.sin(demoT * .7) * .75 : Math.sin(demoT * .3) * .12;
   c.face = Math.atan2(fx, fz) + sway; c.vx = c.vz = 0;
-  const gy = groundY(c.x, c.z), dist = 6.4, ty = gy + 1.45;
+  const gy = groundY(c.x, c.z), dist = homeView === 'ward' ? 5.2 : 6.4, ty = gy + (homeView === 'ward' ? 1.3 : 1.45);
   const tx = c.x + rx * homeV.sx, tz = c.z + rz * homeV.sx;
   camera.position.set(tx + fx * dist, ty + 1.15, tz + fz * dist);
   camera.lookAt(tx, ty, tz);
@@ -415,7 +428,7 @@ function homeCamera(dt) {
 }
 function demo(dt) {
   demoT += dt;
-  drawSoldiers(G.units, dt);
+  drawSoldiers(G.units, dt); updateMeadow(dt);
   drawHorses([], dt);
   drawEffects();
   updateWorldView(dt, () => {});
@@ -448,7 +461,7 @@ function seg(id, cb) {
 }
 function updateDesc() {
   const tdesc = describeTeams(G.ALLY, G.myTi, soloDuo.map(d => d < 0));
-  $('desc').innerHTML = `<strong>${MODES[G.mode].name} · ${rules().name}, about ${Math.round(matchTime() / 60)} min.</strong> ${modeDesc(MODES[G.mode])}<br><strong>${G.map.name}.</strong> ${G.map.desc} <strong>Teams:</strong> ${tdesc}`;
+  $('desc').innerHTML = `<strong>${MODES[G.mode].name} · ${rules().name}, about ${Math.round(matchTime() / 60)} min.</strong> ${modeDesc(MODES[G.mode])}<br><strong>${soloMap.name}.</strong> ${soloMap.desc} <strong>Teams:</strong> ${tdesc}`;
 }
 function updateQualityNote() {
   const lvl = LEVELS[quality.level].name;
@@ -456,7 +469,7 @@ function updateQualityNote() {
   $('segQuality').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === quality.setting)));
 }
 seg('segMode', v => { G.mode = v; G.target = prefs.tgt[v] ?? targetFor(v); renderTargets(); updateDesc(); });
-seg('segMap', v => { G.map = MAPS[v]; updateDesc(); seedDemo(); });
+seg('segMap', v => { soloMap = MAPS[v]; updateDesc(); });
 // Teams, as in the multiplayer lobby: tap a colour to be it, its letter chip cycles its team, its
 // Duo chip adds a computer co-captain (tap again for a third: Trio). Remembered between visits.
 const soloDuo = [0, 0, 0, 0];
@@ -493,6 +506,7 @@ function resetSolo() { G.role = 'solo'; G.myTi = prefs.color; G.ALLY = soloAl.sl
 function soloStart(o = {}) {
   initAudio(); session.NET = null; resetSolo();
   if (o.al) G.ALLY = o.al.slice();
+  G.map = o.map || soloMap; clearMeadow();
   G.seed = (Math.random() * 1e9) | 0;
   G.looks = assignLooks({ [G.myTi]: prefs.look }, G.seed);
   const active = activeFrom(o.duo || soloDuo);
@@ -536,7 +550,7 @@ $('goBtn').addEventListener('click', () => { lastStart = () => soloStart(); solo
 $('quickBtn').addEventListener('click', () => {
   const pick = a => a[(Math.random() * a.length) | 0];
   const mode = pick(Object.keys(MODES)), map = pick(['forum', 'valley', 'desert', 'frost']); // the four featured maps
-  G.mode = mode; G.map = MAPS[map]; G.time = 5; G.target = targetFor(mode);
+  G.mode = mode; soloMap = MAPS[map]; G.time = 5; G.target = targetFor(mode);
   pressSeg('segMode', mode); pressSeg('segMap', map); pressSeg('segTime', 5); renderTargets();
   updateDesc(); lastStart = () => soloStart(); soloStart();
 });
@@ -550,9 +564,8 @@ $('segFmt').addEventListener('click', e => { const b = e.target.closest('button'
 let lastStart = () => soloStart();
 function playStart() {
   const pick = a => a[(Math.random() * a.length) | 0];
-  G.mode = 'conquest'; G.map = MAPS[pick(['forum', 'valley', 'desert', 'frost'])]; G.time = 10; G.target = targetFor('conquest');
-  pressSeg('segMode', G.mode); pressSeg('segMap', G.map.id); pressSeg('segTime', 10); renderTargets(); updateDesc();
-  soloStart({ al: [0, 1, 2, 3], duo: [playFmt, playFmt, playFmt, playFmt] });
+  G.mode = 'conquest'; G.time = 10; G.target = targetFor('conquest');
+  soloStart({ al: [0, 1, 2, 3], duo: [playFmt, playFmt, playFmt, playFmt], map: MAPS[pick(['forum', 'valley', 'desert', 'frost'])] });
   lastStart = playStart;
 }
 $('playBtn').addEventListener('pointerdown', showVeil);
@@ -562,19 +575,14 @@ $('setBtn').addEventListener('click', () => setHomeView('sheet', ['tabSettings',
 $('sheetBack').addEventListener('click', () => setHomeView('home'));
 // a friend: for now that's a private battle (a code to share)
 for (const id of ['privBtn', 'pedL', 'pedR']) $(id).addEventListener('click', () => { initAudio(); $('mpBtn').click(); });
-// the wardrobe: each slot's three picks; the stage shows the change at once
-function buildWardrobe() {
-  $('wardSlots').innerHTML = SLOTS.map((sl, i) => `<div class="wrow"><span>${sl.name}</span><div class="seg" data-slot="${i}">${sl.opts.map((o, j) =>
-    `<button type="button" data-v="${j}" aria-pressed="${prefs.look[i] === j}">${o}</button>`).join('')}</div></div>`).join('');
-}
-$('wardSlots').addEventListener('click', e => {
-  const b = e.target.closest('button'), row = e.target.closest('[data-slot]'); if (!b || !row) return;
-  const i = +row.dataset.slot; prefs.look = prefs.look.slice(); prefs.look[i] = +b.dataset.v; prefs.save();
-  row.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
-  if (G.looks) G.looks[G.myTi] = prefs.look;
-  sfx.draw && sfx.draw();
+// the wardrobe: built from the catalog; the stage shows each change at once
+const ward = wardrobe($('ward'), {
+  look: () => prefs.look, crest: () => progress.crest,
+  crestOpen: i => crestUnlocked(i), crestNeed: i => `${RANKS[i].name} rank`, rankName: i => (RANKS[i] || RANKS[RANKS.length - 1]).name,
+  onPick: (si, v) => { prefs.look = prefs.look.slice(); prefs.look[si] = v; prefs.save(); if (G.looks) G.looks[G.myTi] = prefs.look; sfx.draw && sfx.draw(); },
+  onCrest: i => { if (setCrest(i)) { buildCrests(); if (G.crests) G.crests[G.myTi] = progress.crest; } },
 });
-$('wardBtn').addEventListener('click', () => { buildWardrobe(); setHomeView('ward'); });
+$('wardBtn').addEventListener('click', () => { ward.show(); setHomeView('ward'); });
 $('wardDone').addEventListener('click', () => setHomeView('home'));
 document.addEventListener('keydown', e => { if (e.code === 'Escape' && G.state === 'title' && homeView !== 'home') setHomeView('home'); });
 // between battles is the one place a games-site ad may play (off during a Basic Launch; see portal.js)
@@ -723,7 +731,7 @@ window.__fb = {
   volley(pt) { actions.volley(pt); }, order(o, pt) { actions.order(o, pt); }, rally() { actions.rally(); },
   attack() { actions.attack(); }, duel() { actions.duel(); }, jump() { actions.jump(); }, weapon(w) { actions.weapon(w); }, upgrade(id) { actions.upgrade(id); },
   fort(c, lv) { G.teams[c].up.fort = lv; applyFort(c); },
-  setOrder, rideRelease, findPath, gatePos, orderVolley, mkUnit, challenge, canChallenge, G, cam, scene, audio: () => audioStats(),
+  setOrder, rideRelease, findPath, gatePos, orderVolley, mkUnit, challenge, canChallenge, G, cam, scene, renderer, audio: () => audioStats(),
 };
 
 function onResize() { resize(); resizeOverlay(); }
