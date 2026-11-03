@@ -14,7 +14,8 @@ export const allyNames = a => TEAMS.filter((_, i) => G.ALLY[i] === a).map(t => t
 export function msgText(k, a) {
   const myTi = G.myTi, nm = i => TEAMS[colorOf(i)].name, css = i => TEAMS[colorOf(i)].css, mine = i => i === myTi, ally = i => !isEnemyTi(i, myTi);
   switch (k) {
-    case 'start': return [MODES[G.mode].name, G.mode === 'conquest' ? 'Tear down every enemy castle' : G.mode === 'dm' ? 'Last side with tickets wins' : G.mode === 'ctrl' ? 'Hold the points to build your score' : `Bring the banner home ${rules().caps} times`];
+    case 'start': if (G.mode === 'crown') return ['The Crown', 'The trumpet sounds in 15 seconds. Pick a castle and run for it!'];
+      return [MODES[G.mode].name, G.mode === 'conquest' ? 'Tear down every enemy castle' : G.mode === 'dm' ? 'Last side with tickets wins' : G.mode === 'ctrl' ? 'Hold the points to build your score' : `Bring the banner home ${rules().caps} times`];
     // a[0] here is the castle's color: a Duo teammate shares it, so both see it as "your castle"
     case 'castleDown': return colorOf(a[0]) === colorOf(myTi) ? ['Your castle has fallen!', 'No more recruits. Stay alive.', '#e0352b']
       : [`${nm(a[0])} castle destroyed!`, a[1] === myTi ? 'Your doing' : `by ${nm(a[1])}`, css(a[0])];
@@ -38,7 +39,7 @@ export function msgText(k, a) {
     case 'left': return [`${nm(a[0])}'s player left`, 'The computer takes over their army', css(a[0])];
     case 'holdTaken': { // a[0]: the alliance that took it, a[1]: what it is, a[2]: which
       const ours = a[0] === G.ALLY[colorOf(myTi)], h = G.holds && G.holds[a[2]], what = (h && h.name) || (a[1] === 'oasis' ? 'the Oasis' : 'a village');
-      const give = { oasis: ['Your men heal in it, and gold flows in', 'They heal there and grow rich. Take it back'], shrine: ['Gold flows in, and your rally horns fill', 'Their horns fill and they grow rich. Take it back'], village: ['It will send you footmen', 'It sends them men. Take it back'] }[a[1]] || ['', ''];
+      const give = { castle: ['+5 men for every captain on your side, and gold', 'Their armies grow. Take it back from 4:00'], mine: ['Gold pours in', 'Their purses fill. Take it back'], oasis: ['Your men heal in it, and gold flows in', 'They heal there and grow rich. Take it back'], shrine: ['Gold flows in, and your rally horns fill', 'Their horns fill and they grow rich. Take it back'], village: ['It will send you footmen', 'It sends them men. Take it back'] }[a[1]] || ['', ''];
       return ours ? [`Your side holds ${what}!`, give[0], '#ffcf3a'] : [`${allyNames(a[0])} took ${what}`, give[1], '#e0352b'];
     }
     // the war chest: a[0] the hold it lands in
@@ -74,6 +75,17 @@ export function msgText(k, a) {
     case 'lastStand': // a[0]: the castle (color) breached, a[1]: by whom
       if (colorOf(a[0]) === colorOf(myTi)) return ['Last stand!', 'Your walls are breached. By the castle your men hit harder and won\'t run. Horn ready!', '#e0352b'];
       return !isEnemyTi(a[0], myTi) ? [`${nm(a[0])}'s castle is breached!`, 'Their last stand: get back and help them hold', css(a[0])] : [`${nm(a[0])}'s castle is breached!`, a[1] === myTi ? 'Your doing. Their last stand: finish it' : 'Their last stand: finish it', css(a[0])];
+    // the Crown's phases
+    case 'crownGo': return ['Go!', 'Claim a castle before someone else does', '#ffcf3a'];
+    case 'crownSiegeSoon': return ['The siege starts in 20 seconds', 'Castles can be stormed from 4:00. Man your walls', '#ffcf3a'];
+    case 'crownSiege': return ['Siege!', 'Any castle can be taken now: stand in its yard and hold it', '#e0352b'];
+    case 'crownSoon': return ['The Crown rises in 20 seconds', 'Head for the plaza', '#ffcf3a'];
+    case 'crownRise': return ['The Crown has risen!', 'Stand in the plaza to break its stone casing', '#ffcf3a'];
+    case 'crownFree': return ['The Crown is free!', 'Grab it: whoever carries it at 10:00 wins', '#ffcf3a'];
+    case 'crownTaken': return mine(a[0]) ? ['You have the Crown!', 'Stay alive until 10:00. Keep enemies away', '#ffcf3a']
+      : [`${nm(a[0])} has the Crown!`, ally(a[0]) ? 'Guard them with your life' : 'Cut them down before 10:00', css(a[0])];
+    case 'crownDropped': return mine(a[0]) ? ['You dropped the Crown!', 'Get it back', '#e0352b'] : [`${nm(a[0])} dropped the Crown!`, 'It\'s on the ground: grab it', css(a[0])];
+    case 'overtime': return ['Overtime!', a[0] ? 'Enemies are too close to the Crown: it goes on' : 'Nobody has the Crown: grab it!', '#ffcf3a'];
     case 'pointCaptured': return mine(a[0]) ? [`You captured Point ${a[1]}!`, '', css(a[0])] : [`${nm(a[0])} captured Point ${a[1]}!`, ally(a[0]) ? 'Reinforce them' : 'Take it back', css(a[0])];
   }
   return null;

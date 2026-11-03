@@ -25,6 +25,17 @@ export const MODES = {
   dm:       { name: 'Deathmatch', time: 480, title: 'Tickets', desc: 'Each team has {tickets} tickets. A lost soldier costs 1, a lost captain 5. The leading captain carries a bounty worth double gold.' },
   ctf:      { name: 'Capture the Fort', time: 600, title: 'Captures', desc: 'A banner waits in the fort at the centre. Carry it home on foot to score. Allies pool captures; first side to {caps} wins.' },
   ctrl:     { name: 'Control', time: 600, title: 'Control Score', desc: 'Five points are scattered across the map. Whoever has the most soldiers on a point owns it, and every point you hold adds to your score each second. Allies pool their score; first alliance to {win} wins.' },
+  crown:    { name: 'The Crown', time: 600, title: 'Places held', desc: 'Everyone starts in the plaza. Claim a castle, take villages and mines: each one grows your army. From 4:00 castles can be stormed. At 9:00 the Crown appears in the plaza: whoever carries it at 10:00 wins.' },
+};
+// The Crown: the online mode's ten minutes, in phases. Times in seconds.
+export const CROWN = {
+  breakout: 15, rise: 60, siege: 240, chest: 360, crown: 540, // (break-out countdown, claim a castle, castles stormable, war chest, the Crown)
+  base: 10, perCastle: 5, perVillage: 3, // army size: every captain's, plus his side's places
+  startMen: 3, merc: 1.6, // (men he starts with; a recruit with no place held costs this much more and only fills the base 10)
+  castleTake: 2.2, // (a castle takes this much longer to capture than a village)
+  gold: { castle: .8, village: .3, mine: 1.6 }, // per second, to every army on the side
+  casing: 22, overtime: 60, carrierSlow: .85, plazaR: 15, // (seconds of men in the plaza to break the Crown's casing)
+  castles: 6, villages: 6, mines: 4,
 };
 // Match length, in minutes: Quick, Standard (the default) or Long. A shorter battle runs hotter: more
 // gold, and computer armies march out with smaller squads (gather).

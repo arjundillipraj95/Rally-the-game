@@ -10,6 +10,7 @@ import { volleyCharge, captainBash, duelAct, duelOffer, duelTarget, initForts, a
 import { session, isClient, isHost } from './session.js';
 import { showMsg } from '../ui/messages.js';
 import { lookCode, lookFrom } from '../core/look.js';
+import { capOf } from '../core/state.js';
 import { sfx, buzz, gateS } from '../ui/audio.js';
 import { banner } from '../ui/hud.js';
 import { readMove, inp, moveNow } from '../ui/input.js';
@@ -57,7 +58,7 @@ function encodeSnap() {
   const ars = G.arrows.filter(a => !a.stuck && !a.done).slice(-18).map(a => [b36(a.id), encX(a.x0), encX(a.z0), b36(a.y0 * 10), encX(a.x1), encX(a.z1), b36(a.y1 * 10 + 20), b36(a.dur * 100), b36(a.peak * 10), b36(a.t * 100), a.ti].join(','));
   const hs = G.horses.filter(h => h.state === 'coming').map(h => [encX(h.x), encX(h.z), encF(h.face), h.ti].join(','));
   const f = G.flag;
-  const fl = f ? [f.state === 'home' ? 0 : f.state === 'dropped' ? 1 : 2, encX(f.x), encX(f.z), f.carrier ? b36(f.carrier.id) : ''].join(',') : '';
+  const fl = f ? [f.state === 'home' ? 0 : f.state === 'dropped' ? 1 : f.state === 'cased' ? 3 : 2, encX(f.x), encX(f.z), f.carrier ? b36(f.carrier.id) : '', Math.round((f.casing || 0) * 99)].join(',') : '';
   const pl = G.teams.map((s, i) => {
     if (!s.human || i === G.myTi) return ''; const L = s.leader, k = L.kick;
     if (k.dirty) { k.n++; k.dirty = false; k.lvx = k.vx; k.lvz = k.vz; k.lst = k.st; k.vx = 0; k.vz = 0; k.st = 0; }
@@ -153,6 +154,7 @@ export function clientStart(hp) {
   for (let c = 0; c < 4; c++) if (!active[c]) G.teams[c].alive = false; // (a castle out of this battle)
   initForts(); C.fortSig = '';
   G.flag = G.mode === 'ctf' ? { state: 'home', x: 0, z: 0, carrier: null, dropT: 0 } : null;
+  G.crown = G.mode === 'crown' ? { said: {}, casing: 0, ot: false } : null;
   G.ctrlPoints = G.mode === 'ctrl' ? makeCtrlPoints(G.layout) : null;
   G.holds = makeHolds(G.layout); G.duels = [];
   Object.assign(C, { byId: new Map(), lastN: -1, lastMsgN: (hp.m && hp.m.length) ? hp.m[hp.m.length - 1][0] : 0, meId: null, meInit: false, kickN: 0, localCd: 0, lastSnapAt: performance.now(),
@@ -278,9 +280,10 @@ function clientApply(hp) {
     if (!h) { h = { key: 200000 + (++C.horseKey), ti: +f[3], x: decX(f[0]), z: decX(f[1]), face: 0, spd: 14, state: 'coming', t: 0 }; C.coming.push(h); }
     h.tx = decX(f[0]); h.tz = decX(f[1]); h.face = decF(f[2]);
   });
+  if (!G.flag && secs[5] && G.mode === 'crown') G.flag = { state: 'cased', x: 0, z: 0, carrier: null, dropT: 0, casing: 0 }; // (the Crown appears at 9:00)
   if (G.flag && secs[5]) {
     const f = secs[5].split(','), flag = G.flag;
-    flag.state = ['home', 'dropped', 'carried'][+f[0]]; flag.x = decX(f[1]); flag.z = decX(f[2]);
+    flag.state = ['home', 'dropped', 'carried', 'cased'][+f[0]]; flag.casing = (+f[4] || 0) / 99; flag.x = decX(f[1]); flag.z = decX(f[2]);
     flag.carrier = f[3] ? C.byId.get(p36(f[3])) || null : null;
     if (flag.carrier) flag.carrier.carrying = true;
   }
@@ -559,7 +562,7 @@ export const actions = {
     if (G.state !== 'play') return;
     const st = STATS[kind], me = G.teams[G.myTi];
     if (!canRecruit(G.myTi)) { banner('No recruits', G.mode === 'dm' ? 'Your team is out of tickets' : 'You need a castle to recruit', '#e0352b'); return; }
-    if (squadOf(G.myTi).length >= G.squadCap) { banner('Squad full', `${G.squadCap} soldiers is the limit`); return; }
+    if (squadOf(G.myTi).length >= capOf(G.myTi)) { banner('Army full', `${capOf(G.myTi)} soldiers is your limit${G.mode === 'crown' ? ': take castles and villages for more' : ''}`); return; }
     if (me.gold < st.cost) { banner('Not enough gold', `A ${st.name.toLowerCase()} costs ${st.cost} gold`, '#ffcf3a'); return; }
     if (isClient()) { C.inp.rec[RECRUITS.indexOf(kind)]++; me.gold -= st.cost; C.goldLocalAt = performance.now(); G.recruited++; sfx.coin(); }
     else recruit(G.myTi, kind);

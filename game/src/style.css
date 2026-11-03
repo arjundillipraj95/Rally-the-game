@@ -513,3 +513,9 @@
 .witem:focus-visible,.wcats button:focus-visible{outline:3px solid var(--gold);outline-offset:2px;}
 @media (max-height:430px){ .whead h2{font-size:22px;} .whead .go{font-size:16px;padding:4px 14px;} .ward{gap:6px;padding:8px 10px 10px;} .wcats button{min-width:50px;padding:4px 4px 3px;} .wcats button svg{width:18px;height:18px;} .witems{grid-template-columns:repeat(auto-fill,minmax(98px,1fr));gap:6px;} .witem{padding:7px 4px 6px;} .witem .wic{width:36px;height:36px;} .witem .wic svg{width:22px;height:22px;} }
 #ovTitle.sheet .home .side{background:rgba(20,19,18,.9);}
+
+/* the Crown's phase under the clock */
+#phaseTag{position:absolute;left:50%;top:90px;transform:translateX(-50%);font:800 11px var(--body);letter-spacing:.08em;text-transform:uppercase;color:#fff;background:rgba(20,19,18,.6);padding:3px 10px;border-radius:999px;pointer-events:none;white-space:nowrap;}
+#phaseTag:empty{display:none;}
+#phaseTag.hot{color:#141312;background:var(--gold);}
+@media (max-height:430px){ #phaseTag{top:66px;font-size:10px;} }

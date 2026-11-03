@@ -2,7 +2,7 @@
 // the banner pointer, the joystick and the red tint while you are down. Also the minimap.
 import * as THREE from 'three';
 import { TEAMS, DUEL, STREAK, RHYTHM, CAPTAIN_COMBAT, ARMOUR } from '../config.js';
-import { G, isEnemyTi, isFfa, colorOf, isOut } from '../core/state.js';
+import { G, isEnemyTi, isFfa, colorOf, isOut, noCastle } from '../core/state.js';
 import { groundY, clamp, W } from '../core/world.js';
 import { camera, view } from './scene.js';
 import { cam } from './camera.js';
@@ -220,7 +220,7 @@ function drawFlagPointer() {
   const m = 60, onScreen = !behind && sx > m && sx < W - m && sy > m && sy < H - m;
   ctx.font = 'italic 15px Bangers, Impact, sans-serif'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.6)';
   if (onScreen) {
-    const label = c ? `${TEAMS[colorOf(c.ti)].name.toUpperCase()} CARRIER` : 'BANNER';
+    const label = c ? `${TEAMS[colorOf(c.ti)].name.toUpperCase()} ${G.mode === 'crown' ? 'HAS THE CROWN' : 'CARRIER'}` : G.mode === 'crown' ? (G.flag.state === 'cased' ? 'THE CROWN (BREAK IT FREE)' : 'THE CROWN') : 'BANNER';
     ctx.strokeText(label, sx, sy); ctx.fillStyle = col; ctx.fillText(label, sx, sy);
     return;
   }
@@ -257,7 +257,7 @@ function drawMini() {
   if (id === 'frost') { mctx.fillStyle = 'rgba(255,255,255,.2)'; mctx.beginPath(); mctx.arc(0, 0, 24 * k, 0, Math.PI * 2); mctx.fill(); }
   if (G.layout) { if (miniFor !== G.layout) buildMiniLayer(S, k); mctx.drawImage(miniLayer, -o, -o); }
   TEAMS.forEach((t, i) => {
-    if (isOut(i)) return;
+    if (noCastle(i)) return;
     mctx.fillStyle = (G.mode !== 'conquest' || G.teams[i].alive) ? t.css : '#555'; mctx.fillRect(t.pos[0] * k - 9, t.pos[1] * k - 9, 18, 18);
     if (!isFfa() && !isEnemyTi(i, G.myTi)) { mctx.strokeStyle = '#fff'; mctx.lineWidth = 2; mctx.strokeRect(t.pos[0] * k - 9, t.pos[1] * k - 9, 18, 18); }
   });

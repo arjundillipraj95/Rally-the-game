@@ -1,6 +1,6 @@
 // Scoreboard, clock, health, gold, squad count and button labels.
-import { TEAMS, MODES, STATS, DM_TICKETS, CAPS_TO_WIN, CTRL, AL_LETTER, ORDER_NAMES, UPGRADES, WEAPON_NAMES, STREAK, LAST } from '../config.js';
-import { G, isFfa, colorOf, rules, matchTime, SLOT_NAME, isOut } from '../core/state.js';
+import { CROWN, TEAMS, MODES, STATS, DM_TICKETS, CAPS_TO_WIN, CTRL, AL_LETTER, ORDER_NAMES, UPGRADES, WEAPON_NAMES, STREAK, LAST } from '../config.js';
+import { G, isFfa, colorOf, rules, matchTime, SLOT_NAME, isOut, capOf } from '../core/state.js';
 import { colorOut, colorScore, colorHuman, squadOf, canRecruit, horseMax, upgradeCost, javMax, execTarget } from '../core/sim.js';
 import { session, isClient } from '../net/session.js';
 
@@ -40,7 +40,7 @@ export function updateHud(lastSnapAt) {
   TEAMS.forEach((t, i) => {
     const row = $('tp' + i); if (!row) return;
     const gone = isOut(i); row.hidden = gone; const pp = $('pip' + i); if (pp) pp.hidden = gone; if (gone) return; // (a castle out of this battle)
-    const v = colorScore(i), max = G.mode === 'conquest' ? 100 : G.mode === 'dm' ? rules().tickets : G.mode === 'ctrl' ? rules().win : rules().caps;
+    const v = colorScore(i), max = G.mode === 'conquest' ? 100 : G.mode === 'dm' ? rules().tickets : G.mode === 'ctrl' ? rules().win : G.mode === 'crown' ? 8 : rules().caps;
     row.querySelector('i').style.transform = `scaleX(${Math.max(0, v) / max})`;
     row.querySelector('b').textContent = G.mode === 'ctf' ? `${v}/${rules().caps}` : Math.max(0, Math.ceil(v));
     const out = colorOut(i); row.classList.toggle('out', out);
@@ -57,7 +57,11 @@ export function updateHud(lastSnapAt) {
     $('horseBar').style.transform = `scaleX(${Math.min(1, Math.max(0, p.horseHp) / horseMax(G.myTi))})`;
   }
   const gold = Math.floor(me.gold); $('gold').textContent = gold;
-  const sq = squadOf(G.myTi); $('squadN').textContent = sq.length;
+  const sq = squadOf(G.myTi), cap = capOf(G.myTi); $('squadN').textContent = G.mode === 'crown' ? `${sq.length}/${cap}` : sq.length;
+  if (G.mode === 'crown') { // the phase, under the clock
+    const T = G.T, ph = T < CROWN.breakout ? `Break-out in ${Math.ceil(CROWN.breakout - T)}` : T < CROWN.rise ? 'Claim a castle' : T < CROWN.siege ? `Castles safe · siege in ${fmt(CROWN.siege - T)}` : T < CROWN.crown ? `Siege · the Crown in ${fmt(CROWN.crown - T)}` : T < matchTime() ? 'The Crown!' : 'Overtime!';
+    const el = $('phaseTag'); if (el && el.textContent !== ph) { el.textContent = ph; el.classList.toggle('hot', T >= CROWN.crown || T < CROWN.breakout); }
+  } else if ($('phaseTag').textContent) $('phaseTag').textContent = '';
   const c = k => sq.filter(u => u.kind === k).length; $('squadMix').textContent = `F${c('foot')} A${c('arch')}`;
   { // your army's morale, and the rally horn on the order button
     const T = G.teams[G.myTi], m = Math.max(0, Math.min(100, (T && T.morale) ?? 100)), mb = $('moraleBar');
@@ -67,7 +71,7 @@ export function updateHud(lastSnapAt) {
     $('atk').classList.toggle('execReady', !!execTarget(G.player) || (G.player && (G.player.streak || 0) >= STREAK.n)); // (a beaten captain in reach: Attack finishes him; a full streak: the whirlwind)
   }
   document.querySelectorAll('#tray button').forEach(b => {
-    b.setAttribute('aria-disabled', (gold < STATS[b.dataset.kind].cost || sq.length >= G.squadCap || !canRecruit(G.myTi)) ? 'true' : 'false');
+    b.setAttribute('aria-disabled', (gold < STATS[b.dataset.kind].cost || sq.length >= cap || !canRecruit(G.myTi)) ? 'true' : 'false');
   });
   document.querySelectorAll('#upTray button').forEach(b => {
     const id = b.dataset.up, def = UPGRADES.find(u => u.id === id), max = def ? def.cost.length : 0;

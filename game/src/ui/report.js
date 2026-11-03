@@ -31,7 +31,7 @@ function statsOf(i, w) {
     i, capK, menK, kills: capK + menK, falls: s.falls | 0, lost: s.lost | 0,
     earned: Math.round(s.earned || 0), purse: Math.round(s.endGold ?? s.gold ?? 0), dist: Math.round(s.dist || 0),
     castle: h.castle | 0, hold: h.hold | 0, chest: h.chest | 0, duel: h.duel | 0, exec: h.exec | 0, ride: h.ridedown | 0,
-    capkill: h.capkill | 0, streak: h.streak | 0, disarm: h.disarm | 0,
+    capkill: h.capkill | 0, streak: h.streak | 0, disarm: h.disarm | 0, crown: h.crown | 0,
     result: w < 0 ? 'draw' : G.ALLY[colorOf(i)] === w ? 'win' : 'lose',
   };
 }
@@ -46,7 +46,7 @@ export function contextOf(xs) {
 export function ratingOf(x, c) {
   let r = 2 + (x.result === 'win' ? 2 : x.result === 'draw' ? 1 : 0);
   r += 2.2 * x.kills / c.kills + 1.2 * x.capK / c.capK + 1.6 * place(x) / c.place + .6 * x.earned / c.earned;
-  r += Math.min(1, x.duel * .5 + (x.exec + x.ride) * .25);
+  r += Math.min(1, x.duel * .5 + (x.exec + x.ride) * .25) + Math.min(.8, x.crown * .4);
   r -= Math.min(1.8, .6 * x.falls / (c.falls + 1)) + .8 * Math.max(0, x.lost - x.kills) / c.lost;
   return Math.round(Math.max(1, Math.min(10, r)) * 10) / 10;
 }
@@ -56,6 +56,7 @@ export function ratingOf(x, c) {
 // another captain, so four captains who all fell a lot don't all get the same joke.
 function retro(x, c) {
   const good = [
+    [x.crown >= 1, 10, 'crown', () => pl(x.crown, 'Grabbed the Crown. Wore it well, briefly.', 'Grabbed the Crown # times. Can\'t keep his hands off it.')],
     [x.castle >= 1, 9, 'castle', () => `${pl(x.castle, 'Brought down a castle', 'Brought down # castles')}. ${pick(['Masonry everywhere.', 'The stonemasons are furious.'])}`],
     [x.duel >= 1, 8, 'duel', () => `${pl(x.duel, 'Won a duel', 'Won # duels')}. Treats the ring like his living room.`],
     [x.exec >= 1, 7, 'exec', () => `${pl(x.exec, 'Executed a captain', 'Executed # captains')}. Nobody's inviting him to dinner.`],
@@ -99,6 +100,7 @@ function choose(list, used, none) {
 const K = v => () => v; // (a fixed bar)
 const AWARDS = [
   { id: 'butcher', name: 'The Butcher', honour: true, val: x => x.kills, min: (xs, m) => Math.max(15, m(x => x.kills) * 1.15), lead: 1.1, line: x => `Most kills: ${x.kills}` },
+  { id: 'crown', name: 'Crown Bearer', honour: true, val: x => x.crown, min: K(1), line: x => pl(x.crown, 'Grabbed the Crown', 'Grabbed the Crown # times') },
   { id: 'conq', name: 'Conqueror', honour: true, val: x => x.castle, min: K(1), line: x => pl(x.castle, 'Brought down a castle', 'Brought down # castles') },
   { id: 'head', name: 'Headhunter', honour: true, val: x => x.capkill, min: K(3), lead: 1.25, line: x => `Cut down ${x.capkill} captains` },
   { id: 'duel', name: 'Duelist', honour: true, val: x => x.duel, min: K(1), line: x => pl(x.duel, 'Won a duel', 'Won # duels') },

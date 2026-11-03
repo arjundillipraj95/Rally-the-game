@@ -24,6 +24,7 @@
     <div class="hud brush" id="points"><h3 id="ptsTitle">Team Points</h3><div id="tpRows"></div></div>
     <div class="hud brush" id="clock"><span id="clockT">0:00</span><span id="pips" style="display:flex;gap:4px"></span><span id="clockMax">10:00</span></div>
     <div id="netTag" hidden></div>
+    <div id="phaseTag"></div>
     <canvas id="mini" width="184" height="184"></canvas>
     <button id="pauseBtn" type="button" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"><path d="M5 7h14M5 12h14M5 17h14"/></svg></button>
     <div id="feed" aria-live="off"></div>
@@ -102,7 +103,7 @@
         <div class="fmt" id="segFmt" role="group" aria-label="Captains per side">
           <button type="button" data-v="0" aria-pressed="true">Solo</button><button type="button" data-v="1" aria-pressed="false">Duo</button><button type="button" data-v="2" aria-pressed="false">Trio</button>
         </div>
-        <button class="go play" id="playBtn" type="button"><span>Play</span><small id="playSub">Vs the computer until online opens</small></button>
+        <button class="go play" id="playBtn" type="button"><span>Play</span><small id="playSub">The Crown · vs the computer until online opens</small></button>
         <div class="hrow">
           <button class="go alt" id="cpuBtn" type="button">Battle the computer</button>
           <button class="go alt" id="privBtn" type="button">Private battle</button>

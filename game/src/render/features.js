@@ -13,6 +13,7 @@ const lam = (color, map, extra = {}) => new THREE.MeshLambertMaterial(Object.ass
 const M = {
   marble: lam(0xf2ede2, stoneTex()), marbleDark: lam(0xd8d0c0, stoneTex()), polished: lam(0xf4f0e8), polishedDark: lam(0xddd5c6), plaster: lam(0xeadfc6), roof: lam(0xb4553a),
   sand: lam(0xe0bf8c, stoneTex()), sandDark: lam(0xc9a672, stoneTex()), wood: lam(0x7a5a3a, woodTex()), log: lam(0x6a4b33, woodTex()),
+  keep: lam(0xb9b2a4, stoneTex()), keepDark: lam(0x938b7d, stoneTex()),
   thatch: lam(0xb89650), dark: lam(0x2a2018), bronze: new THREE.MeshPhongMaterial({ color: 0xc8903c, shininess: 60, specular: 0x665533 }),
   palmTrunk: lam(0x8a6a44, woodTex()), palmLeaf: lam(0x4a7430, null, { side: THREE.DoubleSide }), iron: lam(0x3a3a3e),
 };
@@ -97,6 +98,13 @@ export function buildFeatures(L, world) {
       const body = new THREE.Mesh(uvScale(new THREE.CylinderGeometry(t.r, t.r * 1.12, t.h, 14), 4, 2), M.sand); body.position.y = t.h / 2; g.add(body);
       const top = new THREE.Mesh(new THREE.CylinderGeometry(t.r * 1.18, t.r * 1.18, .8, 14), M.sandDark); top.position.y = t.h + .4; g.add(top);
       for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2, c = new THREE.Mesh(new THREE.BoxGeometry(.7, .7, .5), M.sandDark); c.position.set(Math.cos(a) * t.r * 1.05, t.h + 1.15, Math.sin(a) * t.r * 1.05); c.rotation.y = -a; g.add(c); }
+    } else if (t.kind === 'keep') { // the Crown's castles: a round stone keep with battlements and a red roof (corner towers smaller)
+      const body = new THREE.Mesh(uvScale(new THREE.CylinderGeometry(t.r, t.r * 1.1, t.h, 16), 4, 2), M.keep); body.position.y = t.h / 2; g.add(body);
+      const top = new THREE.Mesh(new THREE.CylinderGeometry(t.r * 1.2, t.r * 1.2, .7, 16), M.keepDark); top.position.y = t.h + .35; g.add(top);
+      const n = t.small ? 6 : 10;
+      for (let k = 0; k < n; k++) { const a = k / n * Math.PI * 2, c = new THREE.Mesh(new THREE.BoxGeometry(t.small ? .45 : .8, .7, .45), M.keepDark); c.position.set(Math.cos(a) * t.r * 1.12, t.h + 1.05, Math.sin(a) * t.r * 1.12); c.rotation.y = -a; g.add(c); }
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(t.r * 1.05, t.r * (t.small ? 1.6 : 1.3), 16), M.roof); roof.position.y = t.h + .7 + t.r * (t.small ? .8 : .65); g.add(roof);
+      if (!t.small) { const door = new THREE.Mesh(new THREE.BoxGeometry(1.4, 2.4, .3), M.dark); door.position.set(0, 1.2, t.r * 1.02); g.add(door); g.rotation.y = Math.atan2(-t.x, -t.z); } // (the door faces the plaza)
     } else { // wooden watchtower: four posts, a platform, a railing and a roof
       const w = t.small ? .9 : 1.5, post = new THREE.CylinderGeometry(.14, .16, t.h, 6);
       for (const [px, pz] of [[-w, -w], [w, -w], [-w, w], [w, w]]) { const p = new THREE.Mesh(post, M.log); p.position.set(px, t.h / 2, pz); g.add(p); }

@@ -22,6 +22,12 @@ const HERALD = {
   spree: ['is on a rampage! Somebody stop him. Anybody.', 'is collecting captains like stamps.', 'has clearly done this before.'],
   last: ['One minute left! Whatever you were saving it for, now\'s the time.', 'Final minute! Heroes are made now. So are excuses.'],
   stand: ['A last stand! Bards love a last stand.', 'Backs to the wall! Literally.'],
+  go: ['And they\'re off! Like a herd of very angry goats.', 'Run, you fools! The good castles go first.', 'Gentlemen, the trumpet. Please run.'],
+  siege: ['Siege time. Somebody\'s walls are about to have a bad day.', 'The castles are open season. Lock your doors.'],
+  rise: ['The Crown rises! Everybody suddenly loves the plaza.', 'Behold: the shiniest hat in the land.'],
+  crownTaken: ['has the Crown. Everyone else has a new hobby: chasing them.', 'wears the Crown. It suits them. For now.'],
+  crownDropped: ['dropped the Crown. Butterfingers!', 'lost the Crown. It was nice while it lasted.'],
+  overtime: ['Overtime! Nobody leaves until this is settled.', 'Overtime! The bards are taking notes.'],
 };
 function herald(text) {
   if (!el || G.state !== 'play') return;
@@ -45,6 +51,12 @@ function heraldFor(k, a) {
   if (k === 'chestTaken') return herald(pickOne(HERALD.chest));
   if (k === 'duelWon') return herald(pickOne(HERALD.duel));
   if (k === 'lastStand') return herald(pickOne(HERALD.stand));
+  if (k === 'crownGo') return herald(pickOne(HERALD.go));
+  if (k === 'crownSiege') return herald(pickOne(HERALD.siege));
+  if (k === 'crownRise') return herald(pickOne(HERALD.rise));
+  if (k === 'crownTaken') return herald(a[0] === G.myTi ? 'You have the Crown. Run. Run like the wind.' : `${who(a[0])} ${pickOne(HERALD.crownTaken)}`);
+  if (k === 'crownDropped') return herald(a[0] === G.myTi ? 'You dropped the Crown. Butterfingers!' : `${who(a[0])} ${pickOne(HERALD.crownDropped)}`);
+  if (k === 'overtime') return herald(pickOne(HERALD.overtime));
 }
 // called with the HUD: the final minute
 export function feedTick() {
@@ -91,6 +103,11 @@ export function feedLine(k, a) {
     case 'capture': return `${who(a[0])} brought the banner home`;
     case 'pointCaptured': return `${who(a[0])} took Point ${esc(a[1])}`;
     case 'tickets0': return `${who(a[0])} is out of tickets`;
+    case 'crownRise': return 'The Crown rises in the plaza';
+    case 'crownFree': return 'The Crown is free';
+    case 'crownTaken': return `${who(a[0])} grabbed the Crown`;
+    case 'crownDropped': return `${who(a[0])} dropped the Crown`;
+    case 'crownSiege': return 'The siege begins';
     case 'left': return `${who(a[0])} left; the computer takes over`;
     case 'armourOn': return isEnemyTi(a[0], G.myTi) ? `${who(a[0])} put on armour` : null;
   }

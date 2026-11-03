@@ -1,8 +1,8 @@
 // Terrain heights and map layouts. A layout is plain data (what stands where),
 // generated from a seed so every phone in an online match builds the same map.
 // Obstacles are circles {x,z,r} or boxes {box,x,z,hw,hd,rot}; `blockers` stop arrows below height h.
-import { TEAMS, CASTLE_R, HOLDS, FORT, CENTRES } from '../config.js';
-import { G, isOut } from './state.js';
+import { TEAMS, CASTLE_R, HOLDS, FORT, CENTRES, CROWN } from '../config.js';
+import { G, noCastle } from './state.js';
 
 export function mulberry(a) {
   return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -35,7 +35,7 @@ export const SIDES = { flanks: [0, Math.PI], mids: [] }; // flanks: the two plac
 export function placeCastles(mapId, seed) {
   sizeWorld(mapId);
   const ang = TEAMS.map(t => Math.atan2(t.pos[1], t.pos[0])), al = G.ALLY && G.ALLY.length === 4 ? G.ALLY : [0, 1, 2, 3];
-  const inC = [0, 1, 2, 3].filter(c => !isOut(c)); // (a 2- or 3-castle battle: the others aren't there)
+  const inC = [0, 1, 2, 3].filter(c => !noCastle(c)); // (a 2- or 3-castle battle: the others aren't there)
   if (CORNERED.has(mapId) && inC.length === 2 && Math.hypot(TEAMS[inC[0]].pos[0] + TEAMS[inC[1]].pos[0], TEAMS[inC[0]].pos[1] + TEAMS[inC[1]].pos[1]) > 1) {
     // two castles on a cornered map: across the middle from each other (the second takes the corner opposite the first)
     const o = [0, 1, 2, 3].find(c => Math.hypot(TEAMS[c].pos[0] + TEAMS[inC[0]].pos[0], TEAMS[c].pos[1] + TEAMS[inC[0]].pos[1]) < 1);
@@ -57,9 +57,10 @@ export function placeCastles(mapId, seed) {
     });
   }
   // the gaps between neighbouring castles: the widest gaps between enemies are where the sides meet
-  for (const c of [0, 1, 2, 3]) if (isOut(c)) { TEAMS[c].pos[0] = 0; TEAMS[c].pos[1] = 4000 + 100 * c; } // (out of this battle: far off the map, and never built)
+  for (const c of [0, 1, 2, 3]) if (noCastle(c)) { TEAMS[c].pos[0] = 0; TEAMS[c].pos[1] = 4000 + 100 * c; } // (out of this battle: far off the map, and never built)
   const TAU = Math.PI * 2, s = inC.map(i => ({ a: ((ang[i] % TAU) + TAU) % TAU, i })).sort((x, y) => x.a - y.a);
-  const mids = s.map((p, k) => { const q = s[(k + 1) % s.length]; let gap = q.a - p.a; if (gap <= 0) gap += TAU; return { a: p.a + gap / 2, gap, foes: al[p.i] !== al[q.i] ? 1 : 0 }; });
+  const mids = s.length < 2 ? [0, 1, 2, 3].map(k => ({ a: k * Math.PI / 2 + (seed % 7) * .4 + Math.PI / 4, gap: Math.PI / 2, foes: 1 })) // (no castles, the Crown: four fields round the middle)
+    : s.map((p, k) => { const q = s[(k + 1) % s.length]; let gap = q.a - p.a; if (gap <= 0) gap += TAU; return { a: p.a + gap / 2, gap, foes: al[p.i] !== al[q.i] ? 1 : 0 }; });
   mids.sort((x, y) => (y.foes - x.foes) || (y.gap - x.gap));
   const f0 = mids[0], f1 = mids.slice(1).sort((x, y) => Math.abs(angDiff(y.a, f0.a)) - Math.abs(angDiff(x.a, f0.a)))[0];
   SIDES.flanks = [f0.a, f1.a]; SIDES.mids = mids.map(m => m.a);
@@ -222,6 +223,46 @@ function ringWall(L, cx, cz, rad, r, h, skip, extra = {}) {
   }
 }
 // A solid box (buildings); also blocks arrows below its height.
+// ---------- the Crown: the places worth holding, laid out afresh every match from the seed ----------
+// Six castles round the field (alternately nearer the middle, richer, and out at the edge, safer), a
+// village in each gap between them, four gold mines on the inner ring, and the plaza at the heart where
+// everyone starts and the Crown appears. Whatever stood on a spot (trees, rocks, hedges) is cleared.
+const CASTLE_NAMES = ['Greywater', 'Highmoor', 'Ravenhold', 'Thornwall', 'Oakhelm', 'Stonebridge', 'Redcliff', 'Wolfden', 'Kingsrest', 'Ashford', 'Briarwatch', 'Mistmere'];
+const VILLAGE_NAMES = ['Millbrook', 'Goosegate', 'Little Puddle', 'Turnip Hollow', 'Mudford', 'Sheepwash', 'Applecross', 'Cabbage End', 'Bramblewick', 'Duckworth', 'Pigsend', 'Honeydale'];
+const MINE_NAMES = ['the Old Mine', 'the Gold Hole', 'Lucky Seam', 'the Deep Pit', 'Glitter Rock', 'the Dwarf Dig'];
+function crownPlaces(L, R, box) {
+  const r = (a, b) => a + R() * (b - a), pickN = (arr, n) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = (R() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a.slice(0, n); };
+  const clear = (x, z, rad) => {
+    const far = o => Math.hypot(o.x - x, o.z - z) > rad + (o.r || 0);
+    for (const k of ['obstacles', 'blockers', 'trees', 'rocks', 'palms', 'stones']) if (L[k]) L[k] = L[k].filter(o => o.castle || far(o));
+    L.buildings = L.buildings.filter(far); if (L.stones2) L.stones2 = L.stones2.filter(far);
+    L.fences = L.fences.filter(f => Math.hypot((f.ax + f.bx) / 2 - x, (f.az + f.bz) / 2 - z) > rad + 2);
+  };
+  L.holds.length = 0;
+  L.holds.push({ x: 0, z: 0, kind: 'plaza', name: 'the Plaza', r: CROWN.plazaR, px: 5.5, pz: 0, centre: true });
+  const phi = r(0, Math.PI * 2), cn = pickN(CASTLE_NAMES, CROWN.castles), vn = pickN(VILLAGE_NAMES, CROWN.villages), mn = pickN(MINE_NAMES, CROWN.mines);
+  for (let k = 0; k < CROWN.castles; k++) {
+    const a = phi + k / CROWN.castles * Math.PI * 2 + r(-.12, .12), rich = k % 2 === 0, d = (rich ? r(46, 54) : r(68, 74)) * W.S;
+    const x = Math.cos(a) * d, z = Math.sin(a) * d; clear(x, z, 14);
+    L.holds.push({ x, z, kind: 'castle', name: `Castle ${cn[k]}`, r: 12, px: x + Math.cos(a) * 4.6, pz: z + Math.sin(a) * 4.6, rich });
+    L.towers.push({ x, z, r: 3, h: 9, kind: 'keep' }); L.obstacles.push({ x, z, r: 3.3 }); L.blockers.push({ x, z, r: 3.3, h: 9 });
+    for (let t = 0; t < 4; t++) { const b = a + Math.PI / 4 + t * Math.PI / 2, tx = x + Math.cos(b) * 9.5, tz = z + Math.sin(b) * 9.5; L.towers.push({ x: tx, z: tz, r: 1.1, h: 5, kind: 'keep', small: true }); L.obstacles.push({ x: tx, z: tz, r: 1.3 }); }
+  }
+  for (let k = 0; k < CROWN.villages; k++) {
+    const a = phi + (k + .5) / CROWN.villages * Math.PI * 2 + r(-.15, .15), d = r(58, 78) * W.S, ux = Math.cos(a), uz = Math.sin(a), x = ux * d, z = uz * d;
+    clear(x, z, 13);
+    L.holds.push({ x, z, kind: 'village', name: vn[k], r: 11, px: x + ux * 7.3, pz: z + uz * 7.3 });
+    for (const [dx, dz] of [[-6.6, -8.8], [6.6, -8.8], [-6.6, 8.8], [6.6, 8.8]]) box(L, x + ux * dx - uz * dz, z + uz * dx + ux * dz, 1.9, 1.5, -a + (dz > 0 ? Math.PI : 0) + r(-.15, .15), 3.2, 'cottage');
+  }
+  for (let k = 0; k < CROWN.mines; k++) {
+    const a = phi + Math.PI / 4 + k * Math.PI / 2 + r(-.2, .2), d = r(28, 36) * W.S, x = Math.cos(a) * d, z = Math.sin(a) * d;
+    clear(x, z, 10);
+    L.holds.push({ x, z, kind: 'mine', name: mn[k], r: 8, px: x - Math.cos(a) * 3, pz: z - Math.sin(a) * 3 });
+    for (let j = 0; j < 7; j++) { const b = a + Math.PI * .35 + j / 7 * Math.PI * 1.3, rr = r(5.2, 6.4), rx = x + Math.cos(b) * rr, rz = z + Math.sin(b) * rr, rad = r(1.2, 1.9); L.rocks.push({ x: rx, z: rz, r: rad, rx: r(0, 3), ry: r(0, 3), gold: true }); L.obstacles.push({ x: rx, z: rz, r: rad * .9 }); }
+    box(L, x + Math.cos(a) * 3.2, z + Math.sin(a) * 3.2, 1.2, 1, -a, 2.4, 'hut');
+  }
+  clear(0, 0, CROWN.plazaR - 1); // (the plaza: open ground, nothing to snag on at the start)
+}
 function box(L, x, z, hw, hd, rot, h, kind) {
   const b = { box: true, x, z, hw, hd, rot }; L.obstacles.push(b);
   if (h) { // cover the box with arrow blockers
@@ -254,7 +295,7 @@ function solid(L, pts, h, kind) {
 // middle-facing gate round, so a breach can knock out one section at a time.
 function palisades(L) {
   L.pal = TEAMS.map((t, c) => {
-    if (isOut(c)) return { c, gates: [], obs: [], blk: [], towers: [] }; // (no castle here this battle)
+    if (noCastle(c)) return { c, gates: [], obs: [], blk: [], towers: [] }; // (no castle here this battle)
     const [px, pz] = t.pos, toC = Math.atan2(-pz, -px), gates = [toC, toC + Math.PI / 2], half = FORT.gateW / FORT.r;
     const n = Math.ceil(Math.PI * 2 * FORT.r / 1.04), obs = [], blk = [];
     for (let i = 0; i < n; i++) {
@@ -548,7 +589,7 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
     // two gates: one toward the centre, one toward a neighbour, each flanked by watchtowers
     L.fortStart = 1;
     TEAMS.forEach((t, c) => {
-      if (isOut(c)) return;
+      if (noCastle(c)) return;
       const toC = Math.atan2(-t.pos[1], -t.pos[0]), side = toC + Math.PI / 2;
       for (const g of [toC, side]) for (const s of [-1, 1]) { const a = g + s * 3.9 / 22, x = t.pos[0] + Math.cos(a) * 22, z = t.pos[1] + Math.sin(a) * 22; L.towers.push({ x, z, r: 1.1, h: 6, kind: 'wood', small: true }); }
     });
@@ -567,7 +608,7 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
     fieldBounds(L, R);
     // farm tracks: from each gate to the middle and out to the villages (they read from the saddle)
     for (const t of TEAMS) {
-      if (isOut(TEAMS.indexOf(t))) continue;
+      if (noCastle(TEAMS.indexOf(t))) continue;
       const [gx, gz] = gatePos(t, 0, 4), jit = () => (R() - .5) * 8; L.roads.push(smooth([[gx, gz], [gx * .6 + jit(), gz * .6 + jit()], [gx * .25 + jit(), gz * .25 + jit()], [0, 0]], 3));
       const a = SIDES.flanks.slice().sort((p, q) => Math.abs(angDiff(Math.atan2(t.pos[1], t.pos[0]), p)) - Math.abs(angDiff(Math.atan2(t.pos[1], t.pos[0]), q)))[0], vx = Math.cos(a) * 77.5, vz = Math.sin(a) * 77.5;
       L.roads.push(smooth([[gx, gz], [(gx + vx) / 2 + jit(), (gz + vz) / 2 + jit()], [vx, vz]], 3)); // (and out to the nearer village)
@@ -585,7 +626,7 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
     bigRocks(26);
     // a village in each pass on the x axis (between enemy castles in 2v2): hold it and it sends you men.
     // Its cottages stand at the corners of the wheat field, leaving the way through open
-    for (const a of SIDES.flanks) {
+    if (G.mode !== 'crown') for (const a of SIDES.flanks) {
       const ux = Math.cos(a), uz = Math.sin(a), cx = ux * ROUTES.pass, cz = uz * ROUTES.pass; // (u: out from the middle; the lane through runs across it)
       L.holds.push({ x: cx, z: cz, kind: 'village', r: HOLDS.village.r, px: cx + ux * 7.3, pz: cz + uz * 7.3 });
       for (const [dx, dz] of [[-6.6, -8.8], [6.6, -8.8], [-6.6, 8.8], [6.6, 8.8]]) { const t = dz + r(-.6, .6); box(L, cx + ux * dx - uz * t, cz + uz * dx + ux * t, 1.9, 1.5, -a + r(-.15, .15) + (dz > 0 ? Math.PI : 0), 3.2, 'cottage'); }
@@ -593,10 +634,11 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
   }
 
   // the prize in the middle (desert has its oasis; capture-the-fort and control have their own middles)
-  const C = CENTRES[mapId];
+  if (G.mode === 'crown') crownPlaces(L, R, box);
+  const C = G.mode === 'crown' ? null : CENTRES[mapId];
   if (C && !withFort && !withCtrl) L.holds.unshift({ x: 0, z: 0, kind: C[0], name: C[1], r: HOLDS[C[0]].r, px: 4.8, pz: 0, centre: true });
   for (const h of L.holds) { if (!h.name) h.name = h.kind === 'oasis' ? 'the Oasis' : 'a village'; if (!h.x && !h.z) h.centre = true; }
-  TEAMS.forEach((t, c) => { if (!isOut(c)) L.obstacles.push({ x: t.pos[0], z: t.pos[1], r: CASTLE_R, castle: true }); });
+  TEAMS.forEach((t, c) => { if (!noCastle(c)) L.obstacles.push({ x: t.pos[0], z: t.pos[1], r: CASTLE_R, castle: true }); });
   if (withFort) {
     for (let i = 0; i < 12; i++) {
       if (i % 3 === 0) continue; // four gates

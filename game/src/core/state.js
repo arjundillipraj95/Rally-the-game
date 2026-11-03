@@ -1,6 +1,6 @@
 // The whole game state lives in one plain object. Rules read and write it;
 // the renderer and UI only read it. Nothing here depends on three.js or the DOM.
-import { MAPS, TIMES, PACE, TARGETS } from '../config.js';
+import { MAPS, TIMES, PACE, TARGETS, CROWN } from '../config.js';
 
 export const G = {
   role: 'solo',          // 'solo' | 'host' | 'client'
@@ -45,6 +45,14 @@ export const armyOf = (color, slot) => color + 4 * slot;
 // of this battle altogether (a 2- or 3-castle battle): no castle, no army
 export const isOut = c => ((G.duo && G.duo[c]) | 0) < 0;
 export const castlesIn = () => [0, 1, 2, 3].filter(c => !isOut(c));
+// no castle of this colour on the map: out of the battle, or the Crown (where nobody has a home castle)
+export const noCastle = c => isOut(c) || G.mode === 'crown';
+// an army's size limit: the usual squad cap, or in the Crown its base plus what its side holds
+export const capOf = ti => {
+  if (G.mode !== 'crown') return G.squadCap;
+  const a = G.ALLY[colorOf(ti)], hs = G.holds || [];
+  return CROWN.base + hs.reduce((n, h) => n + (h.owner === a ? (h.kind === 'castle' ? CROWN.perCastle : h.kind === 'village' ? CROWN.perVillage : 0) : 0), 0);
+};
 export const activeArmies = () => { const out = castlesIn(); for (let s = 1; s <= 2; s++) for (let c = 0; c < 4; c++) if ((G.duo[c] | 0) >= s) out.push(c + 4 * s); return out; };
 // which armies a match fields, from each color's extra-captain count
 export const activeFrom = duo => Array.from({ length: ARMIES }, (_, i) => (i < 4 ? (duo[i] | 0) >= 0 : (duo[i % 4] | 0) >= (i >> 2)) ? 1 : 0);

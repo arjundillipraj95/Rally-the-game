@@ -341,6 +341,8 @@ function endText(w, why) {
   if (w < 0) return 'Time ran out with no clear winner.';
   const names = allyNames(w), one = names.indexOf('&') < 0;
   if (why === 'castles') return `${names} tore down every enemy castle.`;
+  if (why === 'crown') return `${names} ${one ? 'holds' : 'hold'} the Crown at the final trumpet.`;
+  if (why === 'places') return `Nobody held the Crown: ${names} held the most of the land.`;
   if (why === 'tickets') return `${names} ${one ? 'is' : 'are'} the last side with tickets.`;
   if (why === 'caps') return `${names} carried the banner home ${rules().caps} times.`;
   return `Time is up and ${names} ${one ? 'leads' : 'lead'}.`;
@@ -373,9 +375,11 @@ bindInput(actions); bindTutorial();
 // The camera stands in front of him; with a sheet open (the wardrobe, the battle setup) it slides so
 // he stays in view beside it. Two "+" places stand either side of him for friends.
 let soloMap = G.map; // the map picked for Battle the computer
+let soloPick = null; // (its mode, length and target, put back when a Crown battle has borrowed G)
 let demoT = 0, homeCap = null, homeView = 'home'; // 'home' | 'sheet' | 'ward'
 const homeV = { sx: 0, k: 0 }; // (the camera's eased slide)
 function seedDemo() {
+  if (soloPick) { G.mode = soloPick.mode; G.time = soloPick.time; G.target = soloPick.target; soloPick = null; }
   G.map = MAPS.valley; // (the home is always out in the green valley; the battle's map is kept in soloMap)
   G.layout = makeLayout(G.map.id, false, false, 7); buildNav(G.layout);
   G.units = []; G.horses = []; G.arrows = []; G.flag = null; G.player = null; G.uid = 0; clearCritters();
@@ -545,6 +549,7 @@ function hideVeil() { clearTimeout(veilT); $('veil').hidden = true; }
 ['goBtn', 'quickBtn', 'startBtn'].forEach(id => { const b = $(id); if (b) b.addEventListener('pointerdown', showVeil); });
 $('againBtn').addEventListener('pointerdown', () => { if (!isHost()) showVeil(); }); // a host's "again" goes to the lobby, not a battle
 $('goBtn').addEventListener('click', () => { lastStart = () => soloStart(); soloStart(); });
+// ("Fight again" after a Battle the computer battle: its own settings, not a Crown's)
 // One tap to a fight: Quick (5 min), a random map and mode; keeps your army, colour, teams and
 // difficulty. The menu shows what was picked, so "Fight again" repeats it.
 $('quickBtn').addEventListener('click', () => {
@@ -555,8 +560,8 @@ $('quickBtn').addEventListener('click', () => {
   updateDesc(); lastStart = () => soloStart(); soloStart();
 });
 // ---------- the home: Play, the sheets, the wardrobe ----------
-// PLAY: the Crown's format (Solo / Duo / Trio a side). Online matchmaking isn't open yet, so for now
-// it's a free-for-all against computer captains in that format: conquest, a featured map, 10 minutes.
+// PLAY: the Crown, in its format (Solo / Duo / Trio a side). Online matchmaking isn't open yet, so for
+// now it's against computer captains: four sides, ten minutes, the places laid out afresh every time.
 let playFmt = (() => { try { return Math.min(2, Math.max(0, +localStorage.getItem('rally-fmt') || 0)); } catch (e) { return 0; } })();
 const pressFmt = () => $('segFmt').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === playFmt)));
 pressFmt();
@@ -564,8 +569,9 @@ $('segFmt').addEventListener('click', e => { const b = e.target.closest('button'
 let lastStart = () => soloStart();
 function playStart() {
   const pick = a => a[(Math.random() * a.length) | 0];
-  G.mode = 'conquest'; G.time = 10; G.target = targetFor('conquest');
-  soloStart({ al: [0, 1, 2, 3], duo: [playFmt, playFmt, playFmt, playFmt], map: MAPS[pick(['forum', 'valley', 'desert', 'frost'])] });
+  if (!soloPick) soloPick = { mode: G.mode, time: G.time, target: G.target };
+  G.mode = 'crown'; G.time = 10; G.target = null;
+  soloStart({ al: [0, 1, 2, 3], duo: [playFmt, playFmt, playFmt, playFmt], map: MAPS.valley });
   lastStart = playStart;
 }
 $('playBtn').addEventListener('pointerdown', showVeil);
