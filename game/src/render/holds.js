@@ -48,9 +48,9 @@ function updateWall(dt) {
 }
 // The Crown's castle walls: grey stone round each yard, a wooden gate across the gateway that falls
 // flat when it's broken (and stands again once mended, or when the castle changes hands).
-let cwalls = null;
+let cwalls = null; const PLANK = new THREE.Color(0x6f5232), IRON = new THREE.Color(0x3a3634);
 function buildCastleWalls(world, list) {
-  const stone = new THREE.MeshLambertMaterial({ color: 0x9a9384 }), plank = new THREE.MeshLambertMaterial({ color: 0x6f5232 });
+  const stone = new THREE.MeshLambertMaterial({ color: 0x9a9384 }), plank = new THREE.MeshLambertMaterial({ color: 0xffffff });
   const blocks = [], gates = []; for (const cw of list) for (const o of cw.obs) (o.cgate != null ? gates : blocks).push(o);
   const bm = new THREE.InstancedMesh(new THREE.BoxGeometry(1.2, 2.6, .8), stone, Math.max(1, blocks.length)), gm = new THREE.InstancedMesh(new THREE.BoxGeometry(1.2, 2.4, .45), plank, Math.max(1, gates.length));
   bm.castShadow = gm.castShadow = true; bm.receiveShadow = true;
@@ -61,17 +61,18 @@ function buildCastleWalls(world, list) {
 }
 function updateCastleWalls() {
   const c = cwalls; if (!c || !G.cgates) return;
-  const sig = c.list.map(cw => (G.cgates[cw.hid] && G.cgates[cw.hid].broken ? 1 : 0) + ':' + (G.holds && G.holds[cw.hid] ? G.holds[cw.hid].owner : -1)).join(',');
+  const sig = c.list.map(cw => (G.cgates[cw.hid] ? (G.cgates[cw.hid].broken | 0) + '/' + (G.cgates[cw.hid].lv | 0) : 0) + ':' + (G.holds && G.holds[cw.hid] ? G.holds[cw.hid].owner : -1)).join(',');
   if (sig === c.sig) return; c.sig = sig;
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3(1, 1, 1);
   c.gates.forEach((o, i) => {
     const cw = c.list.find(x => x.hid === o.cgate), st = G.cgates[o.cgate], h = G.holds && G.holds[o.cgate];
-    const down = st && st.broken, open = !h || h.owner < 0; // (an empty castle: the gate stands open, swung back)
+    const down = st && ((st.broken >> (o.gi | 0)) & 1), open = !h || h.owner < 0; // (an empty castle: the gate stands open, swung back)
     e.set(down ? Math.PI / 2 * .95 : 0, Math.atan2(o.x - cw.x, o.z - cw.z) + (open && !down ? Math.PI / 2 : 0), 0); q.setFromEuler(e);
     const y = terrainMeshY(o.x, o.z) + (down ? .25 : 1.2), off = open && !down ? 1.2 : 0;
-    m.compose(v.set(o.x + Math.cos(cw.gate + Math.PI / 2) * off * 0, y, o.z), q, sc); c.gm.setMatrixAt(i, m);
+    m.compose(v.set(o.x, y, o.z), q, sc); c.gm.setMatrixAt(i, m);
+    c.gm.setColorAt(i, (st && st.lv) ? IRON : PLANK); // (fortified: iron-banded, dark)
   });
-  c.gm.count = c.gates.length; c.gm.instanceMatrix.needsUpdate = true;
+  c.gm.count = c.gates.length; c.gm.instanceMatrix.needsUpdate = true; if (c.gm.instanceColor) c.gm.instanceColor.needsUpdate = true;
 }
 export function buildHolds(world, L) {
   cwalls = null; if (G.mode === 'crown' && L.cwalls && L.cwalls.length) buildCastleWalls(world, L.cwalls);

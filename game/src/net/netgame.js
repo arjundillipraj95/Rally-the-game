@@ -65,7 +65,7 @@ function encodeSnap() {
     return [i, b36(L.id), L.dead ? 1 : 0, Math.round(L.horseHp), Math.ceil(L.horseCd), L.summon ? 1 : 0, k.n, r1(k.lvx || 0), r1(k.lvz || 0), r2(k.lst || 0), Math.round(L.hp), '', L.streak | 0, Math.round(L.armour || 0)].join(','); // (11: unused; 12: the streak)
   }).filter(Boolean).join(';');
   // the map's holdings, and control mode's points: who has each, and how far a capture has got
-  const hd = (G.holds || []).map(h => [h.owner, Math.round(h.prog * 100), h.cap, h.contested ? 1 : 0, h.chest | 0, G.cgates && G.cgates[h.id] && G.cgates[h.id].broken ? 1 : 0].join(',')).join(';');
+  const hd = (G.holds || []).map(h => [h.owner, Math.round(h.prog * 100), h.cap, h.contested ? 1 : 0, h.chest | 0, G.cgates && G.cgates[h.id] ? G.cgates[h.id].broken | 0 : 0, G.cgates && G.cgates[h.id] ? G.cgates[h.id].lv | 0 : 0].join(',')).join(';');
   const cp = (G.ctrlPoints || []).map(p => [p.owner, Math.round(p.prog * 100), p.capturer ?? -1].join(',')).join(';');
   const fo = (G.forts || []).map(f => f.broken).join(',') + (G.plazaWall ? ',' + (G.plazaWall.up ? 16 : 0) + G.plazaWall.broken : ''); // (Fortify: each castle's broken palisade sections)
   const du = (G.duels || []).map(d => [d.id, b36(d.a.id), b36(d.b.id), d.state === 'on' ? 1 : 0, encX(d.x), encX(d.z), Math.max(0, Math.ceil(d.t))].join(',')).join(';'); // (duels: called out, or on)
@@ -202,7 +202,7 @@ function clientApply(hp) {
     if (v.length > 9) { s.morale = v[7]; s.rally = v[8]; s.routT = v[9] ? 1 : 0; }
   });
   G.bounty = +secs[7];
-  if (secs[8] && G.holds) secs[8].split(';').forEach((r, i) => { const h = G.holds[i], v = r.split(',').map(Number); if (h) { h.owner = v[0]; h.prog = v[1] / 100; h.cap = v[2]; h.contested = !!v[3]; h.chest = v[4] | 0; if (G.cgates) { if (!G.cgates[i] && G.layout.cwalls && G.layout.cwalls.some(c => c.hid === i)) G.cgates[i] = { hp: 1, broken: false }; if (G.cgates[i]) G.cgates[i].broken = !!v[5]; } } }); if (G.crown) applyCastleGates();
+  if (secs[8] && G.holds) secs[8].split(';').forEach((r, i) => { const h = G.holds[i], v = r.split(',').map(Number); if (h) { h.owner = v[0]; h.prog = v[1] / 100; h.cap = v[2]; h.contested = !!v[3]; h.chest = v[4] | 0; if (G.cgates) { if (!G.cgates[i] && G.layout.cwalls && G.layout.cwalls.some(c => c.hid === i)) G.cgates[i] = { hp: [1, 1, 1], broken: 0 }; if (G.cgates[i]) { G.cgates[i].broken = v[5] | 0; G.cgates[i].lv = v[6] | 0; } } } }); if (G.crown) applyCastleGates();
   if (secs[10] != null && G.forts) { // palisades: built (the castle's Fortify level) and broken
     secs[10].split(',').forEach((v, c) => { if (G.forts[c]) G.forts[c].broken = +v || 0; });
     const pv = +secs[10].split(',')[4]; // (the Crown: the plaza's wall, up (16) and its broken gates)
@@ -556,6 +556,7 @@ export const actions = {
     const me = G.teams[G.myTi], cost = upgradeCost(G.myTi, id), u = UPGRADES.find(x => x.id === id);
     if (!u) return;
     if (cost == null && id === 'tower') { banner('No watchtower now', 'Two per side, and only in the Crown'); return; }
+    if (cost == null && id === 'fort' && G.mode === 'crown') { banner('Nothing to fortify here', 'Stand in the yard of a castle your side holds'); return; }
     if (cost == null) { banner(id === 'arm' ? 'Your armour is whole' : `${u.name} is maxed`, id === 'arm' ? 'Buy it again once it\'s been hacked away' : 'Try another upgrade'); return; }
     if (me.gold < cost) { banner('Not enough gold', `${u.name} costs ${cost} gold`, '#ffcf3a'); return; }
     if (isClient()) {

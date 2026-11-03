@@ -308,7 +308,7 @@ function crownPlaces(L, R, box, trees) {
     let a = phi + k / CROWN.castles * Math.PI * 2 + r(-.12, .12), rich = k % 2 === 0, d = (rich ? r(46, 54) : r(68, 74)) * W.S;
     [a, d] = spot(a, d, 15, rich ? 42 : 62, rich ? 58 : 78, 12); // (not in the river)
     const x = Math.cos(a) * d, z = Math.sin(a) * d; clear(x, z, 18);
-    L.holds.push({ x, z, kind: 'castle', name: `Castle ${cn[k]}`, r: 12, px: x + Math.cos(a) * 4.6, pz: z + Math.sin(a) * 4.6, rich });
+    L.holds.push({ x, z, kind: 'castle', name: `Castle ${cn[k]}`, r: 12, px: x + Math.cos(a) * 4.6, pz: z + Math.sin(a) * 4.6, rich, towerA0: a + Math.PI / 4 }); // (towerA0: where its four towers stand, for Fortify II)
     L.towers.push({ x, z, r: 3, h: 9, kind: 'keep' }); L.obstacles.push({ x, z, r: 3.3, keep: true }); L.blockers.push({ x, z, r: 3.3, h: 9 });
     for (let t = 0; t < 4; t++) { const b = a + Math.PI / 4 + t * Math.PI / 2, tx = x + Math.cos(b) * 9.5, tz = z + Math.sin(b) * 9.5; L.towers.push({ x: tx, z: tz, r: 1.1, h: 5, kind: 'keep', small: true }); L.obstacles.push({ x: tx, z: tz, r: 1.3, keep: true }); }
   }
@@ -397,12 +397,16 @@ function crownPlaces(L, R, box, trees) {
   L.cwalls = [];
   for (const h of L.holds) {
     if (h.kind !== 'castle') continue;
-    const R0 = CROWN.cwallR, g = h.laneA ?? Math.atan2(-h.z, -h.x), half = CROWN.cgateW / 2 / R0, n = Math.ceil(Math.PI * 2 * R0 / 1.1), cw = { hid: L.holds.indexOf(h), x: h.x, z: h.z, r: R0, gate: g, obs: [], blk: [] };
-    clear(h.x + Math.cos(g) * R0, h.z + Math.sin(g) * R0, 2.5); // (nothing blocking the gateway)
+    // the main gate (3-4 men wide) facing its way in, and two small side gates round the wall (one man at a time)
+    const R0 = CROWN.cwallR, g = h.laneA ?? Math.atan2(-h.z, -h.x), gates = [g, g + Math.PI * 2 / 3, g - Math.PI * 2 / 3], halfs = [CROWN.cgateW, CROWN.cgateSmall, CROWN.cgateSmall].map(w => w / 2 / R0), n = Math.ceil(Math.PI * 2 * R0 / 1.1);
+    const cw = { hid: L.holds.indexOf(h), x: h.x, z: h.z, r: R0, gate: g, gates, obs: [], blk: [] };
+    for (const ga of gates) { const gx = h.x + Math.cos(ga) * R0, gz = h.z + Math.sin(ga) * R0; // (nothing blocking a gateway, inside or out; the keep and its towers stay)
+      L.obstacles = L.obstacles.filter(o => o.keep || o.castle || o.pal || Math.hypot(o.x - gx, o.z - gz) > 4 + (o.r || (o.box ? Math.hypot(o.hw, o.hd) : 0)));
+      L.trees = L.trees.filter(t => Math.hypot(t.x - gx, t.z - gz) > 5); L.rocks = L.rocks.filter(t => Math.hypot(t.x - gx, t.z - gz) > 5); }
     for (let i = 0; i < n; i++) {
-      const a = i / n * Math.PI * 2, x = h.x + Math.cos(a) * R0, z = h.z + Math.sin(a) * R0, isGate = Math.abs(angDiff(a, g)) < half;
-      const o = isGate ? { x, z, r: .9, pal: true, c: -1, k: -1, cgate: cw.hid, segKey: 'cg' + cw.hid } : { x, z, r: .9, keep: true, cwall: true };
-      const b = { x, z, r: .9, h: 2.8, cgate: isGate ? cw.hid : undefined };
+      const a = i / n * Math.PI * 2, x = h.x + Math.cos(a) * R0, z = h.z + Math.sin(a) * R0, gi = gates.findIndex((ga, k) => Math.abs(angDiff(a, ga)) < halfs[k]), isGate = gi >= 0;
+      const o = isGate ? { x, z, r: .9, pal: true, c: -1, k: -1, cgate: cw.hid, gi, segKey: 'cg' + cw.hid + ':' + gi } : { x, z, r: .9, keep: true, cwall: true };
+      const b = { x, z, r: .9, h: 2.8, cgate: isGate ? cw.hid : undefined, gi };
       L.obstacles.push(o); L.blockers.push(b); cw.obs.push(o); cw.blk.push(b);
     }
     // whatever stands where the wall runs goes

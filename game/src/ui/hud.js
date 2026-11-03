@@ -1,7 +1,7 @@
 // Scoreboard, clock, health, gold, squad count and button labels.
 import { CROWN, TEAMS, MODES, STATS, DM_TICKETS, CAPS_TO_WIN, CTRL, AL_LETTER, ORDER_NAMES, UPGRADES, WEAPON_NAMES, STREAK, LAST } from '../config.js';
 import { G, isFfa, colorOf, rules, matchTime, SLOT_NAME, isOut, capOf } from '../core/state.js';
-import { colorOut, colorScore, colorHuman, squadOf, canRecruit, horseMax, upgradeCost, javMax, execTarget } from '../core/sim.js';
+import { colorOut, colorScore, colorHuman, squadOf, canRecruit, horseMax, upgradeCost, javMax, execTarget, castleHere } from '../core/sim.js';
 import { session, isClient } from '../net/session.js';
 
 const $ = id => document.getElementById(id);
@@ -75,12 +75,14 @@ export function updateHud(lastSnapAt) {
   });
   document.querySelectorAll('#upTray button').forEach(b => {
     const id = b.dataset.up, def = UPGRADES.find(u => u.id === id), max = def ? def.cost.length : 0;
-    if (id === 'fort' || id === 'tower') { const hide = (id === 'tower') !== (G.mode === 'crown'); if (b.hidden !== hide) b.hidden = hide; if (hide) return; } // (the Crown: watchtowers instead of Fortify)
-    const own = id === 'fort' ? G.teams[colorOf(G.myTi)] : me, l = own && own.up ? own.up[id] : 0, cost = upgradeCost(G.myTi, id); // (Fortify: the castle's)
+    if (id === 'tower') { const hide = G.mode !== 'crown'; if (b.hidden !== hide) b.hidden = hide; if (hide) return; } // (the Crown's watchtowers)
+    const cw = id === 'fort' && G.mode === 'crown' ? castleHere(G.myTi) : null, cst = cw && G.cgates && G.cgates[cw.hid]; // (the Crown: Fortify is the castle you stand in)
+    const own = id === 'fort' ? G.teams[colorOf(G.myTi)] : me, l = cw ? (cst && cst.lv) | 0 : own && own.up ? own.up[id] : 0, cost = upgradeCost(G.myTi, id); // (Fortify: the castle's)
     const locked = (id === 'foot2' && !(me.up && me.up.foot1)) || (id === 'arch2' && !(me.up && me.up.arch1));
     b.querySelector('.lv').dataset.pips = id === 'arm' || id === 'tower' ? '' : '●'.repeat(l) + '○'.repeat(Math.max(0, max - l));
-    if (id === 'fort') b.querySelector('span').textContent = l >= max ? (cost != null ? 'Mend the broken gate' : 'Palisade, gates and towers built') : l === 1 ? 'Gates and gate towers' : 'Palisade, then gates & towers';
-    b.querySelector('em').textContent = cost == null ? (id === 'tower' ? 'Two up' : id === 'arm' ? (G.player && !G.player.dead ? 'Whole' : '—') : 'Maxed') : locked ? (id === 'foot2' ? 'Needs Arms first' : 'Needs Training first') : cost + 'g';
+    if (id === 'fort' && G.mode === 'crown') b.querySelector('span').textContent = !cw ? 'Stand in a castle you hold' : cst && cst.broken ? 'Mend the broken gates now' : l >= 2 ? 'Iron gates and archer towers' : l === 1 ? 'Archers on its four towers' : 'Iron-banded gates, quicker to mend';
+    else if (id === 'fort') b.querySelector('span').textContent = l >= max ? (cost != null ? 'Mend the broken gate' : 'Palisade, gates and towers built') : l === 1 ? 'Gates and gate towers' : 'Palisade, then gates & towers';
+    b.querySelector('em').textContent = cost == null ? (id === 'fort' && G.mode === 'crown' && !cw ? '—' : id === 'tower' ? 'Two up' : id === 'arm' ? (G.player && !G.player.dead ? 'Whole' : '—') : 'Maxed') : locked ? (id === 'foot2' ? 'Needs Arms first' : 'Needs Training first') : cost + 'g';
     b.dataset.state = cost == null ? 'max' : locked ? 'locked' : gold < cost ? 'poor' : 'ok';
     b.setAttribute('aria-disabled', (cost == null || gold < cost || locked) ? 'true' : 'false');
   });

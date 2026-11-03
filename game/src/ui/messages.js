@@ -83,10 +83,12 @@ export function msgText(k, a) {
     case 'crownRise': return ['The Crown has risen!', 'Walls round the plaza! Inside: break the casing. Outside: hack a gate down', '#ffcf3a'];
     case 'towerUp': return mine(a[0]) ? ['Watchtower going up', 'It sees far through the fog once it\'s built. Enemies can hack it down', '#ffcf3a'] : null;
     case 'towerDown': return !isEnemyTi(a[0], myTi) ? [mine(a[0]) ? 'Your watchtower is down!' : `${nm(a[0])}'s watchtower is down`, a[1] >= 0 ? `Hacked down by ${nm(a[1])}` : '', '#e0352b'] : a[1] === myTi ? ['Watchtower down!', 'They\'re blind there now', '#ffcf3a'] : null;
+    case 'castleFort': { const nmC = (G.holds && G.holds[a[1]] && G.holds[a[1]].name) || 'The castle'; return !isEnemyTi(a[0], myTi) ? [`${nmC} fortified`, a[2] >= 2 ? 'Archers on its towers shoot whoever comes at it' : 'Iron-banded gates: tougher, and they mend faster', '#ffcf3a'] : null; }
     case 'castleGate': { // a[0]: the side holding it, a[1]: who broke it, a[2]: the castle
       const nmC = (G.holds && G.holds[a[2]] && G.holds[a[2]].name) || 'a castle';
-      if (a[0] === G.ALLY[colorOf(myTi)]) return [`${nmC}'s gate is broken!`, 'Get men into the yard before they take it. It mends itself in a minute', '#e0352b'];
-      return a[1] === myTi || !isEnemyTi(a[1], myTi) ? [`${nmC}'s gate is down!`, 'Into the yard and hold it', '#ffcf3a'] : null;
+      const which = a[3] ? 'side gate' : 'main gate';
+      if (a[0] === G.ALLY[colorOf(myTi)]) return [`${nmC}'s ${which} is broken!`, 'Get men into the yard before they take it. It mends itself in a minute', '#e0352b'];
+      return a[1] === myTi || !isEnemyTi(a[1], myTi) ? [`${nmC}'s ${which} is down!`, a[3] ? 'Slip in one at a time and hold the yard' : 'Into the yard and hold it', '#ffcf3a'] : null;
     }
     case 'plazaGate': return [a[1] === myTi ? 'You broke a plaza gate!' : `${nm(a[1])} broke a plaza gate!`, 'The way to the Crown is open', css(a[1])];
     case 'crownFree': return ['The Crown is free!', 'Grab it: whoever carries it at 10:00 wins', '#ffcf3a'];
