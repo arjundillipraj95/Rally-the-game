@@ -31,5 +31,8 @@ console.log('waiting for the lobby timer...'); await sleep(61500);
 const S = A.last('start'); out.start = S && { host: S.host === A.me.id ? 'Arjun' : S.host, seats: Object.entries(S.seats).map(([id, ti]) => ({ [A.me.id]: 'Arjun', [B.me.id]: 'Ravi', [C.me.id]: 'Stranger', [D.me.id]: 'Sam' }[id] + ':' + ti)).join(' ') };
 B.send({ t: 'relay', to: A.me.id, d: { hello: 1 } }); await sleep(300); out.relay = JSON.stringify(A.last('relay'));
 A.ws.close(); await sleep(500); const nh = B.last('newHost'); out.handover = nh && (nh.host === B.me.id ? 'Ravi' : nh.host);
+// leaving early: Sam quits twice (the second battle's quit is simulated by the room being started); his next search waits
+D.send({ t: 'quit' }); await sleep(200); D.send({ t: 'queue', fmt: 0 }); await sleep(300);
+out.quitOnce = (D.last('note') || {}).msg || 'no wait';
 console.log(JSON.stringify(out, null, 1));
 for (const c of [B, C, D]) c.ws.close();

@@ -97,6 +97,7 @@ export function netHostSend() {
   NET.lastSize = json.length;
   NET.room.presence(pres).catch(() => {});
 }
+const IDLE_MS = 30e3; // (a player who does nothing this long is played by the computer until they're back)
 export function netHostReadInputs() {
   const NET = session.NET, peers = NET.room.peers();
   const present = new Set(peers.map(p => p.peer));
@@ -133,7 +134,14 @@ export function netHostReadInputs() {
     if (p.sameTab) continue;
     const ti = NET.seats[p.peer]; if (ti === undefined) continue;
     const pr = p.presence || {}; if (pr.seed !== G.seed || pr.ph !== 'play') continue;
-    const s = G.teams[ti], L = s.leader; if (!s.human) continue;
+    const s = G.teams[ti], L = s.leader;
+    { // idle for 30 s: the computer plays their army until they touch the controls again
+      const idle = NET.idle || (NET.idle = {}), sig = [Array.isArray(pr.cap) ? Math.round(pr.cap[1] * 2) + ',' + Math.round(pr.cap[2] * 2) : '', pr.atk, pr.par, pr.ahN, pr.ride, pr.chg, pr.vly, pr.ord, pr.evN, pr.blk, pr.ah].join('|');
+      const w = idle[ti] || (idle[ti] = { sig, at: performance.now(), out: false });
+      if (w.sig !== sig) { w.sig = sig; w.at = performance.now(); if (w.out) { w.out = false; s.human = true; if (L) { L.human = true; L.remote = true; L.dmg = HUMAN_CAPTAIN.dmg; L.spd = HUMAN_CAPTAIN.spd; } bus.emit('msg', { k: 'back', a: [ti] }); } }
+      else if (!w.out && s.human && L && !L.dead && performance.now() - w.at > IDLE_MS) { w.out = true; s.human = false; L.human = false; L.remote = false; L.dmg = STATS.captain.dmg; L.spd = STATS.captain.spd; bus.emit('msg', { k: 'idle', a: [ti] }); }
+    }
+    if (!s.human) continue;
     const last = NET.inp[ti] || (NET.inp[ti] = { atk: 0, chg: 0, ride: 0, vly: 0, par: 0, ahN: 0, hold: '', rec: [0, 0, 0], up: UPGRADES.map(() => 0) }); // (one count per upgrade: a short list once lost the Horse)
     if (L && !L.dead && Array.isArray(pr.cap) && pr.cap[0] === L.id) {
       L.x = +pr.cap[1]; L.z = +pr.cap[2]; L.face = +pr.cap[3]; L.vx = +pr.cap[4]; L.vz = +pr.cap[5];

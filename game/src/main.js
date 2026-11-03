@@ -775,6 +775,7 @@ $('pauseBtn').addEventListener('click', e => { e.stopPropagation(); openPause();
 $('resumeBtn').addEventListener('click', closePause);
 $('quitBtn').addEventListener('click', async () => {
   closePause(); portal.gameplayStop();
+  if (session.NET && session.NET.match && G.state === 'play') online.quit(); // (leaving a matchmade battle early)
   if (session.NET) {
     if (session.NET.role === 'host') { try { await session.NET.room.presence({ ph: 'gone' }); } catch (e) {} await new Promise(r => setTimeout(r, 300)); } // (tell the joiners first)
     netLeave(); return;

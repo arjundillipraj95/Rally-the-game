@@ -29,6 +29,7 @@ export class Hub {
     this.parties = new Map(); // party id -> {id, leader, members: [ids]}
     this.rooms = new Map();   // room id -> {id, fmt, sides: [[ids]], created, started, host, code, startedAt}
     this.timer = null;
+    this.quits = new Map(); // account -> when they left battles early (the last hour)
     this.topics = new Map(); // relay topic -> sessions listening (the game's fallback link, see m_sub)
   }
   async fetch(req) {
@@ -176,6 +177,7 @@ export class Hub {
     if (p && p.leader !== s.id) return this.send(s, { t: 'note', msg: 'Your party leader starts the search' });
     const ids = p ? p.members.slice() : [s.id];
     if (ids.length > FMT_CAP[fmt]) return this.send(s, { t: 'note', msg: `Your party is too big for ${['Solo', 'Duo', 'Trio'][fmt]}` });
+    for (const id of ids) { const w = this.quitWait(id); if (w > 0) return this.send(s, { t: 'note', msg: `${id === s.id ? 'You' : 'Someone in your party'} left battles early: searching again in ${Math.ceil(w / 1000)}s` }); }
     for (const id of ids) { const x = this.live.get(id); if (x) this.cancelQueue(x); }
     let room = [...this.rooms.values()].find(r => !r.started && r.fmt === fmt && this.fits(r, ids.length));
     if (!room) { room = { id: rid(8), fmt, sides: [[], [], [], []], created: Date.now(), started: false }; this.rooms.set(room.id, room); }
@@ -226,6 +228,14 @@ export class Hub {
     for (const id of all) { const x = this.live.get(id); x.where = 'battle'; this.send(x, { t: 'start', room: room.id, fmt: room.fmt, host: room.host, code: room.code, seats: room.seats, nicks: Object.fromEntries(all.map(i => [i, this.live.get(i).nick])) }); }
     for (const id of all) this.notifyFriends(id);
   }
+  // leaving a battle before it ends: once is life; again within the hour means a short wait (a minute
+  // for the second, two for the third...) before the next search
+  quitWait(id) {
+    const now = Date.now(), q = (this.quits.get(id) || []).filter(t => now - t < 3600e3); this.quits.set(id, q);
+    return q.length < 2 ? 0 : q[q.length - 1] + (q.length - 1) * 60e3 - now;
+  }
+  noteQuit(s) { const room = s.room && this.rooms.get(s.room); if (!room || !room.started) return; const q = this.quits.get(s.id) || []; q.push(Date.now()); this.quits.set(s.id, q); }
+  async m_quit(s) { this.noteQuit(s); return this.m_battleOver(s); }
   async m_battleOver(s) { s.room = null; s.queued = null; s.where = s.party ? 'party' : 'home'; this.notifyFriends(s.id); this.partyUpdate(s.party); }
   // host handover: the host leaves mid-battle, the next player takes over (their phone rebuilds the battle from its last snapshot)
   handover(room, goneId) {
@@ -247,6 +257,7 @@ export class Hub {
     if (!s.id || this.live.get(s.id) !== s) return;
     const room = s.room && this.rooms.get(s.room);
     if (room && room.started && room.host === s.id) this.handover(room, s.id);
+    if (s.where === 'battle') this.noteQuit(s);
     this.cancelQueue(s); this.leaveParty(s);
     this.live.delete(s.id); this.notifyFriends(s.id);
   }
