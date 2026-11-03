@@ -36,6 +36,7 @@ export const CROWN = {
   gold: { castle: .8, village: .3, mine: 1.6 }, // per second, to every army on the side
   casing: 22, overtime: 60, carrierSlow: .85, plazaR: 15, wallR: 17.5, gateW: 4.4, gateHp: 1000, // (the plaza's wall at 9:00, and its four gates) // (seconds of men in the plaza to break the Crown's casing)
   castles: 6, villages: 6, mines: 4,
+  tower: { build: 4, hp: 260, max: 2, reach: 2.2 }, // (watchtowers: seconds to build, toughness, how many a side may have)
 };
 // Match length, in minutes: Quick, Standard (the default) or Long. A shorter battle runs hotter: more
 // gold, and computer armies march out with smaller squads (gather).
@@ -275,6 +276,7 @@ export const UPGRADES = [
   { id: 'aura',  name: 'Aura',     desc: 'Bigger, stronger aura',                                   cost: [80, 140, 220] },
   { id: 'horse', name: 'Horse',    desc: 'Tougher, faster, back sooner',                             cost: [80, 140, 220] },
   { id: 'arm',   name: 'Armour',   desc: 'Your captain: plate that soaks most of each blow. Never mends, buy it again', cost: [70] },
+  { id: 'tower', name: 'Watchtower', desc: 'The Crown: a tower where you stand that sees far through the fog. Two per side; the enemy can hack it down', cost: [60] },
   { id: 'fort',  name: 'Fortify',  desc: 'Your castle: a palisade, then gates only your men can pass and gate towers that shoot. A broken gate can be mended', cost: [110, 170] },
 ];
 // Fortify (bought for the castle, shared by everyone in it): a palisade ring of r with two open gates

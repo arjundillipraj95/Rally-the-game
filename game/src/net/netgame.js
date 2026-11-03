@@ -69,7 +69,8 @@ function encodeSnap() {
   const cp = (G.ctrlPoints || []).map(p => [p.owner, Math.round(p.prog * 100), p.capturer ?? -1].join(',')).join(';');
   const fo = (G.forts || []).map(f => f.broken).join(',') + (G.plazaWall ? ',' + (G.plazaWall.up ? 16 : 0) + G.plazaWall.broken : ''); // (Fortify: each castle's broken palisade sections)
   const du = (G.duels || []).map(d => [d.id, b36(d.a.id), b36(d.b.id), d.state === 'on' ? 1 : 0, encX(d.x), encX(d.z), Math.max(0, Math.ceil(d.t))].join(',')).join(';'); // (duels: called out, or on)
-  return [Math.round(G.T * 10), teams, us.join(';'), ars.join(';'), hs.join(';'), fl, pl, G.bounty, hd, cp, fo, du].join('|');
+  const wt = (G.wtowers || []).map(w => [w.id, encX(w.x), encX(w.z), w.a, Math.max(0, Math.round(w.hp)), Math.round(w.build * 99), w.ti].join(',')).join(';'); // (the Crown's watchtowers)
+  return [Math.round(G.T * 10), teams, us.join(';'), ars.join(';'), hs.join(';'), fl, pl, G.bounty, hd, cp, fo, du, wt].join('|');
 }
 // a remote player's blow landing (or landing on them) goes out at once rather than waiting for the
 // next regular snapshot, so their hits register as quickly as the network allows
@@ -254,6 +255,7 @@ function clientApply(hp) {
     } else if (!C.meInit || C.meId !== id || u.execA || u.execV) { u.x = x; u.z = z; u.face = face; } // (in an execution the host places you)
   }
   for (const u of [...C.byId.values()]) if (!seen.has(u.id)) clientKill(u);
+  if (secs[12] != null && G.mode === 'crown') G.wtowers = secs[12] ? secs[12].split(';').map(r => { const f = r.split(','); return { id: +f[0], x: decX(f[1]), z: decX(f[2]), a: +f[3], hp: +f[4], build: +f[5] / 99, ti: +f[6] }; }) : [];
   if (secs[11] != null) { // duels: who's called out whom, and the rings that are up
     for (const u of G.units) u.duelId = 0;
     G.duels = secs[11] ? secs[11].split(';').map(r => { const f = r.split(','); return { id: +f[0], a: C.byId.get(p36(f[1])), b: C.byId.get(p36(f[2])), state: f[3] === '1' ? 'on' : 'offer', x: decX(f[4]), z: decX(f[5]), t: +f[6] }; }).filter(d => d.a && d.b) : [];
@@ -553,11 +555,12 @@ export const actions = {
     if (G.state !== 'play') return;
     const me = G.teams[G.myTi], cost = upgradeCost(G.myTi, id), u = UPGRADES.find(x => x.id === id);
     if (!u) return;
+    if (cost == null && id === 'tower') { banner('No watchtower now', 'Two per side, and only in the Crown'); return; }
     if (cost == null) { banner(id === 'arm' ? 'Your armour is whole' : `${u.name} is maxed`, id === 'arm' ? 'Buy it again once it\'s been hacked away' : 'Try another upgrade'); return; }
     if (me.gold < cost) { banner('Not enough gold', `${u.name} costs ${cost} gold`, '#ffcf3a'); return; }
     if (isClient()) {
-      C.inp.up[UPGRADES.indexOf(u)]++; me.gold -= cost; if (id !== 'fort' && id !== 'arm') me.up[id]++; C.goldLocalAt = C.upLocalAt = performance.now();
-      if (id === 'arm') { me.armBuys = (me.armBuys | 0) + 1; if (G.player) G.player.armour = ARMOUR.hp; sfx.draw(); showMsg('armourOn', [G.myTi]); } else { sfx.coin(); showMsg('upgrade', [G.myTi, id, me.up[id]]); }
+      C.inp.up[UPGRADES.indexOf(u)]++; me.gold -= cost; if (id !== 'fort' && id !== 'arm' && id !== 'tower') me.up[id]++; C.goldLocalAt = C.upLocalAt = performance.now();
+      if (id === 'arm') { me.armBuys = (me.armBuys | 0) + 1; if (G.player) G.player.armour = ARMOUR.hp; sfx.draw(); showMsg('armourOn', [G.myTi]); } else if (id === 'tower') sfx.coin(); else { sfx.coin(); showMsg('upgrade', [G.myTi, id, me.up[id]]); }
     } else buyUpgrade(G.myTi, id);
     bus.emit('hud');
   },

@@ -674,7 +674,7 @@ export function drawSoldiers(units, dt) {
   let lx = 0, ly = 0, lz = 0, l2 = 0;
   if (tg && !tg.dead) { lx = tg.x - cp.x; ly = tg.y + 1.3 - cp.y; lz = tg.z - cp.z; l2 = lx * lx + ly * ly + lz * lz; }
   for (const u of units) {
-    if (u.hidden) continue;
+    if (u.hidden || u.fog) continue; // (fog of war: an enemy your side can't see)
     if (l2 > 0 && u !== tg && !u.dead) {
       const a = stateOf(u);
       if (!isEnemyTi(u.ti, G.myTi)) {

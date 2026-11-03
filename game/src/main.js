@@ -8,7 +8,7 @@ import '@fontsource/barlow-semi-condensed/latin-800.css';
 import '@fontsource/barlow-semi-condensed/latin-800-italic.css';
 import './style.css';
 import { TEAMS, MODES, MAPS, PRESETS, RANKS, CRESTS, QUIPS, TIPS, AL_LETTER, TARGETS, DUEL } from './config.js';
-import { G, bus, colorOf, rules, matchTime, modeDesc, activeFrom, targetFor, SLOT_NAME } from './core/state.js';
+import { G, bus, colorOf, rules, matchTime, modeDesc, activeFrom, targetFor, SLOT_NAME, isEnemyTi } from './core/state.js';
 import { rideRelease, orderVolley, challenge, canChallenge, startMatch, mkUnit, newTeams, update, fallStep, endMatch, auraRange, endStep, setOrder, applyFort } from './core/sim.js';
 import { makeLayout, gatePos, groundY } from './core/world.js';
 import { buildNav, findPath } from './core/nav.js';
@@ -19,6 +19,7 @@ import { drawSoldiers, drawCalls, clearProps } from './render/soldiers.js';
 import { banterTick, clearBanter } from './render/banter.js';
 import { initFeed, clearFeed, feedTick } from './ui/feed.js';
 import { spawnMeadow, updateMeadow, clearMeadow } from './render/meadow.js';
+import { fogTick, fogGrid, seenAt } from './render/fog.js';
 import { buildReport, renderCaptains, renderAwards, myLine, shareText, clearReport } from './ui/report.js';
 import { updateSeeThrough } from './render/seethrough.js';
 import { drawVolleyAim } from './ui/volleyaim.js';
@@ -664,9 +665,9 @@ function drawMatch(dt) {
 }
 function drawScene(dt) {
   try { audioTick(dt); } catch (e) { fault('sound', e); } // (sound can never freeze the screen)
-  banterTick(dt); updateCritters(dt);
+  banterTick(dt); updateCritters(dt); fogTick(dt);
   drawSoldiers(G.units, dt);
-  const horses = isClient() ? clientHorses() : G.horses.map(h => ({ key: h.id, ti: h.ti, x: h.x, z: h.z, face: h.face, spd: h.spd, state: h.state, t: h.t, fall: h.fall }));
+  const horses = (isClient() ? clientHorses() : G.horses.map(h => ({ key: h.id, ti: h.ti, x: h.x, z: h.z, face: h.face, spd: h.spd, state: h.state, t: h.t, fall: h.fall }))).filter(h => !fogGrid() || !isEnemyTi(h.ti, G.myTi) || seenAt(h.x, h.z));
   drawHorses(horses, dt);
   updateWorldView(dt, castleFx);
   effectsTick(dt);

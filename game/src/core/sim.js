@@ -72,6 +72,7 @@ export function startMatch(humans, active = activeFrom([0, 0, 0, 0])) {
   G.holds = makeHolds(G.layout);
   G.duels = []; G.duelN = 0; G.chestDone = false;
   G.crown = G.mode === 'crown' ? { said: {}, casing: 0, ot: false } : null;
+  G.wtowers = []; G.wtN = 0;
   G.plazaWall = G.crown ? { up: false, hp: [0, 1, 2, 3].map(() => CROWN.gateHp), broken: 0 } : null; applyPlazaWall();
   initForts();
   if (G.crown) { // the Crown: every captain in the plaza, a few men each, facing out to run for it
@@ -158,6 +159,9 @@ export const archTier = ti => Math.min(2, lvl(ti, 'arch1') + lvl(ti, 'arch2'));
 export const upgradeCost = (ti, id) => {
   const def = UPGRADES.find(u => u.id === id);
   if (!def) return null;
+  if (id === 'tower') { const L = (ti === G.myTi && G.player) || (G.teams[ti] && G.teams[ti].leader), a = G.ALLY[colorOf(ti)];
+    return G.mode !== 'crown' || !L || L.dead || G.T < CROWN.breakout || (G.wtowers || []).filter(w => w.a === a).length >= CROWN.tower.max ? null : def.cost[0]; }
+  if (id === 'fort' && G.mode === 'crown') return null;
   if (id === 'arm') { const s = G.teams[ti], L = (ti === G.myTi && G.player) || (s && s.leader); // (a joiner's phone knows its own captain, not the team's)
     return !L || L.dead || (L.armour || 0) >= ARMOUR.hp - .5 ? null : Math.min(ARMOUR.maxCost, ARMOUR.cost + ARMOUR.step * (s.armBuys | 0)); } // (armour: whenever it's not whole, again and again)
   const l = lvl(id === 'fort' ? colorOf(ti) : ti, id); // (Fortify is the castle's, shared by everyone in it)
@@ -195,6 +199,11 @@ export function buyUpgrade(ti, id) {
   if (id === 'foot2' && lvl(ti, 'foot1') < 1) return false;
   if (id === 'arch2' && lvl(ti, 'arch1') < 1) return false;
   s.gold -= cost;
+  if (id === 'tower') { // built where the captain stands, a step ahead
+    const L = s.leader, x = L.x + Math.sin(L.face) * 2.2, z = L.z + Math.cos(L.face) * 2.2;
+    G.wtowers.push({ id: ++G.wtN, x, z, a: G.ALLY[colorOf(ti)], ti, hp: CROWN.tower.hp, build: 0 });
+    sound('wall', x, z); say('towerUp', ti); fx('netFlush'); return true;
+  }
   if (id === 'arm') { s.armBuys = (s.armBuys | 0) + 1; s.leader.armour = ARMOUR.hp; sound('clang', s.leader.x, s.leader.z); if (ti === G.myTi || s.human) say('armourOn', ti); if (s.leader.remote) fx('netFlush'); return true; }
   if (id === 'fort' && fortLvl(colorOf(ti)) >= UPGRADES.find(u => u.id === 'fort').cost.length) { // mend the broken gates
     const c = colorOf(ti), f = G.forts[c]; f.broken &= ~(3 << FORT.segs); f.hp[FORT.segs] = f.hp[FORT.segs + 1] = FORT.gateHp; applyFort(c); say('gateRepaired', c); return true;
@@ -330,6 +339,7 @@ function resolveSwing(u) {
     return;
   }
   if (tg && tg.wall) { hitWall(u, tg.wall); return; }
+  if (tg && tg.tower) { hitTower(u, tg.tower); return; }
   if (tg && tg.castle !== undefined) {
     const s = G.teams[tg.castle];
     if (!s.alive || u.mounted || !isEnemyTi(tg.castle, u.ti)) return;
@@ -1292,7 +1302,16 @@ function updateFlag(dt) {
 // (any side's). Once it's free, a captain on foot picks it up by touching it; it's dropped where he
 // falls. Whoever's side carries it at 10:00 wins; while enemies are close to the carrier the battle
 // runs on (overtime), up to a minute. Nobody carrying it at the end: the side holding most places.
+function towersTick(dt) {
+  for (let i = G.wtowers.length - 1; i >= 0; i--) {
+    const w = G.wtowers[i]; if (w.build < 1) w.build = Math.min(1, w.build + dt / CROWN.tower.build);
+    if (w.hp <= 0) { G.wtowers.splice(i, 1); say('towerDown', w.ti, w.by ?? -1); fx('fxmsg', { k: 'fxgate', u: { x: w.x, y: groundY(w.x, w.z), z: w.z }, ti: -1 }); fx('netFlush'); }
+  }
+}
+function hitTower(u, w) { if (!w || w.hp <= 0 || G.ALLY[colorOf(u.ti)] === w.a) return; w.hp -= u.dmg * FORT.wallDmg * 2 * (u.leader ? FORT.capWall : 1); w.by = u.ti; sound('wall', w.x, w.z); spark(w.x, groundY(w.x, w.z) + 2, w.z, '#a3825a', 4); }
+const towerInReach = u => (G.wtowers || []).find(w => w.a !== G.ALLY[colorOf(u.ti)] && Math.hypot(w.x - u.x, w.z - u.z) < u.r + u.reach + CROWN.tower.reach * .6);
 function crownTick(dt) {
+  towersTick(dt);
   const K = G.crown, once = (k, ...a) => { if (!K.said[k]) { K.said[k] = 1; say(k, ...a); } };
   if (G.T >= CROWN.breakout) once('crownGo');
   if (G.T >= CROWN.siege - 20) once('crownSiegeSoon');
@@ -1481,6 +1500,7 @@ export function captainAttack(p) {
   if (p.isMe && G.capStats) { G.capStats.press++; if (!best) G.capStats.noTarget++; }
   let target = best;
   if (!best) { const w = wallInReach(p, 1.5); if (w) { target = { wall: w }; p.face = Math.atan2(w.x - p.x, w.z - p.z); } } // (an enemy palisade: hack at it)
+  if (!best && !target && G.wtowers && G.wtowers.length) { const w = towerInReach(p); if (w) { target = { tower: w }; p.face = Math.atan2(w.x - p.x, w.z - p.z); } } // (an enemy watchtower)
   if (!best && !target) {
     const [ci, cd] = nearestEnemyCastle(p);
     if (ci >= 0 && cd < CASTLE_REACH + .6) { target = { castle: ci }; p.face = Math.atan2(TEAMS[ci].pos[0] - p.x, TEAMS[ci].pos[1] - p.z); }
@@ -2054,8 +2074,11 @@ export function update(dt, input) {
       s.upT -= dt;
       if (s.upT <= 0) {
         s.upT = rnd(6, 12);
-        if (squadOf(i).length >= G.squadCap - 3 || !canRecruit(i)) {
-          const opts = UPGRADES.map(u => u.id).filter(id => upgradeCost(i, id) != null && s.gold >= upgradeCost(i, id) + 30 && (id !== 'fort' || (i < 4 && G.mode !== 'ctrl')) && (id !== 'arm' || G.diff >= 2));
+        // the Crown: a watchtower by a castle of ours now and then, to see what's coming
+        if (G.crown && G.T > 100 && s.leader && !s.leader.dead && upgradeCost(i, 'tower') != null && s.gold >= 140 && Math.random() < .25
+          && G.holds.some(h => h.kind === 'castle' && h.owner === G.ALLY[colorOf(i)] && Math.hypot(h.x - s.leader.x, h.z - s.leader.z) < h.r + 6)) buyUpgrade(i, 'tower');
+        if (squadOf(i).length >= capOf(i) - 3 || !canRecruit(i)) {
+          const opts = UPGRADES.map(u => u.id).filter(id => id !== 'tower' && upgradeCost(i, id) != null && s.gold >= upgradeCost(i, id) + 30 && (id !== 'fort' || (i < 4 && G.mode !== 'ctrl')) && (id !== 'arm' || G.diff >= 2));
           if (opts.length) buyUpgrade(i, opts[Math.floor(Math.random() * opts.length)]);
         }
       }
@@ -2151,6 +2174,7 @@ export function update(dt, input) {
     else {
       u.slot = u.kind === 'arch' ? archIdx[u.ti]++ : slotIdx[u.ti]++; u.meleeN = meleeN[u.ti]; u.archN = archN[u.ti]; thinkSoldier(u, dt);
       // besiegers up against the palisade of the castle they're after (nobody to fight close by) hack at it
+      if (G.wtowers && G.wtowers.length && u.kind === 'foot' && u.cd <= 0 && !(u.fd < 3.5)) { const w = towerInReach(u); if (w) { u.face = Math.atan2(w.x - u.x, w.z - u.z); startSwing(u, { tower: w }); } }
       if (G.plazaWall && G.plazaWall.up && u.kind === 'foot' && u.cd <= 0 && !(u.fd < 3.5) && !insidePlaza(u)) { const w = wallInReach(u, 1.9); if (w && w.plazaGate != null) startSwing(u, { wall: w }); }
       if (u.kind === 'foot' && u.cd <= 0 && !(u.fd < 3.5)) { const pl = G.teams[u.ti].plan; if (pl && pl.kind === 'castle') { const w = wallInReach(u, 1.7); if (w && w.c === colorOf(pl.ti)) startSwing(u, { wall: w }); } }
     }

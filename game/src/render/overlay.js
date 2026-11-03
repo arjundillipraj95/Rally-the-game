@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { TEAMS, DUEL, STREAK, RHYTHM, CAPTAIN_COMBAT, ARMOUR } from '../config.js';
 import { G, isEnemyTi, isFfa, colorOf, isOut, noCastle } from '../core/state.js';
+import { fogGrid } from './fog.js';
 import { groundY, clamp, W } from '../core/world.js';
 import { camera, view } from './scene.js';
 import { cam } from './camera.js';
@@ -39,7 +40,7 @@ export function drawOverlay(opts) {
   const player = G.player;
   if (G.state === 'play') {
     for (const u of G.units) {
-      if (u.dead || u === player || (u.hp >= u.max - .5 && !u.leader)) continue;
+      if (u.dead || u.fog || u === player || (u.hp >= u.max - .5 && !u.leader)) continue;
       const d = Math.hypot(u.x - camera.position.x, u.z - camera.position.z); if (d > 34) continue;
       const [sx, sy, ok] = proj(u.x, u.y + (u.leader ? 3.2 : 2.8) + (u.mounted ? 1.2 : 0), u.z); if (!ok) continue;
       const w = u.leader ? 40 : 26;
@@ -111,7 +112,7 @@ function drawFinish() {
   const me = G.player; if (!me || me.dead) return;
   const now = performance.now() / 1000, txt = me.mounted ? 'RIDE HIM DOWN' : 'FINISH HIM'; // (on horseback: a perfect ride-by at full gallop does it)
   for (const u of G.units) {
-    if (!u.leader || u.dead || !u.execReady || !isEnemyTi(u.ti, me.ti)) continue;
+    if (!u.leader || u.dead || u.fog || !u.execReady || !isEnemyTi(u.ti, me.ti)) continue;
     if (Math.hypot(u.x - me.x, u.z - me.z) > (me.mounted ? 18 : 9)) continue;
     const [sx, sy, ok] = proj(u.x, u.y + 3.5, u.z); if (!ok) continue;
     const p = 1 + .1 * Math.sin(now * 9), sz = Math.round(17 * p);
@@ -171,7 +172,7 @@ function drawStars() {
   const now = performance.now() / 1000;
   ctx.textAlign = 'center';
   for (const u of G.units) {
-    if (u.dead || !u.seesStars) continue;
+    if (u.dead || u.fog || !u.seesStars) continue;
     const d = Math.hypot(u.x - camera.position.x, u.z - camera.position.z); if (d > 30) continue;
     const sz = clamp(260 / d, 9, 20), hy = u.y + (u.leader ? 2.75 : 2.4) + (u.mounted ? 1.2 : 0);
     for (let k = 0; k < 3; k++) {
@@ -247,6 +248,15 @@ function buildMiniLayer(S, k) {
   if (G.layout.round) { c.strokeStyle = 'rgba(20,18,16,.6)'; c.lineWidth = 3; c.beginPath(); c.arc(0, 0, G.layout.round * k, 0, Math.PI * 2); c.stroke(); }
   c.restore();
 }
+// the fog on the minimap: what your side can't see, shaded dark (redrawn when the fog changes)
+let fogCv = null, fogCtx = null, fogImg = null;
+function drawFogMini(k) {
+  const F = fogGrid(); if (!F || !F.grid) return;
+  if (!fogCv || fogCv.width !== F.N) { fogCv = document.createElement('canvas'); fogCv.width = fogCv.height = F.N; fogCtx = fogCv.getContext('2d'); fogImg = fogCtx.createImageData(F.N, F.N); }
+  const d = fogImg.data; for (let i = 0; i < F.grid.length; i++) { d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = 12; d[i * 4 + 3] = F.grid[i] ? 0 : 150; }
+  fogCtx.putImageData(fogImg, 0, 0);
+  mctx.imageSmoothingEnabled = true; mctx.drawImage(fogCv, -F.half * k, -F.half * k, F.half * 2 * k, F.half * 2 * k);
+}
 function drawMini() {
   if (G.state !== 'play') return;
   const S = mini.width, k = S / (W.R * 2 + 8), o = S / 2;
@@ -265,11 +275,12 @@ function drawMini() {
     mctx.lineWidth = 3; mctx.strokeStyle = h.contested || (h.cap >= 0 && h.prog > 0) ? '#ffcf3a' : h.owner >= 0 ? sideCss(h.owner) : 'rgba(255,255,255,.75)';
     mctx.beginPath(); mctx.arc(h.x * k, h.z * k, Math.max(6, h.r * k), 0, Math.PI * 2); mctx.stroke();
   }
-  for (const u of G.units) { if (u.dead || u.leader) continue; mctx.fillStyle = TEAMS[colorOf(u.ti)].css; mctx.fillRect(u.x * k - 1.75, u.z * k - 1.75, 3.5, 3.5); }
+  if (fogGrid()) drawFogMini(k);
+  for (const u of G.units) { if (u.dead || u.leader || u.fog) continue; mctx.fillStyle = TEAMS[colorOf(u.ti)].css; mctx.fillRect(u.x * k - 1.75, u.z * k - 1.75, 3.5, 3.5); }
   // captains stand out: your side's in a white ring (a bigger one for a player), the enemy's in a dark one
   const me = G.player, now = performance.now() / 1000;
   for (const u of G.units) {
-    if (u.dead || !u.leader || u === me) continue;
+    if (u.dead || !u.leader || u === me || u.fog) continue;
     const ally = !isEnemyTi(u.ti, G.myTi), r = u.human ? 7.5 : 6;
     mctx.beginPath(); mctx.arc(u.x * k, u.z * k, r, 0, Math.PI * 2); mctx.fillStyle = TEAMS[colorOf(u.ti)].css; mctx.fill();
     mctx.lineWidth = ally ? 3 : 2; mctx.strokeStyle = ally ? '#ffffff' : 'rgba(10,8,6,.9)'; mctx.stroke();

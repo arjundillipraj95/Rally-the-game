@@ -108,6 +108,8 @@ export function feedLine(k, a) {
     case 'crownTaken': return `${who(a[0])} grabbed the Crown`;
     case 'crownDropped': return `${who(a[0])} dropped the Crown`;
     case 'crownSiege': return 'The siege begins';
+    case 'towerUp': return `${who(a[0])} built a watchtower`;
+    case 'towerDown': return a[1] >= 0 ? `${who(a[1])} hacked down ${who(a[0])}'s watchtower` : `${who(a[0])}'s watchtower fell`;
     case 'plazaGate': return `${who(a[1])} broke a plaza gate`;
     case 'left': return `${who(a[0])} left; the computer takes over`;
     case 'armourOn': return isEnemyTi(a[0], G.myTi) ? `${who(a[0])} put on armour` : null;

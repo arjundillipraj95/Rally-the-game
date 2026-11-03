@@ -47,7 +47,7 @@ function updateWall(dt) {
   w.bm.instanceMatrix.needsUpdate = w.gm.instanceMatrix.needsUpdate = true;
 }
 export function buildHolds(world, L) {
-  crown = null; wall = null; if (G.mode === 'crown') { buildCrown(world); if (L.plazaWall) buildWall(world, L.plazaWall); }
+  crown = null; wall = null; towerWorld = G.mode === 'crown' ? world : null; towerObjs.clear(); if (G.mode === 'crown') { buildCrown(world); if (L.plazaWall) buildWall(world, L.plazaWall); }
   objs = (L.holds || []).map(h => {
     const grp = new THREE.Group(); world.add(grp);
     const ring = new THREE.Mesh(new THREE.RingGeometry(h.r - .55, h.r, 64), new THREE.MeshBasicMaterial({ color: neutral, transparent: true, opacity: .4, side: THREE.DoubleSide, depthWrite: false }));
@@ -74,9 +74,32 @@ function updateCrown() {
   }
   c.g.rotation.y = t * 1.4;
 }
+// watchtowers (the Crown): wooden posts, a deck and a pennant in the builder's colour; they grow up as
+// they're built and keel over when hacked down
+let towerWorld = null; const towerObjs = new Map();
+function makeTower() {
+  const g = new THREE.Group(), wood = new THREE.MeshLambertMaterial({ color: 0x7a5a3a }), post = new THREE.CylinderGeometry(.12, .14, 5, 6);
+  for (const [x, z] of [[-.8, -.8], [.8, -.8], [-.8, .8], [.8, .8]]) { const p = new THREE.Mesh(post, wood); p.position.set(x, 2.5, z); p.castShadow = true; g.add(p); }
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(2.2, .2, 2.2), wood); deck.position.y = 4.1; g.add(deck);
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(1.7, 1.2, 4), new THREE.MeshLambertMaterial({ color: 0xb89650 })); roof.position.y = 5.6; roof.rotation.y = Math.PI / 4; g.add(roof);
+  const flag = new THREE.Mesh(new THREE.PlaneGeometry(.9, .55), new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide })); flag.position.set(.45, 6.6, 0); g.add(flag);
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(.04, .04, 1.4, 4), wood); pole.position.y = 6.4; g.add(pole);
+  return { g, flag };
+}
+function updateTowers() {
+  if (!towerWorld) return;
+  const seen = new Set();
+  for (const w of G.wtowers || []) {
+    seen.add(w.id); let o = towerObjs.get(w.id);
+    if (!o) { o = makeTower(); towerWorld.add(o.g); towerObjs.set(w.id, o); o.flag.material.color.set(sideCss(w.a)); }
+    o.g.position.set(w.x, terrainMeshY(w.x, w.z), w.z); o.g.scale.set(1, Math.max(.05, w.build), 1);
+    o.flag.rotation.y = Math.sin(G.T * 3 + w.id) * .3;
+  }
+  for (const [id, o] of towerObjs) if (!seen.has(id)) { towerWorld.remove(o.g); towerObjs.delete(id); }
+}
 let lastT = 0;
 export function updateHolds() {
-  updateCrown(); updateWall(Math.max(0, Math.min(.1, G.T - lastT))); lastT = G.T;
+  updateCrown(); updateWall(Math.max(0, Math.min(.1, G.T - lastT))); lastT = G.T; updateTowers();
   const hs = G.holds; if (!hs) return;
   objs.forEach((o, i) => {
     const h = hs[i]; if (!h) return;
