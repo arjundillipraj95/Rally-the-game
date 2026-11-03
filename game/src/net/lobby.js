@@ -11,7 +11,8 @@ async function makeP2PRoom(code, host, onStage) {
   catch (e) { if (e && (FINAL.has(e.type) || e.type === 'ice-failed')) throw e; await new Promise(r => setTimeout(r, 800)); return rawRoom(code, host, onStage); }
 }
 import { session, prefs } from './session.js';
-import { allyFor, assignFactions } from '../core/teams.js';
+import { allyFor } from '../core/teams.js';
+import { assignLooks, lookCode, lookFrom } from '../core/look.js';
 import { myPeer, clientStart, netHostSend } from './netgame.js';
 import { initAudio, stopCrowd } from '../ui/audio.js';
 
@@ -19,7 +20,7 @@ const $ = id => document.getElementById(id);
 let hooks = { startMatch() {}, seedDemo() {}, preset: () => 'ffa', resetSolo() {} };
 // want is the desired ARMY seat (0-3 = a color's own army, 4-7 its Duo teammate, 8-11 its Trio third);
 // -2 (just arrived) lets the host seat you in the first free color, -1 means you stood up
-const myPresence = () => ({ role: 'player', nick: session.myNick || 'Captain', ph: 'lobby', want: (session.NET.want ?? -2), fac: prefs.faction, cr: progress.crest });
+const myPresence = () => ({ role: 'player', nick: session.myNick || 'Captain', ph: 'lobby', want: (session.NET.want ?? -2), lk: lookCode(prefs.look), cr: progress.crest });
 let busy = false;
 
 export function openBrowse() {
@@ -65,7 +66,7 @@ export function hostLobbyTick() {
       const free = [0, 1, 2, 3].find(t => !taken().includes(t)); if (free !== undefined) NET.seats[p.peer] = free;
     }
   }
-  NET.room.presence({ role: 'host', ph: 'lobby', nick: session.myNick || 'Host', fac: prefs.faction, mode: L.mode, map: L.map, diff: L.diff, time: L.time, tgt: L.tgt, al: L.al.join(''), duo: duoStr(L.duo), seats: NET.seats, s: null, m: null, res: null }).catch(() => {});
+  NET.room.presence({ role: 'host', ph: 'lobby', nick: session.myNick || 'Host', lk: lookCode(prefs.look), mode: L.mode, map: L.map, diff: L.diff, time: L.time, tgt: L.tgt, al: L.al.join(''), duo: duoStr(L.duo), seats: NET.seats, s: null, m: null, res: null }).catch(() => {});
   renderLobby();
 }
 function lobbyView() {
@@ -86,7 +87,6 @@ export function renderLobby() {
   $('codeTxt').textContent = NET.name || ''; $('copyBtn').hidden = !host;
   const peers = NET.room.peers();
   const nickOf = peer => { const p = peers.find(x => x.peer === peer); return p && p.presence && p.presence.nick ? String(p.presence.nick).slice(0, 16) : 'Player'; };
-  const facOf = peer => { const p = peers.find(x => x.peer === peer); const f = p && p.presence && p.presence.fac; return FACTIONS[f] ? FACTIONS[f].name : ''; };
   const me = myPeer(NET.room);
   const seatOf = ti => Object.keys(v.seats).find(k => v.seats[k] === ti);
   const sig = JSON.stringify([me, v.mode, v.map, v.diff, v.time, v.tgt, v.al, v.duo, v.seats, v.hostNick, NET.room.pending ? NET.room.pending() : 0, peers.map(p => [p.peer, p.presence && p.presence.nick, p.presence && p.presence.role, p.presence && p.presence.fac])]);
@@ -100,7 +100,6 @@ export function renderLobby() {
     const b = document.createElement('b'); b.textContent = label || t.name;
     const s = document.createElement('span'); s.textContent = occ ? (occ === me ? 'You' : nickOf(occ)) + (peers.find(p => p.peer === occ && p.presence && p.presence.role === 'host') ? ' · host' : '') : 'Computer';
     el.append(b, s);
-    if (occ && facOf(occ)) { const f = document.createElement('small'); f.textContent = facOf(occ); el.appendChild(f); }
     el.addEventListener('click', () => {
       if (occ && occ !== me) return;
       if (host) { if (!occ) { if ((NET.lobby.duo[colorOf(armyTi)] | 0) < 0) NET.lobby.duo[colorOf(armyTi)] = 0; NET.seats[me] = armyTi; hostLobbyTick(); } } // (sitting in a colour that was out brings it back in)
@@ -135,7 +134,6 @@ export function renderLobby() {
   const setSeg = (id, val, ro) => { const el = $(id); el.classList.toggle('ro', ro); el.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === String(val)))); };
   const hostSeat = host ? NET.seats[NET.me] : v.seats[NET.hostPeer];
   const presetOf = al => Object.keys(PRESETS).find(k => allyFor(k, colorOf(hostSeat ?? 0)).join('') === al.join('')) || '';
-  setSeg('lobbyFaction', prefs.faction, false);
   setSeg('lobbyTeams', presetOf(v.al), !host); setSeg('lobbyMode', v.mode, !host); setSeg('lobbyMap', v.map, !host); setSeg('lobbyDiff', v.diff, !host); setSeg('lobbyTime', v.time, !host);
   { // the mode's own target (tickets, captures...), for the mode the host picked
     const T = TARGETS[v.mode] || TARGETS.conquest, cur = v.tgt ?? T.def; $('lobbyTargetLabel').textContent = T.label;
@@ -239,11 +237,6 @@ export function bindLobby(h) {
     else NET.lobby[key] = b.dataset.v;
     hostLobbyTick();
   });
-  $('lobbyFaction').addEventListener('click', e => {
-    const b = e.target.closest('button'), NET = session.NET; if (!b || !NET) return;
-    prefs.faction = b.dataset.v; prefs.save();
-    if (NET.role === 'host') hostLobbyTick(); else { NET.lobbySig = null; NET.room.presence(myPresence()).catch(() => {}); renderLobby(); }
-  });
   lobbySeg('lobbyTeams', 'al'); lobbySeg('lobbyMode', 'mode'); lobbySeg('lobbyMap', 'map'); lobbySeg('lobbyDiff', 'diff'); lobbySeg('lobbyTime', 'time'); lobbySeg('lobbyTarget', 'tgt');
   $('startBtn').addEventListener('click', () => {
     const NET = session.NET; if (!NET || NET.role !== 'host') return;
@@ -253,16 +246,16 @@ export function bindLobby(h) {
     G.myTi = NET.seats[NET.me] ?? 0;
     G.seed = (Math.random() * 1e9) | 0;
     NET.msgs = []; NET.msgN = 0; NET.inp = {}; NET.snapN = 0;
-    const humans = new Array(ARMIES).fill(0), chosen = [null, null, null, null], peers = NET.room.peers();
+    const humans = new Array(ARMIES).fill(0), chosen = [], peers = NET.room.peers();
     G.crests = [];
     const active = activeFrom(L.duo);
     for (const [peer, ti] of Object.entries(NET.seats)) {
       humans[ti] = 1;
       const pr = (peers.find(p => p.peer === peer) || {}).presence || {};
-      chosen[colorOf(ti)] = peer === NET.me ? prefs.faction : (FACTIONS[pr.fac] ? pr.fac : null);
+      chosen[ti] = peer === NET.me ? prefs.look : lookFrom(pr.lk);
       G.crests[ti] = peer === NET.me ? progress.crest : Math.min(7, Math.max(0, pr.cr | 0));
     }
-    G.factions = assignFactions(chosen, G.seed);
+    G.looks = assignLooks(chosen, G.seed);
     hooks.startMatch(humans, active);
     netHostSend(true);
   });

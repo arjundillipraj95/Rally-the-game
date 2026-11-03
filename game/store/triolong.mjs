@@ -5,7 +5,7 @@ const mins = +(process.argv[2] || 6);
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const page = await browser.newPage({ viewport: { width: 480, height: 270 } });
 let errs = []; page.on('pageerror', e => errs.push(e.message));
-await page.addInitScript(() => { localStorage.setItem('rally-tutorial-done', '1'); window.__noRender = 1; });
+await page.addInitScript(() => { window.__testSheet = true; localStorage.setItem('rally-tutorial-done', '1'); window.__noRender = 1; });
 await page.goto('http://127.0.0.1:8766/', { waitUntil: 'domcontentloaded' }); await page.waitForFunction(() => window.__fb, null, { polling: 300 });
 await page.click('#segMap button[data-v="valley"]'); await page.click('#segTeams button[data-v="2v2"]').catch(() => {});
 for (const c of [0, 0, 1, 1]) await page.evaluate(c => document.querySelectorAll('#segDuo button')[c].click(), c);

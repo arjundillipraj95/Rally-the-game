@@ -9,7 +9,7 @@ await page.click('#segMap button[data-v="' + (process.env.MAP || 'dunes') + '"]'
 await page.click('#goBtn'); await frames(page, 10);
 await page.evaluate(() => {
   const F = window.__fb, G = F.G, p = G.player;
-  G.factions[1] = 'roman'; G.factions[0] = 'greek';
+  G.looks[1] = [0, 0, 0, 0, 0, 0, 0]; G.looks[0] = [1, 1, 1, 1, 1, 1, 1];
   document.getElementById('hudWrap').style.display = 'none';
   document.querySelectorAll('.coach,.banner').forEach(e => e.style.display = 'none');
   // red's army waits a short march ahead; ours is behind the captain

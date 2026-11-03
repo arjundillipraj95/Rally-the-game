@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 // Rally! Boots the game, runs the frame loop and wires the rules to the screen.
 // fonts ship with the game (no calls to Google's servers): Latin only, just the weights we use
 import '@fontsource/bangers/latin-400.css';
@@ -35,7 +36,8 @@ import { bindInput, readMove, trayOpen, upOpen, releaseAll, inp } from './ui/inp
 import { startTutorial, stopTutorial, tutorialTick, bindTutorial } from './ui/tutorial.js';
 import { progress, awardMatch, rankProgress, rankOf, crestUnlocked, setCrest } from './ui/progress.js';
 import { session, isClient, isHost, prefs } from './net/session.js';
-import { allyFor, describeTeams, assignFactions } from './core/teams.js';
+import { allyFor, describeTeams } from './core/teams.js';
+import { assignLooks, SLOTS } from './core/look.js';
 import { actions, netHostReadInputs, netHostTick, netHostSend, clientTick, clientHorses, setNetHooks, C } from './net/netgame.js';
 import { bindLobby, showLobby, hostLobbyTick, clientLobbyTick, netLeave } from './net/lobby.js';
 import { CAPS_TO_WIN, PARRY, CAPKILL_SLOW } from './config.js';
@@ -305,7 +307,7 @@ function showRank(aw) {
 const LOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
 function buildCrests() {
   const r = rankOf(progress.xp), next = RANKS[r + 1];
-  $('rankLine').textContent = `Rank: ${RANKS[r].name}`; $('rankJoke').textContent = RANKS[r].joke;
+  $('rankLine').textContent = `Rank: ${RANKS[r].name}`; $('hRank').innerHTML = `${RANKS[r].name}<span>${next ? `${progress.xp} / ${next.xp} XP` : `${progress.xp} XP`}</span>`; $('rankJoke').textContent = RANKS[r].joke;
   $('rankNext').textContent = next ? `${progress.xp} / ${next.xp} XP` : `${progress.xp} XP`;
   $('segCrest').innerHTML = CRESTS.map((c, i) => {
     const open = crestUnlocked(i);
@@ -317,7 +319,7 @@ function buildCrests() {
 }
 $('segCrest').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b || b.getAttribute('aria-disabled') === 'true') return;
-  if (setCrest(+b.dataset.v)) buildCrests();
+  if (setCrest(+b.dataset.v)) { buildCrests(); if (G.state === 'title' && G.crests) G.crests[G.myTi] = progress.crest; }
 });
 buildCrests();
 // a fresh tip every time the menu shows
@@ -367,35 +369,73 @@ setNetHooks({ onMatchStart: viewForMatch, onAbort: msg => netLeave(msg), onLobby
 bindLobby({ startMatch: beginMatch, seedDemo, teams: () => soloAl.slice(), resetSolo: () => resetSolo() });
 bindInput(actions); bindTutorial();
 
-// ---------- title scene ----------
-let demoT = 0, demoRider = null;
+// ---------- the home stage: your captain before his castle, his men behind him ----------
+// The camera stands in front of him; with a sheet open (the wardrobe, the battle setup) it slides so
+// he stays in view beside it. Two "+" places stand either side of him for friends.
+let demoT = 0, homeCap = null, homeView = 'home'; // 'home' | 'sheet' | 'ward'
+const homeV = { sx: 0, k: 0 }; // (the camera's eased slide)
 function seedDemo() {
   G.layout = makeLayout(G.map.id, false, false, 7); buildNav(G.layout);
   G.units = []; G.horses = []; G.arrows = []; G.flag = null; G.player = null; G.uid = 0; clearCritters();
   G.teams = newTeams([0, 0, 0, 0]);
-  G.factions = assignFactions(TEAMS.map((_, i) => i === G.myTi ? prefs.faction : null), 7);
+  G.looks = assignLooks({ [G.myTi]: prefs.look }, 7);
+  G.crests = []; G.crests[G.myTi] = progress.crest;
   buildWorldView(G.layout); clearEffects(); clearHorses(); clearProps();
-  const kinds = ['foot', 'foot', 'arch', 'foot', 'arch'];
-  TEAMS.forEach((t, i) => kinds.forEach((k, n) => { const [x, z] = gatePos(t, (n - 2) * 1.5); const u = mkUnit(i, x * .5, z * .5, k); u.face = Math.atan2(-u.x, -u.z); u.demo = true; }));
-  const c = mkUnit(G.myTi, 0, 22, 'captain'); c.demo = true;
-  const h = { id: 1, x: 0, z: 22, face: 0, state: 'ridden', rider: c, t: 0, spd: 9, ti: G.myTi };
-  G.horses.push(h); c.mounted = true; c.horse = h; demoRider = c;
+  const t = TEAMS[colorOf(G.myTi)];
+  const [cx, cz] = gatePos(t, 0, 8); homeCap = mkUnit(G.myTi, cx, cz, 'captain'); homeCap.demo = true;
+  homeCap.face = Math.atan2(-cx, -cz); homeCap.y = groundY(cx, cz);
+  // his men, two ranks behind him
+  [[-2.4, 4.2, 'foot'], [0, 4.6, 'foot'], [2.4, 4.2, 'foot'], [-3.4, 2.2, 'arch'], [3.4, 2.2, 'arch']].forEach(([sp, ex, k]) => {
+    const [x, z] = gatePos(t, sp, ex); const u = mkUnit(G.myTi, x, z, k); u.face = homeCap.face; u.demo = true;
+  });
+}
+const _v = new THREE.Vector3();
+function homeCamera(dt) {
+  const c = homeCap; if (!c) { orbitCamera(demoT); return; }
+  const d = Math.hypot(c.x, c.z) || 1, fx = -c.x / d, fz = -c.z / d, rx = -fz, rz = fx; // (toward the centre, and to his right as we look at him)
+  const wide = innerWidth / Math.max(1, innerHeight) > 1.5;
+  const want = homeView === 'home' ? -.7 : homeView === 'ward' ? (wide ? -1.9 : -1.4) : (wide ? -4.4 : -2.4); // (he slides left of the sheet)
+  homeV.sx += (want - homeV.sx) * Math.min(1, dt * 5);
+  // the captain turns to face you, swaying a little in the wardrobe so the cape shows
+  const sway = homeView === 'ward' ? Math.sin(demoT * .7) * .75 : Math.sin(demoT * .3) * .12;
+  c.face = Math.atan2(fx, fz) + sway; c.vx = c.vz = 0;
+  const gy = groundY(c.x, c.z), dist = 6.4, ty = gy + 1.45;
+  const tx = c.x + rx * homeV.sx, tz = c.z + rz * homeV.sx;
+  camera.position.set(tx + fx * dist, ty + 1.15, tz + fz * dist);
+  camera.lookAt(tx, ty, tz);
+  // the "+" places beside him, on screen where they stand in the world
+  for (const [id, side] of [['pedL', 1], ['pedR', -1]]) {
+    const el = $(id); if (!el) continue;
+    if (homeView !== 'home') { el.hidden = true; continue; }
+    _v.set(c.x + rx * side * 2.5, gy + 1.15, c.z + rz * side * 2.5).project(camera);
+    const px = (_v.x + 1) / 2 * innerWidth, py = (1 - _v.y) / 2 * innerHeight, pr = $('home').querySelector('.hplay').getBoundingClientRect();
+    el.hidden = _v.z > 1 || (px > pr.left - 36 && py > pr.top - 36); // (not under the Play panel on a small screen)
+    el.style.left = px + 'px'; el.style.top = py + 'px';
+  }
 }
 function demo(dt) {
   demoT += dt;
-  if (demoRider && demoRider.horse) {
-    const a = demoT * .35, r = demoRider; r.x = Math.cos(a) * 22; r.z = Math.sin(a) * 22; r.y = groundY(r.x, r.z);
-    r.face = Math.atan2(-Math.sin(a), Math.cos(a)); r.vx = -Math.sin(a) * 8; r.vz = Math.cos(a) * 8;
-    const h = r.horse; h.x = r.x; h.z = r.z; h.face = r.face; h.spd = 8;
-  }
   drawSoldiers(G.units, dt);
-  drawHorses(G.horses.map(h => ({ key: h.id, ti: h.ti, x: h.x, z: h.z, face: h.face, spd: h.spd, state: h.state, t: h.t, fall: h.fall })), dt);
+  drawHorses([], dt);
   drawEffects();
   updateWorldView(dt, () => {});
-  orbitCamera(demoT); hideDuelTag();
-  followSun(0, 0, demoT);
+  homeCamera(dt); hideDuelTag();
+  followSun(homeCap ? homeCap.x : 0, homeCap ? homeCap.z : 0, demoT);
   renderer.render(scene, camera);
   clearOverlay();
+}
+// which of the home's layers shows: the stage alone, a sheet over it, or the wardrobe
+function setHomeView(v, tabsShown) {
+  if (import.meta.env.DEV && window.__testSheet && v === 'home') { v = 'sheet'; tabsShown = ['tabBattle']; } // (dev: older tests drive the setup sheet)
+  homeView = v;
+  $('home').hidden = v !== 'home'; $('homeSheet').hidden = v !== 'sheet'; $('ward').hidden = v !== 'ward';
+  $('ovTitle').classList.toggle('homing', v !== 'sheet'); $('ovTitle').classList.toggle('sheet', v === 'sheet');
+  if (v === 'sheet') {
+    tabs.forEach(t => { t.hidden = !tabsShown.includes(t.dataset.tab); });
+    showTab(tabsShown[0]);
+    $('goBtn').hidden = !tabsShown.includes('tabBattle'); $('mpBtn').hidden = !(import.meta.env.DEV && window.__testSheet);
+    $('ovTitle').scrollTop = 0;
+  }
 }
 
 // ---------- menus ----------
@@ -417,7 +457,6 @@ function updateQualityNote() {
 }
 seg('segMode', v => { G.mode = v; G.target = prefs.tgt[v] ?? targetFor(v); renderTargets(); updateDesc(); });
 seg('segMap', v => { G.map = MAPS[v]; updateDesc(); seedDemo(); });
-seg('segFaction', v => { prefs.faction = v; prefs.save(); seedDemo(); });
 // Teams, as in the multiplayer lobby: tap a colour to be it, its letter chip cycles its team, its
 // Duo chip adds a computer co-captain (tap again for a third: Trio). Remembered between visits.
 const soloDuo = [0, 0, 0, 0];
@@ -451,11 +490,12 @@ function renderTargets() {
 seg('segTime', v => { G.time = +v; prefs.time = +v; prefs.save(); updateDesc(); });
 seg('segTarget', v => { G.target = +v; prefs.tgt[G.mode] = +v; prefs.save(); updateDesc(); });
 function resetSolo() { G.role = 'solo'; G.myTi = prefs.color; G.ALLY = soloAl.slice(); }
-function soloStart() {
+function soloStart(o = {}) {
   initAudio(); session.NET = null; resetSolo();
+  if (o.al) G.ALLY = o.al.slice();
   G.seed = (Math.random() * 1e9) | 0;
-  G.factions = assignFactions(TEAMS.map((_, i) => i === G.myTi ? prefs.faction : null), G.seed);
-  const active = activeFrom(soloDuo);
+  G.looks = assignLooks({ [G.myTi]: prefs.look }, G.seed);
+  const active = activeFrom(o.duo || soloDuo);
   G.crests = []; G.crests[G.myTi] = progress.crest;
   beginMatch(TEAMS.map((_, i) => i === G.myTi ? 1 : 0), active);
 }
@@ -490,7 +530,7 @@ function showVeil() { $('veil').hidden = false; clearTimeout(veilT); veilT = set
 function hideVeil() { clearTimeout(veilT); $('veil').hidden = true; }
 ['goBtn', 'quickBtn', 'startBtn'].forEach(id => { const b = $(id); if (b) b.addEventListener('pointerdown', showVeil); });
 $('againBtn').addEventListener('pointerdown', () => { if (!isHost()) showVeil(); }); // a host's "again" goes to the lobby, not a battle
-$('goBtn').addEventListener('click', soloStart);
+$('goBtn').addEventListener('click', () => { lastStart = () => soloStart(); soloStart(); });
 // One tap to a fight: Quick (5 min), a random map and mode; keeps your army, colour, teams and
 // difficulty. The menu shows what was picked, so "Fight again" repeats it.
 $('quickBtn').addEventListener('click', () => {
@@ -498,13 +538,50 @@ $('quickBtn').addEventListener('click', () => {
   const mode = pick(Object.keys(MODES)), map = pick(['forum', 'valley', 'desert', 'frost']); // the four featured maps
   G.mode = mode; G.map = MAPS[map]; G.time = 5; G.target = targetFor(mode);
   pressSeg('segMode', mode); pressSeg('segMap', map); pressSeg('segTime', 5); renderTargets();
-  updateDesc(); soloStart();
+  updateDesc(); lastStart = () => soloStart(); soloStart();
 });
+// ---------- the home: Play, the sheets, the wardrobe ----------
+// PLAY: the Crown's format (Solo / Duo / Trio a side). Online matchmaking isn't open yet, so for now
+// it's a free-for-all against computer captains in that format: conquest, a featured map, 10 minutes.
+let playFmt = (() => { try { return Math.min(2, Math.max(0, +localStorage.getItem('rally-fmt') || 0)); } catch (e) { return 0; } })();
+const pressFmt = () => $('segFmt').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === playFmt)));
+pressFmt();
+$('segFmt').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; playFmt = +b.dataset.v; try { localStorage.setItem('rally-fmt', String(playFmt)); } catch (er) {} pressFmt(); });
+let lastStart = () => soloStart();
+function playStart() {
+  const pick = a => a[(Math.random() * a.length) | 0];
+  G.mode = 'conquest'; G.map = MAPS[pick(['forum', 'valley', 'desert', 'frost'])]; G.time = 10; G.target = targetFor('conquest');
+  pressSeg('segMode', G.mode); pressSeg('segMap', G.map.id); pressSeg('segTime', 10); renderTargets(); updateDesc();
+  soloStart({ al: [0, 1, 2, 3], duo: [playFmt, playFmt, playFmt, playFmt] });
+  lastStart = playStart;
+}
+$('playBtn').addEventListener('pointerdown', showVeil);
+$('playBtn').addEventListener('click', () => { goFullscreen(); playStart(); });
+$('cpuBtn').addEventListener('click', () => setHomeView('sheet', ['tabBattle']));
+$('setBtn').addEventListener('click', () => setHomeView('sheet', ['tabSettings', 'tabHelp']));
+$('sheetBack').addEventListener('click', () => setHomeView('home'));
+// a friend: for now that's a private battle (a code to share)
+for (const id of ['privBtn', 'pedL', 'pedR']) $(id).addEventListener('click', () => { initAudio(); $('mpBtn').click(); });
+// the wardrobe: each slot's three picks; the stage shows the change at once
+function buildWardrobe() {
+  $('wardSlots').innerHTML = SLOTS.map((sl, i) => `<div class="wrow"><span>${sl.name}</span><div class="seg" data-slot="${i}">${sl.opts.map((o, j) =>
+    `<button type="button" data-v="${j}" aria-pressed="${prefs.look[i] === j}">${o}</button>`).join('')}</div></div>`).join('');
+}
+$('wardSlots').addEventListener('click', e => {
+  const b = e.target.closest('button'), row = e.target.closest('[data-slot]'); if (!b || !row) return;
+  const i = +row.dataset.slot; prefs.look = prefs.look.slice(); prefs.look[i] = +b.dataset.v; prefs.save();
+  row.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  if (G.looks) G.looks[G.myTi] = prefs.look;
+  sfx.draw && sfx.draw();
+});
+$('wardBtn').addEventListener('click', () => { buildWardrobe(); setHomeView('ward'); });
+$('wardDone').addEventListener('click', () => setHomeView('home'));
+document.addEventListener('keydown', e => { if (e.code === 'Escape' && G.state === 'title' && homeView !== 'home') setHomeView('home'); });
 // between battles is the one place a games-site ad may play (off during a Basic Launch; see portal.js)
 $('againBtn').addEventListener('click', () => {
   initAudio();
   if (isHost()) { portal.midgameAd(() => showLobby()); return; }
-  portal.midgameAd(() => soloStart());
+  portal.midgameAd(() => lastStart());
 });
 // ---------- in battle: the menu button (back to the battle, or leave it) ----------
 // Solo, the battle stops while the panel is open. Online it can't: the battle goes on (and a joiner's
@@ -529,12 +606,12 @@ $('quitBtn').addEventListener('click', async () => {
     if (session.NET.role === 'host') { try { await session.NET.room.presence({ ph: 'gone' }); } catch (e) {} await new Promise(r => setTimeout(r, 300)); } // (tell the joiners first)
     netLeave(); return;
   }
-  G.state = 'title'; resetSolo(); newTip(); clearCritters(); $('ovEnd').hidden = true; $('hudWrap').hidden = true; $('ovTitle').hidden = false; seedDemo();
+  G.state = 'title'; resetSolo(); newTip(); clearCritters(); $('ovEnd').hidden = true; $('hudWrap').hidden = true; $('ovTitle').hidden = false; setHomeView('home'); seedDemo();
 });
 document.addEventListener('keydown', e => { if (e.code === 'Escape' && G.state === 'play') { if ($('ovPause').hidden) openPause(); else closePause(); } });
 $('menuBtn').addEventListener('click', () => {
   if (session.NET) { portal.gameplayStop(); netLeave(); return; }
-  portal.midgameAd(() => { G.state = 'title'; resetSolo(); newTip(); clearCritters(); $('ovEnd').hidden = true; $('hudWrap').hidden = true; $('ovTitle').hidden = false; seedDemo(); });
+  portal.midgameAd(() => { G.state = 'title'; resetSolo(); newTip(); clearCritters(); $('ovEnd').hidden = true; $('hudWrap').hidden = true; $('ovTitle').hidden = false; setHomeView('home'); seedDemo(); });
 });
 
 // ---------- frame-rate watchdog: steps graphics down if the first seconds of a battle run slowly ----------
@@ -651,7 +728,7 @@ window.__fb = {
 
 function onResize() { resize(); resizeOverlay(); }
 addEventListener('resize', onResize);
-G.time = prefs.time; G.target = prefs.tgt[G.mode] ?? targetFor(G.mode); pressSeg('segTime', prefs.time); pressSeg('segFaction', prefs.faction); resetSolo(); renderSoloSeats(); renderTargets();
-applyShadowQuality(); onResize(); updateDesc(); updateQualityNote(); seedDemo(); requestAnimationFrame(loop);
+G.time = prefs.time; G.target = prefs.tgt[G.mode] ?? targetFor(G.mode); pressSeg('segTime', prefs.time); resetSolo(); renderSoloSeats(); renderTargets();
+applyShadowQuality(); onResize(); updateDesc(); updateQualityNote(); setHomeView('home'); seedDemo(); requestAnimationFrame(loop);
 // the games site (if we're on one): its SDK, its mute setting, and our pause during its ads
 portalInit({ mute: m => setMuted(m), pause: p => { paused = p; } }).then(() => { portal.loadingStart(); requestAnimationFrame(() => portal.loadingStop()); });

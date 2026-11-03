@@ -8,7 +8,7 @@ await page.click(`#segMap button[data-v="${process.env.MAP || 'valley'}"]`);
 await page.click('#goBtn'); await frames(page, 20);
 await page.evaluate(({ w, h }) => {
   const F = window.__fb, G = F.G, p = G.player;
-  G.factions[1] = 'roman'; G.factions[0] = 'greek';
+  G.looks[1] = [0, 0, 0, 0, 0, 0, 0]; G.looks[0] = [1, 1, 1, 1, 1, 1, 1];
   document.getElementById('hudWrap').style.display = 'none'; document.getElementById('fx').style.display = 'none';
   // the scene: our captain facing the camera, his men charging in behind him, a red squad in front
   const Y0 = 0, Y = Y0 + +(window.__turn || 0); p.x = -8; p.z = -44; p.face = Y; F.cam.yaw = Y0 + Math.PI * +(window.__yawK || .62); F.cam.pitch = h > w ? .24 : .16;

@@ -7,7 +7,7 @@ const opts = { executablePath: '/opt/pw-browsers/chromium', args: ['--disable-fe
 const pages = [], bs = [await chromium.launch(opts), await chromium.launch(opts)];
 for (let i = 0; i <= 5; i++) {
   const b = bs[i % 2], ctx = await b.newContext({ viewport: { width: 240, height: 140 } });
-  await ctx.addInitScript(() => { window.__PEER_OPTS = { host: '127.0.0.1', port: 9000, path: '/', secure: false, config: { iceServers: [] } }; localStorage.setItem('rally-tutorial-done', '1'); localStorage.setItem('rally-quality', 'low'); window.__noRender = true; window.requestAnimationFrame = cb => setTimeout(() => cb(performance.now()), 100); });
+  await ctx.addInitScript(() => { window.__PEER_OPTS = { host: '127.0.0.1', port: 9000, path: '/', secure: false, config: { iceServers: [] } }; window.__testSheet = true; localStorage.setItem('rally-tutorial-done', '1'); localStorage.setItem('rally-quality', 'low'); window.__noRender = true; window.requestAnimationFrame = cb => setTimeout(() => cb(performance.now()), 100); });
   const p = await ctx.newPage(); const n = i ? 'J' + i : 'H';
   p.on('pageerror', e => console.log(n, 'PAGEERROR', e.message)); p.on('console', m => { if (m.type() === 'error') console.log(n, 'console', m.text().slice(0, 200)); });
   await p.goto(process.env.URL || 'http://127.0.0.1:8766/', { waitUntil: 'domcontentloaded' }); const t0 = Date.now(); await p.waitForFunction(() => window.__fb, null, { timeout: 60000, polling: 300 }).catch(async () => console.log(n, 'no __fb', await p.evaluate(() => [document.readyState, typeof window.__fb, document.title]).catch(e => e.message))); console.log(n, 'loaded', Date.now() - t0); pages.push([n, p, b]);

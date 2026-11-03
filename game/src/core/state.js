@@ -13,7 +13,7 @@ export const G = {
   preset: 'ffa',
   ALLY: [0, 1, 2, 3],
   myTi: 0,
-  factions: ['roman', 'roman', 'roman', 'roman'],
+  looks: [],
   seed: 1,
   T: 0,
   units: [],

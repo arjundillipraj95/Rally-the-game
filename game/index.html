@@ -83,7 +83,42 @@
 
   <!-- solo setup -->
   <div class="overlay" id="ovTitle">
-    <div class="menu home">
+    <!-- home: your captain on his stage, two empty places for friends, and the ways in -->
+    <div class="hstage" id="home">
+      <div class="htop">
+        <h1 class="logo hlogo"><span>Rally!</span></h1>
+        <div class="hrank" id="hRank"></div>
+        <button type="button" class="hicon" id="setBtn" aria-label="Settings and how to play"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+      </div>
+      <nav class="hleft" aria-label="Your captain and more">
+        <button type="button" class="hbtn" id="wardBtn"><b>Captain</b><small>Dress him up</small></button>
+        <button type="button" class="hbtn soon" disabled><b>Friends</b><small>Coming soon</small></button>
+        <button type="button" class="hbtn soon" disabled><b>Missions</b><small>Coming soon</small></button>
+        <button type="button" class="hbtn soon" disabled><b>Shop</b><small>Coming soon</small></button>
+      </nav>
+      <button type="button" class="pedestal" id="pedL" aria-label="Play with a friend"><span>+</span></button>
+      <button type="button" class="pedestal" id="pedR" aria-label="Play with a friend"><span>+</span></button>
+      <div class="hplay">
+        <div class="fmt" id="segFmt" role="group" aria-label="Captains per side">
+          <button type="button" data-v="0" aria-pressed="true">Solo</button><button type="button" data-v="1" aria-pressed="false">Duo</button><button type="button" data-v="2" aria-pressed="false">Trio</button>
+        </div>
+        <button class="go play" id="playBtn" type="button"><span>Play</span><small id="playSub">Vs the computer until online opens</small></button>
+        <div class="hrow">
+          <button class="go alt" id="cpuBtn" type="button">Battle the computer</button>
+          <button class="go alt" id="privBtn" type="button">Private battle</button>
+        </div>
+      </div>
+    </div>
+    <!-- the wardrobe: each piece on its own; the army wears its captain's helmet, armour, shield and weapon -->
+    <div class="ward" id="ward" hidden>
+      <div class="whead"><h2>Your captain</h2><button type="button" class="go" id="wardDone">Done</button></div>
+      <p class="wnote">Your army wears your helmet, armour, shield, emblem and weapon. Your team colour stays on the plume, shield and cape.</p>
+      <div class="wslots" id="wardSlots"></div>
+      <div class="grp"><label>Crest</label>
+        <div class="crests" id="segCrest" aria-label="Captain's crest"></div><div class="note" id="crestNote"></div>
+      </div>
+    </div>
+    <div class="menu home" id="homeSheet" hidden>
       <div class="brand">
         <h1 class="logo"><span>Rally!</span></h1>
         <div class="flags"><i style="background:var(--blue)"></i><i style="background:var(--red)"></i><i style="background:var(--green)"></i><i style="background:var(--yellow)"></i></div>
@@ -95,9 +130,9 @@
         <div class="rotate">Turn your phone sideways for the best view</div>
       </div>
       <div class="side">
+        <button type="button" class="back" id="sheetBack" aria-label="Back to your captain">&#8592; Back</button>
         <div class="tabs" role="tablist" aria-label="Menu">
           <button type="button" role="tab" data-tab="tabBattle" aria-selected="true">Battle</button>
-          <button type="button" role="tab" data-tab="tabArmy" aria-selected="false">Army</button>
           <button type="button" role="tab" data-tab="tabSettings" aria-selected="false">Settings</button>
           <button type="button" role="tab" data-tab="tabHelp" aria-selected="false">How to play</button>
         </div>
@@ -143,18 +178,6 @@
           </div>
           </div>
           <div class="desc" id="desc"></div>
-        </div>
-        <div class="panel" id="tabArmy" role="tabpanel" hidden>
-          <div class="grp"><label>Faction</label>
-          <div class="seg" id="segFaction">
-            <button type="button" data-v="roman" aria-pressed="true">Romans</button>
-            <button type="button" data-v="greek" aria-pressed="false">Greeks</button>
-            <button type="button" data-v="barbarian" aria-pressed="false">Barbarians</button>
-          </div>
-          </div>
-          <div class="grp"><label>Captain's crest</label>
-            <div class="crests" id="segCrest" aria-label="Captain's crest"></div><div class="note" id="crestNote"></div>
-          </div>
         </div>
         <div class="panel" id="tabSettings" role="tabpanel" hidden>
           <div class="grp"><label>Graphics</label>
@@ -233,11 +256,6 @@
         </div>
         <div class="grp"><label>Tap a color to take it · the letter chip changes teams · Duo adds a seat, tap again for Trio</label><div class="seats" id="seats"></div></div>
         <div class="lgrid">
-          <div class="grp"><label>Your faction</label>
-            <div class="seg" id="lobbyFaction">
-              <button type="button" data-v="roman">Romans</button><button type="button" data-v="greek">Greeks</button><button type="button" data-v="barbarian">Barbarians</button>
-            </div>
-          </div>
           <div class="grp" id="lobbyTeamsGrp" hidden><label>Team setup</label>
             <div class="seg" id="lobbyTeams">
               <button type="button" data-v="ffa">Free for all</button>

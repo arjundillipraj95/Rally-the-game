@@ -1,17 +1,18 @@
-// Dev check: a close lineup of every soldier type and faction, for judging the character look.
+// Dev check: a close lineup of every soldier type in three outfits (argv[4]: JSON looks per army), for judging the character look.
 import { chromium } from 'playwright';
 import { open, frames, OUT } from './stage.mjs';
 const name = process.argv[2] || 'lineup';
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const page = await open(browser, 1280, 720);
+if (process.argv[4]) await page.evaluate(l => { window.__looks = l; }, process.argv[4]);
 await page.click('#segMap button[data-v="colosseum"]');
 await page.click('#goBtn'); await frames(page, 20);
 await page.evaluate(() => {
   const F = window.__fb, G = F.G, p = G.player;
   document.getElementById('hudWrap').style.display = 'none'; document.getElementById('fx').style.display = 'none';
   document.querySelectorAll('.overlay,.veil').forEach(o => o.hidden = true);
-  const facs = ['roman', 'greek', 'barbarian', 'roman'];
-  G.teams.forEach((t, i) => { G.factions[i] = facs[i]; t.order = 'hold'; });
+  const looks = JSON.parse(window.__looks || '[[0,0,0,0,0,0,0],[1,1,1,1,1,1,1],[2,2,2,2,2,2,2],[0,1,2,0,1,2,0]]');
+  G.teams.forEach((t, i) => { G.looks[i] = looks[i]; t.order = 'hold'; });
   p.hidden = true; F.cam.pitch = .1;
   const row = [];
   for (let ti = 0; ti < 3; ti++) {

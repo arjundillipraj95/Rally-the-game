@@ -7,7 +7,7 @@ const opts = { executablePath: '/opt/pw-browsers/chromium', args: ['--disable-fe
 const pages = [];
 for (let i = 0; i <= nJ; i++) {
   const b = await chromium.launch(opts), ctx = await b.newContext({ viewport: { width: 320, height: 160 } });
-  await ctx.addInitScript(() => { window.__PEER_OPTS = { host: '127.0.0.1', port: 9000, path: '/', secure: false, config: { iceServers: [] } }; localStorage.setItem('rally-tutorial-done', '1'); localStorage.setItem('rally-quality', 'low'); window.__noRender = true; });
+  await ctx.addInitScript(() => { window.__PEER_OPTS = { host: '127.0.0.1', port: 9000, path: '/', secure: false, config: { iceServers: [] } }; window.__testSheet = true; localStorage.setItem('rally-tutorial-done', '1'); localStorage.setItem('rally-quality', 'low'); window.__noRender = true; });
   const p = await ctx.newPage(); const n = i ? 'J' + i : 'H';
   p.on('pageerror', e => console.log(n, 'PAGEERROR', e.message)); p.on('console', m => { if (m.type() === 'error') console.log(n, 'console', m.text().slice(0, 200)); });
   await p.goto('http://127.0.0.1:8766/'); pages.push([n, p, b]);

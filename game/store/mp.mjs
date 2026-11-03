@@ -4,7 +4,7 @@ import { chromium } from 'playwright';
 const opts = { executablePath: '/opt/pw-browsers/chromium', args: ['--disable-features=WebRtcHideLocalIpsWithMdns', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] };
 const b = await chromium.launch(opts), b2 = await chromium.launch(opts);
 const ctx = await b.newContext({ viewport: { width: 320, height: 160 } }), ctx2 = await b2.newContext({ viewport: { width: 320, height: 160 } });
-for (const c of [ctx, ctx2]) await c.addInitScript(() => { window.__PEER_OPTS = { host: '127.0.0.1', port: 9000, path: '/', secure: false, config: { iceServers: [] } }; localStorage.setItem('rally-tutorial-done', '1'); localStorage.setItem('rally-quality', 'low'); window.__noRender = true; });
+for (const c of [ctx, ctx2]) await c.addInitScript(() => { window.__PEER_OPTS = { host: '127.0.0.1', port: 9000, path: '/', secure: false, config: { iceServers: [] } }; window.__testSheet = true; localStorage.setItem('rally-tutorial-done', '1'); localStorage.setItem('rally-quality', 'low'); window.__noRender = true; });
 const A = await ctx.newPage(), B = await ctx2.newPage();
 for (const [n, p] of [['A', A], ['B', B]]) p.on('pageerror', e => console.log(n, 'ERR', e.message));
 await A.goto('http://127.0.0.1:8766/'); await B.goto('http://127.0.0.1:8766/'); await A.waitForTimeout(800);
