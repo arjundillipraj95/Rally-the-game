@@ -353,6 +353,7 @@ function endText(w, why) {
   const names = allyNames(w), one = names.indexOf('&') < 0;
   if (why === 'castles') return `${names} tore down every enemy castle.`;
   if (why === 'crown') return `${names} ${one ? 'holds' : 'hold'} the Crown at the final trumpet.`;
+  if (why === 'lms') return `${names} ${one ? 'is' : 'are'} the last standing.`;
   if (why === 'places') return `Nobody held the Crown: ${names} held the most of the land.`;
   if (why === 'tickets') return `${names} ${one ? 'is' : 'are'} the last side with tickets.`;
   if (why === 'caps') return `${names} carried the banner home ${rules().caps} times.`;
@@ -565,7 +566,8 @@ function updateQualityNote() {
   $('qualityNote').textContent = quality.stepped ? `Lowered to ${lvl} to keep the game smooth.` : quality.setting === 'auto' ? `Auto picked ${lvl} for this device.` : '';
   $('segQuality').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === quality.setting)));
 }
-seg('segMode', v => { G.mode = v; G.target = prefs.tgt[v] ?? targetFor(v); renderTargets(); updateDesc(); });
+let soloLms = false; // (Last Man Standing: the Crown's test variant)
+seg('segMode', v => { soloLms = v === 'lms'; G.mode = soloLms ? 'crown' : v; G.target = prefs.tgt[G.mode] ?? targetFor(G.mode); renderTargets(); updateDesc(); });
 seg('segMap', v => { soloMap = MAPS[v]; updateDesc(); });
 // Teams, as in the multiplayer lobby: tap a colour to be it, its letter chip cycles its team, its
 // Duo chip adds a computer co-captain (tap again for a third: Trio). Remembered between visits.
@@ -594,7 +596,8 @@ function renderSoloSeats() {
 }
 // each mode's target (tickets, captures...), shown for the mode picked
 function renderTargets() {
-  const T = TARGETS[G.mode]; $('targetLabel').textContent = T.label;
+  const T = TARGETS[G.mode], grp = $('segTarget').closest('.grp'); if (grp) grp.hidden = !T; if (!T) return; // (the Crown has no target to pick)
+  $('targetLabel').textContent = T.label;
   $('segTarget').innerHTML = T.opts.map(([v, n]) => `<button type="button" data-v="${v}" aria-pressed="${v === (G.target ?? T.def)}">${n}</button>`).join('');
 }
 seg('segTime', v => { G.time = +v; prefs.time = +v; prefs.save(); updateDesc(); });
@@ -603,7 +606,7 @@ function resetSolo() { G.role = 'solo'; G.myTi = prefs.color; G.ALLY = soloAl.sl
 function soloStart(o = {}) {
   initAudio(); session.NET = null; resetSolo();
   if (o.al) G.ALLY = o.al.slice();
-  G.map = o.map || soloMap; clearMeadow();
+  G.map = o.map || (G.mode === 'crown' ? MAPS.valley : soloMap); clearMeadow(); G.lms = !!o.lms; // (the Crown has its own land)
   G.seed = (Math.random() * 1e9) | 0;
   G.looks = assignLooks({ [G.myTi]: prefs.look }, G.seed);
   const active = activeFrom(o.duo || soloDuo);
@@ -641,7 +644,7 @@ function showVeil() { $('veil').hidden = false; clearTimeout(veilT); veilT = set
 function hideVeil() { clearTimeout(veilT); $('veil').hidden = true; }
 ['goBtn', 'quickBtn', 'startBtn'].forEach(id => { const b = $(id); if (b) b.addEventListener('pointerdown', showVeil); });
 $('againBtn').addEventListener('pointerdown', () => { if (!isHost()) showVeil(); }); // a host's "again" goes to the lobby, not a battle
-$('goBtn').addEventListener('click', () => { lastStart = () => soloStart(); soloStart(); });
+$('goBtn').addEventListener('click', () => { const o = () => ({ lms: soloLms && G.mode === 'crown' }); lastStart = () => soloStart(o()); soloStart(o()); });
 // ("Fight again" after a Battle the computer battle: its own settings, not a Crown's)
 // One tap to a fight: Quick (5 min), a random map and mode; keeps your army, colour, teams and
 // difficulty. The menu shows what was picked, so "Fight again" repeats it.

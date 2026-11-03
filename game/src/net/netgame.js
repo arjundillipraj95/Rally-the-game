@@ -163,7 +163,7 @@ export function netHostReadInputs() {
 
 // ---------- client ----------
 export function clientStart(hp) {
-  G.role = 'client';
+  G.role = 'client'; G.lms = false; G.warmup = null;
   G.mode = hp.mode; G.map = MAPS[hp.map]; G.diff = hp.diff; G.time = [5, 10, 15].includes(+hp.time) ? +hp.time : 10; G.target = hp.tgt == null ? null : +hp.tgt; G.ALLY = hp.al.split('').map(Number); G.seed = hp.seed;
   G.looks = String(hp.lk || '').split(',').map(lookFrom);
   G.crests = String(hp.cr || '').split('').map(c => Math.min(7, +c || 0));

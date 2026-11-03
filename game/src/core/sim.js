@@ -262,7 +262,7 @@ export function buyUpgrade(ti, id) {
 }
 // What a team's soldiers are doing: the human's order, or the computer's choice.
 export const orderOf = ti => { const s = G.teams[ti], L = s.leader, up = L && !L.dead; return s.human ? (s.order || 'follow') : s.shieldwallT > 0 && up ? 'shieldwall' : s.aiHold && s.holdPt && up ? 'hold' : up ? 'follow' : 'charge'; };
-export function canRespawn(ti) { const s = G.teams[ti]; return G.warmup ? true : G.mode === 'crown' ? true : G.mode === 'conquest' ? G.teams[colorOf(ti)].alive : G.mode === 'dm' ? s.tickets > 0 : true; }
+export function canRespawn(ti) { const s = G.teams[ti]; return G.warmup ? true : G.lms && s.lmsOut ? false : G.mode === 'crown' ? true : G.mode === 'conquest' ? G.teams[colorOf(ti)].alive : G.mode === 'dm' ? s.tickets > 0 : true; }
 function push(u, vx, vz, stun) {
   if (u.remote) { u.kick.vx += vx; u.kick.vz += vz; u.kick.st = Math.max(u.kick.st, stun || 0); u.kick.dirty = true; }
   else { u.vx += vx; u.vz += vz; }
@@ -1076,6 +1076,7 @@ export function die(u, killer, ang, launch = 0) {
     if (u.leader) say('capDown', u.ti, killer.ti);
   }
   if (u.leader) {
+    if (G.lms && G.T >= CROWN.crown) s.lmsOut = true; // (Last Man Standing: from 9:00 a fallen captain is out)
     s.leaderDeadT = G.warmup ? (u.human ? 1.5 : 3) : u.human ? 5 : 9; // (the warm-up: straight back up)
     if (u.human) say('fell', u.ti, canRespawn(u.ti) ? 1 : 0);
   }
@@ -1415,7 +1416,8 @@ function crownTick(dt) {
   if (G.T >= CROWN.breakout) once('crownGo');
   if (G.T >= CROWN.siege - 20) once('crownSiegeSoon');
   if (G.T >= CROWN.siege) once('crownSiege');
-  if (G.T >= CROWN.crown - 20) once('crownSoon');
+  if (G.T >= CROWN.crown - 20 && !G.lms) once('crownSoon');
+  if (G.lms) return lmsTick(dt, once);
   if (G.T >= CROWN.crown && !G.flag) {
     G.flag = { state: 'cased', x: 0, z: 0, carrier: null, dropT: 0, casing: 0 };
     G.plazaWall.up = true; applyPlazaWall(); fx('wallsRise'); fx('netFlush');
@@ -1447,6 +1449,33 @@ function crownTick(dt) {
   const sc = {}; for (const h of G.holds) if (h.owner >= 0 && h.kind !== 'plaza') sc[h.owner] = (sc[h.owner] || 0) + (h.kind === 'castle' ? 2 : 1);
   const e = Object.entries(sc).sort((x, y) => y[1] - x[1]);
   endMatch(!e.length || (e.length > 1 && e[0][1] === e[1][1]) ? -1 : +e[0][0], 'places');
+}
+
+// Last Man Standing (a test variant of the Crown): the same battle until 9:00; then nobody comes back,
+// a ring closes on the plaza (outside it hurts) and the last side with a captain standing wins. If it
+// comes down to one captain against one, they're called to the plaza for the Champions' Duel.
+export const lmsRing = () => { if (!G.lms || G.T < CROWN.crown) return 0; const k = clamp((G.T - CROWN.crown) / CROWN.lms.ringTime, 0, 1); return W.R + 10 + (CROWN.lms.ringEnd - W.R - 10) * k; };
+function lmsTick(dt, once) {
+  if (G.T < CROWN.crown) return;
+  once('lmsRing');
+  const R = lmsRing();
+  for (const u of G.units) if (!u.dead && !u.duelId && Math.hypot(u.x, u.z) > R) { u.hp -= CROWN.lms.ringDmg * dt * (u.leader ? 1 : 1.6); u.lastHit = G.T; if (u.hp <= 0) die(u, null, 0); }
+  const caps = G.units.filter(u => u.leader && !u.dead), inIt = G.teams.map((s, i) => [s, i]).filter(([s]) => s.active && !s.lmsOut); // (down before 9:00: still coming back)
+  const sides = [...new Set(inIt.map(([, i]) => allianceOf(i)))];
+  if (sides.length === 1) return endMatch(sides[0], 'lms');
+  if (!sides.length) return endMatch(-1, 'lms');
+  if (caps.length === 2 && inIt.length === 2 && sides.length === 2 && !G.crown.champ) { // the Champions' Duel
+    const [a, b] = caps; G.crown.champ = true;
+    for (const d of duels().slice()) endDuel(d, 'off');
+    for (const [u, sx] of [[a, -4], [b, 4]]) { if (u.mounted) toggleHorseFor(u); u.carrying = false; u.x = sx; u.z = 0; u.vx = u.vz = 0; u.face = Math.atan2(-sx, 0); u.hp = u.max; }
+    const d = { id: ++G.duelN, a, b, state: 'offer', t: 0, x: 0, z: 0, champ: true }; duels().push(d); startDuel(d); d.t = 1e9;
+    once('champions', a.ti, b.ti);
+  }
+  if (G.T >= matchTime() + CROWN.lms.overtime) { // (still going: the side with more captains up, else the places)
+    const n = {}; for (const u of caps) n[allianceOf(u.ti)] = (n[allianceOf(u.ti)] || 0) + 1;
+    const e = Object.entries(n).sort((x, y) => y[1] - x[1]);
+    endMatch(e.length > 1 && e[0][1] === e[1][1] ? -1 : +e[0][0], 'lms');
+  }
 }
 
 // ---------- captain actions ----------

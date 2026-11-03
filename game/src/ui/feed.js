@@ -27,6 +27,8 @@ const HERALD = {
   rise: ['The Crown rises! Everybody suddenly loves the plaza.', 'Behold: the shiniest hat in the land.'],
   crownTaken: ['has the Crown. Everyone else has a new hobby: chasing them.', 'wears the Crown. It suits them. For now.'],
   crownDropped: ['dropped the Crown. Butterfingers!', 'lost the Crown. It was nice while it lasted.'],
+  ring: ['The ring is closing. Personal space is about to become a luxury.', 'No more second chances. Not that you used the first ones well.'],
+  champ: ['Two captains left. Everyone else, take a seat.', 'The Champions\' Duel! Bets are now closed.'],
   overtime: ['Overtime! Nobody leaves until this is settled.', 'Overtime! The bards are taking notes.'],
 };
 function herald(text) {
@@ -56,6 +58,8 @@ function heraldFor(k, a) {
   if (k === 'crownRise') return herald(pickOne(HERALD.rise));
   if (k === 'crownTaken') return herald(a[0] === G.myTi ? 'You have the Crown. Run. Run like the wind.' : `${who(a[0])} ${pickOne(HERALD.crownTaken)}`);
   if (k === 'crownDropped') return herald(a[0] === G.myTi ? 'You dropped the Crown. Butterfingers!' : `${who(a[0])} ${pickOne(HERALD.crownDropped)}`);
+  if (k === 'lmsRing') return herald(pickOne(HERALD.ring));
+  if (k === 'champions') return herald(pickOne(HERALD.champ));
   if (k === 'overtime') return herald(pickOne(HERALD.overtime));
 }
 // called with the HUD: the final minute
@@ -104,6 +108,8 @@ export function feedLine(k, a) {
     case 'pointCaptured': return `${who(a[0])} took Point ${esc(a[1])}`;
     case 'tickets0': return `${who(a[0])} is out of tickets`;
     case 'crownRise': return 'The Crown rises in the plaza';
+    case 'lmsRing': return 'The ring closes: no more coming back';
+    case 'champions': return `Champions' Duel: ${who(a[0])} against ${who(a[1])}`;
     case 'crownFree': return 'The Crown is free';
     case 'crownTaken': return `${who(a[0])} grabbed the Crown`;
     case 'crownDropped': return `${who(a[0])} dropped the Crown`;

@@ -247,7 +247,7 @@ export function hostStart() {
     initAudio();
     const L = NET.lobby;
     G.mode = L.mode; G.map = MAPS[L.map]; G.diff = L.diff; G.time = L.time || 10; G.target = L.tgt ?? targetFor(L.mode); G.ALLY = [...L.al];
-    G.myTi = NET.seats[NET.me] ?? 0;
+    G.myTi = NET.seats[NET.me] ?? 0; G.lms = false;
     G.seed = (Math.random() * 1e9) | 0;
     NET.msgs = []; NET.msgN = 0; NET.inp = {}; NET.snapN = 0;
     const humans = new Array(ARMIES).fill(0), chosen = [], peers = NET.room.peers();

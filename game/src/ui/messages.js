@@ -82,6 +82,8 @@ export function msgText(k, a) {
     case 'crownSiegeSoon': return ['The siege starts in 20 seconds', 'Castles can be stormed from 4:00. Man your walls', '#ffcf3a'];
     case 'crownSiege': return ['Siege!', 'Any castle can be taken now: stand in its yard and hold it', '#e0352b'];
     case 'crownSoon': return ['The Crown rises in 20 seconds', 'Head for the plaza', '#ffcf3a'];
+    case 'lmsRing': return ['The ring closes!', 'Nobody comes back now. Stay inside the ring; last side standing wins', '#ff6a4a'];
+    case 'champions': return ["The Champions' Duel!", `${nm(a[0])} against ${nm(a[1])}. Winner takes all`, '#ffcf3a'];
     case 'crownRise': return ['The Crown has risen!', 'Walls round the plaza! Inside: break the casing. Outside: hack a gate down', '#ffcf3a'];
     case 'towerUp': return mine(a[0]) ? ['Watchtower going up', 'It sees far through the fog once it\'s built. Enemies can hack it down', '#ffcf3a'] : null;
     case 'towerDown': return !isEnemyTi(a[0], myTi) ? [mine(a[0]) ? 'Your watchtower is down!' : `${nm(a[0])}'s watchtower is down`, a[1] >= 0 ? `Hacked down by ${nm(a[1])}` : '', '#e0352b'] : a[1] === myTi ? ['Watchtower down!', 'They\'re blind there now', '#ffcf3a'] : null;

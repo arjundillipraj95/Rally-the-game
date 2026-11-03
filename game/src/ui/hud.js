@@ -59,7 +59,7 @@ export function updateHud(lastSnapAt) {
   const gold = Math.floor(me.gold); $('gold').textContent = gold;
   const sq = squadOf(G.myTi), cap = capOf(G.myTi); $('squadN').textContent = G.mode === 'crown' ? `${sq.length}/${cap}` : sq.length;
   if (G.mode === 'crown') { // the phase, under the clock
-    const T = G.T, ph = T < CROWN.breakout ? `Break-out in ${Math.ceil(CROWN.breakout - T)}` : T < CROWN.rise ? 'Claim a castle' : T < CROWN.siege ? `Castles safe · siege in ${fmt(CROWN.siege - T)}` : T < CROWN.crown ? `Siege · the Crown in ${fmt(CROWN.crown - T)}` : T < matchTime() ? 'The Crown!' : 'Overtime!';
+    const T = G.T, ph = T < CROWN.breakout ? `Break-out in ${Math.ceil(CROWN.breakout - T)}` : T < CROWN.rise ? 'Claim a castle' : T < CROWN.siege ? `Castles safe · siege in ${fmt(CROWN.siege - T)}` : T < CROWN.crown ? (G.lms ? `Siege · the ring in ${fmt(CROWN.crown - T)}` : `Siege · the Crown in ${fmt(CROWN.crown - T)}`) : G.lms ? `No coming back · ${G.units.filter(u => u.leader && !u.dead).length} captains left` : T < matchTime() ? 'The Crown!' : 'Overtime!';
     const el = $('phaseTag'); if (el && el.textContent !== ph) { el.textContent = ph; el.classList.toggle('hot', T >= CROWN.crown || T < CROWN.breakout); }
   } else if ($('phaseTag').textContent) $('phaseTag').textContent = '';
   const c = k => sq.filter(u => u.kind === k).length; $('squadMix').textContent = `F${c('foot')} A${c('arch')}`;
