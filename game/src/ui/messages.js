@@ -80,7 +80,8 @@ export function msgText(k, a) {
     case 'crownSiegeSoon': return ['The siege starts in 20 seconds', 'Castles can be stormed from 4:00. Man your walls', '#ffcf3a'];
     case 'crownSiege': return ['Siege!', 'Any castle can be taken now: stand in its yard and hold it', '#e0352b'];
     case 'crownSoon': return ['The Crown rises in 20 seconds', 'Head for the plaza', '#ffcf3a'];
-    case 'crownRise': return ['The Crown has risen!', 'Stand in the plaza to break its stone casing', '#ffcf3a'];
+    case 'crownRise': return ['The Crown has risen!', 'Walls round the plaza! Inside: break the casing. Outside: hack a gate down', '#ffcf3a'];
+    case 'plazaGate': return [a[1] === myTi ? 'You broke a plaza gate!' : `${nm(a[1])} broke a plaza gate!`, 'The way to the Crown is open', css(a[1])];
     case 'crownFree': return ['The Crown is free!', 'Grab it: whoever carries it at 10:00 wins', '#ffcf3a'];
     case 'crownTaken': return mine(a[0]) ? ['You have the Crown!', 'Stay alive until 10:00. Keep enemies away', '#ffcf3a']
       : [`${nm(a[0])} has the Crown!`, ally(a[0]) ? 'Guard them with your life' : 'Cut them down before 10:00', css(a[0])];

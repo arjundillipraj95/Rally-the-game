@@ -11,9 +11,9 @@ await page.click('#playBtn'); await frames(page, 5);
 await page.evaluate(() => { window.__noRender = 1; const G = window.__fb.G, s0 = G.teams[G.myTi]; s0.human = false; s0.leader.human = false; s0.leader.isMe = false; G.player = null; });
 const snap = () => page.evaluate(() => { const F = window.__fb, G = F.G;
   const owners = {}; for (const h of G.holds) owners[h.kind] = (owners[h.kind] || '') + (h.owner < 0 ? '.' : h.owner);
-  return { T: Math.round(G.T), state: G.state, owners, armies: G.teams.map((t, i) => t.active ? F.G.units.filter(u => !u.dead && u.ti === i && !u.leader).length : null).filter(x => x != null).join(','), flag: G.flag ? G.flag.state + (G.flag.carrier ? ':' + G.flag.carrier.ti : '') + ' casing ' + (G.flag.casing || 0).toFixed(2) : '-', end: G.endInfo ? JSON.stringify(G.endInfo) : '' }; });
+  return { T: Math.round(G.T), state: G.state, owners, armies: G.teams.map((t, i) => t.active ? F.G.units.filter(u => !u.dead && u.ti === i && !u.leader).length : null).filter(x => x != null).join(','), wall: G.plazaWall ? (G.plazaWall.up ? 'up' : 'down') + ' broken ' + G.plazaWall.broken.toString(2) + ' hp ' + G.plazaWall.hp.map(h => Math.round(h)).join('/') : '', flag: G.flag ? G.flag.state + (G.flag.carrier ? ':' + G.flag.carrier.ti : '') + ' casing ' + (G.flag.casing || 0).toFixed(2) : '-', end: G.endInfo ? JSON.stringify(G.endInfo) : '' }; });
 const log = [];
-for (const until of [14, 60, 150, 239, 330, 420, 540, 570, 600, 640, 670]) {
+for (const until of [14, 150, 330, 539, 545, 555, 570, 585, 600, 640, 670]) {
   await page.evaluate(until => { const F = window.__fb, G = F.G; while (G.state === 'play' && G.T < until) F.step(30, 1 / 30); }, until);
   log.push(await snap());
 }

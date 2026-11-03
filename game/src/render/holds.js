@@ -25,8 +25,29 @@ function buildCrown(world) {
   const root = new THREE.Group(); root.add(g, glowG, casing); root.visible = false; world.add(root);
   crown = { root, g, glow: glowG, casing };
 }
+// The plaza's wall (the Crown): stone blocks round the ring and a wooden gate across each gap; down in the
+// ground until 9:00, then it rises over a couple of seconds. A broken gate drops into a heap of planks.
+let wall = null;
+function buildWall(world, P) {
+  const stone = new THREE.MeshLambertMaterial({ color: 0xa79f90 }), plank = new THREE.MeshLambertMaterial({ color: 0x7a5a3a });
+  const blocks = P.obs.filter(o => o.plazaWall), gates = P.obs.filter(o => o.plazaGate != null);
+  const bm = new THREE.InstancedMesh(new THREE.BoxGeometry(1.25, 3.4, .9), stone, blocks.length), gm = new THREE.InstancedMesh(new THREE.BoxGeometry(1.25, 3, .5), plank, gates.length);
+  bm.castShadow = gm.castShadow = true; bm.receiveShadow = true;
+  const grp = new THREE.Group(); grp.add(bm, gm); grp.visible = false; world.add(grp);
+  wall = { grp, bm, gm, blocks, gates, rise: 0, m: new THREE.Matrix4(), q: new THREE.Quaternion(), v: new THREE.Vector3(), sc: new THREE.Vector3(1, 1, 1) };
+}
+function updateWall(dt) {
+  const w = wall, W = G.plazaWall; if (!w || !W) return;
+  w.grp.visible = W.up; if (!W.up) { w.rise = 0; return; }
+  w.rise = Math.min(1, w.rise + (dt || .016) / 2.2);
+  const lift = (1 - Math.pow(1 - w.rise, 3)) * 3.4 - 3.4 + 1.7; // (eased up out of the ground)
+  const put = (mesh, list, i, o, y, tilt) => { const a = Math.atan2(o.x, o.z); w.q.setFromEuler(new THREE.Euler(tilt, a, 0)); w.m.compose(w.v.set(o.x, terrainMeshY(o.x, o.z) + y, o.z), w.q, w.sc); mesh.setMatrixAt(i, w.m); };
+  w.blocks.forEach((o, i) => put(w.bm, w.blocks, i, o, lift + (i % 2) * .15, 0));
+  w.gates.forEach((o, i) => { const down = (W.broken >> o.plazaGate) & 1; put(w.gm, w.gates, i, o, down ? .2 : lift - .2, down ? Math.PI / 2 * .95 : 0); });
+  w.bm.instanceMatrix.needsUpdate = w.gm.instanceMatrix.needsUpdate = true;
+}
 export function buildHolds(world, L) {
-  crown = null; if (G.mode === 'crown') buildCrown(world);
+  crown = null; wall = null; if (G.mode === 'crown') { buildCrown(world); if (L.plazaWall) buildWall(world, L.plazaWall); }
   objs = (L.holds || []).map(h => {
     const grp = new THREE.Group(); world.add(grp);
     const ring = new THREE.Mesh(new THREE.RingGeometry(h.r - .55, h.r, 64), new THREE.MeshBasicMaterial({ color: neutral, transparent: true, opacity: .4, side: THREE.DoubleSide, depthWrite: false }));
@@ -53,8 +74,9 @@ function updateCrown() {
   }
   c.g.rotation.y = t * 1.4;
 }
+let lastT = 0;
 export function updateHolds() {
-  updateCrown();
+  updateCrown(); updateWall(Math.max(0, Math.min(.1, G.T - lastT))); lastT = G.T;
   const hs = G.holds; if (!hs) return;
   objs.forEach((o, i) => {
     const h = hs[i]; if (!h) return;

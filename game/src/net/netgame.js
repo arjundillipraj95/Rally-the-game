@@ -6,7 +6,7 @@ import { ARMOUR, RHYTHM, BASH, STREAK, EVADE, TEAMS, MAPS, KINDS, STATS, RECRUIT
 import { G, bus, colorOf, isEnemyTi, activeFrom, ARMIES, duoStr, duoParse } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn, angDiff } from '../core/world.js';
 import { buildNav, syncGates } from '../core/nav.js';
-import { volleyCharge, captainBash, duelAct, duelOffer, duelTarget, initForts, applyFort, fortLvl, captainEvade, evadeKind, makeHolds, execTarget, rallyCry, blockPress, attackHold, attackRelease, rideRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainJump, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
+import { applyPlazaWall, volleyCharge, captainBash, duelAct, duelOffer, duelTarget, initForts, applyFort, fortLvl, captainEvade, evadeKind, makeHolds, execTarget, rallyCry, blockPress, attackHold, attackRelease, rideRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainJump, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
 import { session, isClient, isHost } from './session.js';
 import { showMsg } from '../ui/messages.js';
 import { lookCode, lookFrom } from '../core/look.js';
@@ -67,7 +67,7 @@ function encodeSnap() {
   // the map's holdings, and control mode's points: who has each, and how far a capture has got
   const hd = (G.holds || []).map(h => [h.owner, Math.round(h.prog * 100), h.cap, h.contested ? 1 : 0, h.chest | 0].join(',')).join(';');
   const cp = (G.ctrlPoints || []).map(p => [p.owner, Math.round(p.prog * 100), p.capturer ?? -1].join(',')).join(';');
-  const fo = (G.forts || []).map(f => f.broken).join(','); // (Fortify: each castle's broken palisade sections)
+  const fo = (G.forts || []).map(f => f.broken).join(',') + (G.plazaWall ? ',' + (G.plazaWall.up ? 16 : 0) + G.plazaWall.broken : ''); // (Fortify: each castle's broken palisade sections)
   const du = (G.duels || []).map(d => [d.id, b36(d.a.id), b36(d.b.id), d.state === 'on' ? 1 : 0, encX(d.x), encX(d.z), Math.max(0, Math.ceil(d.t))].join(',')).join(';'); // (duels: called out, or on)
   return [Math.round(G.T * 10), teams, us.join(';'), ars.join(';'), hs.join(';'), fl, pl, G.bounty, hd, cp, fo, du].join('|');
 }
@@ -155,6 +155,7 @@ export function clientStart(hp) {
   initForts(); C.fortSig = '';
   G.flag = G.mode === 'ctf' ? { state: 'home', x: 0, z: 0, carrier: null, dropT: 0 } : null;
   G.crown = G.mode === 'crown' ? { said: {}, casing: 0, ot: false } : null;
+  G.plazaWall = G.crown ? { up: false, hp: [0, 0, 0, 0], broken: 0 } : null; C.wallSig = null;
   G.ctrlPoints = G.mode === 'ctrl' ? makeCtrlPoints(G.layout) : null;
   G.holds = makeHolds(G.layout); G.duels = [];
   Object.assign(C, { byId: new Map(), lastN: -1, lastMsgN: (hp.m && hp.m.length) ? hp.m[hp.m.length - 1][0] : 0, meId: null, meInit: false, kickN: 0, localCd: 0, lastSnapAt: performance.now(),
@@ -203,6 +204,8 @@ function clientApply(hp) {
   if (secs[8] && G.holds) secs[8].split(';').forEach((r, i) => { const h = G.holds[i], v = r.split(',').map(Number); if (h) { h.owner = v[0]; h.prog = v[1] / 100; h.cap = v[2]; h.contested = !!v[3]; h.chest = v[4] | 0; } });
   if (secs[10] != null && G.forts) { // palisades: built (the castle's Fortify level) and broken
     secs[10].split(',').forEach((v, c) => { if (G.forts[c]) G.forts[c].broken = +v || 0; });
+    const pv = +secs[10].split(',')[4]; // (the Crown: the plaza's wall, up (16) and its broken gates)
+    if (G.plazaWall && !isNaN(pv) && pv !== C.wallSig) { const was = G.plazaWall.up; C.wallSig = pv; G.plazaWall.up = pv >= 16; G.plazaWall.broken = pv & 15; applyPlazaWall(); if (!was && G.plazaWall.up) bus.emit('wallsRise'); }
     const sig = secs[10] + '/' + [0, 1, 2, 3].map(fortLvl).join('');
     if (sig !== C.fortSig) { C.fortSig = sig; for (let c = 0; c < 4; c++) applyFort(c); }
   }

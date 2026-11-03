@@ -261,7 +261,20 @@ function crownPlaces(L, R, box) {
     for (let j = 0; j < 7; j++) { const b = a + Math.PI * .35 + j / 7 * Math.PI * 1.3, rr = r(5.2, 6.4), rx = x + Math.cos(b) * rr, rz = z + Math.sin(b) * rr, rad = r(1.2, 1.9); L.rocks.push({ x: rx, z: rz, r: rad, rx: r(0, 3), ry: r(0, 3), gold: true }); L.obstacles.push({ x: rx, z: rz, r: rad * .9 }); }
     box(L, x + Math.cos(a) * 3.2, z + Math.sin(a) * 3.2, 1.2, 1, -a, 2.4, 'hut');
   }
-  clear(0, 0, CROWN.plazaR - 1); // (the plaza: open ground, nothing to snag on at the start)
+  clear(0, 0, CROWN.wallR + 2); // (the plaza: open ground, nothing to snag on at the start, nothing in the wall's way)
+  // the wall that rises round the plaza at 9:00 (down until then): stone all round, four wooden gates
+  // that hold against everyone until they're hacked down
+  const W0 = CROWN.wallR, gates = [0, 1, 2, 3].map(k => phi + Math.PI / 6 + k * Math.PI / 2), half = CROWN.gateW / 2 / W0;
+  const pw = { r: W0, gates, obs: [], blk: [] };
+  const n = Math.ceil(Math.PI * 2 * W0 / 1.1);
+  for (let i = 0; i < n; i++) {
+    const a = i / n * Math.PI * 2, gi = gates.findIndex(g => Math.abs(angDiff(a, g)) < half);
+    const x = Math.cos(a) * W0, z = Math.sin(a) * W0;
+    const o = gi < 0 ? { x, z, r: .9, pal: true, off: true, c: -1, k: -1, plazaWall: true, segKey: 'pw' } : { x, z, r: .9, pal: true, off: true, c: -1, k: gi, plazaGate: gi, segKey: 'pg' + gi };
+    const b = { x, z, r: .9, h: 3.4, pal: true, off: true, c: -1, k: o.k, plaza: true };
+    L.obstacles.push(o); L.blockers.push(b); pw.obs.push(o); pw.blk.push(b);
+  }
+  L.plazaWall = pw;
 }
 function box(L, x, z, hw, hd, rot, h, kind) {
   const b = { box: true, x, z, hw, hd, rot }; L.obstacles.push(b);
