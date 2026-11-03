@@ -37,6 +37,7 @@ export function msgText(k, a) {
       : [`${nm(a[0])}'s army breaks and runs!`, ally(a[0]) ? 'Cover them' : 'Cut them down', css(a[0])];
     case 'focusDone': return mine(a[0]) ? ['Group destroyed', 'Your men fall back in', '#ffcf3a'] : null;
     case 'left': return [`${nm(a[0])}'s player left`, 'The computer takes over their army', css(a[0])];
+    case 'joined': return mine(a[0]) ? null : [`A player joins as ${nm(a[0])}`, 'They take over that army', css(a[0])];
     case 'holdTaken': { // a[0]: the alliance that took it, a[1]: what it is, a[2]: which
       const ours = a[0] === G.ALLY[colorOf(myTi)], h = G.holds && G.holds[a[2]], what = (h && h.name) || (a[1] === 'oasis' ? 'the Oasis' : 'a village');
       const give = { castle: ['+5 men for every captain on your side, and gold', 'Their armies grow. Take it back from 4:00'], mine: ['Gold pours in', 'Their purses fill. Take it back'], oasis: ['Your men heal in it, and gold flows in', 'They heal there and grow rich. Take it back'], shrine: ['Gold flows in, and your rally horns fill', 'Their horns fill and they grow rich. Take it back'], village: ['It will send you footmen', 'It sends them men. Take it back'] }[a[1]] || ['', ''];

@@ -113,6 +113,7 @@ export function feedLine(k, a) {
     case 'plazaGate': return `${who(a[1])} broke a plaza gate`;
     case 'castleFort': return `${who(a[0])} fortified ${esc((G.holds && G.holds[a[1]] && G.holds[a[1]].name) || 'a castle')}`;
     case 'castleGate': return `${who(a[1])} broke ${esc((G.holds && G.holds[a[2]] && G.holds[a[2]].name) || 'a castle')}'s ${a[3] ? 'side gate' : 'main gate'}`;
+    case 'joined': return `${who(a[0])} joined the battle`;
     case 'left': return `${who(a[0])} left; the computer takes over`;
     case 'armourOn': return isEnemyTi(a[0], G.myTi) ? `${who(a[0])} put on armour` : null;
   }

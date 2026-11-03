@@ -6,7 +6,7 @@
 // Protocol: a WebSocket to /ws; JSON messages {t: type, ...}. See the handlers below.
 
 const FMT_CAP = [1, 2, 3]; // captains per side: Solo, Duo, Trio
-const LOBBY_WAIT = 60e3, LATE_JOIN = 240e3, PARTY_MAX = 3;
+const LOBBY_WAIT = 60e3, LATE_JOIN = 60e3, PARTY_MAX = 3; // (a friend can join a running battle in its first minute)
 const CODE = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const rid = (n, set = CODE) => { const b = new Uint8Array(n); crypto.getRandomValues(b); return [...b].map(x => set[x % set.length]).join(''); };
 const cleanNick = s => String(s || '').replace(/[^\p{L}\p{N} _.-]/gu, '').trim().slice(0, 16) || 'Captain';
@@ -29,6 +29,7 @@ export class Hub {
     this.parties = new Map(); // party id -> {id, leader, members: [ids]}
     this.rooms = new Map();   // room id -> {id, fmt, sides: [[ids]], created, started, host, code, startedAt}
     this.timer = null;
+    this.topics = new Map(); // relay topic -> sessions listening (the game's fallback link, see m_sub)
   }
   async fetch(req) {
     if (req.headers.get('Upgrade') !== 'websocket') return new Response('expected a websocket', { status: 426 });
@@ -47,6 +48,10 @@ export class Hub {
 
   // ---------- who you are ----------
   async onMsg(s, m) {
+    // the relay: a tiny publish/subscribe for phones that can't link up directly (no account needed;
+    // the topics are named after a battle's code)
+    if (m.t === 'sub') { const t = String(m.topic || '').slice(0, 80); if (!t) return; (s.topics || (s.topics = new Set())).add(t); let set = this.topics.get(t); if (!set) this.topics.set(t, set = new Set()); set.add(s); return; }
+    if (m.t === 'pub') { const set = this.topics.get(String(m.topic || '')); if (!set) return; const d = typeof m.d === 'string' ? m.d.slice(0, 64000) : ''; for (const x of set) if (x !== s) this.send(x, { t: 'msg', topic: m.topic, d }); return; }
     if (m.t === 'hello') return this.hello(s, m);
     if (!s.id) return this.send(s, { t: 'error', msg: 'say hello first' });
     const h = this['m_' + m.t]; if (h) return h.call(this, s, m);
@@ -238,6 +243,7 @@ export class Hub {
   }
 
   onClose(s) {
+    if (s.topics) for (const t of s.topics) { const set = this.topics.get(t); if (set) { set.delete(s); if (!set.size) this.topics.delete(t); } }
     if (!s.id || this.live.get(s.id) !== s) return;
     const room = s.room && this.rooms.get(s.room);
     if (room && room.started && room.host === s.id) this.handover(room, s.id);

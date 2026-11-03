@@ -2,7 +2,7 @@
 // presses and draws the host's snapshots (a compact text string, roughly 1-4KB depending on
 // how many soldiers are alive — more in a full 12-army Trio match — sent
 // about 12 times a second).
-import { ARMOUR, RHYTHM, BASH, STREAK, EVADE, TEAMS, MAPS, KINDS, STATS, RECRUITS, FACTIONS, factionFromCode, ORDERS, ORDER_NAMES, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT, HOLD_ATK, PARRY } from '../config.js';
+import { CROWN, HUMAN_CAPTAIN, ARMOUR, RHYTHM, BASH, STREAK, EVADE, TEAMS, MAPS, KINDS, STATS, RECRUITS, FACTIONS, factionFromCode, ORDERS, ORDER_NAMES, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT, HOLD_ATK, PARRY } from '../config.js';
 import { G, bus, colorOf, isEnemyTi, activeFrom, ARMIES, duoStr, duoParse } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn, angDiff } from '../core/world.js';
 import { buildNav, syncGates } from '../core/nav.js';
@@ -106,6 +106,16 @@ export function netHostReadInputs() {
       if (L) { L.human = false; L.remote = false; L.dmg = STATS.captain.dmg; L.spd = STATS.captain.spd; }
       delete NET.seats[peer]; bus.emit('msg', { k: 'left', a: [ti] });
     }
+  }
+  // a matchmade Crown battle in its first minute: a friend who joined late takes over the computer army
+  // the service gave them (it's played as theirs from the next moment)
+  if (NET.match && G.mode === 'crown' && G.T < CROWN.lateJoin) for (const p of peers) {
+    if (p.sameTab || NET.seats[p.peer] !== undefined) continue;
+    const pr = p.presence || {}, ti = pr.want; if (typeof ti !== 'number' || ti < 0 || ti >= ARMIES) continue;
+    const s = G.teams[ti]; if (!s || !s.active || s.human || Object.values(NET.seats).includes(ti)) continue;
+    NET.seats[p.peer] = ti; s.human = true;
+    const L = s.leader; if (L) { L.human = true; L.remote = true; L.dmg = HUMAN_CAPTAIN.dmg; L.spd = HUMAN_CAPTAIN.spd; }
+    bus.emit('msg', { k: 'joined', a: [ti] }); netHostSend(true);
   }
   for (const p of peers) {
     if (p.sameTab) continue;

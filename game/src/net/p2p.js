@@ -1,3 +1,4 @@
+import { ON } from './online.js';
 // Peer-to-peer rooms over PeerJS: the host's browser is the hub, everyone joins with a 4-letter code.
 // Exposes a small presence-style API: presence(patch), peers(), onPeers(fn), leave().
 import { Peer } from 'peerjs';
@@ -60,7 +61,21 @@ const peerOpts = async () => {
 // (Eclipse's is on the standard secure port 443, which gets through where Safari's privacy relay or a
 // strict network blocks the others' unusual ports)
 const BROKERS = ['wss://mqtt.eclipseprojects.io:443/mqtt', 'wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://test.mosquitto.org:8081/mqtt'];
-const brokers = () => window.__MQTT_URLS || BROKERS;
+// our own relay (the online service) goes first when it's there; the public brokers stay as a fallback
+const brokers = () => window.__MQTT_URLS || (ON.url ? ['rally+' + ON.url.replace(/^http/, 'ws').replace(/\/$/, '') + '/ws', ...BROKERS] : BROKERS);
+// an MQTT-like client over the online service's relay (connect / subscribe / publish / message / end)
+function rallyRelay(url) {
+  const ev = {}, emit = (k, ...a) => { for (const f of ev[k] || []) try { f(...a); } catch (e) {} };
+  let ws = null; const send = m => { if (ws && ws.readyState === 1) ws.send(JSON.stringify(m)); };
+  const c = { connected: false, on(k, f) { (ev[k] || (ev[k] = [])).push(f); if (k === 'connect' && c.connected) setTimeout(f, 0); return c; }, // (late listeners still hear we're up)
+    subscribe(t, o, cb) { send({ t: 'sub', topic: t }); if (cb) cb(); }, publish(t, str) { send({ t: 'pub', topic: t, d: str }); }, end() { try { ws.close(); } catch (e) {} } };
+  try { ws = new WebSocket(url); } catch (e) { setTimeout(() => emit('error', e), 0); return c; }
+  ws.onopen = () => { c.connected = true; emit('connect'); };
+  ws.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch (er) { return; } if (m.t === 'msg') emit('message', m.topic, { toString: () => m.d }); };
+  ws.onerror = () => emit('error'); ws.onclose = () => { c.connected = false; };
+  return c;
+}
+const connectTo = async url => url.startsWith('rally+') ? rallyRelay(url.slice(6)) : (await mqttLib()).connect(url, mqttOpts());
 const rtopic = code => `rallygame/v1/${code}`;
 async function mqttLib() { const m = await import('mqtt'); return m.default || m; }
 const mqttOpts = () => ({ clientId: 'rally' + Math.random().toString(36).slice(2, 12), connectTimeout: 8000, reconnectPeriod: 3000, keepalive: 30, clean: true });
@@ -76,9 +91,9 @@ function fakeConn(peerId, sendFn) {
 }
 // host: hands each joiner that turns up on a broker to onConn, as if they'd connected directly
 async function hostRelay(code, onConn) {
-  const mqtt = await mqttLib(), T = rtopic(code), clients = [], fakes = new Map();
+  const T = rtopic(code), clients = [], fakes = new Map();
   for (const url of brokers()) {
-    let cl; try { cl = mqtt.connect(url, mqttOpts()); } catch (e) { continue; }
+    let cl; try { cl = await connectTo(url); } catch (e) { continue; }
     cl.on('connect', () => cl.subscribe(T + '/h', { qos: 0 }));
     cl.on('error', () => {});
     cl.on('message', (_, buf) => {
@@ -101,15 +116,15 @@ async function hostRelay(code, onConn) {
 }
 // joiner: says hello on every broker until the host answers on one; resolves with the link to the host
 async function joinRelay(code, myId, hello, waitMs = 20000) {
-  const mqtt = await mqttLib(), T = rtopic(code), cls = [];
+  const T = rtopic(code), cls = [], made = [];
+  for (const url of brokers()) { try { made.push(await connectTo(url)); } catch (e) {} }
   return new Promise((resolve, reject) => {
     let picked = null;
     const fin = () => { clearInterval(hi); clearTimeout(to); for (const cl of cls) if (cl !== picked) try { cl.end(true); } catch (e) {} };
     const to = setTimeout(() => { fin(); reject({ type: 'relay-failed' }); }, waitMs);
     const say = (cl, d) => { try { cl.publish(T + '/h', JSON.stringify({ f: myId, d })); } catch (e) {} };
     const hi = setInterval(() => { for (const cl of cls) if (cl.connected) say(cl, hello()); }, 1000);
-    for (const url of brokers()) {
-      let cl; try { cl = mqtt.connect(url, mqttOpts()); } catch (e) { continue; }
+    for (const cl of made) {
       cls.push(cl);
       cl.on('error', () => {});
       cl.on('connect', () => { cl.subscribe(T + '/c/' + myId, { qos: 0 }, () => say(cl, hello())); });
