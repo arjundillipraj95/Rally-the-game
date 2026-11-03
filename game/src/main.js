@@ -45,6 +45,7 @@ import { wardrobe } from './ui/wardrobe.js';
 import { actions, netHostReadInputs, netHostTick, netHostSend, clientTick, clientHorses, setNetHooks, C } from './net/netgame.js';
 import { bindLobby, showLobby, hostLobbyTick, clientLobbyTick, netLeave, matchHost, matchJoin } from './net/lobby.js';
 import { ON, online, startOnline, isLeader } from './net/online.js';
+import { crowns, mergeCrowns, titleOf, award, FMT_NAME } from './ui/crowns.js';
 import { lookCode, lookFrom } from './core/look.js';
 import { CAPS_TO_WIN, PARRY, CAPKILL_SLOW } from './config.js';
 
@@ -216,6 +217,11 @@ bus.on('end', ({ w, why }) => {
   // the battle report (on a joined phone the tally arrives with the host's last snapshot: built again when it lands)
   const report = () => { const rep = buildReport(w, nickFor); lastRep = { rep, title };
     const m = myLine(rep); $('myRate').hidden = !m; if (m) { $('myRateN').textContent = m.me.rating.toFixed(1); $('myRateT').textContent = `${m.text}${m.me.mvp ? ' · MVP' : ''}`; }
+    // an online Crown battle moves your crowns for its format
+    if (m && session.NET && session.NET.match && G.mode === 'crown') {
+      if (!G.crownAward) { G.crownAward = award(Math.max(0, G.duo[0] | 0), result, m.me.rating); online.crowns(G.crownAward.all); }
+      const A = G.crownAward; $('myRateT').textContent += ` · ${A.delta >= 0 ? '+' : ''}${A.delta} crowns${A.up ? ` · now ${A.up}!` : ''}`;
+    }
     renderCaptains($('endCaps'), rep); renderAwards($('endAw'), rep); };
   report(); if (isClient()) setTimeout(() => { if (G.state === 'end') report(); }, 1200);
   endTab('you');
@@ -365,6 +371,7 @@ function viewForMatch() {
   startCrowd(G.map.id);
 }
 function beginMatch(humans, active) {
+  G.crownAward = null;
   if (!session.NET) G.role = 'solo';
   startMatch(humans, active);
   cam.yaw = G.player.face; cam.pitch = CAM_PITCH;
@@ -459,6 +466,7 @@ function toast(text, invite) {
 const whereText = f => !f.online ? 'Offline' : f.where === 'battle' ? `In a battle${f.since ? ' · ' + fmtClock(f.since) : ''}` : f.where === 'lobby' ? `Searching ${['Solo', 'Duo', 'Trio'][f.fmt | 0]}` : f.party > 1 ? `In a party of ${f.party}` : 'At home';
 function renderFriends() {
   $('fCode').textContent = ON.me ? ON.me.id : (ON.url ? 'connecting…' : 'offline');
+  if (!ON.url) $('fNote').textContent = 'Friends and online battles open once the online service is switched on. Private battles by code work now.';
   if (document.activeElement !== $('fNick')) $('fNick').value = session.myNick || (ON.me && ON.me.nick) || '';
   const inParty = id => partyOthers().some(m => m.id === id);
   $('fReqs').innerHTML = ON.reqs.map(r => `<div class="frow req"><i class="on"></i><div><b>${esc(r.nick)}</b><small>wants to be friends</small></div><div class="btns"><button type="button" class="go" data-acc="${r.id}">Accept</button><button type="button" class="go ghost" data-dec="${r.id}">No</button></div></div>`).join('');
@@ -482,6 +490,7 @@ function renderSearch() {
 }
 setInterval(() => { const L = ON.lobby; if (L && L.at != null) $('searchClock').textContent = fmtClock(L.endsIn - (performance.now() - L.at)); }, 250);
 bus.on('online', ({ k, m }) => {
+  if (k === 'me') { const merged = mergeCrowns(m.crowns); if (merged.some((n, i) => n > ((m.crowns || [])[i] | 0))) online.crowns(merged); showFmtRank(); }
   if (k === 'me' || k === 'friends' || k === 'party' || k === 'off' || k === 'down') { renderFriends(); if (k === 'party') placeParty(); }
   if (k === 'lobby') renderSearch();
   if (k === 'note') { $('fNote').textContent = m.msg; if (homeView !== 'friends') toast(m.msg); }
@@ -645,7 +654,8 @@ $('quickBtn').addEventListener('click', () => {
 // PLAY: the Crown, in its format (Solo / Duo / Trio a side). Online matchmaking isn't open yet, so for
 // now it's against computer captains: four sides, ten minutes, the places laid out afresh every time.
 let playFmt = (() => { try { return Math.min(2, Math.max(0, +localStorage.getItem('rally-fmt') || 0)); } catch (e) { return 0; } })();
-const pressFmt = () => $('segFmt').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === playFmt)));
+const pressFmt = () => { $('segFmt').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === playFmt))); showFmtRank(); };
+function showFmtRank() { const n = crowns()[playFmt], t = titleOf(n); $('fmtRank').innerHTML = `${FMT_NAME[playFmt]} · <b>${t.name}</b> · ${n} crowns${t.next ? `<span> · ${t.toNext} to ${t.next}</span>` : ''}`; }
 pressFmt();
 $('segFmt').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; playFmt = +b.dataset.v; try { localStorage.setItem('rally-fmt', String(playFmt)); } catch (er) {} pressFmt(); });
 let lastStart = () => soloStart();
