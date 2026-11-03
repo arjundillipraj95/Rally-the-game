@@ -94,7 +94,7 @@
       </div>
       <nav class="hleft" aria-label="Your captain and more">
         <button type="button" class="hbtn" id="wardBtn"><b>Captain</b><small>Dress him up</small></button>
-        <button type="button" class="hbtn soon" disabled><b>Friends</b><small>Coming soon</small></button>
+        <button type="button" class="hbtn" id="friendsBtn"><b>Friends</b><small id="friendsSub">Play together</small></button>
         <button type="button" class="hbtn soon" disabled><b>Missions</b><small>Coming soon</small></button>
         <button type="button" class="hbtn soon" disabled><b>Shop</b><small>Coming soon</small></button>
       </nav>
@@ -105,12 +105,27 @@
           <button type="button" data-v="0" aria-pressed="true">Solo</button><button type="button" data-v="1" aria-pressed="false">Duo</button><button type="button" data-v="2" aria-pressed="false">Trio</button>
         </div>
         <button class="go play" id="playBtn" type="button"><span>Play</span><small id="playSub">The Crown · vs the computer until online opens</small></button>
+        <div class="search" id="searchBox" hidden>
+          <div class="srow"><b id="searchT">Searching</b><span id="searchClock">0:00</span></div>
+          <div class="ssides" id="searchSides"></div>
+          <button type="button" class="go ghost" id="searchCancel">Cancel</button>
+        </div>
         <div class="hrow">
           <button class="go alt" id="cpuBtn" type="button">Battle the computer</button>
           <button class="go alt" id="privBtn" type="button">Private battle</button>
         </div>
       </div>
     </div>
+    <!-- friends: your code, add by code, requests, and your friends (invite to your party, or join them) -->
+    <div class="ward fpanel" id="friendsPanel" hidden>
+      <div class="whead"><h2>Friends</h2><button type="button" class="go" id="friendsDone">Done</button></div>
+      <div class="fme"><span>Your name</span><input id="fNick" maxlength="16" autocomplete="off"><span>Your code</span><b id="fCode">…</b><button type="button" class="linkbtn" id="fCopy">Copy</button></div>
+      <div class="fadd"><input id="fAddCode" maxlength="8" placeholder="A friend's code" autocapitalize="characters" autocomplete="off"><button type="button" class="go alt" id="fAddBtn">Add</button></div>
+      <p class="wsub" id="fNote"></p>
+      <div class="flist" id="fReqs"></div>
+      <div class="flist" id="fList"></div>
+    </div>
+    <div class="toast" id="inviteToast" hidden><span id="inviteT"></span><button type="button" class="go" id="inviteYes">Join</button><button type="button" class="go ghost" id="inviteNo">Later</button></div>
     <!-- the wardrobe: each piece on its own; the army wears its captain's helmet, armour, shield and weapon -->
     <div class="ward" id="ward" hidden>
       <div class="whead"><h2>Your captain</h2><button type="button" class="go" id="wardDone">Done</button></div>

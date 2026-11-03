@@ -43,7 +43,9 @@ import { allyFor, describeTeams } from './core/teams.js';
 import { assignLooks } from './core/look.js';
 import { wardrobe } from './ui/wardrobe.js';
 import { actions, netHostReadInputs, netHostTick, netHostSend, clientTick, clientHorses, setNetHooks, C } from './net/netgame.js';
-import { bindLobby, showLobby, hostLobbyTick, clientLobbyTick, netLeave } from './net/lobby.js';
+import { bindLobby, showLobby, hostLobbyTick, clientLobbyTick, netLeave, matchHost, matchJoin } from './net/lobby.js';
+import { ON, online, startOnline, isLeader } from './net/online.js';
+import { lookCode, lookFrom } from './core/look.js';
 import { CAPS_TO_WIN, PARRY, CAPKILL_SLOW } from './config.js';
 
 const $ = id => document.getElementById(id);
@@ -408,18 +410,19 @@ function seedDemo() {
     const [x, z] = gatePos(t, sp0 + sp, ex0 - ex); const u = mkUnit(G.myTi, x, z, k); u.face = homeCap.face; u.demo = true;
   });
   spawnMeadow(cx, cz, lx, lz);
+  partyFigs = []; setTimeout(placeParty, 0);
 }
 const _v = new THREE.Vector3();
 function homeCamera(dt) {
   const c = homeCap; if (!c) { orbitCamera(demoT); return; }
   const d = Math.hypot(c.x, c.z) || 1, fx = c.x / d, fz = c.z / d, rx = -fz, rz = fx; // (from him toward the camera, and sideways)
   const wide = innerWidth / Math.max(1, innerHeight) > 1.5;
-  const want = homeView === 'home' ? -.7 : homeView === 'ward' ? (wide ? 1.7 : 1.3) : (wide ? -4.4 : -2.4); // (beside the sheet: right of the wardrobe, left of the setup)
+  const want = homeView === 'home' ? -.7 : homeView === 'ward' || homeView === 'friends' ? (wide ? 1.7 : 1.3) : (wide ? -4.4 : -2.4); // (beside the sheet: right of the wardrobe, left of the setup)
   homeV.sx += (want - homeV.sx) * Math.min(1, dt * 5);
   // the captain turns to face you, swaying a little in the wardrobe so the cape shows
-  const sway = homeView === 'ward' ? Math.sin(demoT * .7) * .75 : Math.sin(demoT * .3) * .12;
+  const sway = homeView === 'ward' || homeView === 'friends' ? Math.sin(demoT * .7) * .75 : Math.sin(demoT * .3) * .12;
   c.face = Math.atan2(fx, fz) + sway; c.vx = c.vz = 0;
-  const gy = groundY(c.x, c.z), dist = homeView === 'ward' ? 5.2 : 6.4, ty = gy + (homeView === 'ward' ? 1.3 : 1.45);
+  const gy = groundY(c.x, c.z), dist = homeView === 'ward' || homeView === 'friends' ? 5.2 : 6.4, ty = gy + (homeView === 'ward' || homeView === 'friends' ? 1.3 : 1.45);
   const tx = c.x + rx * homeV.sx, tz = c.z + rz * homeV.sx;
   camera.position.set(tx + fx * dist, ty + 1.15, tz + fz * dist);
   camera.lookAt(tx, ty, tz);
@@ -427,12 +430,88 @@ function homeCamera(dt) {
   for (const [id, side] of [['pedL', 1], ['pedR', -1]]) {
     const el = $(id); if (!el) continue;
     if (homeView !== 'home') { el.hidden = true; continue; }
-    _v.set(c.x + rx * side * 2.5, gy + 1.15, c.z + rz * side * 2.5).project(camera);
+    const pm = partyOthers()[side > 0 ? 0 : 1]; el.classList.toggle('taken', !!pm); el.querySelector('span').textContent = pm ? pm.nick : '+';
+    el.setAttribute('aria-label', pm ? `${pm.nick}, in your party` : 'Play with a friend');
+    _v.set(c.x + rx * side * 2.5, gy + (pm ? 3 : 1.15), c.z + rz * side * 2.5).project(camera);
     const px = (_v.x + 1) / 2 * innerWidth, py = (1 - _v.y) / 2 * innerHeight, pr = $('home').querySelector('.hplay').getBoundingClientRect();
     el.hidden = _v.z > 1 || (px > pr.left - 36 && py > pr.top - 36); // (not under the Play panel on a small screen)
     el.style.left = px + 'px'; el.style.top = py + 'px';
   }
 }
+// ---------- online: the party on your stage, friends, invites, the search ----------
+const partyOthers = () => (ON.party && ON.party.members || []).filter(m => !ON.me || m.id !== ON.me.id);
+let partyFigs = [];
+function placeParty() { // party members' captains on the pedestals beside yours, in their own outfits
+  for (const u of partyFigs) { const i = G.units.indexOf(u); if (i >= 0) G.units.splice(i, 1); } partyFigs = [];
+  const c = homeCap; if (!c || G.state !== 'title') return;
+  const d = Math.hypot(c.x, c.z) || 1, rx = -c.z / d, rz = c.x / d;
+  partyOthers().slice(0, 2).forEach((m, k) => {
+    const side = k === 0 ? 1 : -1, ti = G.myTi + 4 * (k + 1), u = mkUnit(ti, c.x + rx * side * 2.5, c.z + rz * side * 2.5, 'captain');
+    u.demo = true; u.face = c.face; G.looks[ti] = lookFrom(m.look) || G.looks[ti]; partyFigs.push(u);
+  });
+}
+function fmtClock(ms) { const s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+let toastT = 0;
+function toast(text, invite) {
+  $('inviteT').textContent = text; $('inviteYes').hidden = $('inviteNo').hidden = !invite; $('inviteToast').hidden = false;
+  clearTimeout(toastT); toastT = setTimeout(() => { $('inviteToast').hidden = true; }, invite ? 15000 : 3500);
+}
+const whereText = f => !f.online ? 'Offline' : f.where === 'battle' ? `In a battle${f.since ? ' · ' + fmtClock(f.since) : ''}` : f.where === 'lobby' ? `Searching ${['Solo', 'Duo', 'Trio'][f.fmt | 0]}` : f.party > 1 ? `In a party of ${f.party}` : 'At home';
+function renderFriends() {
+  $('fCode').textContent = ON.me ? ON.me.id : (ON.url ? 'connecting…' : 'offline');
+  if (document.activeElement !== $('fNick')) $('fNick').value = session.myNick || (ON.me && ON.me.nick) || '';
+  const inParty = id => partyOthers().some(m => m.id === id);
+  $('fReqs').innerHTML = ON.reqs.map(r => `<div class="frow req"><i class="on"></i><div><b>${esc(r.nick)}</b><small>wants to be friends</small></div><div class="btns"><button type="button" class="go" data-acc="${r.id}">Accept</button><button type="button" class="go ghost" data-dec="${r.id}">No</button></div></div>`).join('');
+  $('fList').innerHTML = ON.friends.length ? ON.friends.slice().sort((a, b) => b.online - a.online).map(f => `<div class="frow"><i class="${f.online ? 'on' : ''}"></i><div><b>${esc(f.nick)}</b><small>${inParty(f.id) ? 'In your party' : whereText(f)}</small></div><div class="btns">${
+    f.online && !inParty(f.id) ? `<button type="button" class="go alt" data-inv="${f.id}">Invite</button>` : ''}${
+    f.online && !inParty(f.id) && (f.where !== 'home' || f.party > 1) ? `<button type="button" class="go" data-join="${f.id}">Join</button>` : ''}</div></div>`).join('')
+    : '<p class="wsub">No friends yet. Share your code, or add a friend\'s.</p>';
+  const on = ON.friends.filter(f => f.online).length;
+  $('friendsSub').innerHTML = !ON.url ? 'Play together' : !ON.up ? 'Connecting…' : on ? `${on} online<span class="dot"></span>` : 'Play together';
+  if (partyOthers().length && ON.up) $('playSub').textContent = isLeader() ? `The Crown · your party of ${partyOthers().length + 1}` : 'Your party leader starts the search';
+  else $('playSub').textContent = ON.up ? 'The Crown · online' : 'The Crown · vs the computer until online opens';
+}
+const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function renderSearch() {
+  const L = ON.lobby, box = $('searchBox');
+  box.hidden = !L; $('playBtn').hidden = !!L;
+  if (!L) return;
+  $('searchT').textContent = `Searching ${['Solo', 'Duo', 'Trio'][L.fmt]}`;
+  $('searchSides').innerHTML = L.sides.map((sd, c) => `<div style="--c:${TEAMS[c].css}">${sd.map(x => esc(x.nick)).join('<br>') || '<em>open</em>'}</div>`).join('');
+  L.at = performance.now();
+}
+setInterval(() => { const L = ON.lobby; if (L && L.at != null) $('searchClock').textContent = fmtClock(L.endsIn - (performance.now() - L.at)); }, 250);
+bus.on('online', ({ k, m }) => {
+  if (k === 'me' || k === 'friends' || k === 'party' || k === 'off' || k === 'down') { renderFriends(); if (k === 'party') placeParty(); }
+  if (k === 'lobby') renderSearch();
+  if (k === 'note') { $('fNote').textContent = m.msg; if (homeView !== 'friends') toast(m.msg); }
+  if (k === 'invite') { toast(`${m.nick} invites you to their party`, true); $('inviteYes').onclick = () => { online.acceptInvite(m.from); $('inviteToast').hidden = true; }; }
+  if (k === 'kicked') toast(m.msg);
+  if (k === 'start') startMatchmade(m);
+});
+$('inviteNo').addEventListener('click', () => { $('inviteToast').hidden = true; });
+$('friendsBtn').addEventListener('click', () => { renderFriends(); setHomeView('friends'); });
+$('friendsDone').addEventListener('click', () => setHomeView('home'));
+$('fNick').addEventListener('change', () => { session.myNick = ($('fNick').value || '').trim().slice(0, 16); try { localStorage.setItem('fb-nick', session.myNick); } catch (e) {} online.nick(session.myNick); });
+$('fCopy').addEventListener('click', () => { if (ON.me) navigator.clipboard && navigator.clipboard.writeText(ON.me.id).then(() => toast('Your code is copied: send it to a friend')).catch(() => {}); });
+$('fAddBtn').addEventListener('click', () => { const c = ($('fAddCode').value || '').trim(); if (c) { online.addFriend(c); $('fAddCode').value = ''; } });
+$('fAddCode').addEventListener('keydown', e => { if (e.key === 'Enter') $('fAddBtn').click(); });
+$('friendsPanel').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.acc) online.accept(b.dataset.acc); else if (b.dataset.dec) online.decline(b.dataset.dec);
+  else if (b.dataset.inv) online.invite(b.dataset.inv); else if (b.dataset.join) online.join(b.dataset.join);
+});
+$('searchCancel').addEventListener('click', () => online.cancel());
+// the service paired us up: host it, or join it, in the seat it gave us
+async function startMatchmade(m) {
+  if (!ON.me) return;
+  renderSearch(); initAudio();
+  const mine = m.seats[ON.me.id]; if (mine == null) return;
+  $('playBtn').hidden = false;
+  if (m.host === ON.me.id) await matchHost(m.code, m.fmt, mine, Object.keys(m.seats).length, t => toast(t));
+  else await matchJoin(m.code, mine, st => { if (st === 'fail') toast("Couldn't link up with the battle's host"); });
+}
+bus.on('end', () => { if (session.NET && session.NET.match) online.battleOver(); });
 function demo(dt) {
   demoT += dt;
   drawSoldiers(G.units, dt); updateMeadow(dt);
@@ -448,7 +527,7 @@ function demo(dt) {
 function setHomeView(v, tabsShown) {
   if (import.meta.env.DEV && window.__testSheet && v === 'home') { v = 'sheet'; tabsShown = ['tabBattle']; } // (dev: older tests drive the setup sheet)
   homeView = v;
-  $('home').hidden = v !== 'home'; $('homeSheet').hidden = v !== 'sheet'; $('ward').hidden = v !== 'ward';
+  $('home').hidden = v !== 'home'; $('homeSheet').hidden = v !== 'sheet'; $('ward').hidden = v !== 'ward'; $('friendsPanel').hidden = v !== 'friends';
   $('ovTitle').classList.toggle('homing', v !== 'sheet'); $('ovTitle').classList.toggle('sheet', v === 'sheet');
   if (v === 'sheet') {
     tabs.forEach(t => { t.hidden = !tabsShown.includes(t.dataset.tab); });
@@ -578,17 +657,22 @@ function playStart() {
   lastStart = playStart;
 }
 $('playBtn').addEventListener('pointerdown', showVeil);
-$('playBtn').addEventListener('click', () => { goFullscreen(); playStart(); });
+$('playBtn').addEventListener('click', () => {
+  goFullscreen();
+  if (ON.up) { if (!isLeader()) { toast('Your party leader starts the search'); return; } hideVeil(); online.queue(playFmt); return; } // (online: find a battle)
+  playStart();
+});
 $('cpuBtn').addEventListener('click', () => setHomeView('sheet', ['tabBattle']));
 $('setBtn').addEventListener('click', () => setHomeView('sheet', ['tabSettings', 'tabHelp']));
 $('sheetBack').addEventListener('click', () => setHomeView('home'));
 // a friend: for now that's a private battle (a code to share)
-for (const id of ['privBtn', 'pedL', 'pedR']) $(id).addEventListener('click', () => { initAudio(); $('mpBtn').click(); });
+$('privBtn').addEventListener('click', () => { initAudio(); $('mpBtn').click(); });
+for (const id of ['pedL', 'pedR']) $(id).addEventListener('click', () => { initAudio(); if (ON.url) { renderFriends(); setHomeView('friends'); } else $('mpBtn').click(); }); // (online: invite a friend into that place)
 // the wardrobe: built from the catalog; the stage shows each change at once
 const ward = wardrobe($('ward'), {
   look: () => prefs.look, crest: () => progress.crest,
   crestOpen: i => crestUnlocked(i), crestNeed: i => `${RANKS[i].name} rank`, rankName: i => (RANKS[i] || RANKS[RANKS.length - 1]).name,
-  onPick: (si, v) => { prefs.look = prefs.look.slice(); prefs.look[si] = v; prefs.save(); if (G.looks) G.looks[G.myTi] = prefs.look; sfx.draw && sfx.draw(); },
+  onPick: (si, v) => { prefs.look = prefs.look.slice(); prefs.look[si] = v; prefs.save(); if (G.looks) G.looks[G.myTi] = prefs.look; sfx.draw && sfx.draw(); online.look(lookCode(prefs.look)); },
   onCrest: i => { if (setCrest(i)) { buildCrests(); if (G.crests) G.crests[G.myTi] = progress.crest; } },
 });
 $('wardBtn').addEventListener('click', () => { ward.show(); setHomeView('ward'); });
@@ -746,6 +830,7 @@ window.__fb = {
 function onResize() { resize(); resizeOverlay(); }
 addEventListener('resize', onResize);
 G.time = prefs.time; G.target = prefs.tgt[G.mode] ?? targetFor(G.mode); pressSeg('segTime', prefs.time); resetSolo(); renderSoloSeats(); renderTargets();
-applyShadowQuality(); onResize(); updateDesc(); updateQualityNote(); setHomeView('home'); seedDemo(); requestAnimationFrame(loop);
+applyShadowQuality(); onResize(); updateDesc(); updateQualityNote(); setHomeView('home'); seedDemo();
+if (!(import.meta.env.DEV && window.__testSheet)) startOnline(() => ({ look: lookCode(prefs.look) })); requestAnimationFrame(loop);
 // the games site (if we're on one): its SDK, its mute setting, and our pause during its ads
 portalInit({ mute: m => setMuted(m), pause: p => { paused = p; } }).then(() => { portal.loadingStart(); requestAnimationFrame(() => portal.loadingStop()); });

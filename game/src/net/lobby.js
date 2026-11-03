@@ -238,7 +238,11 @@ export function bindLobby(h) {
     hostLobbyTick();
   });
   lobbySeg('lobbyTeams', 'al'); lobbySeg('lobbyMode', 'mode'); lobbySeg('lobbyMap', 'map'); lobbySeg('lobbyDiff', 'diff'); lobbySeg('lobbyTime', 'time'); lobbySeg('lobbyTarget', 'tgt');
-  $('startBtn').addEventListener('click', () => {
+  $('startBtn').addEventListener('click', () => hostStart());
+  $('leaveBtn').addEventListener('click', () => netLeave());
+}
+// the host starts the battle (the Start button, or a matchmade battle once everyone's linked up)
+export function hostStart() {
     const NET = session.NET; if (!NET || NET.role !== 'host') return;
     initAudio();
     const L = NET.lobby;
@@ -258,6 +262,39 @@ export function bindLobby(h) {
     G.looks = assignLooks(chosen, G.seed);
     hooks.startMatch(humans, active);
     netHostSend(true);
-  });
-  $('leaveBtn').addEventListener('click', () => netLeave());
+}
+
+// ---------- matchmade battles (the online service paired us up) ----------
+// The service picked the host, a battle code and everyone's seat. The host opens the battle with that
+// code and starts it the moment every expected player is linked up (or after a short wait: anyone who
+// can't link up has their side played by the computer). Everyone else joins and asks for their seat.
+const MATCH_WAIT = 25e3;
+export async function matchHost(code, fmt, myTi, expect, onNote = () => {}) {
+  if (busy) return false; busy = true;
+  let gr = null; try { gr = await makeP2PRoom(code, true); } catch (e) { busy = false; onNote('Could not open the battle. Try again.'); return false; }
+  busy = false;
+  const NET = session.NET = { role: 'host', room: gr, name: code, seats: {}, msgs: [], msgN: 0, snapN: 0, inp: {}, match: true,
+    lobby: { mode: 'crown', map: 'valley', diff: G.diff, time: 10, tgt: null, al: [0, 1, 2, 3], duo: [fmt, fmt, fmt, fmt] } };
+  const me = myPeer(gr) || 'me'; NET.me = me; NET.seats[me] = myTi; G.myTi = myTi; G.role = 'host';
+  const t0 = performance.now();
+  NET.unsub = gr.onPeers(() => { if (G.state === 'lobby') { hostLobbyTick(); check(); } });
+  const check = () => { if (G.state !== 'lobby' || !session.NET || !session.NET.match) return; const n = Object.keys(NET.seats).length; if (n >= expect || performance.now() - t0 > MATCH_WAIT) { clearInterval(iv); hostStart(); } };
+  const iv = setInterval(check, 1000);
+  showLobby(); $('lobbyStatus').textContent = 'Linking up with everyone… the battle starts by itself';
+  return true;
+}
+export async function matchJoin(code, ti, onNote = () => {}) {
+  if (busy) return false; busy = true;
+  let gr = null;
+  for (let k = 0; k < 6 && !gr; k++) { // (the host may still be opening it)
+    try { gr = await makeP2PRoom(code, false, st => onNote(st)); }
+    catch (e) { if (e && e.type !== 'peer-unavailable') { busy = false; onNote('fail'); return false; } await new Promise(r => setTimeout(r, 1500)); }
+  }
+  busy = false; if (!gr) { onNote('fail'); return false; }
+  const NET = session.NET = { role: 'client', room: gr, name: code, seats: {}, hostPeer: null, want: ti, match: true };
+  G.role = 'client';
+  NET.unsub = gr.onPeers(() => { if (G.state === 'lobby') renderLobby(); });
+  gr.presence(myPresence()).catch(() => {});
+  showLobby(); $('lobbyStatus').textContent = 'Linked up: the battle starts in a moment';
+  return true;
 }
