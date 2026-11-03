@@ -297,9 +297,26 @@ export function toggleHorseFor(p) {
 }
 
 // ---------- combat ----------
+// A spatial grid of the living, rebuilt every step (8 m cells): the big battles have hundreds of men,
+// and asking "who's near me?" of every one of them, for every one of them, was most of a step's cost.
+const GC = 8; let grid = null, gridT = -1;
+function buildGrid() {
+  grid = new Map(); gridT = G.T;
+  for (const u of G.units) { if (u.dead) continue; const k = (Math.floor(u.x / GC) + 64) * 256 + (Math.floor(u.z / GC) + 64); let a = grid.get(k); if (!a) grid.set(k, a = []); a.push(u); }
+}
+const gridOk = () => grid && gridT === G.T && G.role !== 'client';
+// every living unit in the cells within r of (x, z)
+function eachNear(x, z, r, fn) {
+  const i0 = Math.floor((x - r) / GC) + 64, i1 = Math.floor((x + r) / GC) + 64, j0 = Math.floor((z - r) / GC) + 64, j1 = Math.floor((z + r) / GC) + 64;
+  for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { const a = grid.get(i * 256 + j); if (a) for (let k = 0; k < a.length; k++) fn(a[k]); }
+}
 export function nearestFoe(u, maxD, filter) {
   let best = null, bd = maxD * maxD;
   const ds = G.duels && G.duels.length > 0;
+  if (maxD <= 72 && gridOk()) {
+    eachNear(u.x, u.z, maxD, o => { if (o.dead || !isEnemy(o, u) || (filter && !filter(o)) || (ds && !duelFoe(u, o))) return; const dx = o.x - u.x, dz = o.z - u.z, d = dx * dx + dz * dz; if (d < bd) { bd = d; best = o; } });
+    return [best, Math.sqrt(bd)];
+  }
   for (const o of G.units) { if (o.dead || !isEnemy(o, u) || (filter && !filter(o)) || (ds && !duelFoe(u, o))) continue; const dx = o.x - u.x, dz = o.z - u.z, d = dx * dx + dz * dz; if (d < bd) { bd = d; best = o; } }
   return [best, Math.sqrt(bd)];
 }
@@ -1260,8 +1277,8 @@ function holdsTick(dt) {
     if (G.crown && h.kind === 'plaza' && h.chest !== 2) { h.contested = false; h.prog = 0; h.cap = -1; continue; } // (the plaza is only up for grabs with the war chest in it)
     if (G.crown && h.kind === 'castle' && h.owner >= 0 && G.T < CROWN.siege) { h.contested = false; h.prog = 0; h.cap = -1; h.safe = true; crownIncome(h, dt); continue; } // (a held castle can't be stormed before the siege)
     h.safe = false;
-    const n = new Map();
-    for (const u of G.units) { if (u.dead || u.routing || Math.hypot(u.x - h.x, u.z - h.z) > h.r) continue; const a = allianceOf(u.ti); n.set(a, (n.get(a) || 0) + 1); }
+    const n = new Map(), count = u => { if (u.dead || u.routing || Math.hypot(u.x - h.x, u.z - h.z) > h.r) return; const a = allianceOf(u.ti); n.set(a, (n.get(a) || 0) + 1); };
+    if (gridOk()) eachNear(h.x, h.z, h.r, count); else for (const u of G.units) count(u);
     h.contested = n.size > 1;
     if (n.size === 1) {
       const [a] = n.keys();
@@ -2112,6 +2129,7 @@ export function regenJavs(p, dt) {
 
 // ---------- the main step (solo and host) ----------
 export function update(dt, input) {
+  buildGrid();
   G.T += dt;
   syncGates();
   execMark();
@@ -2256,7 +2274,8 @@ export function update(dt, input) {
   for (const r of G.units) {
     if (r.dead || !r.mounted) continue;
     const sp = Math.hypot(r.vx, r.vz);
-    for (const o of G.units) {
+    const nearR = []; eachNear(r.x, r.z, 4, o => nearR.push(o));
+    for (const o of nearR) {
       if (o.dead || !isEnemy(o, r) || o.mounted || o.execT > 0 || o.duelId) continue;
       const dx = o.x - r.x, dz = o.z - r.z; if (Math.abs(dx) > 4 || Math.abs(dz) > 4) continue;
       const d = Math.hypot(dx, dz);
@@ -2301,11 +2320,14 @@ export function update(dt, input) {
   }
 
   // separation: a simple push apart so crowds never overlap
-  const live = G.units.filter(u => !u.dead);
+  const live = G.units.filter(u => !u.dead), SC = 2.5, sg = new Map();
+  live.forEach((u, i) => { u.sepI = i; const k = (Math.floor(u.x / SC) + 128) * 512 + (Math.floor(u.z / SC) + 128); let a = sg.get(k); if (!a) sg.set(k, a = []); a.push(u); });
   for (let i = 0; i < live.length; i++) {
-    const a = live[i];
-    for (let j = i + 1; j < live.length; j++) {
-      const b = live[j], dx = b.x - a.x, dz = b.z - a.z, min = a.r + b.r;
+    const a = live[i], ci = Math.floor(a.x / SC) + 128, cj = Math.floor(a.z / SC) + 128;
+    for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) { const cell = sg.get((ci + di) * 512 + cj + dj); if (!cell) continue;
+    for (let q = 0; q < cell.length; q++) {
+      const b = cell[q]; if (b.sepI <= i) continue;
+      const dx = b.x - a.x, dz = b.z - a.z, min = a.r + b.r;
       if (dx > min || dx < -min || dz > min || dz < -min) continue;
       const d = Math.hypot(dx, dz) || .01; if (d >= min) continue;
       const ov = (min - d) / 2, nx = dx / d, nz = dz / d;
@@ -2314,7 +2336,7 @@ export function update(dt, input) {
       if (a.leader !== b.leader && !isEnemy(a, b)) { if (a.leader) wa = 0; else wb = 0; }
       if (wa === 0) wb = 2; if (wb === 0) wa = 2;
       a.x -= nx * ov * wa; a.z -= nz * ov * wa; b.x += nx * ov * wb; b.z += nz * ov * wb;
-    }
+    } }
   }
   for (const u of G.units) {
     if (u.dead) { fallStep(u, dt); continue; }
