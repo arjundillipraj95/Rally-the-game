@@ -540,6 +540,10 @@
 .ssides{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;} .ssides div{font:700 11px var(--body);color:#fff;background:rgba(255,255,255,.06);border-radius:6px;padding:4px 5px;min-height:34px;border-top:3px solid var(--c);}
 .ssides div em{display:block;font-style:normal;color:var(--dim);}
 .search .go{font-size:16px;padding:5px 10px;}
+.search.warm{position:fixed;top:calc(max(6px,env(safe-area-inset-top)) + 74px);left:50%;transform:translateX(-50%);z-index:60;flex-direction:row;align-items:center;padding:4px 10px;gap:10px;font-size:13px;}
+.search.warm .ssides{display:none;}
+.search.warm .srow{gap:12px;align-items:center;}
+.search.warm .go{font-size:13px;padding:3px 8px;}
 .pedestal.taken{border-style:solid;border-color:var(--gold);background:rgba(20,19,18,.55);width:auto;min-width:64px;height:auto;padding:4px 10px;border-radius:999px;margin:-14px 0 0 -40px;}
 .pedestal.taken span{font:800 13px var(--body);margin:0;}
 .hbtn .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#3ad16b;margin-left:6px;vertical-align:2px;}

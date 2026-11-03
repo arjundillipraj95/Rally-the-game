@@ -483,8 +483,9 @@ const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 function renderSearch() {
   const L = ON.lobby, box = $('searchBox');
   box.hidden = !L; $('playBtn').hidden = !!L;
-  if (!L) return;
-  $('searchT').textContent = `Searching ${['Solo', 'Duo', 'Trio'][L.fmt]}`;
+  if (!L) { if (G.warmup) warmupStop(true); return; }
+  if (!G.warmup && G.state === 'title') warmupStart();
+  $('searchT').textContent = `${G.warmup ? 'Warm-up · ' : ''}Searching ${['Solo', 'Duo', 'Trio'][L.fmt]}`;
   $('searchSides').innerHTML = L.sides.map((sd, c) => `<div style="--c:${TEAMS[c].css}">${sd.map(x => esc(x.nick)).join('<br>') || '<em>open</em>'}</div>`).join('');
   L.at = performance.now();
 }
@@ -514,6 +515,7 @@ $('searchCancel').addEventListener('click', () => online.cancel());
 // the service paired us up: host it, or join it, in the seat it gave us
 async function startMatchmade(m) {
   if (!ON.me) return;
+  if (G.warmup) warmupStop(false);
   renderSearch(); initAudio();
   const mine = m.seats[ON.me.id]; if (mine == null) return;
   $('playBtn').hidden = false;
@@ -658,6 +660,24 @@ const pressFmt = () => { $('segFmt').querySelectorAll('button').forEach(b => b.s
 function showFmtRank() { const n = crowns()[playFmt], t = titleOf(n); $('fmtRank').innerHTML = `${FMT_NAME[playFmt]} · <b>${t.name}</b> · ${n} crowns${t.next ? `<span> · ${t.toNext} to ${t.next}</span>` : ''}`; }
 pressFmt();
 $('segFmt').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; playFmt = +b.dataset.v; try { localStorage.setItem('rally-fmt', String(playFmt)); } catch (er) {} pressFmt(); });
+// The warm-up camp: while the search runs you're not staring at a clock. A little free-for-all in the
+// Colosseum against computer captains: nothing counts, you're straight back up when you fall, and it
+// ends the moment the battle is found (or the search is called off).
+function warmupStart() {
+  const keep = { mode: G.mode, time: G.time, target: G.target };
+  G.mode = 'dm'; G.time = 15; G.target = null;
+  soloStart({ al: [0, 1, 2, 3], duo: [0, 0, 0, 0], map: MAPS.colosseum });
+  Object.assign(G, keep, { mode: 'dm' }); G.warmup = keep;
+  document.body.appendChild($('searchBox')); $('searchBox').classList.add('warm');
+  toast('Warm-up: nothing counts here. Your battle starts when it\'s found');
+}
+function warmupStop(home) {
+  const keep = G.warmup; if (!keep) return;
+  G.warmup = null; Object.assign(G, keep); session.NET = null;
+  resetSolo(); G.state = 'title'; $('hudWrap').hidden = true;
+  $('searchBox').classList.remove('warm'); $('playBtn').after($('searchBox'));
+  seedDemo(); if (home) { $('ovTitle').hidden = false; setHomeView('home'); }
+}
 let lastStart = () => soloStart();
 function playStart() {
   const pick = a => a[(Math.random() * a.length) | 0];

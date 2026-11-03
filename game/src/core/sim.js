@@ -262,7 +262,7 @@ export function buyUpgrade(ti, id) {
 }
 // What a team's soldiers are doing: the human's order, or the computer's choice.
 export const orderOf = ti => { const s = G.teams[ti], L = s.leader, up = L && !L.dead; return s.human ? (s.order || 'follow') : s.shieldwallT > 0 && up ? 'shieldwall' : s.aiHold && s.holdPt && up ? 'hold' : up ? 'follow' : 'charge'; };
-export function canRespawn(ti) { const s = G.teams[ti]; return G.mode === 'crown' ? true : G.mode === 'conquest' ? G.teams[colorOf(ti)].alive : G.mode === 'dm' ? s.tickets > 0 : true; }
+export function canRespawn(ti) { const s = G.teams[ti]; return G.warmup ? true : G.mode === 'crown' ? true : G.mode === 'conquest' ? G.teams[colorOf(ti)].alive : G.mode === 'dm' ? s.tickets > 0 : true; }
 function push(u, vx, vz, stun) {
   if (u.remote) { u.kick.vx += vx; u.kick.vz += vz; u.kick.st = Math.max(u.kick.st, stun || 0); u.kick.dirty = true; }
   else { u.vx += vx; u.vz += vz; }
@@ -1036,7 +1036,7 @@ function arrowHit(a, b) {
   const sh = a.shooter;
   if (b.hp <= 0) die(b, sh && !sh.dead && !sh.tower ? sh : { ti: a.ti, human: false, leader: false }, Math.atan2(b.x - a.x0, b.z - a.z0));
 }
-function die(u, killer, ang, launch = 0) {
+export function die(u, killer, ang, launch = 0) {
   if (u.dead) return;
   u.dead = true; u.deadT = 0;
   if (launch) { // off they go: high, far, spinning (see the ragdoll in render/soldiers.js)
@@ -1076,7 +1076,7 @@ function die(u, killer, ang, launch = 0) {
     if (u.leader) say('capDown', u.ti, killer.ti);
   }
   if (u.leader) {
-    s.leaderDeadT = u.human ? 5 : 9;
+    s.leaderDeadT = G.warmup ? (u.human ? 1.5 : 3) : u.human ? 5 : 9; // (the warm-up: straight back up)
     if (u.human) say('fell', u.ti, canRespawn(u.ti) ? 1 : 0);
   }
   checkEnd();
@@ -1145,7 +1145,7 @@ function checkTime() {
   endMatch(e[0][0], 'time');
 }
 export function endMatch(w, why) {
-  if (G.state !== 'play') return;
+  if (G.state !== 'play' || G.warmup) return; // (the warm-up never ends by itself)
   G.state = 'end'; G.endInfo = { w, why };
   bus.emit('end', G.endInfo);
 }
