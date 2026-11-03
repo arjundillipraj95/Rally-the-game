@@ -90,7 +90,7 @@ export function onRoad(x, z) { const R = G.layout && G.layout.roadGrid; if (!R) 
 export function groundSlow(x, z) {
   const id = G.map.id;
   if (onRoad(x, z) && !(id === 'valley' && fieldAt(x, z))) return ROAD_SPEED; // (the roads are the quick way in)
-  if (id === 'river') return inFord(x, z) ? .6 : 1;
+  if (id === 'river' || RV) { if (inFord(x, z)) return .55; if (id === 'river') return 1; } // (wading the ford)
   if (id === 'valley') return fieldAt(x, z) ? .72 : 1;
   if (id === 'desert') return OASES.some(o => Math.hypot(x - o.x, z - o.z) < o.r) ? .6 : 1;
   return 1;
@@ -114,9 +114,46 @@ export const arenaGatesOpen = t => (t % ARENA.cycle) < ARENA.open;
 const toLocal = (f, x, z) => { const dx = x - f.x, dz = z - f.z; return [dx * f.vz - dz * f.vx, dx * f.vx + dz * f.vz]; };
 
 export function hill(x, z) { return 7 * Math.exp(-(x * x + z * z) / (2 * 20 * 20)); }
-export function onBridge(x) { return Math.abs(x + 32) < 2.4 || Math.abs(x - 32) < 2.4; }
-export function inRiver(x, z) { return G.map.id === 'river' && Math.abs(z) < 5 && Math.hypot(x, z) >= 7; }
-export function inFord(x, z) { return inRiver(x, z) && Math.abs(x) < 14; }
+export function onBridge(x, z) { if (RV && z != null) return riverCode(x, z) === 3; return Math.abs(x + 32) < 2.4 || Math.abs(x - 32) < 2.4; }
+export function inRiver(x, z) { if (RV) { const c = riverCode(x, z); return c === 1 || c === 2; } return G.map.id === 'river' && Math.abs(z) < 5 && Math.hypot(x, z) >= 7; }
+export function inFord(x, z) { if (RV) return riverCode(x, z) === 2; return inRiver(x, z) && Math.abs(x) < 14; }
+// ---------- the Crown's river: a winding course laid out afresh every match ----------
+// Baked into a 1 m grid when the layout is made: 0 land, 1 deep water (nobody crosses), 2 the ford
+// (wade, slowly), 3 a bridge. `dep` is how far the ground drops into the riverbed there.
+let RV = null;
+export const riverCode = (x, z) => { if (!RV) return 0; const i = Math.round((x + RV.half) / RV.cs), j = Math.round((z + RV.half) / RV.cs); return i < 0 || j < 0 || i >= RV.n || j >= RV.n ? 0 : RV.code[j * RV.n + i]; };
+export const deepWater = (x, z) => riverCode(x, z) === 1;
+function riverDep(x, z) {
+  if (!RV) return 0;
+  const fx = (x + RV.half) / RV.cs, fz = (z + RV.half) / RV.cs, i = Math.floor(fx), j = Math.floor(fz), n = RV.n;
+  if (i < 0 || j < 0 || i >= n - 1 || j >= n - 1) return 0;
+  const tx = fx - i, tz = fz - j, g = RV.dep, k = j * n + i;
+  return (g[k] * (1 - tx) + g[k + 1] * tx) * (1 - tz) + (g[k + n] * (1 - tx) + g[k + n + 1] * tx) * tz;
+}
+function bakeRiver(L) {
+  const V = L.river; if (!V) { RV = null; return; }
+  const cs = 1, half = W.R + 20, n = Math.ceil(half * 2 / cs) + 1, code = new Uint8Array(n * n), dep = new Float32Array(n * n), dist = new Float32Array(n * n).fill(1e9);
+  const reach = V.w + 2.5;
+  for (let s = 0; s < V.pts.length - 1; s++) {
+    const [ax, az] = V.pts[s], [bx, bz] = V.pts[s + 1];
+    const i0 = Math.max(0, Math.floor((Math.min(ax, bx) - reach + half) / cs)), i1 = Math.min(n - 1, Math.ceil((Math.max(ax, bx) + reach + half) / cs));
+    const j0 = Math.max(0, Math.floor((Math.min(az, bz) - reach + half) / cs)), j1 = Math.min(n - 1, Math.ceil((Math.max(az, bz) + reach + half) / cs));
+    const dx = bx - ax, dz = bz - az, L2 = dx * dx + dz * dz || 1;
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      const x = -half + i * cs, z = -half + j * cs, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / L2));
+      const d = Math.hypot(x - ax - dx * t, z - az - dz * t), k = j * n + i; if (d < dist[k]) dist[k] = d;
+    }
+  }
+  for (let k = 0; k < n * n; k++) {
+    const d = dist[k]; if (d >= reach) continue;
+    const x = -half + (k % n) * cs, z = -half + Math.floor(k / n) * cs;
+    let c = d < V.w ? 1 : 0, depth = d < V.w ? 1.2 * (1 - (d / V.w) ** 2) + .25 : .25 * (1 - (d - V.w) / 2.5);
+    if (c && V.fords.some(f => Math.hypot(x - f.x, z - f.z) < f.r)) { c = 2; depth = Math.min(depth, .5); }
+    for (const b of V.bridges) { const lx = (x - b.x) * Math.cos(b.a) + (z - b.z) * Math.sin(b.a), lz = -(x - b.x) * Math.sin(b.a) + (z - b.z) * Math.cos(b.a); if (Math.abs(lz) < b.hw && Math.abs(lx) < b.len) { if (c) c = 3; depth = Math.min(depth, Math.max(0, (Math.abs(lx) - b.len + 3) * .1)); } }
+    code[k] = c; dep[k] = depth;
+  }
+  RV = { cs, half, n, code, dep };
+}
 function templeY(x, z) {
   for (const t of TEMPLES) {
     if (Math.abs(x - t.x) > 13 || Math.abs(z - t.z) > 13) continue;
@@ -186,7 +223,7 @@ function groundBase(x, z) {
     case 'river': return (Math.abs(z) < 5.5 && Math.hypot(x, z) >= 7) ? (onBridge(x) ? .38 : -.45) : 0;
     case 'forum': return templeY(x, z);
     case 'desert': return desertY(x, z) + desertDunes(x, z);
-    case 'valley': return valleyY(x, z);
+    case 'valley': return valleyY(x, z) - (RV ? riverDep(x, z) : 0);
   }
   return 0;
 }
@@ -230,10 +267,34 @@ function ringWall(L, cx, cz, rad, r, h, skip, extra = {}) {
 const CASTLE_NAMES = ['Greywater', 'Highmoor', 'Ravenhold', 'Thornwall', 'Oakhelm', 'Stonebridge', 'Redcliff', 'Wolfden', 'Kingsrest', 'Ashford', 'Briarwatch', 'Mistmere'];
 const VILLAGE_NAMES = ['Millbrook', 'Goosegate', 'Little Puddle', 'Turnip Hollow', 'Mudford', 'Sheepwash', 'Applecross', 'Cabbage End', 'Bramblewick', 'Duckworth', 'Pigsend', 'Honeydale'];
 const MINE_NAMES = ['the Old Mine', 'the Gold Hole', 'Lucky Seam', 'the Deep Pit', 'Glitter Rock', 'the Dwarf Dig'];
-function crownPlaces(L, R, box) {
-  const r = (a, b) => a + R() * (b - a), pickN = (arr, n) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = (R() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a.slice(0, n); };
+function crownRiver(L, r) {
+  // a line across the field, well clear of the plaza, meandering; the crossings are spread along it
+  const th = r(0, Math.PI * 2), off = r(33, 42) * (r(0, 1) < .5 ? -1 : 1), ux = Math.cos(th), uz = Math.sin(th), nx = -uz, nz = ux;
+  const amp = r(4, 7), f1 = r(1.6, 2.6), ph = r(0, 6.28), E = W.R + 18, pts = [];
+  for (let s = -E; s <= E + .1; s += 5) { const o = off + Math.sin(s / E * Math.PI * f1 + ph) * amp; pts.push([ux * s + nx * o, uz * s + nz * o]); }
+  const w = 4.2, at = t => { const k = Math.min(pts.length - 2, Math.floor(t * (pts.length - 1))); const [ax, az] = pts[k], [bx, bz] = pts[k + 1]; return { x: (ax + bx) / 2, z: (az + bz) / 2, a: Math.atan2(bz - az, bx - ax) + Math.PI / 2 }; };
+  // only the stretch inside the field counts: two bridges and a ford on it, apart
+  const inside = pts.map((p, i) => [i, Math.hypot(p[0], p[1])]).filter(q => q[1] < W.R - 8).map(q => q[0]);
+  const t0 = inside[0] / (pts.length - 1), t1 = inside[inside.length - 1] / (pts.length - 1), span = t1 - t0;
+  const ts = [t0 + span * r(.14, .24), t0 + span * r(.44, .56), t0 + span * r(.76, .86)];
+  const kinds = r(0, 1) < .5 ? ['bridge', 'ford', 'bridge'] : ['ford', 'bridge', 'bridge'];
+  const bridges = [], fords = [];
+  ts.forEach((t, i) => { const p = at(t); if (kinds[i] === 'bridge') bridges.push({ x: p.x, z: p.z, a: p.a, hw: 2.3, len: w + 2.5 }); else fords.push({ x: p.x, z: p.z, r: 6, a: p.a }); });
+  L.river = { pts, w, bridges, fords };
+  return (x, z, pad) => distToLine(pts, x, z) > w + pad; // (clear of the water)
+}
+function crownPlaces(L, R, box, trees) {
+  const r = (a, b) => a + R() * (b - a), dry = crownRiver(L, r),
+    // a spot for a place near angle a, distance d: dry, and clear of the places already put down
+    spot = (a, d, pad, dmin, dmax, rad) => {
+      const okAt = (aa, dd) => { const x = Math.cos(aa) * dd, z = Math.sin(aa) * dd; return dry(x, z, pad) && L.holds.every(h => Math.hypot(h.x - x, h.z - z) > h.r + rad + 5); };
+      if (okAt(a, d)) return [a, d];
+      for (let t = 1; t <= 48; t++) { const aa = a + (t % 2 ? -1 : 1) * Math.ceil(t / 2) * .045, dd = Math.min(dmax, Math.max(dmin, d + r(-1, 1) * (4 + t * .4))); if (okAt(aa, dd)) return [aa, dd]; }
+      for (let t = 0; t < 80; t++) { const aa = r(0, 6.28), dd = r(dmin, dmax); if (okAt(aa, dd)) return [aa, dd]; } // (anywhere at that distance)
+      return [a, d];
+    }, pickN = (arr, n) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = (R() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a.slice(0, n); };
   const clear = (x, z, rad) => {
-    const far = o => Math.hypot(o.x - x, o.z - z) > rad + (o.r || 0);
+    const far = o => Math.hypot(o.x - x, o.z - z) > rad + (o.r || (o.box ? Math.hypot(o.hw, o.hd) : 0)); // (a long wall: its whole length)
     for (const k of ['obstacles', 'blockers', 'trees', 'rocks', 'palms', 'stones']) if (L[k]) L[k] = L[k].filter(o => o.castle || far(o));
     L.buildings = L.buildings.filter(far); if (L.stones2) L.stones2 = L.stones2.filter(far);
     L.fences = L.fences.filter(f => Math.hypot((f.ax + f.bx) / 2 - x, (f.az + f.bz) / 2 - z) > rad + 2);
@@ -242,24 +303,30 @@ function crownPlaces(L, R, box) {
   L.holds.push({ x: 0, z: 0, kind: 'plaza', name: 'the Plaza', r: CROWN.plazaR, px: 5.5, pz: 0, centre: true });
   const phi = r(0, Math.PI * 2), cn = pickN(CASTLE_NAMES, CROWN.castles), vn = pickN(VILLAGE_NAMES, CROWN.villages), mn = pickN(MINE_NAMES, CROWN.mines);
   for (let k = 0; k < CROWN.castles; k++) {
-    const a = phi + k / CROWN.castles * Math.PI * 2 + r(-.12, .12), rich = k % 2 === 0, d = (rich ? r(46, 54) : r(68, 74)) * W.S;
-    const x = Math.cos(a) * d, z = Math.sin(a) * d; clear(x, z, 14);
+    let a = phi + k / CROWN.castles * Math.PI * 2 + r(-.12, .12), rich = k % 2 === 0, d = (rich ? r(46, 54) : r(68, 74)) * W.S;
+    [a, d] = spot(a, d, 15, rich ? 42 : 62, rich ? 58 : 78, 12); // (not in the river)
+    const x = Math.cos(a) * d, z = Math.sin(a) * d; clear(x, z, 18);
     L.holds.push({ x, z, kind: 'castle', name: `Castle ${cn[k]}`, r: 12, px: x + Math.cos(a) * 4.6, pz: z + Math.sin(a) * 4.6, rich });
-    L.towers.push({ x, z, r: 3, h: 9, kind: 'keep' }); L.obstacles.push({ x, z, r: 3.3 }); L.blockers.push({ x, z, r: 3.3, h: 9 });
-    for (let t = 0; t < 4; t++) { const b = a + Math.PI / 4 + t * Math.PI / 2, tx = x + Math.cos(b) * 9.5, tz = z + Math.sin(b) * 9.5; L.towers.push({ x: tx, z: tz, r: 1.1, h: 5, kind: 'keep', small: true }); L.obstacles.push({ x: tx, z: tz, r: 1.3 }); }
+    L.towers.push({ x, z, r: 3, h: 9, kind: 'keep' }); L.obstacles.push({ x, z, r: 3.3, keep: true }); L.blockers.push({ x, z, r: 3.3, h: 9 });
+    for (let t = 0; t < 4; t++) { const b = a + Math.PI / 4 + t * Math.PI / 2, tx = x + Math.cos(b) * 9.5, tz = z + Math.sin(b) * 9.5; L.towers.push({ x: tx, z: tz, r: 1.1, h: 5, kind: 'keep', small: true }); L.obstacles.push({ x: tx, z: tz, r: 1.3, keep: true }); }
   }
   for (let k = 0; k < CROWN.villages; k++) {
-    const a = phi + (k + .5) / CROWN.villages * Math.PI * 2 + r(-.15, .15), d = r(58, 78) * W.S, ux = Math.cos(a), uz = Math.sin(a), x = ux * d, z = uz * d;
-    clear(x, z, 13);
+    let a = phi + (k + .5) / CROWN.villages * Math.PI * 2 + r(-.15, .15), d = r(58, 78) * W.S;
+    [a, d] = spot(a, d, 13, 50, 80, 11);
+    const ux = Math.cos(a), uz = Math.sin(a), x = ux * d, z = uz * d;
+    clear(x, z, 16);
     L.holds.push({ x, z, kind: 'village', name: vn[k], r: 11, px: x + ux * 7.3, pz: z + uz * 7.3 });
-    for (const [dx, dz] of [[-6.6, -8.8], [6.6, -8.8], [-6.6, 8.8], [6.6, 8.8]]) box(L, x + ux * dx - uz * dz, z + uz * dx + ux * dz, 1.9, 1.5, -a + (dz > 0 ? Math.PI : 0) + r(-.15, .15), 3.2, 'cottage');
+    for (const [dx, dz] of [[-6.6, -8.8], [6.6, -8.8], [-6.6, 8.8], [6.6, 8.8]]) box(L, x + ux * dx - uz * dz, z + uz * dx + ux * dz, 1.9, 1.5, -a + (dz > 0 ? Math.PI : 0) + r(-.15, .15), 3.2, 'cottage').keep = true;
   }
   for (let k = 0; k < CROWN.mines; k++) {
-    const a = phi + Math.PI / 4 + k * Math.PI / 2 + r(-.2, .2), d = r(28, 36) * W.S, x = Math.cos(a) * d, z = Math.sin(a) * d;
-    clear(x, z, 10);
+    let a = phi + Math.PI / 4 + k * Math.PI / 2 + r(-.2, .2), d = r(28, 36) * W.S;
+    [a, d] = spot(a, d, 10, 25, 46, 8);
+    const x = Math.cos(a) * d, z = Math.sin(a) * d;
+    clear(x, z, 15);
     L.holds.push({ x, z, kind: 'mine', name: mn[k], r: 8, px: x - Math.cos(a) * 3, pz: z - Math.sin(a) * 3 });
-    for (let j = 0; j < 7; j++) { const b = a + Math.PI * .35 + j / 7 * Math.PI * 1.3, rr = r(5.2, 6.4), rx = x + Math.cos(b) * rr, rz = z + Math.sin(b) * rr, rad = r(1.2, 1.9); L.rocks.push({ x: rx, z: rz, r: rad, rx: r(0, 3), ry: r(0, 3), gold: true }); L.obstacles.push({ x: rx, z: rz, r: rad * .9 }); }
-    box(L, x + Math.cos(a) * 3.2, z + Math.sin(a) * 3.2, 1.2, 1, -a, 2.4, 'hut');
+    const back = a; // (a horseshoe of rock round the back, open toward the plaza)
+    for (let j = 0; j < 7; j++) { const b = back - Math.PI * .6 + j / 6 * Math.PI * 1.2, rr = r(5.2, 6.4) /* (a horseshoe of rock round the back, open toward the plaza) */, rx = x + Math.cos(b) * rr, rz = z + Math.sin(b) * rr, rad = r(1.2, 1.9); L.rocks.push({ x: rx, z: rz, r: rad, rx: r(0, 3), ry: r(0, 3), gold: true }); L.obstacles.push({ x: rx, z: rz, r: rad * .9 }); }
+    box(L, x + Math.cos(back) * 3.2, z + Math.sin(back) * 3.2, 1.2, 1, -back, 2.4, 'hut').keep = true;
   }
   clear(0, 0, CROWN.wallR + 2); // (the plaza: open ground, nothing to snag on at the start, nothing in the wall's way)
   // the wall that rises round the plaza at 9:00 (down until then): stone all round, four wooden gates
@@ -275,6 +342,53 @@ function crownPlaces(L, R, box) {
     L.obstacles.push(o); L.blockers.push(b); pw.obs.push(o); pw.blk.push(b);
   }
   L.plazaWall = pw;
+  // nothing standing in the water, the ford or on a bridge (trees, hedges, rocks the valley put there)
+  const V = L.river, wet = o => distToLine(V.pts, o.x, o.z) < V.w + 1.5 + (o.r || (o.box ? Math.hypot(o.hw, o.hd) : 0)) || V.bridges.some(b => Math.hypot(o.x - b.x, o.z - b.z) < b.len + 2);
+  for (const k of ['obstacles', 'blockers', 'trees', 'rocks']) if (L[k]) L[k] = L[k].filter(o => o.castle || o.pal || !wet(o));
+  L.buildings = L.buildings.filter(o => !wet(o));
+  L.fences = L.fences.filter(f => !wet({ x: (f.ax + f.bx) / 2, z: (f.az + f.bz) / 2, r: Math.hypot(f.bx - f.ax, f.bz - f.az) / 2 }));
+  // the pass: a ridge of rock running out from near the middle to the edge with a gap three men wide,
+  // somewhere it doesn't cut through a place or the river
+  const placeOk = (x, z, pad) => L.holds.every(h => Math.hypot(h.x - x, h.z - z) > h.r + pad) && dry(x, z, 4);
+  for (let t = 0; t < 120; t++) {
+    const loose = t > 60, a = r(0, Math.PI * 2), d0 = r(28, 36) + (loose ? 8 : 0), d1 = W.R + 6, gapAt = r(50, 62), gap = 2.2;
+    const P = d => [Math.cos(a) * d, Math.sin(a) * d], arm = (from, to) => { const pts = []; for (let d = from; d <= to + .01; d += 3) pts.push(P(d)); return pts; };
+    const A = arm(d0, gapAt - gap), B = arm(gapAt + gap, d1);
+    if (![...A, ...B].every(([x, z]) => placeOk(x, z, loose ? 5 : 9))) continue;
+    ridge(L, A, 2, 4, 'rock', 4.5, 5); ridge(L, B, 2, 4, 'rock', 4.5, 5);
+    L.pass = { x: P(gapAt)[0], z: P(gapAt)[1], a };
+    break;
+  }
+  // forests: dense stands of trees between the places, cover to hide an army in
+  let made = 0;
+  for (let t = 0; t < 60 && made < 4; t++) {
+    const a = r(0, Math.PI * 2), d = r(40, 78), cx = Math.cos(a) * d, cz = Math.sin(a) * d;
+    if (!placeOk(cx, cz, 12) || (L.pass && Math.hypot(cx - L.pass.x, cz - L.pass.z) < 16)) continue;
+    for (let i = 0; i < 16; i++) { const b = r(0, 6.28), rr = Math.sqrt(R()) * 8, x = cx + Math.cos(b) * rr, z = cz + Math.sin(b) * rr; if (placeOk(x, z, 6)) trees(x, z, r(.95, 1.35)); }
+    (L.forests = L.forests || []).push({ x: cx, z: cz, r: 9 }); made++;
+  }
+  // every place gets a clear lane in: straight to the plaza, or, with the river in between, to the
+  // nearest crossing on its side and on from the far bank. Hedges, walls, rocks and trees in a lane go;
+  // keeps, cottages, the plaza's wall and the river stay. (Seeded like the rest: every phone agrees.)
+  const ext = o => o.r || (o.box ? Math.hypot(o.hw, o.hd) : 0);
+  const lane = (ax, az, bx, bz, w = 1.8) => {
+    const seg = [[ax, az], [bx, bz]], hit = o => !o.keep && !o.pal && !o.castle && distToLine(seg, o.x, o.z) < w + ext(o);
+    L.obstacles = L.obstacles.filter(o => !hit(o)); L.blockers = L.blockers.filter(o => !hit(o) || o.pal);
+    L.trees = L.trees.filter(o => distToLine(seg, o.x, o.z) > w + 1); L.rocks = L.rocks.filter(o => distToLine(seg, o.x, o.z) > w + o.r);
+    L.fences = L.fences.filter(f => distToLine(seg, (f.ax + f.bx) / 2, (f.az + f.bz) / 2) > w + Math.hypot(f.bx - f.ax, f.bz - f.az) / 2 || distToLine(seg, f.ax, f.az) > w + .5 && distToLine(seg, f.bx, f.bz) > w + .5 && distToLine([[f.ax, f.az], [f.bx, f.bz]], (ax + bx) / 2, (az + bz) / 2) > w);
+    if (L.ridges) for (const g of L.ridges) if (g.pts.some(([x, z]) => distToLine(seg, x, z) < w + g.w + 1)) g.pts = g.pts.filter(([x, z]) => distToLine(seg, x, z) >= w + g.w + 1);
+  };
+  const wetBetween = (ax, az, bx, bz) => { for (let t = 0; t <= 1.001; t += .02) if (distToLine(V.pts, ax + (bx - ax) * t, az + (bz - az) * t) < V.w + .5) return true; return false; };
+  const crossings = [...V.bridges.map(b => ({ x: b.x, z: b.z, a: b.a, len: b.len + 2 })), ...V.fords.map(f => ({ x: f.x, z: f.z, a: f.a, len: V.w + 3 }))];
+  for (const h of L.holds) {
+    if (h.kind === 'plaza') continue;
+    const d = Math.hypot(h.x, h.z) || 1, ex = CROWN.wallR + 3, px = h.x / d * ex, pz = h.z / d * ex; // (to just outside the plaza's wall, on its side)
+    if (!wetBetween(h.x, h.z, px, pz)) { lane(h.x, h.z, px, pz); continue; }
+    let best = null, bd = 1e9;
+    for (const c of crossings) for (const sgn of [1, -1]) { const nx = c.x + Math.cos(c.a) * c.len * sgn, nz = c.z + Math.sin(c.a) * c.len * sgn; if (wetBetween(h.x, h.z, nx, nz)) continue; const dd = Math.hypot(nx - h.x, nz - h.z); if (dd < bd) { bd = dd; best = { nx, nz, fx: c.x - Math.cos(c.a) * c.len * sgn, fz: c.z - Math.sin(c.a) * c.len * sgn }; } }
+    if (!best) continue;
+    lane(h.x, h.z, best.nx, best.nz); const fd = Math.hypot(best.fx, best.fz) || 1; lane(best.fx, best.fz, best.fx / fd * ex, best.fz / fd * ex);
+  }
 }
 function box(L, x, z, hw, hd, rot, h, kind) {
   const b = { box: true, x, z, hw, hd, rot }; L.obstacles.push(b);
@@ -446,6 +560,7 @@ function makeCtrlSpots(L) {
 }
 
 export function makeLayout(mapId, withFort, withCtrl, seed) {
+  RV = null; // (last battle's river, gone until this layout's is baked)
   placeCastles(mapId, seed);
   const R = mulberry(seed | 0), r = (a, b) => a + R() * (b - a), S = W.S;
   const L = { mapId, withFort, ridges: [], roads: [], passes: [], flats: [], hills: [], palisades: [], rocks: [], trees: [], stones: [], obstacles: [], blockers: [], fortSegments: [],
@@ -647,7 +762,7 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
   }
 
   // the prize in the middle (desert has its oasis; capture-the-fort and control have their own middles)
-  if (G.mode === 'crown') crownPlaces(L, R, box);
+  if (G.mode === 'crown') crownPlaces(L, R, box, trees);
   const C = G.mode === 'crown' ? null : CENTRES[mapId];
   if (C && !withFort && !withCtrl) L.holds.unshift({ x: 0, z: 0, kind: C[0], name: C[1], r: HOLDS[C[0]].r, px: 4.8, pz: 0, centre: true });
   for (const h of L.holds) { if (!h.name) h.name = h.kind === 'oasis' ? 'the Oasis' : 'a village'; if (!h.x && !h.z) h.centre = true; }
@@ -660,7 +775,7 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
       L.obstacles.push({ x, z, r: 1.3 });
     }
   }
-  bakeRidges(L);
+  bakeRiver(L); bakeRidges(L);
   // the roads: a coarse grid of where they run (2 m cells), so the going on them can be quicker
   if (L.roads.length) {
     const N = Math.ceil(W.R * 2 / 2) + 1, g = new Uint8Array(N * N);

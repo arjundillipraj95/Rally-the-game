@@ -2,7 +2,7 @@
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
 import { CROWN, ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, HOLDS, EVADE, FORT, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT, DUEL, CHEST, STREAK, BASH, LAST, VCHARGE, RHYTHM, PUSH, ARMOUR } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, activeFrom, gateOff, ARMIES, rules, matchTime, isOut, noCastle, capOf } from './state.js';
-import { groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W, groundSlow, onIce } from './world.js';
+import { deepWater, groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W, groundSlow, onIce } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable, setPalSeg } from './nav.js';
 
 // ---------- announcements & effects (presentation listens) ----------
@@ -1990,6 +1990,7 @@ function aiPick(ti) {
 
 // ---------- physics ----------
 export function integrate(u, dt, pz) {
+  const ox = u.x, oz = u.z;
   u.x += u.vx * dt; u.z += u.vz * dt;
   for (const o of nearObstacles(u.x, u.z)) {
     if (o.gate && !gateShut(o)) continue;
@@ -2012,6 +2013,11 @@ export function integrate(u, dt, pz) {
   }
   // every battlefield is round: just inside where the ground starts rising into the hills at the edge
   { const d = Math.hypot(u.x, u.z), m = (G.layout.round || W.R) - u.r; if (d > m) { u.x *= m / d; u.z *= m / d; } }
+  if (G.layout.river && deepWater(u.x, u.z)) { // (the Crown's river: deep water turns you back; slide along the bank)
+    if (!deepWater(ox, u.z)) u.x = ox; else if (!deepWater(u.x, oz)) u.z = oz;
+    else if (!deepWater(ox, oz)) { u.x = ox; u.z = oz; }
+    else for (let r = 1.5; r < 9; r += 1.5) { let k = 0; for (; k < 8; k++) { const a = k / 8 * Math.PI * 2, x = u.x + Math.cos(a) * r, z = u.z + Math.sin(a) * r; if (!deepWater(x, z)) { u.x = x; u.z = z; break; } } if (k < 8) break; } // (knocked in: out onto the nearest bank)
+  }
   if (G.map.id === 'river') {
     if (inRiver(u.x, u.z) && !onBridge(u.x) && Math.abs(u.x) >= 14) u.z = (pz >= 0 ? 1 : -1) * 5.05;
     if (Math.abs(u.z) < 5 && onBridge(u.x) && Math.abs(u.x) > 20) { const bx = u.x < 0 ? -32 : 32; u.x = clamp(u.x, bx - 2.1, bx + 2.1); }
