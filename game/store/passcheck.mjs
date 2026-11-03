@@ -1,3 +1,4 @@
+// NOTE: when this runs in a page that already started a match, its imports can load a second copy of the map code; trust store/crowntest.mjs (a real battle) for whether places can be taken.
 // Dev check: over many seeds, every Crown layout gets a river (2 bridges + a ford) and a pass, places stay dry, and every place can be walked to from the plaza.
 import { chromium } from 'playwright';
 import { open, frames } from './stage.mjs';
