@@ -1,7 +1,7 @@
 // The side feed: a short running log, under the minimap, of what is happening across the whole field
 // ("Red cut down Blue", "Green took Old Mill"). Banners are for what concerns you; this is for everything,
 // so you can read the battle at a glance. Built from the same announcements on every phone.
-import { TEAMS } from '../config.js';
+import { TEAMS, SHOUTS } from '../config.js';
 import { G, bus, colorOf, isEnemyTi, matchTime } from '../core/state.js';
 
 let el = null, nickFor = () => null;
@@ -122,6 +122,7 @@ export function feedLine(k, a) {
     case 'newHost': return `${who(a[0])} took over hosting`;
     case 'idle': return `${who(a[0])} went idle; the computer leads for now`;
     case 'back': return `${who(a[0])} ${a[0] === G.myTi ? 'are' : 'is'} back`;
+    case 'callout': return isEnemyTi(a[0], G.myTi) || a[0] === G.myTi ? null : `${who(a[0])}: “${esc(SHOUTS[a[1]] || '')}”`;
     case 'joined': return `${who(a[0])} joined the battle`;
     case 'left': return `${who(a[0])} left; the computer takes over`;
     case 'armourOn': return isEnemyTi(a[0], G.myTi) ? `${who(a[0])} put on armour` : null;

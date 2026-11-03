@@ -1,3 +1,4 @@
+import { SHOUTS } from '../config.js';
 // Soldiers' banter: short speech bubbles at the funny moments (sent flying, a big clout, the
 // captain falling, seeing stars, your orders, the odd grumble on the march). Purely cosmetic and
 // worked out on each device from what it can see, so it behaves the same solo, hosting or joined.
@@ -105,6 +106,7 @@ bus.on('end', ({ w }) => {
 // your orders are shouted by your captain; when a captain falls, one of his men panics
 bus.on('shout', ({ u, kind }) => say(u, kind, true));
 bus.on('shownMsg', m => {
+  if (m.k === 'callout') { const u = G.units.find(o => o.leader && !o.dead && o.ti === m.a[0]); if (u && SHOUTS[m.a[1]]) { bubbles.splice(0, bubbles.length, ...bubbles.filter(b => b.u !== u)); bubbles.push({ u, text: SHOUTS[m.a[1]], t: 0, dur: 2.6, big: true }); } return; }
   const T0 = camTarget();
   if (T0 && (m.k === 'holdTaken' || m.k === 'chestTaken')) { // a place taken: your men near you cheer (or groan)
     const ours = m.a[0] === G.ALLY[colorOf(G.myTi)], u = someone(myMen(T0, 20));

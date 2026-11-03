@@ -167,6 +167,9 @@ export function bindInput(actions) {
   cmd.addEventListener('pointerup', cmdUp); cmd.addEventListener('pointercancel', cmdUp);
   cmd.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); A.order(); } });
   tapBtn($('recBtn'), () => trayOpen(!inp.trayIsOpen));
+  const shoutOpen = on => { $('shoutTray').hidden = !on; $('shoutBtn').classList.toggle('open', on); };
+  tapBtn($('shoutBtn'), () => shoutOpen($('shoutTray').hidden));
+  document.querySelectorAll('#shoutTray button').forEach(b => tapBtn(b, () => { A.shout(+b.dataset.s); shoutOpen(false); }));
   document.querySelectorAll('#tray button').forEach(b => tapBtn(b, () => A.recruit(b.dataset.kind)));
   tapBtn($('upBtn'), () => upOpen(!inp.upIsOpen));
   document.querySelectorAll('#upTray button').forEach(b => tapBtn(b, () => A.upgrade(b.dataset.up)));
@@ -187,6 +190,7 @@ export function bindInput(actions) {
     if (e.code === 'KeyX') A.duel();
     if (e.code === 'KeyR') A.weapon();
     if (e.code === 'KeyU') upOpen(!inp.upIsOpen);
+    if (e.code === 'KeyG') { const t = $('shoutTray'); t.hidden = !t.hidden; $('shoutBtn').classList.toggle('open', !t.hidden); }
     const up = ['Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'].indexOf(e.code);
     if (up >= 0) A.upgrade(['foot1', 'foot2', 'arch1', 'arch2', 'aura', 'horse', 'fort'][up]);
     if (e.code === 'KeyH') A.ride();

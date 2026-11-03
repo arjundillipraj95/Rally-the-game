@@ -68,6 +68,8 @@ export const MAPS = {
 };
 
 export const KINDS = ['captain', 'foot', 'arch'];
+// Quick shouts (in battle, instead of typing): your captain calls it out, your side sees it in the feed
+export const SHOUTS = ['Follow me!', 'Defend!', 'Attack their castle!', 'Good game!'];
 export const STATS = {
   captain: { hp: 150, dmg: 22, reach: 1.3,  cd: .6,  spd: 5.4, r: .62, block: .3 },
   foot:    { hp: 95,  dmg: 13, reach: 1.25, cd: .95, spd: 5.4, r: .55, block: .35, cost: 40, name: 'Footman' },

@@ -2,7 +2,7 @@
 // presses and draws the host's snapshots (a compact text string, roughly 1-4KB depending on
 // how many soldiers are alive — more in a full 12-army Trio match — sent
 // about 12 times a second).
-import { CROWN, HUMAN_CAPTAIN, ARMOUR, RHYTHM, BASH, STREAK, EVADE, TEAMS, MAPS, KINDS, STATS, RECRUITS, FACTIONS, factionFromCode, ORDERS, ORDER_NAMES, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT, HOLD_ATK, PARRY } from '../config.js';
+import { SHOUTS, CROWN, HUMAN_CAPTAIN, ARMOUR, RHYTHM, BASH, STREAK, EVADE, TEAMS, MAPS, KINDS, STATS, RECRUITS, FACTIONS, factionFromCode, ORDERS, ORDER_NAMES, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT, HOLD_ATK, PARRY } from '../config.js';
 import { G, bus, colorOf, isEnemyTi, activeFrom, ARMIES, duoStr, duoParse } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn, angDiff } from '../core/world.js';
 import { buildNav, syncGates } from '../core/nav.js';
@@ -119,7 +119,7 @@ export function netHostReadInputs() {
     const s = G.teams[ti], back = HO && HO.tis.includes(ti) && pr.seed === G.seed; if (!s || !s.active || (s.human && !back) || (!late && !back)) continue;
     NET.seats[p.peer] = ti; s.human = true;
     const L = s.leader; if (L) { L.human = true; L.remote = true; L.dmg = HUMAN_CAPTAIN.dmg; L.spd = HUMAN_CAPTAIN.spd; }
-    if (back) NET.inp[ti] = { atk: pr.atk | 0, chg: pr.chg | 0, ride: pr.ride | 0, vly: pr.vly | 0, par: pr.par | 0, ahN: pr.ahN | 0, bsh: pr.bsh | 0, evN: pr.evN | 0, dl: pr.dl | 0, rly: pr.rly | 0, hold: '', rec: (pr.rec || [0, 0, 0]).map(n => n | 0), up: UPGRADES.map((u, k) => (pr.up && pr.up[k]) | 0) }; // (their button counts carry on from where they were)
+    if (back) NET.inp[ti] = { sh: pr.sh | 0, atk: pr.atk | 0, chg: pr.chg | 0, ride: pr.ride | 0, vly: pr.vly | 0, par: pr.par | 0, ahN: pr.ahN | 0, bsh: pr.bsh | 0, evN: pr.evN | 0, dl: pr.dl | 0, rly: pr.rly | 0, hold: '', rec: (pr.rec || [0, 0, 0]).map(n => n | 0), up: UPGRADES.map((u, k) => (pr.up && pr.up[k]) | 0) }; // (their button counts carry on from where they were)
     else bus.emit('msg', { k: 'joined', a: [ti] });
     netHostSend(true);
   }
@@ -165,6 +165,7 @@ export function netHostReadInputs() {
       if (pr.ord === 'focus') setOrder(ti, 'focus', Array.isArray(pr.foc) ? { x: +pr.foc[0], z: +pr.foc[1], id: pr.foc[2] | 0 } : null);
     }
     if (typeof pr.rly === 'number' && pr.rly > (last.rly || 0)) { rallyCry(ti); last.rly = pr.rly; } // the rally horn
+    if (typeof pr.sh === 'number' && pr.sh > (last.sh || 0)) { last.sh = pr.sh; if (SHOUTS[pr.shK | 0]) bus.emit('msg', { k: 'callout', a: [ti, pr.shK | 0] }); } // a quick shout
     if (Array.isArray(pr.rec)) for (let k = 0; k < 3; k++) while ((pr.rec[k] | 0) > last.rec[k]) { last.rec[k]++; recruit(ti, RECRUITS[k]); }
   }
 }
@@ -415,7 +416,7 @@ export function clientTick(dt) {
   // send my captain and my buttons
   if ((performance.now() - C.sendAt > 66 || C.sendNow) && G.state === 'play') {
     C.sendAt = performance.now(); C.sendNow = false;
-    const pres = { role: 'player', want: G.myTi, nick: session.myNick || 'Captain', ph: 'play', seed: G.seed, evN: C.inp.evN, evK: C.inp.evK, rly: C.inp.rly, rb: C.inp.rb, bsh: C.inp.bsh, dl: C.inp.dl, dlId: C.inp.dlId, foc: C.inp.foc, par: C.inp.par, ahN: C.inp.ahN, ahD: C.inp.ahD, ah: C.inp.ah, atk: C.inp.atk, ride: C.inp.ride, vly: C.inp.vly, vat: C.inp.vat, chg: C.inp.chg, rec: C.inp.rec, up: C.inp.up, ord: C.inp.ord, hold: C.inp.hold, face: C.inp.face, blk: inp.blockHeld ? 1 : 0 };
+    const pres = { role: 'player', sh: C.inp.sh || 0, shK: C.inp.shK || 0, want: G.myTi, nick: session.myNick || 'Captain', ph: 'play', seed: G.seed, evN: C.inp.evN, evK: C.inp.evK, rly: C.inp.rly, rb: C.inp.rb, bsh: C.inp.bsh, dl: C.inp.dl, dlId: C.inp.dlId, foc: C.inp.foc, par: C.inp.par, ahN: C.inp.ahN, ahD: C.inp.ahD, ah: C.inp.ah, atk: C.inp.atk, ride: C.inp.ride, vly: C.inp.vly, vat: C.inp.vat, chg: C.inp.chg, rec: C.inp.rec, up: C.inp.up, ord: C.inp.ord, hold: C.inp.hold, face: C.inp.face, blk: inp.blockHeld ? 1 : 0 };
     if (me && !me.dead) pres.cap = [me.id, r2(me.x), r2(me.z), r2(me.face), r1(me.vx), r1(me.vz), r2(me.jy || 0), Math.max(0, WEAPONS.indexOf(me.weapon || 'sword'))];
     NET.room.presence(pres).catch(() => {});
   }
@@ -523,6 +524,11 @@ function predictAttack(p) {
 // ---------- player actions (solo, host and client) ----------
 const orderName = o => ORDER_NAMES[o] || ORDER_NAMES.follow;
 export const actions = {
+  shout(n) { // a quick shout (one every two seconds)
+    if (G.state !== 'play' || !SHOUTS[n] || performance.now() - (C.shoutAt || 0) < 2000) return; C.shoutAt = performance.now();
+    if (isClient()) { C.inp.sh = (C.inp.sh || 0) + 1; C.inp.shK = n; C.sendNow = true; showMsg('callout', [G.myTi, n]); return; }
+    bus.emit('msg', { k: 'callout', a: [G.myTi, n] });
+  },
   attack() {
     const p = G.player; if (!p || p.dead || G.state !== 'play') return;
     if (p.mounted) return; // (on horseback the blow comes when Attack is let go)
