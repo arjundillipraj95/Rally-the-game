@@ -60,6 +60,38 @@ export function homeAt(ti, extra = 0) {
 }
 export const holdsPlace = ti => (G.holds || []).some(h => h.owner === G.ALLY[colorOf(ti)] && (h.kind === 'castle' || h.kind === 'village'));
 
+// Host handover: the host's phone left mid-battle and this phone takes over. It has only what the
+// snapshots carried, so it rebuilds full soldiers from them (where they stand, how hurt they are)
+// and carries on; men's plans start fresh, horses go back to the stables and duels are called off.
+export function adoptBattle() {
+  G.role = 'host';
+  const old = G.units.filter(u => !u.dead), byId = new Map(); let maxId = 0;
+  G.units = []; G.horses = []; G.arrows = []; G.duels = []; G.duelN = 1000;
+  for (const s of G.teams) s.leader = null;
+  for (const o of old) {
+    const human = o.kind === 'captain' && G.teams[o.ti].human;
+    const u = mkUnit(o.ti, o.x, o.z, o.kind, human);
+    u.id = o.id; u.face = o.face; u.hp = Math.max(1, u.max * clamp(o.hp / (o.max || 1), 0, 1)); u.armour = o.armour || 0;
+    if (human && o.weapon) u.weapon = o.weapon;
+    byId.set(u.id, u); maxId = Math.max(maxId, u.id);
+    if (u.leader) G.teams[u.ti].leader = u;
+  }
+  G.teams.forEach((s, i) => { // (a captain who was down when the host left: down here too, back when his time's up)
+    if (!s.active || s.leader) return;
+    const [x, z] = homeAt(i, 7), L = mkUnit(i, x, z, 'captain', s.human); L.dead = true; L.deadT = 99; L.id = ++maxId; s.leader = L; s.leaderDeadT = Math.max(1, s.leaderDeadT || 0);
+  });
+  G.uid = maxId + 1;
+  G.player = G.teams[G.myTi] && G.teams[G.myTi].leader && !G.teams[G.myTi].leader.dead ? G.teams[G.myTi].leader : null;
+  if (G.flag) { const c = G.flag.carrier ? byId.get(G.flag.carrier.id) : null; G.flag.carrier = c || null; if (c) c.carrying = true; else if (G.flag.state === 'carried') G.flag.state = 'dropped'; }
+  if (G.cgates) { for (const k of Object.keys(G.cgates)) { const g = G.cgates[k], n = freshGates(g.lv | 0); n.broken = g.broken | 0; for (let gi = 0; gi < 3; gi++) if (n.broken & (1 << gi)) n.hp[gi] = 0; G.cgates[k] = n; } applyCastleGates(); }
+  if (G.plazaWall) { G.plazaWall.hp = [0, 1, 2, 3].map(i => (G.plazaWall.broken & (1 << i)) ? 0 : CROWN.gateHp); applyPlazaWall(); }
+  G.wtN = (G.wtowers || []).reduce((m, w) => Math.max(m, w.id), 0) + 1;
+  if (G.crown) { const K = G.crown; for (const [k, t] of [['crownGo', CROWN.breakout], ['crownSiegeSoon', CROWN.siege - 20], ['crownSiege', CROWN.siege], ['crownSoon', CROWN.crown - 20], ['crownRise', CROWN.crown]]) if (G.T >= t) K.said[k] = 1; K.ot = G.T >= matchTime(); }
+  const h = (G.holds || []).find(x => x.centre), at = G.crown ? CROWN.chest : CHEST.at * matchTime();
+  G.chestDone = !!h && G.T >= at - CHEST.warn && !h.chest;
+  G.teams.forEach(s => { s.thinkT = 0; s.plan = null; s.homeSpot = null; });
+}
+
 export function startMatch(humans, active = activeFrom([0, 0, 0, 0])) {
   G.duo = [0, 1, 2, 3].map(c => !active[c] ? -1 : active[c + 8] ? 2 : active[c + 4] ? 1 : 0); // (before the layout: where the castles stand depends on who's in)
   G.layout = makeLayout(G.map.id, G.mode === 'ctf', G.mode === 'ctrl', G.seed); buildNav(G.layout);
@@ -149,7 +181,7 @@ export function recruit(ti, kind) {
   return true;
 }
 // ---------- upgrades and the captain's aura ----------
-const lvl = (ti, id) => (G.teams[ti] && G.teams[ti].up) ? G.teams[ti].up[id] : 0;
+const lvl = (ti, id) => (G.teams[ti] && G.teams[ti].up) ? G.teams[ti].up[id] | 0 : 0;
 export const horseMax = ti => HORSE_HP + 30 * lvl(ti, 'horse');
 export const horseCooldown = ti => HORSE_CD - 4 * lvl(ti, 'horse');
 export const auraRange = ti => AURA.range + AURA.perRange * lvl(ti, 'aura');
@@ -1164,7 +1196,7 @@ export function applyFort(c) {
 // The Crown's castle gates: shut against the castle's enemies (its own side walks through, see
 // integrate), open when broken or when nobody holds the castle; a broken gate mends itself in time.
 const gateHp = (gi, lv = 0) => (gi === 0 ? CROWN.cgateHp : CROWN.cgateSmallHp) * (1 + CROWN.fortGate * lv);
-const freshGates = (lv = 0) => ({ hp: [0, 1, 2].map(gi => gateHp(gi, lv)), broken: 0, mendT: [0, 0, 0], lv, towerT: 0 }); // (broken: one bit a gate)
+export const freshGates = (lv = 0) => ({ hp: [0, 1, 2].map(gi => gateHp(gi, lv)), broken: 0, mendT: [0, 0, 0], lv, towerT: 0 }); // (broken: one bit a gate)
 // the Crown castle (wall and yard) a captain is standing in, if his side holds it
 export function castleHere(ti) {
   const L = (ti === G.myTi && G.player) || (G.teams[ti] && G.teams[ti].leader); if (!L || L.dead || !G.layout || !G.layout.cwalls) return null;

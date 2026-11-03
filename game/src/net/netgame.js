@@ -6,8 +6,9 @@ import { CROWN, HUMAN_CAPTAIN, ARMOUR, RHYTHM, BASH, STREAK, EVADE, TEAMS, MAPS,
 import { G, bus, colorOf, isEnemyTi, activeFrom, ARMIES, duoStr, duoParse } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn, angDiff } from '../core/world.js';
 import { buildNav, syncGates } from '../core/nav.js';
-import { applyCastleGates, applyPlazaWall, volleyCharge, captainBash, duelAct, duelOffer, duelTarget, initForts, applyFort, fortLvl, captainEvade, evadeKind, makeHolds, execTarget, rallyCry, blockPress, attackHold, attackRelease, rideRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainJump, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
+import { adoptBattle, applyCastleGates, applyPlazaWall, volleyCharge, captainBash, duelAct, duelOffer, duelTarget, initForts, applyFort, fortLvl, captainEvade, evadeKind, makeHolds, execTarget, rallyCry, blockPress, attackHold, attackRelease, rideRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainJump, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
 import { session, isClient, isHost } from './session.js';
+import { makeP2PRoom } from './p2p.js';
 import { showMsg } from '../ui/messages.js';
 import { lookCode, lookFrom } from '../core/look.js';
 import { capOf } from '../core/state.js';
@@ -43,7 +44,7 @@ bus.on('fxmsg', d => {
 
 // ---------- host ----------
 function encodeSnap() {
-  const upPack = s => UPGRADES.reduce((n, u, k) => n + s.up[u.id] * 4 ** k, 0);
+  const upPack = s => UPGRADES.reduce((n, u, k) => n + (s.up[u.id] | 0) * 4 ** k, 0);
   const teams = G.teams.map(s => [Math.round(s.points * 10), s.tickets, s.caps, Math.floor(s.gold), s.alive ? 1 : 0, Math.max(0, Math.ceil(s.leaderDeadT)), upPack(s), Math.round(s.morale || 0), Math.floor(s.rally || 0), s.routT > 0 ? 1 : 0].join(',')).join(';');
   const us = [];
   for (const u of G.units) {
@@ -108,14 +109,25 @@ export function netHostReadInputs() {
     }
   }
   // a matchmade Crown battle in its first minute: a friend who joined late takes over the computer army
-  // the service gave them (it's played as theirs from the next moment)
-  if (NET.match && G.mode === 'crown' && G.T < CROWN.lateJoin) for (const p of peers) {
+  // the service gave them (it's played as theirs from the next moment). After a host handover, the
+  // other players come back to their own armies the same way.
+  const HO = NET.handover, late = NET.match && G.mode === 'crown' && G.T < CROWN.lateJoin;
+  if (late || HO) for (const p of peers) {
     if (p.sameTab || NET.seats[p.peer] !== undefined) continue;
-    const pr = p.presence || {}, ti = pr.want; if (typeof ti !== 'number' || ti < 0 || ti >= ARMIES) continue;
-    const s = G.teams[ti]; if (!s || !s.active || s.human || Object.values(NET.seats).includes(ti)) continue;
+    const pr = p.presence || {}, ti = pr.want; if (typeof ti !== 'number' || ti < 0 || ti >= ARMIES || Object.values(NET.seats).includes(ti)) continue;
+    const s = G.teams[ti], back = HO && HO.tis.includes(ti) && pr.seed === G.seed; if (!s || !s.active || (s.human && !back) || (!late && !back)) continue;
     NET.seats[p.peer] = ti; s.human = true;
     const L = s.leader; if (L) { L.human = true; L.remote = true; L.dmg = HUMAN_CAPTAIN.dmg; L.spd = HUMAN_CAPTAIN.spd; }
-    bus.emit('msg', { k: 'joined', a: [ti] }); netHostSend(true);
+    if (back) NET.inp[ti] = { atk: pr.atk | 0, chg: pr.chg | 0, ride: pr.ride | 0, vly: pr.vly | 0, par: pr.par | 0, ahN: pr.ahN | 0, bsh: pr.bsh | 0, evN: pr.evN | 0, dl: pr.dl | 0, rly: pr.rly | 0, hold: '', rec: (pr.rec || [0, 0, 0]).map(n => n | 0), up: UPGRADES.map((u, k) => (pr.up && pr.up[k]) | 0) }; // (their button counts carry on from where they were)
+    else bus.emit('msg', { k: 'joined', a: [ti] });
+    netHostSend(true);
+  }
+  if (HO && performance.now() > HO.until) { // whoever didn't make it back: the computer plays their army
+    for (const ti of HO.tis) if (!Object.values(NET.seats).includes(ti) && G.teams[ti].human) {
+      G.teams[ti].human = false; const L = G.teams[ti].leader; if (L) { L.human = false; L.remote = false; L.dmg = STATS.captain.dmg; L.spd = STATS.captain.spd; }
+      bus.emit('msg', { k: 'left', a: [ti] });
+    }
+    NET.handover = null;
   }
   for (const p of peers) {
     if (p.sameTab) continue;
@@ -313,12 +325,17 @@ function clientApply(hp) {
 export function clientTick(dt) {
   const NET = session.NET;
   const hostP = NET.room.peers().find(p => p.peer === NET.hostPeer);
-  if (!hostP) {
+  if (NET.handing) { /* (the battle is changing hands: hold still a moment) */ }
+  else if (!hostP) {
     if (!NET.hostGoneAt) NET.hostGoneAt = performance.now();
-    if (performance.now() - NET.hostGoneAt > 1500) { hooks.onAbort('The host left the battle.'); return false; }
+    if (performance.now() - NET.hostGoneAt > 1500) {
+      if (G.state === 'play' && NET.lastSeats) { NET.handing = true; handover().then(ok => { if (!ok) hooks.onAbort('The host left the battle.'); }); }
+      else { hooks.onAbort('The host left the battle.'); return false; }
+    }
   } else {
     NET.hostGoneAt = 0;
     const hp = hostP.presence || {};
+    if (hp.seats && typeof hp.seats === 'object') NET.lastSeats = hp.seats;
     if (hp.ph === 'gone') { hooks.onAbort('The host ended the battle.'); return false; } // (the host chose to leave)
     if (hp.ph === 'lobby') { hooks.onLobby(); return false; }
     if (hp.seed === G.seed && (hp.ph === 'play' || hp.ph === 'end')) clientApply(hp);
@@ -390,11 +407,51 @@ export function clientTick(dt) {
   // send my captain and my buttons
   if ((performance.now() - C.sendAt > 66 || C.sendNow) && G.state === 'play') {
     C.sendAt = performance.now(); C.sendNow = false;
-    const pres = { role: 'player', nick: session.myNick || 'Captain', ph: 'play', seed: G.seed, evN: C.inp.evN, evK: C.inp.evK, rly: C.inp.rly, rb: C.inp.rb, bsh: C.inp.bsh, dl: C.inp.dl, dlId: C.inp.dlId, foc: C.inp.foc, par: C.inp.par, ahN: C.inp.ahN, ahD: C.inp.ahD, ah: C.inp.ah, atk: C.inp.atk, ride: C.inp.ride, vly: C.inp.vly, vat: C.inp.vat, chg: C.inp.chg, rec: C.inp.rec, up: C.inp.up, ord: C.inp.ord, hold: C.inp.hold, face: C.inp.face, blk: inp.blockHeld ? 1 : 0 };
+    const pres = { role: 'player', want: G.myTi, nick: session.myNick || 'Captain', ph: 'play', seed: G.seed, evN: C.inp.evN, evK: C.inp.evK, rly: C.inp.rly, rb: C.inp.rb, bsh: C.inp.bsh, dl: C.inp.dl, dlId: C.inp.dlId, foc: C.inp.foc, par: C.inp.par, ahN: C.inp.ahN, ahD: C.inp.ahD, ah: C.inp.ah, atk: C.inp.atk, ride: C.inp.ride, vly: C.inp.vly, vat: C.inp.vat, chg: C.inp.chg, rec: C.inp.rec, up: C.inp.up, ord: C.inp.ord, hold: C.inp.hold, face: C.inp.face, blk: inp.blockHeld ? 1 : 0 };
     if (me && !me.dead) pres.cap = [me.id, r2(me.x), r2(me.z), r2(me.face), r1(me.vx), r1(me.vz), r2(me.jy || 0), Math.max(0, WEAPONS.indexOf(me.weapon || 'sword'))];
     NET.room.presence(pres).catch(() => {});
   }
   return true;
+}
+// ---------- host handover ----------
+// The host's phone left mid-battle. The player in the lowest seat that's left takes over: their phone
+// becomes the host (from its last snapshot) and opens the battle again under a new code that every
+// phone can work out; everyone else links up to it and is given their own army back. Nobody is sent
+// home because one phone dropped.
+async function handover() {
+  const NET = session.NET, oldRoom = NET.room;
+  const left = Object.entries(NET.lastSeats || {}).filter(([p]) => p !== NET.hostPeer).sort((a, b) => a[1] - b[1]);
+  if (!left.length) return false;
+  const gen = (NET.gen || 0) + 1, base = NET.base || NET.name, code = base + 'H' + gen;
+  bus.emit('handing', true);
+  if (left[0][1] === G.myTi) { // (it's us)
+    let room = null; try { room = await makeP2PRoom(code, true); } catch (e) { return false; }
+    if (session.NET !== NET) { room.leave(); return true; }
+    try { await oldRoom.leave(); } catch (e) {}
+    adoptBattle();
+    const gone = (NET.lastSeats || {})[NET.hostPeer]; // (the old host's army: the computer plays it now)
+    if (gone != null && G.teams[gone]) { G.teams[gone].human = false; const L = G.teams[gone].leader; if (L) { L.human = false; L.remote = false; L.dmg = STATS.captain.dmg; L.spd = STATS.captain.spd; } }
+    const me = myPeer(room) || 'me', tis = left.slice(1).map(x => x[1]);
+    session.NET = { role: 'host', room, name: code, base, gen, me, seats: { [me]: G.myTi }, msgs: [], msgN: C.lastMsgN + 50, snapN: C.lastN + 1000, inp: {}, match: NET.match,
+      handover: tis.length ? { tis, until: performance.now() + 20e3 } : null,
+      lobby: { mode: G.mode, map: G.map.id, diff: G.diff, time: G.time, tgt: G.target, al: [...G.ALLY], duo: G.duo } };
+    bus.emit('msg', { k: 'newHost', a: [G.myTi] }); netHostSend(true);
+    bus.emit('handing', false);
+    return true;
+  }
+  let room = null;
+  for (let k = 0; k < 12 && !room; k++) { // (the new host may still be opening it)
+    try { room = await makeP2PRoom(code, false); } catch (e) { await new Promise(r => setTimeout(r, 1500)); }
+    if (session.NET !== NET) { if (room) room.leave(); return true; }
+  }
+  if (!room) return false;
+  try { await oldRoom.leave(); } catch (e) {}
+  Object.assign(NET, { room, name: code, base, gen, hostPeer: null, hostGoneAt: 0, lastSeats: null });
+  room.presence({ role: 'player', want: G.myTi, nick: session.myNick || 'Captain', ph: 'play', seed: G.seed }).catch(() => {});
+  const t0 = performance.now(); // (who's hosting now: the phone that says so)
+  while (!NET.hostPeer && performance.now() - t0 < 10e3) { const h = room.peers().find(p => p.presence && p.presence.role === 'host'); if (h) NET.hostPeer = h.peer; else await new Promise(r => setTimeout(r, 300)); }
+  NET.handing = false; bus.emit('handing', false);
+  return !!NET.hostPeer;
 }
 export function clientHorses() {
   const list = [...C.coming, ...C.leaving];

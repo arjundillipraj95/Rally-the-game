@@ -37,6 +37,7 @@ export function msgText(k, a) {
       : [`${nm(a[0])}'s army breaks and runs!`, ally(a[0]) ? 'Cover them' : 'Cut them down', css(a[0])];
     case 'focusDone': return mine(a[0]) ? ['Group destroyed', 'Your men fall back in', '#ffcf3a'] : null;
     case 'left': return [`${nm(a[0])}'s player left`, 'The computer takes over their army', css(a[0])];
+    case 'newHost': return mine(a[0]) ? ['The host left: your phone runs the battle now', 'Play on. Everyone else is linking back up', css(a[0])] : ['The host left', `${nm(a[0])}'s phone runs the battle now. Play on`, css(a[0])];
     case 'joined': return mine(a[0]) ? null : [`A player joins as ${nm(a[0])}`, 'They take over that army', css(a[0])];
     case 'holdTaken': { // a[0]: the alliance that took it, a[1]: what it is, a[2]: which
       const ours = a[0] === G.ALLY[colorOf(myTi)], h = G.holds && G.holds[a[2]], what = (h && h.name) || (a[1] === 'oasis' ? 'the Oasis' : 'a village');
