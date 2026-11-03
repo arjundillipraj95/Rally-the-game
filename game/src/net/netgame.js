@@ -6,7 +6,7 @@ import { ARMOUR, RHYTHM, BASH, STREAK, EVADE, TEAMS, MAPS, KINDS, STATS, RECRUIT
 import { G, bus, colorOf, isEnemyTi, activeFrom, ARMIES, duoStr, duoParse } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn, angDiff } from '../core/world.js';
 import { buildNav, syncGates } from '../core/nav.js';
-import { applyPlazaWall, volleyCharge, captainBash, duelAct, duelOffer, duelTarget, initForts, applyFort, fortLvl, captainEvade, evadeKind, makeHolds, execTarget, rallyCry, blockPress, attackHold, attackRelease, rideRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainJump, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
+import { applyCastleGates, applyPlazaWall, volleyCharge, captainBash, duelAct, duelOffer, duelTarget, initForts, applyFort, fortLvl, captainEvade, evadeKind, makeHolds, execTarget, rallyCry, blockPress, attackHold, attackRelease, rideRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainJump, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
 import { session, isClient, isHost } from './session.js';
 import { showMsg } from '../ui/messages.js';
 import { lookCode, lookFrom } from '../core/look.js';
@@ -65,7 +65,7 @@ function encodeSnap() {
     return [i, b36(L.id), L.dead ? 1 : 0, Math.round(L.horseHp), Math.ceil(L.horseCd), L.summon ? 1 : 0, k.n, r1(k.lvx || 0), r1(k.lvz || 0), r2(k.lst || 0), Math.round(L.hp), '', L.streak | 0, Math.round(L.armour || 0)].join(','); // (11: unused; 12: the streak)
   }).filter(Boolean).join(';');
   // the map's holdings, and control mode's points: who has each, and how far a capture has got
-  const hd = (G.holds || []).map(h => [h.owner, Math.round(h.prog * 100), h.cap, h.contested ? 1 : 0, h.chest | 0].join(',')).join(';');
+  const hd = (G.holds || []).map(h => [h.owner, Math.round(h.prog * 100), h.cap, h.contested ? 1 : 0, h.chest | 0, G.cgates && G.cgates[h.id] && G.cgates[h.id].broken ? 1 : 0].join(',')).join(';');
   const cp = (G.ctrlPoints || []).map(p => [p.owner, Math.round(p.prog * 100), p.capturer ?? -1].join(',')).join(';');
   const fo = (G.forts || []).map(f => f.broken).join(',') + (G.plazaWall ? ',' + (G.plazaWall.up ? 16 : 0) + G.plazaWall.broken : ''); // (Fortify: each castle's broken palisade sections)
   const du = (G.duels || []).map(d => [d.id, b36(d.a.id), b36(d.b.id), d.state === 'on' ? 1 : 0, encX(d.x), encX(d.z), Math.max(0, Math.ceil(d.t))].join(',')).join(';'); // (duels: called out, or on)
@@ -156,7 +156,7 @@ export function clientStart(hp) {
   initForts(); C.fortSig = '';
   G.flag = G.mode === 'ctf' ? { state: 'home', x: 0, z: 0, carrier: null, dropT: 0 } : null;
   G.crown = G.mode === 'crown' ? { said: {}, casing: 0, ot: false } : null;
-  G.plazaWall = G.crown ? { up: false, hp: [0, 0, 0, 0], broken: 0 } : null; C.wallSig = null;
+  G.plazaWall = G.crown ? { up: false, hp: [0, 0, 0, 0], broken: 0 } : null; C.wallSig = null; G.cgates = G.crown ? {} : null; G.wtowers = [];
   G.ctrlPoints = G.mode === 'ctrl' ? makeCtrlPoints(G.layout) : null;
   G.holds = makeHolds(G.layout); G.duels = [];
   Object.assign(C, { byId: new Map(), lastN: -1, lastMsgN: (hp.m && hp.m.length) ? hp.m[hp.m.length - 1][0] : 0, meId: null, meInit: false, kickN: 0, localCd: 0, lastSnapAt: performance.now(),
@@ -202,7 +202,7 @@ function clientApply(hp) {
     if (v.length > 9) { s.morale = v[7]; s.rally = v[8]; s.routT = v[9] ? 1 : 0; }
   });
   G.bounty = +secs[7];
-  if (secs[8] && G.holds) secs[8].split(';').forEach((r, i) => { const h = G.holds[i], v = r.split(',').map(Number); if (h) { h.owner = v[0]; h.prog = v[1] / 100; h.cap = v[2]; h.contested = !!v[3]; h.chest = v[4] | 0; } });
+  if (secs[8] && G.holds) secs[8].split(';').forEach((r, i) => { const h = G.holds[i], v = r.split(',').map(Number); if (h) { h.owner = v[0]; h.prog = v[1] / 100; h.cap = v[2]; h.contested = !!v[3]; h.chest = v[4] | 0; if (G.cgates) { if (!G.cgates[i] && G.layout.cwalls && G.layout.cwalls.some(c => c.hid === i)) G.cgates[i] = { hp: 1, broken: false }; if (G.cgates[i]) G.cgates[i].broken = !!v[5]; } } }); if (G.crown) applyCastleGates();
   if (secs[10] != null && G.forts) { // palisades: built (the castle's Fortify level) and broken
     secs[10].split(',').forEach((v, c) => { if (G.forts[c]) G.forts[c].broken = +v || 0; });
     const pv = +secs[10].split(',')[4]; // (the Crown: the plaza's wall, up (16) and its broken gates)

@@ -36,7 +36,8 @@ export const CROWN = {
   gold: { castle: .8, village: .3, mine: 1.6 }, // per second, to every army on the side
   casing: 22, overtime: 60, carrierSlow: .85, plazaR: 15, wallR: 17.5, gateW: 4.4, gateHp: 1000, // (the plaza's wall at 9:00, and its four gates) // (seconds of men in the plaza to break the Crown's casing)
   castles: 6, villages: 6, mines: 4,
-  tower: { build: 4, hp: 260, max: 2, reach: 2.2 }, // (watchtowers: seconds to build, toughness, how many a side may have)
+  tower: { build: 4, hp: 260, max: 2, reach: 2.2 },
+  cwallR: 13.6, cgateW: 4.2, cgateHp: 700, cgateMend: 60, // (castle curtain walls: radius, gate width and toughness, seconds a broken gate takes to mend) // (watchtowers: seconds to build, toughness, how many a side may have)
 };
 // Match length, in minutes: Quick, Standard (the default) or Long. A shorter battle runs hotter: more
 // gold, and computer armies march out with smaller squads (gather).

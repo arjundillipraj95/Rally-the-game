@@ -385,11 +385,31 @@ function crownPlaces(L, R, box, trees) {
   for (const h of L.holds) {
     if (h.kind === 'plaza') continue;
     const d = Math.hypot(h.x, h.z) || 1, ex = CROWN.wallR + 3, px = h.x / d * ex, pz = h.z / d * ex; // (to just outside the plaza's wall, on its side)
-    if (!wetBetween(h.x, h.z, px, pz)) { lane(h.x, h.z, px, pz); continue; }
+    if (!wetBetween(h.x, h.z, px, pz)) { lane(h.x, h.z, px, pz); h.laneA = Math.atan2(pz - h.z, px - h.x); continue; }
     let best = null, bd = 1e9;
     for (const c of crossings) for (const sgn of [1, -1]) { const nx = c.x + Math.cos(c.a) * c.len * sgn, nz = c.z + Math.sin(c.a) * c.len * sgn; if (wetBetween(h.x, h.z, nx, nz)) continue; const dd = Math.hypot(nx - h.x, nz - h.z); if (dd < bd) { bd = dd; best = { nx, nz, fx: c.x - Math.cos(c.a) * c.len * sgn, fz: c.z - Math.sin(c.a) * c.len * sgn }; } }
     if (!best) continue;
-    lane(h.x, h.z, best.nx, best.nz); const fd = Math.hypot(best.fx, best.fz) || 1; lane(best.fx, best.fz, best.fx / fd * ex, best.fz / fd * ex);
+    lane(h.x, h.z, best.nx, best.nz); h.laneA = Math.atan2(best.nz - h.z, best.nx - h.x); const fd = Math.hypot(best.fx, best.fz) || 1; lane(best.fx, best.fz, best.fx / fd * ex, best.fz / fd * ex);
+  }
+  // the castles' curtain walls: stone round the yard (the capture ring), one wooden gate facing its lane.
+  // The gate opens for the side that holds the castle and stands shut against everyone else, who must
+  // hack it down to get in; an empty castle's gate stands open.
+  L.cwalls = [];
+  for (const h of L.holds) {
+    if (h.kind !== 'castle') continue;
+    const R0 = CROWN.cwallR, g = h.laneA ?? Math.atan2(-h.z, -h.x), half = CROWN.cgateW / 2 / R0, n = Math.ceil(Math.PI * 2 * R0 / 1.1), cw = { hid: L.holds.indexOf(h), x: h.x, z: h.z, r: R0, gate: g, obs: [], blk: [] };
+    clear(h.x + Math.cos(g) * R0, h.z + Math.sin(g) * R0, 2.5); // (nothing blocking the gateway)
+    for (let i = 0; i < n; i++) {
+      const a = i / n * Math.PI * 2, x = h.x + Math.cos(a) * R0, z = h.z + Math.sin(a) * R0, isGate = Math.abs(angDiff(a, g)) < half;
+      const o = isGate ? { x, z, r: .9, pal: true, c: -1, k: -1, cgate: cw.hid, segKey: 'cg' + cw.hid } : { x, z, r: .9, keep: true, cwall: true };
+      const b = { x, z, r: .9, h: 2.8, cgate: isGate ? cw.hid : undefined };
+      L.obstacles.push(o); L.blockers.push(b); cw.obs.push(o); cw.blk.push(b);
+    }
+    // whatever stands where the wall runs goes
+    L.trees = L.trees.filter(t => Math.abs(Math.hypot(t.x - h.x, t.z - h.z) - R0) > 2); L.rocks = L.rocks.filter(t => Math.abs(Math.hypot(t.x - h.x, t.z - h.z) - R0) > 2.2);
+    L.obstacles = L.obstacles.filter(o => o.cwall || o.cgate != null || o.keep || o.pal || o.castle || Math.abs(Math.hypot(o.x - h.x, o.z - h.z) - R0) > 1.6 + (o.r || (o.box ? Math.hypot(o.hw, o.hd) : 0)));
+    L.fences = L.fences.filter(f => Math.abs(Math.hypot((f.ax + f.bx) / 2 - h.x, (f.az + f.bz) / 2 - h.z) - R0) > 3);
+    L.cwalls.push(cw);
   }
 }
 function box(L, x, z, hw, hd, rot, h, kind) {

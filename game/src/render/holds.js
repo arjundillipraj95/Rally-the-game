@@ -46,7 +46,35 @@ function updateWall(dt) {
   w.gates.forEach((o, i) => { const down = (W.broken >> o.plazaGate) & 1; put(w.gm, w.gates, i, o, down ? .2 : lift - .2, down ? Math.PI / 2 * .95 : 0); });
   w.bm.instanceMatrix.needsUpdate = w.gm.instanceMatrix.needsUpdate = true;
 }
+// The Crown's castle walls: grey stone round each yard, a wooden gate across the gateway that falls
+// flat when it's broken (and stands again once mended, or when the castle changes hands).
+let cwalls = null;
+function buildCastleWalls(world, list) {
+  const stone = new THREE.MeshLambertMaterial({ color: 0x9a9384 }), plank = new THREE.MeshLambertMaterial({ color: 0x6f5232 });
+  const blocks = [], gates = []; for (const cw of list) for (const o of cw.obs) (o.cgate != null ? gates : blocks).push(o);
+  const bm = new THREE.InstancedMesh(new THREE.BoxGeometry(1.2, 2.6, .8), stone, Math.max(1, blocks.length)), gm = new THREE.InstancedMesh(new THREE.BoxGeometry(1.2, 2.4, .45), plank, Math.max(1, gates.length));
+  bm.castShadow = gm.castShadow = true; bm.receiveShadow = true;
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3(1, 1, 1);
+  blocks.forEach((o, i) => { const cw = list.find(c => c.obs.includes(o)); e.set(0, Math.atan2(o.x - cw.x, o.z - cw.z), 0); q.setFromEuler(e); m.compose(v.set(o.x, terrainMeshY(o.x, o.z) + 1.2 + (i % 3 === 0 ? .2 : 0), o.z), q, sc); bm.setMatrixAt(i, m); });
+  bm.count = blocks.length; world.add(bm); world.add(gm);
+  cwalls = { gm, gates, list, sig: '' };
+}
+function updateCastleWalls() {
+  const c = cwalls; if (!c || !G.cgates) return;
+  const sig = c.list.map(cw => (G.cgates[cw.hid] && G.cgates[cw.hid].broken ? 1 : 0) + ':' + (G.holds && G.holds[cw.hid] ? G.holds[cw.hid].owner : -1)).join(',');
+  if (sig === c.sig) return; c.sig = sig;
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3(1, 1, 1);
+  c.gates.forEach((o, i) => {
+    const cw = c.list.find(x => x.hid === o.cgate), st = G.cgates[o.cgate], h = G.holds && G.holds[o.cgate];
+    const down = st && st.broken, open = !h || h.owner < 0; // (an empty castle: the gate stands open, swung back)
+    e.set(down ? Math.PI / 2 * .95 : 0, Math.atan2(o.x - cw.x, o.z - cw.z) + (open && !down ? Math.PI / 2 : 0), 0); q.setFromEuler(e);
+    const y = terrainMeshY(o.x, o.z) + (down ? .25 : 1.2), off = open && !down ? 1.2 : 0;
+    m.compose(v.set(o.x + Math.cos(cw.gate + Math.PI / 2) * off * 0, y, o.z), q, sc); c.gm.setMatrixAt(i, m);
+  });
+  c.gm.count = c.gates.length; c.gm.instanceMatrix.needsUpdate = true;
+}
 export function buildHolds(world, L) {
+  cwalls = null; if (G.mode === 'crown' && L.cwalls && L.cwalls.length) buildCastleWalls(world, L.cwalls);
   crown = null; wall = null; towerWorld = G.mode === 'crown' ? world : null; towerObjs.clear(); if (G.mode === 'crown') { buildCrown(world); if (L.plazaWall) buildWall(world, L.plazaWall); }
   objs = (L.holds || []).map(h => {
     const grp = new THREE.Group(); world.add(grp);
@@ -99,7 +127,7 @@ function updateTowers() {
 }
 let lastT = 0;
 export function updateHolds() {
-  updateCrown(); updateWall(Math.max(0, Math.min(.1, G.T - lastT))); lastT = G.T; updateTowers();
+  updateCrown(); updateWall(Math.max(0, Math.min(.1, G.T - lastT))); lastT = G.T; updateTowers(); updateCastleWalls();
   const hs = G.holds; if (!hs) return;
   objs.forEach((o, i) => {
     const h = hs[i]; if (!h) return;
