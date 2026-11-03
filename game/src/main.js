@@ -21,6 +21,7 @@ import { initFeed, clearFeed, feedTick } from './ui/feed.js';
 import { spawnMeadow, updateMeadow, clearMeadow } from './render/meadow.js';
 import { fogTick, fogGrid, seenAt } from './render/fog.js';
 import { buildReport, renderCaptains, renderAwards, myLine, shareText, clearReport } from './ui/report.js';
+import { shareCard } from './ui/sharecard.js';
 import { updateSeeThrough } from './render/seethrough.js';
 import { drawVolleyAim } from './ui/volleyaim.js';
 import { drawHoldAim, drawJavAim, drawRideAim } from './ui/holdaim.js';
@@ -250,6 +251,10 @@ document.querySelectorAll('.etabs [data-t]').forEach(b => b.addEventListener('cl
 $('shareBtn').addEventListener('click', async () => {
   if (!lastRep) return;
   const text = shareText(lastRep.rep, lastRep.title), url = location.origin + location.pathname;
+  // the picture card where the phone can share files (WhatsApp takes it with the text as its caption)
+  try { const blob = await shareCard(lastRep.rep, lastRep.title), file = blob && new File([blob], 'rally.png', { type: 'image/png' });
+    if (import.meta.env.DEV) window.__card = blob;
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text: text + ' ' + url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
   try { if (navigator.share) { await navigator.share({ text, url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
   window.open('https://wa.me/?text=' + encodeURIComponent(text + ' ' + url), '_blank', 'noopener');
 });
