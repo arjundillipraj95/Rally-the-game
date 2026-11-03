@@ -1,0 +1,21 @@
+// Dev check: the results screen's battle report (You / Captains with a retrospect open / Awards) after a computer-run battle.
+import { chromium } from 'playwright';
+import { open, frames, OUT } from './stage.mjs';
+const W = +(process.argv[2] || 844), H = +(process.argv[3] || 390), al = process.argv[4] || '[0,1,1,0]';
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const page = await open(browser, W, H);
+const errs = []; page.on('pageerror', e => errs.push(e.message));
+await page.evaluate(al => { localStorage.setItem('rally-solo-al', al); }, al); await page.reload(); await page.waitForFunction(() => window.__fb && window.__fb.G); await page.evaluate(() => window.__frame(3));
+await page.evaluate(() => { window.__noRender = 1; document.querySelector('#segMap button[data-v="valley"]').click(); document.querySelector('#goBtn').click(); });
+await frames(page, 3);
+await page.evaluate(() => { const F = window.__fb, G = F.G; G.diff = 2; const s0 = G.teams[G.myTi]; s0.human = false; s0.leader.human = false; s0.leader.isMe = false; G.player = null;
+  for (let t = 0; t < 600 && G.state === 'play'; t++) F.step(30, 1 / 30); if (G.state === 'play') F.end(); });
+await page.waitForTimeout(2200); await page.evaluate(() => { window.__noRender = 0; }); await frames(page, 5);
+await page.screenshot({ path: OUT + 'rep_you.png' });
+await page.click('.etabs [data-t="caps"]'); await page.click('.crow'); await frames(page, 2);
+await page.screenshot({ path: OUT + 'rep_caps.png' });
+await page.click('.etabs [data-t="aw"]'); await frames(page, 2);
+await page.screenshot({ path: OUT + 'rep_aw.png' });
+const r = await page.evaluate(() => ({ rows: [...document.querySelectorAll('.crow')].map(t => t.innerText.replace(/\s+/g, ' ')), retro: [...document.querySelectorAll('.retro')].map(t => t.innerText.replace(/\s+/g, ' ')), aw: [...document.querySelectorAll('.acard')].map(t => t.innerText.replace(/\s+/g, ' ')), tl: [...document.querySelectorAll('.tline li')].length, T: window.__fb.G.T, st: window.__fb.G.teams.map(s => s.active ? [s.earned|0, s.dist|0, s.gold|0] : null) }));
+console.log(JSON.stringify(r, null, 1), 'errors:', errs.slice(0, 3));
+await browser.close();

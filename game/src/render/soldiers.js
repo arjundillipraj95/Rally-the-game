@@ -281,7 +281,7 @@ function popHelmet(u) {
   const geo = fac === 'roman' ? 'helm' : fac === 'greek' ? 'corinth' : u.kind === 'captain' ? 'circlet' : null;
   if (!geo) { u.helmOff = false; return; } // barbarian footmen fight bareheaded anyway
   if (props.length >= PROP_MAX) props.shift();
-  if (nearCam(u, 16)) { bus.emit('sfx', { name: 'ding', x: u.x, z: u.z }); if (powCd <= 0) { pow(u.x, u.y + 2.6 * s, u.z, 'DING!', '#fff3b0'); powCd = .5; } }
+  if (nearCam(u, 16)) { bus.emit('sfx', { name: 'ding', x: u.x, z: u.z }); }
   const R = (lo, hi) => lo + Math.random() * (hi - lo);
   props.push({ geo, s, col: geo === 'helm' ? C.steel : geo === 'corinth' ? C.bronze : crestCol(u),
     x: u.x, y: u.y + 1.9 * s, z: u.z, vx: u.vx * .6 + R(-2, 2), vy: R(6, 9) + Math.max(0, u.vy) * .4, vz: u.vz * .6 + R(-2, 2),
@@ -319,7 +319,6 @@ export const drawCalls = () => [...batches.values()].filter(b => b.mesh.count > 
 let powCd = 0;
 const nearCam = (u, r) => { const t = camTarget(); return !!t && Math.hypot(u.x - t.x, u.z - t.z) < r; };
 const pick = a => a[(Math.random() * a.length) | 0];
-const HIT_WORDS = ['WHACK!', 'THWACK!', 'WHAM!', 'SMACK!', 'BAM!'], KO_WORDS = ['KAPOW!', 'WALLOP!', 'KA-BONK!', 'BOOM!'];
 
 // ---------- per-unit animation state ----------
 const anim = new WeakMap();
@@ -350,7 +349,6 @@ function ragdoll(u, a, dt) {
       arms: [R(-3, -.3), R(-3, -.3), R(-1.3, -.2)], legs: [R(-.7, .7), R(-.7, .7), R(.05, .5)],
       // launched: tumble head over heels (sometimes sideways too), limbs windmilling
       flip: u.launch ? dir * R(9, 15) : 0, twirl: u.launch ? R(-8, 8) : 0, cart: u.launch && Math.random() < .35 ? R(8, 12) * (Math.random() < .5 ? -1 : 1) : 0, fl: 0 };
-    if (nearCam(u, 14) && powCd <= 0 && (u.launch || Math.random() < .5)) { pow(u.x, u.y + 2.2, u.z, pick(KO_WORDS), '#ff7a3a'); powCd = .7; }
     // helmets come off on the big ones (and occasionally on an ordinary fall)
     if (u.kind !== 'arch' && (u.launch ? Math.random() < .8 : Math.random() < .12)) { u.helmOff = true; popHelmet(u); }
   }
@@ -410,9 +408,8 @@ function pose(u, dt) {
     // a proper clout: he stumbles back a step, arms thrown up, and kicks up dust
     if (!blocked && dmg >= 20 && !u.mounted) { a.stumble = .4; dust(u.x, u.z); }
     if (!blocked && dmg >= 26 && powCd <= 0 && nearCam(u, 12)) {
-      const bonk = Math.random() < .25; powCd = .55;
-      pow(u.x, u.y + 2.5, u.z, bonk ? 'BONK!' : pick(HIT_WORDS));
-      if (bonk) bus.emit('sfx', { name: 'bonk', x: u.x, z: u.z });
+      powCd = .55; // (the sound only: the comic words are kept for the big moments)
+      if (Math.random() < .25) bus.emit('sfx', { name: 'bonk', x: u.x, z: u.z });
     }
   }
   a.hp = u.hp; if (a.flash > 0) a.flash = Math.max(0, a.flash - dt * 6);
@@ -533,7 +530,7 @@ function pose(u, dt) {
     a.wArmX = near(a.wArmX, -2.9, k12); a.wArmZ = near(a.wArmZ, -.15, k12); a.bodyRX -= .2; a.bodyY -= .05;
     a.legL[0] -= .3; a.legR[0] += .25; a.expr = 'yell';
     if (spearArmed) { a.spearRX = -.7; a.spearZ = -.5; }
-    if (!a.wound) { a.wound = true; if (nearCam(u, 26)) { pow(u.x, u.y + 3.3, u.z, '!', '#ff4a3a'); bus.emit('sfx', { name: 'windup', x: u.x, z: u.z }); } const me = G.player; if (me && !me.dead && Math.hypot(me.x - u.x, me.z - u.z) < 5 && isEnemyTi(u.ti, me.ti)) bus.emit('fighttip', 'parry'); }
+    if (!a.wound) { a.wound = true; if (nearCam(u, 26)) { pow(u.x, u.y + 3.3, u.z, '!', '#ff4a3a', 1); bus.emit('sfx', { name: 'windup', x: u.x, z: u.z }); } const me = G.player; if (me && !me.dead && Math.hypot(me.x - u.x, me.z - u.z) < 5 && isEnemyTi(u.ti, me.ti)) bus.emit('fighttip', 'parry'); }
   } else a.wound = false;
   // a rider lowering his weapon to ride at someone: lance couched level, or sabre raised; a red "!" when
   // a computer rider commits to a pass at your side
@@ -542,7 +539,7 @@ function pose(u, dt) {
     else { a.wArmX = near(a.wArmX, -2.7, k12); a.wArmZ = near(a.wArmZ, -.5, k12); }
     a.bodyRX += .22; a.expr = 'yell';
   }
-  if (u.couch && !u.human && !a.couched) { a.couched = true; const me = G.player; if (nearCam(u, 30)) { pow(u.x, u.y + 4.2, u.z, '!', '#ff4a3a'); bus.emit('sfx', { name: 'windup', x: u.x, z: u.z }); } if (me && !me.dead && !me.mounted && isEnemyTi(u.ti, me.ti) && Math.hypot(me.x - u.x, me.z - u.z) < 12) bus.emit('fighttip', 'rider'); }
+  if (u.couch && !u.human && !a.couched) { a.couched = true; const me = G.player; if (nearCam(u, 30)) { pow(u.x, u.y + 4.2, u.z, '!', '#ff4a3a', 1); bus.emit('sfx', { name: 'windup', x: u.x, z: u.z }); } if (me && !me.dead && !me.mounted && isEnemyTi(u.ti, me.ti) && Math.hypot(me.x - u.x, me.z - u.z) < 12) bus.emit('fighttip', 'rider'); }
   if (!u.couch) a.couched = false;
   if (u.glint && !a.glinted) { a.glinted = true; if (nearCam(u, 26)) { spark(u.x - Math.sin(u.face) * .3, u.y + 3, u.z - Math.cos(u.face) * .3, '#ffffff', 14); bus.emit('sfx', { name: 'glint', x: u.x, z: u.z }); } }
   if (!u.glint) a.glinted = false;

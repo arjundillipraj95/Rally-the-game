@@ -31,7 +31,13 @@ export function dust(x, z) {
 export function floatText(x, y, z, text, color) { floats.push({ x, y, z, text, color, t: 0 }); }
 // Comic-book sound words on the big blows near you ("WHACK!", "BONK!"), drawn as a burst on the 2D layer.
 export let pows = [];
-export function pow(x, y, z, text, color = '#ffd23a') { if (pows.length < 4) pows.push({ x, y, z, text, color, t: 0, rot: rnd(-.25, .25) }); }
+// Only one on screen at a time, and only the big moments: a new word replaces the old one unless the old one
+// is fresh and matters more (pri 3: a captain falls, an execution, a gate; 2: armour, unhorsed; 1: your own timing).
+export function pow(x, y, z, text, color = '#ffd23a', pri = 2) {
+  const cur = pows[0];
+  if (cur && cur.t < .45 && cur.pri > pri) return;
+  pows = [{ x, y, z, text, color, t: 0, rot: rnd(-.25, .25), pri }];
+}
 
 // ---------- swing arcs: a crescent swoosh through the path of each blade stroke ----------
 const MAX_SLASH = 24;

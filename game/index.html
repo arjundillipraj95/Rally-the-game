@@ -26,6 +26,7 @@
     <div id="netTag" hidden></div>
     <canvas id="mini" width="184" height="184"></canvas>
     <button id="pauseBtn" type="button" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"><path d="M5 7h14M5 12h14M5 17h14"/></svg></button>
+    <div id="feed" aria-live="off"></div>
     <div class="hud brush" id="goldTag">Gold: <b id="gold">0</b></div>
     <div class="hud brush" id="hp"><span id="hpT">150/150</span><div class="bar"><i id="hpBar"></i></div><div class="bar horse" id="horseBarWrap" hidden><i id="horseBar"></i></div></div>
     <div class="banner" id="banner"></div>
@@ -280,10 +281,19 @@
     </div>
   </div>
   <div class="overlay" id="ovEnd" hidden>
-    <div class="menu">
+    <div class="etabs" role="tablist">
+      <button type="button" role="tab" data-t="you" aria-selected="true">You</button>
+      <button type="button" role="tab" data-t="caps" aria-selected="false">Captains</button>
+      <button type="button" role="tab" data-t="aw" aria-selected="false">Awards</button>
+      <button type="button" class="share" id="shareBtn">Share</button>
+    </div>
+    <div class="etab report" id="endCaps" hidden></div>
+    <div class="etab report" id="endAw" hidden></div>
+    <div class="menu etab" id="endYou">
       <div>
         <h2 class="logo" id="endTitle"><span>Victory</span></h2>
         <p id="endText"></p>
+        <p class="myrate" id="myRate" hidden><b id="myRateN"></b><span id="myRateT"></span></p>
         <p class="quip" id="endQuip"></p>
         <ul class="moments" id="endMoments" hidden></ul>
         <div class="sidemoments" id="endSideWrap" hidden><small>Your side</small><ul class="moments" id="endSide"></ul></div>

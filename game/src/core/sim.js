@@ -1156,7 +1156,7 @@ function holdsTick(dt) {
         if (h.cap !== a) { h.cap = a; h.prog = 0; }
         h.prog += dt / (HOLDS.capture * (h.chest === 2 ? CHEST.hold : 1)) * Math.min(2, .6 + n.get(a) / 5); // (more men take it quicker; the war chest takes holding)
         if (h.prog >= 1) {
-          h.owner = a; h.prog = 0; h.cap = -1; h.tick = 0; say('holdTaken', a, h.kind, h.id);
+          h.owner = a; h.prog = 0; h.cap = -1; h.tick = 0; say('holdTaken', a, h.kind, h.id); for (const i of sideArmies(a)) hl(i, 'hold');
           if (h.chest === 2) chestTaken(h, a);
           G.teams.forEach(s => { if (!s.human) s.thinkT = Math.min(s.thinkT, rnd(.5, 2)); });
         }
@@ -1931,6 +1931,9 @@ export function update(dt, input) {
     if (!s.active) return;
     if (s.volleyCd > 0) s.volleyCd -= dt;
     if (canRecruit(i)) s.gold += dt * (s.human ? ECON.humanIncome : DIFF[G.diff].income);
+    // the ledger, for the results screen: gold that came in, gold that went out, ground the captain covered
+    const dg = s.gold - (s.g0 ?? s.gold); if (dg > 0) s.earned = (s.earned || 0) + dg; else s.spent = (s.spent || 0) - dg; s.g0 = s.gold;
+    const L = s.leader; if (L && !L.dead) { if (L.px0 != null) s.dist = (s.dist || 0) + Math.min(3, Math.hypot(L.x - L.px0, L.z - L.pz0)); L.px0 = L.x; L.pz0 = L.z; } else if (L) L.px0 = null;
     if (!s.human && canRecruit(i)) { s.recruitT -= dt; if (s.recruitT <= 0) { s.recruitT = rnd(...ECON.aiRecruitEvery); recruit(i, aiPick(i)); } }
     if (!s.human) {
       // spend spare gold on upgrades once the squad is nearly full

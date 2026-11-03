@@ -15,6 +15,8 @@ import { quality, saveSetting, stepDown, LEVELS } from './render/quality.js';
 import { buildWorldView, updateWorldView, grassTime } from './render/world.js';
 import { drawSoldiers, drawCalls, clearProps } from './render/soldiers.js';
 import { banterTick, clearBanter } from './render/banter.js';
+import { initFeed, clearFeed, feedTick } from './ui/feed.js';
+import { buildReport, renderCaptains, renderAwards, myLine, shareText, clearReport } from './ui/report.js';
 import { updateSeeThrough } from './render/seethrough.js';
 import { drawVolleyAim } from './ui/volleyaim.js';
 import { drawHoldAim, drawJavAim, drawRideAim } from './ui/holdaim.js';
@@ -78,72 +80,72 @@ bus.on('fxmsg', d => {
   const near = me && Math.hypot(u.x - me.x, u.z - me.z) < (d.k === 'fxbreach' ? 1e9 : d.k === 'fxrally' || d.k === 'fxrout' || d.k === 'fxcapkill' ? 40 : 22), mine = u === me;
   if (!near && !mine && d.a !== me) return;
   if (d.k === 'fxrally') { // a captain sounds the rally: a ring of gold rolls out from him, and the horn
-    pow(u.x, u.y + 3.4, u.z, 'RALLY!', '#ffd23a'); shockwave(u.x, u.z, 18, '#ffd23a'); sfx.horn(); if (near || mine) cam.shake = Math.max(cam.shake, .35); if (mine) { buzz(80); musicCue('rally'); }
+    pow(u.x, u.y + 3.4, u.z, 'RALLY!', '#ffd23a', 3); shockwave(u.x, u.z, 18, '#ffd23a'); sfx.horn(); if (near || mine) cam.shake = Math.max(cam.shake, .35); if (mine) { buzz(80); musicCue('rally'); }
     return;
   }
   if (d.k === 'fxcapkill') { // a captain cut down by a captain: both of them in slow motion, a drum like thunder
     if (!near && d.a !== me && !mine) return;
     u.slowT = Math.max(u.slowT || 0, CAPKILL_SLOW); if (d.a) d.a.slowT = Math.max(d.a.slowT || 0, CAPKILL_SLOW);
-    pow(u.x, u.y + 3.4, u.z, mine ? 'YOU FELL!' : 'CAPTAIN SLAIN!', mine ? '#e0352b' : '#ffd23a'); sfx.heavy(u.x, u.z); musicCue(mine ? 'fell' : d.a === me ? 'slain' : 'capdown');
+    pow(u.x, u.y + 3.4, u.z, mine ? 'YOU FELL!' : 'CAPTAIN SLAIN!', mine ? '#e0352b' : '#ffd23a', 3); sfx.heavy(u.x, u.z); musicCue(mine ? 'fell' : d.a === me ? 'slain' : 'capdown');
     cam.shake = Math.max(cam.shake, .5); if (d.a === me) buzz(90);
     return;
   }
   if (d.k === 'fxrout') { // an army breaks
-    if (near) { pow(u.x, u.y + 3.4, u.z, 'ROUT!', '#e0352b'); sfx.heavy(u.x, u.z); }
+    if (near) { pow(u.x, u.y + 3.4, u.z, 'ROUT!', '#e0352b', 3); sfx.heavy(u.x, u.z); }
     const ti = d.ti ?? u.ti; musicCue(ti === G.myTi ? 'routMine' : G.ALLY[ti % 4] !== G.ALLY[G.myTi % 4] ? 'routEnemy' : 'capdown');
     return;
   }
   if (d.k === 'fxbreach') { // a castle's walls give: a burst of dust and fire at it, seen from across the field
     const c = colorOf(d.ti ?? u.ti), [x, z] = TEAMS[c].pos;
-    pow(x, groundY(x, z) + 9, z, 'BREACH!', '#e0352b'); shockwave(x, z, 26, '#e0352b');
+    pow(x, groundY(x, z) + 9, z, 'BREACH!', '#e0352b', 3); shockwave(x, z, 26, '#e0352b');
     if (me && Math.hypot(x - me.x, z - me.z) < 60) cam.shake = Math.max(cam.shake, .5);
     return;
   }
   if (d.k === 'fxgate') { // a castle's gate hacked down
     if (!near && !mine) return;
-    pow(u.x, u.y + 3.6, u.z, 'GATE BROKEN!', '#ff8a3a'); dust(u.x, u.z); sfx.crumble(); cam.shake = Math.max(cam.shake, .4);
+    pow(u.x, u.y + 3.6, u.z, 'GATE BROKEN!', '#ff8a3a', 3); dust(u.x, u.z); sfx.crumble(); cam.shake = Math.max(cam.shake, .4);
     return;
   }
   if (d.k === 'fxridedown') { // a beaten captain ridden down at full gallop
     if (!near && !mine && d.a !== me) return;
-    pow(u.x, u.y + 3.4, u.z, 'RIDDEN DOWN!', '#ff3b2e'); shockwave(u.x, u.z, 14, '#ff3b2e'); sfx.heavy(u.x, u.z); sfx.trample(u.x, u.z);
+    pow(u.x, u.y + 3.4, u.z, 'RIDDEN DOWN!', '#ff3b2e', 3); shockwave(u.x, u.z, 14, '#ff3b2e'); sfx.heavy(u.x, u.z); sfx.trample(u.x, u.z);
     u.slowT = Math.max(u.slowT || 0, .7); if (d.a) d.a.slowT = Math.max(d.a.slowT || 0, .7);
     musicCue(mine ? 'fell' : d.a === me ? 'slain' : 'capdown'); cam.shake = Math.max(cam.shake, .6); if (d.a === me || mine) buzz(120);
     return;
   }
-  if (d.k === 'fxarmour') { pow(u.x, u.y + 3.1, u.z, mine ? 'ARMOUR BROKEN!' : 'ARMOUR BROKEN!', '#c9d2dc'); spark(u.x, u.y + 1.8, u.z, '#c9d2dc', 18); sfx.guardbreak(u.x, u.z); if (mine) { buzz([60, 30, 60]); cam.shake = Math.max(cam.shake, .4); bus.emit('fighttip', 'armour'); } return; }
-  if (d.k === 'fxpush') { const f = u.face; pow(u.x + Math.sin(f) * 3, u.y + 2.6, u.z + Math.cos(f) * 3, 'PUSH!', '#ffffff'); if (d.heavy) { dust(u.x + Math.sin(f) * 3, u.z + Math.cos(f) * 3); cam.shake = Math.max(cam.shake, mine ? .4 : .2); } if (mine) buzz(d.heavy ? [40, 20, 60] : 20); return; }
-  if (d.k === 'fxrhythm') { pow(u.x, u.y + 3.3, u.z, 'RHYTHM!', '#ffd23a'); sfx.heavy(u.x, u.z); if (mine) { buzz([30, 20, 30, 20, 60]); cam.shake = Math.max(cam.shake, .4); } return; }
+  if (d.k === 'fxarmour') { pow(u.x, u.y + 3.1, u.z, 'ARMOUR BROKEN!', '#c9d2dc', 2); spark(u.x, u.y + 1.8, u.z, '#c9d2dc', 18); sfx.guardbreak(u.x, u.z); if (mine) { buzz([60, 30, 60]); cam.shake = Math.max(cam.shake, .4); bus.emit('fighttip', 'armour'); } return; }
+  if (d.k === 'fxpush') { const f = u.face; if (mine) pow(u.x + Math.sin(f) * 3, u.y + 2.6, u.z + Math.cos(f) * 3, 'PUSH!', '#ffffff', 1); if (d.heavy) { dust(u.x + Math.sin(f) * 3, u.z + Math.cos(f) * 3); cam.shake = Math.max(cam.shake, mine ? .4 : .2); } if (mine) buzz(d.heavy ? [40, 20, 60] : 20); return; }
+  if (d.k === 'fxrhythm') { if (mine) pow(u.x, u.y + 3.3, u.z, 'RHYTHM!', '#ffd23a', 1); sfx.heavy(u.x, u.z); if (mine) { buzz([30, 20, 30, 20, 60]); cam.shake = Math.max(cam.shake, .4); } return; }
   if (d.k === 'fxvland') { if (mine) bus.emit('fighttip', 'vcharge'); return; } // (your volley's landed: the moment to charge)
-  if (d.k === 'fxvcharge') { pow(u.x, u.y + 3.4, u.z, 'VOLLEY & CHARGE!', '#ffd23a'); shockwave(u.x, u.z, 12, '#ffd23a'); sfx.charge && sfx.charge(u.x, u.z); if (mine) { buzz([40, 30, 60]); cam.shake = Math.max(cam.shake, .35); } return; }
+  if (d.k === 'fxvcharge') { pow(u.x, u.y + 3.4, u.z, 'VOLLEY & CHARGE!', '#ffd23a', 2); shockwave(u.x, u.z, 12, '#ffd23a'); sfx.charge && sfx.charge(u.x, u.z); if (mine) { buzz([40, 30, 60]); cam.shake = Math.max(cam.shake, .35); } return; }
   if (d.k === 'fxdisarm') { // a perfect parry: his blade knocked from his hand
     if (!near && !mine && d.a !== me) return;
-    pow(u.x, u.y + 3.1, u.z, mine ? 'DISARMED!' : 'DISARMED!', '#ff8a3a'); sfx.parry(u.x, u.z); sfx.heavy(u.x, u.z);
+    pow(u.x, u.y + 3.1, u.z, 'DISARMED!', '#ff8a3a', 3); sfx.parry(u.x, u.z); sfx.heavy(u.x, u.z);
     if (mine) { buzz([40, 30, 40]); if (G.role === 'client') C.localCd = Math.max(C.localCd || 0, PARRY.disarm); }
     if (d.a === me) { buzz(50); cam.shake = Math.max(cam.shake, .35); }
     return;
   }
   if (d.k === 'fxbash') { // the shield bash: a thud, and his guard flung open (heavy: it was up)
     if (!near && !mine && d.a !== me) return;
-    pow(u.x, u.y + 2.9, u.z, d.heavy ? 'GUARD OPEN!' : 'BASH!', d.heavy ? '#ff8a3a' : '#ffffff'); sfx.guardbreak(u.x, u.z);
+    if (d.heavy && (mine || d.a === me)) pow(u.x, u.y + 2.9, u.z, 'GUARD OPEN!', '#ff8a3a', 1); sfx.guardbreak(u.x, u.z);
     if (d.a === me) { buzz(35); cam.shake = Math.max(cam.shake, .25); bus.emit('hitstop', .06); }
     return;
   }
   if (d.k === 'fxstreak') { // the streak's whirlwind
     if (!near && !mine) return;
-    pow(u.x, u.y + 3.4, u.z, 'RAMPAGE!', '#ffd23a'); shockwave(u.x, u.z, 8, '#ffd23a'); sfx.heavy(u.x, u.z);
+    pow(u.x, u.y + 3.4, u.z, 'RAMPAGE!', '#ffd23a', 3); shockwave(u.x, u.z, 8, '#ffd23a'); sfx.heavy(u.x, u.z);
     if (mine) { buzz([50, 30, 80]); cam.shake = Math.max(cam.shake, .45); }
     return;
   }
   if (d.k.startsWith('fxduel')) { // the duel: called out, on, won, drawn, broken, refused
     const inIt = mine || d.a === me;
     if (!near && !inIt) return;
-    if (d.k === 'fxduelask') { const a = d.a || u; pow(a.x, a.y + 3.2, a.z, 'I CHALLENGE YOU!', '#ffd23a'); sfx.windup(a.x, a.z); if (mine) buzz([40, 40, 40]); }
-    else if (d.k === 'fxduel') { const a = d.a || u, mx = (a.x + u.x) / 2, mz = (a.z + u.z) / 2; pow(mx, u.y + 3.4, mz, 'DUEL!', '#ffd23a'); shockwave(mx, mz, DUEL.ring + 1, '#ffd23a'); sfx.horn(); if (inIt) { buzz(80); cam.shake = Math.max(cam.shake, .4); musicCue('rally'); } }
-    else if (d.k === 'fxduelwin') { pow(u.x, u.y + 3.4, u.z, mine ? 'DUEL WON!' : 'VICTOR!', '#ffd23a'); shockwave(u.x, u.z, 16, '#ffd23a'); sfx.cheer(); if (mine) buzz([60, 40, 90]); }
-    else if (d.k === 'fxdueldraw') pow(u.x, u.y + 3.2, u.z, 'DRAW', '#ffffff');
-    else if (d.k === 'fxduelbreak') { pow(u.x, u.y + 3.2, u.z, 'DISHONOUR!', '#e0352b'); sfx.heavy(u.x, u.z); }
-    else if (d.k === 'fxduelno') pow(u.x, u.y + 3.2, u.z, 'REFUSED!', '#c9c2b2');
+    if (d.k === 'fxduelask') { const a = d.a || u; pow(a.x, a.y + 3.2, a.z, 'I CHALLENGE YOU!', '#ffd23a', 3); sfx.windup(a.x, a.z); if (mine) buzz([40, 40, 40]); }
+    else if (d.k === 'fxduel') { const a = d.a || u, mx = (a.x + u.x) / 2, mz = (a.z + u.z) / 2; pow(mx, u.y + 3.4, mz, 'DUEL!', '#ffd23a', 3); shockwave(mx, mz, DUEL.ring + 1, '#ffd23a'); sfx.horn(); if (inIt) { buzz(80); cam.shake = Math.max(cam.shake, .4); musicCue('rally'); } }
+    else if (d.k === 'fxduelwin') { pow(u.x, u.y + 3.4, u.z, mine ? 'DUEL WON!' : 'VICTOR!', '#ffd23a', 3); shockwave(u.x, u.z, 16, '#ffd23a'); sfx.cheer(); if (mine) buzz([60, 40, 90]); }
+    else if (d.k === 'fxdueldraw') pow(u.x, u.y + 3.2, u.z, 'DRAW', '#ffffff', 3);
+    else if (d.k === 'fxduelbreak') { pow(u.x, u.y + 3.2, u.z, 'DISHONOUR!', '#e0352b', 3); sfx.heavy(u.x, u.z); }
+    else if (d.k === 'fxduelno') pow(u.x, u.y + 3.2, u.z, 'REFUSED!', '#c9c2b2', 2);
     return;
   }
   if (d.k === 'fxexecgo') { // an execution begins: a drum, the camera closes in (render/camera.js reads the pose flags)
@@ -152,7 +154,7 @@ bus.on('fxmsg', d => {
   }
   if (d.k === 'fxexec') { // ...and the blow falls
     if (!near && !mine && d.a !== me) return;
-    pow(u.x, u.y + 3.4, u.z, { spear: 'RUN THROUGH!', jav: 'PINNED!' }[d.q] || 'EXECUTED!', '#ff3b2e'); shockwave(u.x, u.z, 14, '#ff3b2e'); sfx.heavy(u.x, u.z);
+    pow(u.x, u.y + 3.4, u.z, { spear: 'RUN THROUGH!', jav: 'PINNED!' }[d.q] || 'EXECUTED!', '#ff3b2e', 3); shockwave(u.x, u.z, 14, '#ff3b2e'); sfx.heavy(u.x, u.z);
     if (d.q === 'spear') sfx.trample(u.x, u.z); if (d.q === 'jav') sfx.thud(u.x, u.z);
     musicCue(mine ? 'fell' : d.a === me ? 'slain' : 'capdown'); cam.shake = Math.max(cam.shake, .6); if (d.a === me || mine) buzz(120);
     return;
@@ -162,12 +164,14 @@ bus.on('fxmsg', d => {
   if (d.k === 'fxride') { // your ride-by blow: how well you timed it
     if (d.a !== me) return;
     const R = { perfect: ['PERFECT!', '#ffd23a'], good: ['HIT!', '#ffffff'], graze: ['TOO LATE', '#c9c2b2'], miss: ['TOO EARLY', '#c9c2b2'] }[d.q] || ['', ''];
-    const at = d.q === 'miss' || u === me ? me : u; pow(at.x, at.y + 3.1, at.z, R[0], R[1]);
+    const at = d.q === 'miss' || u === me ? me : u; if (d.q === 'perfect' || d.q === 'miss' || d.q === 'graze') pow(at.x, at.y + 3.1, at.z, R[0], R[1], 1);
     if (d.q === 'perfect') { sfx.heavy(u.x, u.z); buzz(40); }
     return;
   }
-  const [txt, col] = FIGHT_POW[d.k];
-  if (d.k !== 'fxint' || mine || near) pow(u.x, u.y + 2.9, u.z, txt, col);
+  // the rest are small beats: a word only for the big ones (a rider brought down), or for your own parry / guard break
+  const [txt, col] = FIGHT_POW[d.k], big = d.k === 'fxjoust' || d.k === 'fximpale' || d.k === 'fxunhorse';
+  if (big) pow(u.x, u.y + 2.9, u.z, txt, col, 2);
+  else if (txt && (d.k === 'fxparry' || d.k === 'fxbreak' || d.k === 'fxback') && (mine || d.a === me)) pow(u.x, u.y + 2.9, u.z, txt, col, 1);
   if (d.k === 'fxjoust') { sfx.heavy(u.x, u.z); cam.shake = Math.max(cam.shake, .45); if (d.a === me) buzz(60); }
   if (d.k === 'fxparry') {
     spark(u.x + Math.sin(u.face) * .8, u.y + 1.6, u.z + Math.cos(u.face) * .8, '#ffffff', 16); sfx.parry(u.x, u.z);
@@ -199,6 +203,12 @@ bus.on('end', ({ w, why }) => {
   $('sKills').textContent = capK; $('sArmyK').textContent = menK; $('sTotalK').textContent = capK + menK; $('sFalls').textContent = falls; $('sLost').textContent = lost;
   $('endQuip').textContent = tallyQuip({ capK, menK, falls, lost, result }) || $('endQuip').textContent;
   showMoments((G.teams[G.myTi] && G.teams[G.myTi].hl) || {}); showSideMoments();
+  // the battle report (on a joined phone the tally arrives with the host's last snapshot: built again when it lands)
+  const report = () => { const rep = buildReport(w, nickFor); lastRep = { rep, title };
+    const m = myLine(rep); $('myRate').hidden = !m; if (m) { $('myRateN').textContent = m.me.rating.toFixed(1); $('myRateT').textContent = `${m.text}${m.me.mvp ? ' · MVP' : ''}`; }
+    renderCaptains($('endCaps'), rep); renderAwards($('endAw'), rep); };
+  report(); if (isClient()) setTimeout(() => { if (G.state === 'end') report(); }, 1200);
+  endTab('you');
   showRank(G.awarded ? null : awardMatch({ result, kills: G.kills, diff: G.diff })); G.awarded = true;
   const host = isHost(), client = isClient();
   $('againBtn').hidden = client;
@@ -207,6 +217,18 @@ bus.on('end', ({ w, why }) => {
   $('endNote').textContent = client ? 'Waiting for the host to start the next battle…' : '';
   if (host) netHostSend(true);
   setTimeout(() => { if (G.state === 'end') $('ovEnd').hidden = false; }, 1600);
+});
+let lastRep = null;
+function endTab(t) {
+  document.querySelectorAll('.etabs [data-t]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.t === t)));
+  $('endYou').hidden = t !== 'you'; $('endCaps').hidden = t !== 'caps'; $('endAw').hidden = t !== 'aw';
+}
+document.querySelectorAll('.etabs [data-t]').forEach(b => b.addEventListener('click', () => endTab(b.dataset.t)));
+$('shareBtn').addEventListener('click', async () => {
+  if (!lastRep) return;
+  const text = shareText(lastRep.rep, lastRep.title), url = location.origin + location.pathname;
+  try { if (navigator.share) { await navigator.share({ text, url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+  window.open('https://wa.me/?text=' + encodeURIComponent(text + ' ' + url), '_blank', 'noopener');
 });
 // The note under the result, from how the battle went for you (the first that fits, else the usual quip).
 function tallyQuip({ capK, menK, falls, lost, result }) {
@@ -326,7 +348,7 @@ function endText(w, why) {
 // ---------- match start ----------
 function viewForMatch() {
   buildWorldView(G.layout);
-  clearEffects(); clearHorses(); clearProps(); clearBanter(); spawnCritters(G.seed);
+  clearEffects(); clearHorses(); clearProps(); clearBanter(); clearFeed(); clearReport(); spawnCritters(G.seed);
   buildHud(); showHud(); trayOpen(false); upOpen(false);
   portal.gameplayStart();
   requestAnimationFrame(() => requestAnimationFrame(hideVeil));
@@ -563,6 +585,7 @@ function drawScene(dt) {
   drawVolleyAim(grassTime()); drawHoldAim(grassTime()); drawJavAim(); drawRideAim();
   const tg = camTarget(); followSun(tg ? tg.x : 0, tg ? tg.z : 0, grassTime());
 }
+initFeed({ nickFor: ti => nickFor(ti) });
 function nickFor(ti) {
   const NET = session.NET; if (!NET) return null;
   const peers = NET.room.peers();
@@ -599,7 +622,7 @@ function loop(now) {
         else if (isHost() && now - (session.NET.lastLobby || 0) > 700) { session.NET.lastLobby = now; hostLobbyTick(); }
       }
     }
-    if (G.state === 'play') { hudT -= dt; if (hudT <= 0) { hudT = .1; try { updateHud(C.lastSnapAt); tutorialTick(.1); } catch (e) { fault('hud', e); } } }
+    if (G.state === 'play') { hudT -= dt; if (hudT <= 0) { hudT = .1; try { updateHud(C.lastSnapAt); tutorialTick(.1); feedTick(); } catch (e) { fault('hud', e); } } }
   } catch (err) { fault('frame', err); }
   requestAnimationFrame(loop);
 }
