@@ -3,6 +3,7 @@
 // no new screen: add them to the catalog and they appear, locked items showing how to get them.
 import { SLOTS } from '../core/look.js';
 import { CRESTS } from '../config.js';
+import { owns, lockText as seasonLock } from './season.js';
 
 // a small drawing per category (and per emblem item, which shows its own shape)
 const IC = {
@@ -15,7 +16,7 @@ const IC = {
   face: '<circle cx="12" cy="12" r="8"/><path d="M9 10h.01M15 10h.01M9 15c2 1.5 4 1.5 6 0"/>',
   crest: '<path d="M12 21v-9"/><path d="M8 12c0-5 2-8 4-9 2 1 4 4 4 9z"/>',
 };
-const EMB = [
+const EMB = [ // (emblems past these show the plain star)
   '<path d="M12 7l1.5 2 6-1-1 2.5 2 1-4 1-2.5 0-.5 4-1.5-2-1.5 2-.5-4-2.5 0-4-1 2-1L4.5 8l6 1z"/>',
   '<circle cx="12" cy="12" r="4"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/>',
   '<path d="M13 3L7 13h4l-2 8 7-11h-4z"/>',
@@ -30,14 +31,12 @@ export function wardrobe(el, opts) {
   function lockText(lock) {
     if (!lock) return '';
     if (lock.rank != null) return `${opts.rankName(lock.rank)} rank`;
-    if (lock.season != null) return `Season ${lock.season}`;
-    if (lock.shop) return 'Shop';
-    return 'Locked';
+    return seasonLock(lock) || 'Locked';
   }
   function items() {
     if (cat === 'crest') return CRESTS.map((c, i) => ({ name: c.name, on: opts.crest() === i, locked: !opts.crestOpen(i), need: opts.crestNeed(i), swatch: c.css, i }));
     const si = SLOTS.findIndex(s => s.id === cat), sl = SLOTS[si], cur = opts.look()[si];
-    return sl.items.map((it, j) => ({ name: it.name, on: cur === j, locked: !!it.lock, need: lockText(it.lock), icon: cat === 'emblem' ? EMB[j] || IC.emblem : IC[cat], i: j, si }));
+    return sl.items.map((it, j) => ({ name: it.name, on: cur === j, locked: !owns(si, j), need: lockText(it.lock), icon: cat === 'emblem' ? EMB[j] || IC.emblem : IC[cat], i: j, si }));
   }
   function render() {
     const c = cats.find(x => x.id === cat), sl = SLOTS.find(s => s.id === cat);

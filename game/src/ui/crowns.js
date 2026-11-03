@@ -6,6 +6,7 @@ export const TITLES = [[0, 'Squire'], [100, 'Knight'], [250, 'Baron'], [450, 'Ea
 export const FMT_NAME = ['Solo', 'Duo', 'Trio'];
 const KEY = 'rally-crowns';
 export function crowns() { try { const v = JSON.parse(localStorage.getItem(KEY)); if (Array.isArray(v) && v.length === 3) return v.map(n => Math.max(0, n | 0)); } catch (e) {} return [0, 0, 0]; }
+export function setCrowns(v) { save(v.map(n => Math.max(0, n | 0))); }
 function save(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) {} }
 // the account's crowns from the server win if they're higher (a new phone, or a cleared browser)
 export function mergeCrowns(server) { if (!Array.isArray(server)) return crowns(); const v = crowns().map((n, i) => Math.max(n, server[i] | 0)); save(v); return v; }

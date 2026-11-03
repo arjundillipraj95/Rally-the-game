@@ -151,6 +151,8 @@ const shRim = f => u => guarding(u) ? SH_GLINT : f(u);
 const emCol = u => u.leader ? crestCol(u) : C.linen;
 const crestCol = u => CREST_C[(G.crests && G.crests[u.ti]) || 0] || CREST_C[0];
 const MELEE = K('foot', 'captain'), HELMED = K('foot', 'captain');
+// the earned pieces (core/look.js: Gilded galea, Headsman hood, Black steel, Ermine cape)
+const GILT = new THREE.Color(0xe0b040), IRON = new THREE.Color(0x3a3c42), HOOD = new THREE.Color(0x1d1b1a), ERMINE = new THREE.Color(0xf2efe6);
 const armed = u => u.tier >= 1; // Footman/captain Arms upgrade: spear + javelin
 const armored = u => u.tier >= 2; // Footman/captain Armor upgrade: extra plate
 // what's in the weapon hand: a player captain shows the weapon they picked; everyone else by tier
@@ -170,27 +172,37 @@ const PARTS = [
   { bone: 'legR', geo: 'greave', mat: 'metal', m: e(0, -.46, 0), s: S('armour', 1), k: HELMED, col: () => C.bronze },
   // body
   { bone: 'body', geo: 'torso', mat: 'metal', m: e(0, 1.08, 0), s: S('armour', 0), k: HELMED, col: () => C.steel },
+  { bone: 'body', geo: 'torso', mat: 'metal', m: e(0, 1.08, 0), s: S('armour', 3), k: HELMED, col: () => IRON },
+  { bone: 'legL', geo: 'greave', mat: 'metal', m: e(0, -.46, 0), s: S('armour', 3), k: HELMED, col: () => IRON },
+  { bone: 'legR', geo: 'greave', mat: 'metal', m: e(0, -.46, 0), s: S('armour', 3), k: HELMED, col: () => IRON },
   { bone: 'body', geo: 'torso', mat: 'metal', m: e(0, 1.08, 0), s: S('armour', 1), k: K('captain'), col: () => C.bronze },
   { bone: 'body', geo: 'torso', mat: 'plain', m: e(0, 1.08, 0), s: S('armour', 1), k: K('foot', 'spear'), col: () => C.linen },
   { bone: 'body', geo: 'torso', mat: 'plain', m: e(0, 1.08, 0), s: S('armour', 2), k: MELEE, t: u => !armed(u), col: skinOf },
   { bone: 'body', geo: 'torso', mat: 'plain', m: e(0, 1.08, 0), s: S('armour', 2), k: MELEE, t: armed, col: dark },
   { bone: 'body', geo: 'torso', mat: 'plain', m: e(0, 1.08, 0), k: K('arch'), col: dark },
-  { bone: 'body', geo: 'skirt', mat: 'plain', m: e(0, .64, 0), s: S('armour', 0, 1), col: team },
+  { bone: 'body', geo: 'skirt', mat: 'plain', m: e(0, .64, 0), s: S('armour', 0, 1, 3), col: team },
   { bone: 'body', geo: 'belt', mat: 'plain', m: e(0, .78, 0), col: u => W(u, 'armour') === 2 ? team(u) : C.leather },
   { bone: 'body', geo: 'head', mat: 'plain', m: e(0, 1.78, 0), col: skinOf },
   ...EXPRS.map(k => ({ bone: 'body', geo: 'face', mat: 'face_' + k, m: e(0, 1.73, .39), t: u => exprOf(u) === k })),
   // archers (every faction)
-  { bone: 'body', geo: 'hood', mat: 'plain', m: e(0, 1.82, -.02), k: K('arch'), s: S('helm', 0, 2), col: team },
+  { bone: 'body', geo: 'hood', mat: 'plain', m: e(0, 1.82, -.02), k: K('arch'), s: S('helm', 0, 2, 3), col: team },
+  { bone: 'body', geo: 'hood', mat: 'plain', m: e(0, 1.82, -.02), s: S('helm', 4), col: () => HOOD },
   { bone: 'body', geo: 'helm', mat: 'plain', m: e(0, 1.9, 0, 0, 0, 0, .8, .7, .8), k: K('arch'), s: S('helm', 1), col: () => C.leather },
   { bone: 'body', geo: 'brim', mat: 'plain', m: e(0, 1.98, 0), k: K('arch'), s: S('helm', 1), col: team },
   { bone: 'body', geo: 'quiver', mat: 'plain', m: e(.2, 1.25, -.42, 0, 0, .4), k: K('arch'), col: () => C.leather },
   // Roman galea
   { bone: 'body', geo: 'helm', mat: 'metal', m: e(0, 1.86, 0), s: S('helm', 0), k: HELMED, col: () => C.steel },
+  { bone: 'body', geo: 'helm', mat: 'metal', m: e(0, 1.86, 0), s: S('helm', 3), k: HELMED, col: () => GILT },
   { bone: 'body', geo: 'cheek', mat: 'metal', m: e(.34, 1.64, .12, 0, 0, .12), s: S('helm', 0), k: HELMED, col: () => C.steel },
+  { bone: 'body', geo: 'cheek', mat: 'metal', m: e(.34, 1.64, .12, 0, 0, .12), s: S('helm', 3), k: HELMED, col: () => GILT },
   { bone: 'body', geo: 'cheek', mat: 'metal', m: e(-.34, 1.64, .12, 0, 0, -.12), s: S('helm', 0), k: HELMED, col: () => C.steel },
+  { bone: 'body', geo: 'cheek', mat: 'metal', m: e(-.34, 1.64, .12, 0, 0, -.12), s: S('helm', 3), k: HELMED, col: () => GILT },
   { bone: 'body', geo: 'crest', mat: 'plain', m: e(0, 2.36, 0), s: S('helm', 0), k: K('foot'), t: u => !armed(u), col: team },
+  { bone: 'body', geo: 'crest', mat: 'plain', m: e(0, 2.36, 0), s: S('helm', 3), k: K('foot'), t: u => !armed(u), col: team },
   { bone: 'body', geo: 'knob', mat: 'metal', m: e(0, 2.3, 0), s: S('helm', 0), k: K('foot'), t: armed, col: () => C.bronze },
+  { bone: 'body', geo: 'knob', mat: 'metal', m: e(0, 2.3, 0), s: S('helm', 3), k: K('foot'), t: armed, col: () => GILT },
   { bone: 'body', geo: 'crest', mat: 'plain', m: e(0, 2.36, 0, 0, Math.PI / 2, 0, 1.3, 1.5, 1.25), s: S('helm', 0), k: K('captain'), col: crestCol },
+  { bone: 'body', geo: 'crest', mat: 'plain', m: e(0, 2.36, 0, 0, Math.PI / 2, 0, 1.3, 1.5, 1.25), s: S('helm', 3), k: K('captain'), col: crestCol },
   // Greek Corinthian helmet with a tall horsehair crest
   { bone: 'body', geo: 'corinth', mat: 'metal', m: e(0, 1.8, 0), s: S('helm', 1), k: HELMED, col: () => C.bronze },
   { bone: 'body', geo: 'nose', mat: 'metal', m: e(0, 1.74, .45), s: S('helm', 1), k: HELMED, col: () => C.bronze },
@@ -206,8 +218,9 @@ const PARTS = [
   { bone: 'body', geo: 'circlet', mat: 'metal', m: e(0, 1.92, 0, Math.PI / 2), s: S('helm', 2), k: K('captain'), col: crestCol },
   { bone: 'body', geo: 'mantle', mat: 'plain', m: e(0, 1.44, 0), s: S('armour', 2), k: K('foot'), col: () => C.fur },
   { bone: 'body', geo: 'mantle', mat: 'plain', m: e(0, 1.44, 0), s: S('cape', 2), k: K('captain'), col: () => C.fur },
+  { bone: 'body', geo: 'mantle', mat: 'plain', m: e(0, 1.44, 0), s: S('cape', 3), k: K('captain'), col: () => ERMINE },
   // captain's cape
-  { bone: 'body', geo: 'cape', mat: 'plain2', m: e(0, 1.02, -.44, .12), s: S('cape', 0, 2), k: K('captain'), col: team },
+  { bone: 'body', geo: 'cape', mat: 'plain2', m: e(0, 1.02, -.44, .12), s: S('cape', 0, 2, 3), k: K('captain'), col: team },
   { bone: 'body', geo: 'cape', mat: 'plain2', m: e(0, 1.22, -.42, .2, 0, 0, 1.05, .62, 1), s: S('cape', 1), k: K('captain'), col: team },
   // arms
   { bone: 'sArm', geo: 'arm', mat: 'plain', m: e(0, -.22, 0), col: skinOf },
@@ -301,12 +314,12 @@ for (const g of ['helm', 'corinth', 'circlet']) {
 }
 function popHelmet(u) {
   const hm = W(u, 'helm'), s = u.kind === 'captain' ? 1.18 : 1;
-  const geo = hm === 0 ? 'helm' : hm === 1 ? 'corinth' : u.kind === 'captain' ? 'circlet' : null;
+  const geo = hm === 0 || hm === 3 ? 'helm' : hm === 1 ? 'corinth' : hm === 2 && u.kind === 'captain' ? 'circlet' : null;
   if (!geo) { u.helmOff = false; return; } // wild-haired footmen fight bareheaded anyway
   if (props.length >= PROP_MAX) props.shift();
   if (nearCam(u, 16)) { bus.emit('sfx', { name: 'ding', x: u.x, z: u.z }); }
   const R = (lo, hi) => lo + Math.random() * (hi - lo);
-  props.push({ geo, s, col: geo === 'helm' ? C.steel : geo === 'corinth' ? C.bronze : crestCol(u),
+  props.push({ geo, s, col: hm === 3 ? GILT : geo === 'helm' ? C.steel : geo === 'corinth' ? C.bronze : crestCol(u),
     x: u.x, y: u.y + 1.9 * s, z: u.z, vx: u.vx * .6 + R(-2, 2), vy: R(6, 9) + Math.max(0, u.vy) * .4, vz: u.vz * .6 + R(-2, 2),
     rx: 0, ry: 0, rz: 0, wx: R(-12, 12), wy: R(-8, 8), wz: R(-12, 12), t: 0, clank: 0 });
   // a little clink the moment it flies off; a lighter one on each bounce (handled below)

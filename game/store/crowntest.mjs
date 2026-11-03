@@ -20,5 +20,5 @@ for (const until of [14, 150, 239, 300, 360, 420, 480, 539, 600, 640]) {
 }
 console.log(log.map(l => JSON.stringify(l)).join('\n'));
 const safety = await page.evaluate(() => window.__safeBreak || null);
-console.log('errors:', errs.slice(0, 3));
+console.log('season line:', await page.evaluate(() => document.getElementById('endSeason').textContent)); console.log('errors:', errs.slice(0, 3));
 await browser.close();

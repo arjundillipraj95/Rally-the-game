@@ -96,7 +96,7 @@ export function startMatch(humans, active = activeFrom([0, 0, 0, 0])) {
   G.duo = [0, 1, 2, 3].map(c => !active[c] ? -1 : active[c + 8] ? 2 : active[c + 4] ? 1 : 0); // (before the layout: where the castles stand depends on who's in)
   G.layout = makeLayout(G.map.id, G.mode === 'ctf', G.mode === 'ctrl', G.seed); buildNav(G.layout);
   G.units = []; G.horses = []; G.arrows = [];
-  G.T = 0; G.kills = 0; G.recruited = 0; G.bounty = -1; G.uid = 0; G.arrowN = 0; G.endInfo = null; G.awarded = false;
+  G.T = 0; G.kills = 0; G.recruited = 0; G.bounty = -1; G.uid = 0; G.arrowN = 0; G.endInfo = null; G.awarded = false; G.seasoned = false;
   G.teams = newTeams(humans, active);
   for (let c = 0; c < 4; c++) if (!active[c]) { G.teams[c].alive = false; G.teams[c].points = 0; G.teams[c].tickets = 0; } // (a castle out of this battle)
   G.flag = G.mode === 'ctf' ? { state: 'home', x: 0, z: 0, carrier: null, dropT: 0 } : null;

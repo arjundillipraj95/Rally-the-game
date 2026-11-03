@@ -40,12 +40,13 @@ import { startTutorial, stopTutorial, tutorialTick, bindTutorial } from './ui/tu
 import { progress, awardMatch, rankProgress, rankOf, crestUnlocked, setCrest } from './ui/progress.js';
 import { session, isClient, isHost, prefs } from './net/session.js';
 import { allyFor, describeTeams } from './core/teams.js';
-import { assignLooks } from './core/look.js';
+import { assignLooks, SLOTS } from './core/look.js';
+import { missions, rollSeason, afterBattle, seasonNow, SEASON, TRACK, tierOf, grantPass, owns, record, resetIn, season, give } from './ui/season.js';
 import { wardrobe } from './ui/wardrobe.js';
 import { actions, netHostReadInputs, netHostTick, netHostSend, clientTick, clientHorses, setNetHooks, C } from './net/netgame.js';
 import { bindLobby, showLobby, hostLobbyTick, clientLobbyTick, netLeave, matchHost, matchJoin } from './net/lobby.js';
 import { ON, online, startOnline, isLeader } from './net/online.js';
-import { crowns, mergeCrowns, titleOf, award, FMT_NAME } from './ui/crowns.js';
+import { crowns, mergeCrowns, titleOf, award, FMT_NAME, setCrowns } from './ui/crowns.js';
 import { lookCode, lookFrom } from './core/look.js';
 import { CAPS_TO_WIN, PARRY, CAPKILL_SLOW } from './config.js';
 
@@ -226,6 +227,12 @@ bus.on('end', ({ w, why }) => {
   report(); if (isClient()) setTimeout(() => { if (G.state === 'end') report(); }, 1200);
   endTab('you');
   showRank(G.awarded ? null : awardMatch({ result, kills: G.kills, diff: G.diff })); G.awarded = true;
+  // missions and the season (on a joined phone, once the host's tally has landed)
+  $('endSeason').hidden = true;
+  if (!G.seasoned) { G.seasoned = true; setTimeout(() => { if (G.state !== 'end') return;
+    const r = afterBattle({ result, moments: (G.teams[G.myTi] && G.teams[G.myTi].hl) || {} });
+    $('endSeason').textContent = [`+${r.stars} season stars`, ...r.done.map(t => `Mission done: ${t}`), r.tierUp ? `Tier ${r.tierUp}!` : '', ...r.got.map(n => `Unlocked: ${n}`)].filter(Boolean).join(' · ');
+    $('endSeason').hidden = false; renderMissSub(); }, isClient() ? 1300 : 0); }
   const host = isHost(), client = isClient();
   $('againBtn').hidden = client;
   $('againBtn').textContent = host ? 'Back to lobby' : 'Fight again';
@@ -539,7 +546,7 @@ function demo(dt) {
 function setHomeView(v, tabsShown) {
   if (import.meta.env.DEV && window.__testSheet && v === 'home') { v = 'sheet'; tabsShown = ['tabBattle']; } // (dev: older tests drive the setup sheet)
   homeView = v;
-  $('home').hidden = v !== 'home'; $('homeSheet').hidden = v !== 'sheet'; $('ward').hidden = v !== 'ward'; $('friendsPanel').hidden = v !== 'friends';
+  $('home').hidden = v !== 'home'; $('homeSheet').hidden = v !== 'sheet'; $('ward').hidden = v !== 'ward'; $('friendsPanel').hidden = v !== 'friends'; $('missPanel').hidden = v !== 'missions'; $('shopPanel').hidden = v !== 'shop';
   $('ovTitle').classList.toggle('homing', v !== 'sheet'); $('ovTitle').classList.toggle('sheet', v === 'sheet');
   if (v === 'sheet') {
     tabs.forEach(t => { t.hidden = !tabsShown.includes(t.dataset.tab); });
@@ -681,6 +688,33 @@ function warmupStop(home) {
   $('searchBox').classList.remove('warm'); $('playBtn').after($('searchBox'));
   seedDemo(); if (home) { $('ovTitle').hidden = false; setHomeView('home'); }
 }
+// ---------- missions, the season and the shop ----------
+const itemOf = r => SLOTS.find(s => s.id === r.slot).items[r.item].name;
+const slotIx = id => SLOTS.findIndex(s => s.id === id);
+function renderMissSub() { const S = season(); $('missSub').textContent = S ? `Season ${S.n} · tier ${tierOf(S.stars)}` : 'Season 1'; }
+function renderMissions() {
+  const S = season(), now = seasonNow(), t = tierOf(S.stars), into = S.stars - t * SEASON.tierStars;
+  $('seasonT').textContent = `Season ${S.n}`; $('tierN').textContent = `Tier ${t}`; $('seasonLeft').textContent = `${now.daysLeft} days left`;
+  $('tierFill').style.width = (t >= SEASON.tiers ? 100 : into / SEASON.tierStars * 100) + '%'; $('tierStars').textContent = t >= SEASON.tiers ? 'Top tier' : `${into}/${SEASON.tierStars} stars`;
+  $('missReset').textContent = `new ones in ${resetIn()}`;
+  $('missList').innerHTML = missions().map(m => `<div class="frow mrow${m.done ? ' done' : ''}"><b>${m.text}</b><em>${m.done ? 'Done' : `${m.prog}/${m.n}`}</em></div>`).join('');
+  const rows = [...Object.entries(TRACK.free).map(([k, r]) => ['free', +k, r]), ...Object.entries(TRACK.gold).map(([k, r]) => ['gold', +k, r])].sort((a, b) => a[1] - b[1]);
+  $('trackList').innerHTML = rows.map(([tr, k, r]) => { const have = owns(slotIx(r.slot), r.item); return `<div class="frow trow${have ? ' have' : ''}"><span class="tg${tr === 'gold' ? ' gold' : ''}">${tr === 'gold' ? 'Gold' : 'Free'} · tier ${k}</span><b>${itemOf(r)}</b><em>${have ? 'Yours' : tr === 'gold' && !S.pass ? 'Gold track' : `Tier ${k}`}</em></div>`; }).join('');
+  $('passBtn').disabled = S.pass; $('passBtn').textContent = S.pass ? 'Gold track: yours' : 'Get the Gold track';
+  const rec = record(); $('seasonRec').textContent = rec.length ? 'Your record: ' + rec.map(x => `Season ${x.season}: ${x.titles.join(' / ')}`).join(' · ') : '';
+}
+function renderShop() {
+  const rows = []; SLOTS.forEach((sl, si) => sl.items.forEach((it, j) => { if (it.lock && it.lock.shop) rows.push({ si, j, sl, it }); }));
+  $('shopList').innerHTML = rows.map(({ si, j, sl, it }) => `<div class="frow trow${owns(si, j) ? ' have' : ''}"><span class="tg">${sl.name}</span><b>${it.name}</b>${owns(si, j) ? '<em>Yours</em>' : `<div class="btns"><button type="button" class="go alt" data-buy="${sl.id}:${j}">${it.lock.price || 'Buy'}</button></div>`}</div>`).join('');
+}
+$('missBtn').addEventListener('click', () => { renderMissions(); setHomeView('missions'); });
+$('missDone').addEventListener('click', () => setHomeView('home'));
+$('shopBtn').addEventListener('click', () => { renderShop(); setHomeView('shop'); });
+$('shopDone').addEventListener('click', () => setHomeView('home'));
+const notOpen = () => toast('Buying opens when Rally launches. Nothing is charged.');
+$('passBtn').addEventListener('click', () => portal.buy('season-pass', ok => { if (!ok) return notOpen(); const got = grantPass(); renderMissions(); toast(got.length ? `Gold track! Unlocked: ${got.join(', ')}` : 'Gold track! Its rewards come as you climb'); }));
+$('shopList').addEventListener('click', e => { const b = e.target.closest('[data-buy]'); if (!b) return; const [slot, j] = b.dataset.buy.split(':'); portal.buy('look-' + slot + '-' + j, ok => { if (!ok) return notOpen(); give(slot, +j); renderShop(); ward.render(); toast('Yours: wear it from the wardrobe'); }); });
+{ const prev = rollSeason({ crowns, setCrowns, titleOf }); if (prev) setTimeout(() => toast(`Season ${seasonNow().n} has begun! Your crowns were halved for a fresh climb`), 1500); renderMissSub(); showFmtRank(); }
 let lastStart = () => soloStart();
 function playStart() {
   const pick = a => a[(Math.random() * a.length) | 0];

@@ -12,8 +12,8 @@
 <link rel="icon" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <title>Rally</title>
-  <script type="module" crossorigin src="./assets/index-C3vFoQeI.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-Z7bRWABw.css">
+  <script type="module" crossorigin src="./assets/index-CLglnkYR.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-Cg8sUMV6.css">
 </head>
 <body>
 <div id="app">
@@ -97,8 +97,8 @@
       <nav class="hleft" aria-label="Your captain and more">
         <button type="button" class="hbtn" id="wardBtn"><b>Captain</b><small>Dress him up</small></button>
         <button type="button" class="hbtn" id="friendsBtn"><b>Friends</b><small id="friendsSub">Play together</small></button>
-        <button type="button" class="hbtn soon" disabled><b>Missions</b><small>Coming soon</small></button>
-        <button type="button" class="hbtn soon" disabled><b>Shop</b><small>Coming soon</small></button>
+        <button type="button" class="hbtn" id="missBtn"><b>Missions</b><small id="missSub">Season 1</small></button>
+        <button type="button" class="hbtn" id="shopBtn"><b>Shop</b><small>Looks, never strength</small></button>
       </nav>
       <button type="button" class="pedestal" id="pedL" aria-label="Play with a friend"><span>+</span></button>
       <button type="button" class="pedestal" id="pedR" aria-label="Play with a friend"><span>+</span></button>
@@ -127,6 +127,23 @@
       <p class="wsub" id="fNote"></p>
       <div class="flist" id="fReqs"></div>
       <div class="flist" id="fList"></div>
+    </div>
+    <!-- missions and the season: today's three missions, the season's stars and its two reward tracks -->
+    <div class="ward fpanel" id="missPanel" hidden>
+      <div class="whead"><h2 id="seasonT">Season 1</h2><button type="button" class="go" id="missDone">Done</button></div>
+      <div class="seabar"><div><b id="tierN">Tier 0</b><small id="seasonLeft"></small></div><i><span id="tierFill"></span></i><small id="tierStars"></small></div>
+      <p class="wsub">Today's missions · <span id="missReset"></span></p>
+      <div class="flist" id="missList"></div>
+      <p class="wsub">Rewards</p>
+      <div class="flist" id="trackList"></div>
+      <button type="button" class="go" id="passBtn">Get the Gold track</button>
+      <p class="wsub" id="seasonRec"></p>
+    </div>
+    <!-- the shop: looks only -->
+    <div class="ward fpanel" id="shopPanel" hidden>
+      <div class="whead"><h2>Shop</h2><button type="button" class="go" id="shopDone">Done</button></div>
+      <p class="wsub">Looks only. Nothing here makes you hit harder, run faster or live longer.</p>
+      <div class="flist" id="shopList"></div>
     </div>
     <div class="toast" id="inviteToast" hidden><span id="inviteT"></span><button type="button" class="go" id="inviteYes">Join</button><button type="button" class="go ghost" id="inviteNo">Later</button></div>
     <!-- the wardrobe: each piece on its own; the army wears its captain's helmet, armour, shield and weapon -->
@@ -331,6 +348,7 @@
       <div>
         <h2 class="logo" id="endTitle"><span>Victory</span></h2>
         <p id="endText"></p>
+        <p class="endseason" id="endSeason" hidden></p>
         <p class="myrate" id="myRate" hidden><b id="myRateN"></b><span id="myRateT"></span></p>
         <p class="quip" id="endQuip"></p>
         <ul class="moments" id="endMoments" hidden></ul>

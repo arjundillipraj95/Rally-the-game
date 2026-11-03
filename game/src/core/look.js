@@ -7,15 +7,16 @@ import { G } from './state.js';
 
 // The catalog. Each slot lists its items; an item's place in the list is what an outfit stores, so new
 // items go on the end (an outfit saved today keeps meaning the same thing). An item can carry `lock`:
-// { rank: n } (earned by rank), { shop: true } or { season: n }: the wardrobe shows how to get it.
+// { rank: n } (earned by rank), { feat, n, text } (done n times), { season, tier } (the season's free
+// track), { pass, tier } (its Gold track) or { shop }: the wardrobe shows how to get it (ui/season.js).
 // `army: true` slots are worn by the whole army; the rest by the captain alone.
 export const SLOTS = [
-  { id: 'helm', name: 'Helmet', army: true, items: [{ name: 'Galea' }, { name: 'Corinthian' }, { name: 'Wild hair' }] },
-  { id: 'armour', name: 'Armour', army: true, items: [{ name: 'Steel bands' }, { name: 'Bronze' }, { name: 'Leather & fur' }] },
+  { id: 'helm', name: 'Helmet', army: true, items: [{ name: 'Galea' }, { name: 'Corinthian' }, { name: 'Wild hair' }, { name: 'Gilded galea', lock: { season: 1, tier: 4 } }, { name: 'Headsman hood', lock: { feat: 'exec', n: 50, text: '50 executions' } }] },
+  { id: 'armour', name: 'Armour', army: true, items: [{ name: 'Steel bands' }, { name: 'Bronze' }, { name: 'Leather & fur' }, { name: 'Black steel', lock: { shop: true, price: '$1.99' } }] },
   { id: 'shield', name: 'Shield', army: true, items: [{ name: 'Tower' }, { name: 'Hoplon' }, { name: 'Wooden round' }] },
   { id: 'emblem', name: 'Emblem', army: true, items: [{ name: 'Eagle' }, { name: 'Sun' }, { name: 'Thunder' }] },
   { id: 'weapon', name: 'Weapon', army: true, items: [{ name: 'Gladius' }, { name: 'Long blade' }, { name: 'Axe' }] },
-  { id: 'cape', name: 'Cape', items: [{ name: 'Long cape' }, { name: 'Short cape' }, { name: 'Fur mantle' }] },
+  { id: 'cape', name: 'Cape', items: [{ name: 'Long cape' }, { name: 'Short cape' }, { name: 'Fur mantle' }, { name: 'Ermine cape', lock: { pass: true, tier: 6 } }] },
   { id: 'face', name: 'Face', items: [{ name: 'Clean' }, { name: 'Bearded' }, { name: 'Big beard' }] },
 ];
 for (const s of SLOTS) s.opts = s.items.map(i => i.name); // (the plain names, for older code)
@@ -38,7 +39,7 @@ export const lookOfFaction = f => { const b = { roman: 0, greek: 1, barbarian: 2
 export function randomLook(seed) {
   let s = (seed >>> 0) || 1; const r = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
   const base = (r() * 3) | 0;
-  return SLOTS.map(sl => r() < .65 ? base % sl.opts.length : (r() * sl.opts.length) | 0);
+  return SLOTS.map(sl => { const free = sl.items.length - sl.items.filter(i => i.lock).length; return r() < .65 ? base % free : (r() * free) | 0; }); // (computer captains never wear the earned pieces; locked items sit at the end of each list)
 }
 // every army in the battle: the players' own picks, computer captains a random outfit from the seed
 export function assignLooks(chosen, seed) { return Array.from({ length: 12 }, (_, ti) => chosen[ti] || randomLook(seed * 31 + ti * 7919 + 1)); }

@@ -170,7 +170,7 @@ export function clientStart(hp) {
   G.duo = duoParse(hp.duo);
   G.layout = makeLayout(G.map.id, G.mode === 'ctf', G.mode === 'ctrl', G.seed); buildNav(G.layout);
   G.units = []; G.horses = []; G.arrows = [];
-  G.T = 0; G.kills = 0; G.recruited = 0; G.bounty = -1; G.endInfo = null; G.awarded = false;
+  G.T = 0; G.kills = 0; G.recruited = 0; G.bounty = -1; G.endInfo = null; G.awarded = false; G.seasoned = false;
   const humans = new Array(ARMIES).fill(0); Object.values(hp.seats || {}).forEach(ti => humans[ti] = 1);
   const active = activeFrom(G.duo);
   G.teams = newTeams(humans, active);

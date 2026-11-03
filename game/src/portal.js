@@ -54,6 +54,12 @@ export const portal = {
   happytime: () => call(s => s.game.happytime()),
   // Between battles. `done` always runs exactly once: straight away when ads are off or unavailable,
   // otherwise after the ad finishes or fails. The game is muted and paused while it plays.
+  // Buying something (the season's Gold track, a look from the shop). Not open yet: it will go through
+  // the games site's own purchases once the developer account allows it. `done(true)` only when paid.
+  buy(sku, done) {
+    if (window.__PURCHASE) { window.__PURCHASE(sku, done); return; } // (a later provider, or a test, plugs in here)
+    done(false);
+  },
   midgameAd(done) {
     let fired = false; const finish = () => { if (fired) return; fired = true; hooks.pause(false); hooks.mute(siteMuted); done(); };
     if (!ADS_ENABLED || !sdk) { finish(); return; }

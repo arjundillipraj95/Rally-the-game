@@ -549,3 +549,14 @@
 .hbtn .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#3ad16b;margin-left:6px;vertical-align:2px;}
 .fmtrank{font:700 12px var(--body);color:#fff;text-align:center;text-shadow:0 1px 2px rgba(0,0,0,.6);} .fmtrank b{color:var(--gold);} .fmtrank span{color:var(--dim);}
 @media (max-height:340px){ .fmtrank span{display:none;} }
+
+/* missions and the season */
+.seabar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;}
+.seabar b{font:400 20px var(--display);font-style:italic;color:var(--gold);display:block;line-height:1;} .seabar small{font:700 11px var(--body);color:var(--dim);letter-spacing:.04em;}
+.seabar i{height:10px;border-radius:5px;background:rgba(255,255,255,.12);overflow:hidden;} .seabar i span{display:block;height:100%;background:var(--gold);}
+.mrow{grid-template-columns:1fr auto;} .mrow b{font-size:14px;} .mrow em{font:800 13px var(--body);font-style:normal;color:var(--gold);}
+.mrow.done{opacity:.6;} .mrow.done em{color:#3ad16b;}
+.trow{grid-template-columns:auto 1fr auto;} .trow .tg{font:800 10px var(--body);letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:999px;background:rgba(255,255,255,.12);}
+.trow .tg.gold{background:var(--gold);color:#141312;} .trow em{font:800 12px var(--body);font-style:normal;color:var(--dim);} .trow.have em{color:#3ad16b;}
+#passBtn{align-self:flex-start;font-size:16px;padding:6px 16px;} #passBtn[disabled]{opacity:.5;}
+.endseason{font:700 13px var(--body);color:var(--gold);margin:4px 0 0;}
