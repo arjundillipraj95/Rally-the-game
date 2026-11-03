@@ -347,9 +347,10 @@ function buildCrownRiver(world, V) {
   water.receiveShadow = true; world.add(water);
   for (const b of V.bridges) {
     const y = groundY(b.x + Math.cos(b.a) * (b.len + 1), b.z + Math.sin(b.a) * (b.len + 1)), grp = new THREE.Group();
-    const deck = new THREE.Mesh(uvScale(new THREE.BoxGeometry(b.len * 2 + 2, .3, b.hw * 2 + .4), 5, 2), woodMat); deck.position.y = .12; grp.add(deck);
-    for (const s of [-1, 1]) { const rail = new THREE.Mesh(new THREE.BoxGeometry(b.len * 2 + 2, .16, .16), woodDark); rail.position.set(0, .95, s * (b.hw + .1)); grp.add(rail);
-      for (let k = -2; k <= 2; k++) { const post = new THREE.Mesh(new THREE.BoxGeometry(.18, .95, .18), woodDark); post.position.set(k * b.len / 2.2, .5, s * (b.hw + .1)); grp.add(post); } }
+    const deck = new THREE.Mesh(uvScale(new THREE.BoxGeometry(b.len * 2 + 2, .3, b.hw * 2 + .4), 5, b.big ? 4 : 2), b.big ? stoneMat : woodMat); deck.position.y = .12; grp.add(deck);
+    if (b.big) for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const p = new THREE.Mesh(new THREE.BoxGeometry(.9, 1.8, .9), stoneDark); p.position.set(sx * (b.len + .6), .9, sz * (b.hw + .3)); grp.add(p); } // (the great bridge: stone, with posts at each end)
+    for (const s of [-1, 1]) { const rail = new THREE.Mesh(b.big ? new THREE.BoxGeometry(b.len * 2 + 2, .7, .4) : new THREE.BoxGeometry(b.len * 2 + 2, .16, .16), b.big ? stoneDark : woodDark); rail.position.set(0, b.big ? .5 : .95, s * (b.hw + .1)); grp.add(rail);
+      if (!b.big) for (let k = -2; k <= 2; k++) { const post = new THREE.Mesh(new THREE.BoxGeometry(.18, .95, .18), woodDark); post.position.set(k * b.len / 2.2, .5, s * (b.hw + .1)); grp.add(post); } }
     grp.position.set(b.x, y, b.z); grp.rotation.y = -b.a; world.add(shadowy(grp));
   }
   const stoneM = lam(0x9a9b94, stoneTex());

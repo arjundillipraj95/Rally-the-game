@@ -279,7 +279,9 @@ function crownRiver(L, r) {
   const ts = [t0 + span * r(.14, .24), t0 + span * r(.44, .56), t0 + span * r(.76, .86)];
   const kinds = r(0, 1) < .5 ? ['bridge', 'ford', 'bridge'] : ['ford', 'bridge', 'bridge'];
   const bridges = [], fords = [];
-  ts.forEach((t, i) => { const p = at(t); if (kinds[i] === 'bridge') bridges.push({ x: p.x, z: p.z, a: p.a, hw: 2.3, len: w + 2.5 }); else fords.push({ x: p.x, z: p.z, r: 6, a: p.a }); });
+  // one great bridge (five men abreast: the main road over) and one narrow one (two men: easy to hold)
+  const big = r(0, 1) < .5 ? 0 : 1;
+  ts.forEach((t, i) => { const p = at(t); if (kinds[i] === 'bridge') { const k = bridges.length; bridges.push({ x: p.x, z: p.z, a: p.a, hw: k === big ? 4.4 : 1.9, len: w + 2.5, big: k === big }); } else fords.push({ x: p.x, z: p.z, r: 6, a: p.a }); });
   L.river = { pts, w, bridges, fords };
   return (x, z, pad) => distToLine(pts, x, z) > w + pad; // (clear of the water)
 }
