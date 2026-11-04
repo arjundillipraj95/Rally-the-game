@@ -177,6 +177,7 @@ export function recruit(ti, kind) {
   s.gold -= cost;
   if (merc) { const L = s.leader, a = rnd(0, 6.28); mkUnit(ti, L.x + Math.cos(a) * 2.5, L.z + Math.sin(a) * 2.5, kind); } // (a sellsword, wherever you are)
   else { const [gx, gz] = homeAt(ti); mkUnit(ti, gx, gz, kind); } // (from the place you hold nearest you)
+  s.recruits = (s.recruits | 0) + 1; // (this army's recruits, for the results table)
   if (ti === G.myTi) { G.recruited++; sound('coin'); }
   return true;
 }

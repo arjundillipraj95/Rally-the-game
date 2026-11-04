@@ -17,5 +17,6 @@ await page.screenshot({ path: OUT + 'rep_caps.png' });
 await page.click('.etabs [data-t="aw"]'); await frames(page, 2);
 await page.screenshot({ path: OUT + 'rep_aw.png' });
 const r = await page.evaluate(() => ({ rows: [...document.querySelectorAll('.crow')].map(t => t.innerText.replace(/\s+/g, ' ')), retro: [...document.querySelectorAll('.retro')].map(t => t.innerText.replace(/\s+/g, ' ')), aw: [...document.querySelectorAll('.acard')].map(t => t.innerText.replace(/\s+/g, ' ')), tl: [...document.querySelectorAll('.tline li')].length, T: window.__fb.G.T, st: window.__fb.G.teams.map(s => s.active ? [s.earned|0, s.dist|0, s.gold|0] : null) }));
+await page.click('.etabs [data-t="caps"]'); console.log('table head', await page.evaluate(() => document.querySelector('.ctab thead').innerText.replace(/\s+/g, ' ')), '| row', await page.evaluate(() => document.querySelector('.crow.me').innerText.replace(/\s+/g, ' ')));
 console.log(JSON.stringify(r, null, 1), 'errors:', errs.slice(0, 3));
 await browser.close();

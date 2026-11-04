@@ -31,7 +31,7 @@ function statsOf(i, w) {
     i, capK, menK, kills: capK + menK, falls: s.falls | 0, lost: s.lost | 0,
     earned: Math.round(s.earned || 0), purse: Math.round(s.endGold ?? s.gold ?? 0), dist: Math.round(s.dist || 0),
     castle: h.castle | 0, hold: h.hold | 0, chest: h.chest | 0, duel: h.duel | 0, exec: h.exec | 0, ride: h.ridedown | 0,
-    capkill: h.capkill | 0, streak: h.streak | 0, disarm: h.disarm | 0, crown: h.crown | 0,
+    recruits: s.recruits | 0, capkill: h.capkill | 0, streak: h.streak | 0, disarm: h.disarm | 0, crown: h.crown | 0,
     result: w < 0 ? 'draw' : G.ALLY[colorOf(i)] === w ? 'win' : 'lose',
   };
 }
@@ -155,14 +155,14 @@ export function myLine(rep) {
   return { me, text: `${ordinal(me.place)} of ${rep.rows.length}` };
 }
 export function renderCaptains(el, rep) {
-  el.innerHTML = `<table class="ctab"><thead><tr><th></th><th class="nm">Captain</th><th>Rating</th><th>Kills</th><th>Army</th><th>Fell</th><th>Lost</th><th>Gold</th></tr></thead><tbody>${rep.rows.map(r => `
+  el.innerHTML = `<table class="ctab"><thead><tr><th></th><th class="nm">Captain</th><th>Rating</th><th>Kills</th><th>Army kills</th><th>Recruited</th><th>Fell</th><th>Lost</th><th>Gold</th></tr></thead><tbody>${rep.rows.map(r => `
     <tr class="crow${r.i === G.myTi ? ' me' : ''}" data-i="${r.i}" tabindex="0">
       <td class="pl">${MEDAL[r.place - 1] || r.place}</td>
       <td class="nm"><i style="background:${r.css}"></i>${esc(r.name)}${r.mvp ? ' <em class="mvp">MVP</em>' : ''}${(r.awards || []).map(a => ` <em class="aw${a.honour ? '' : ' roast'}">${esc(a.name)}</em>`).join('')}</td>
       <td><b class="rt${r.rating >= 8 ? ' hi' : r.rating < 4 ? ' lo' : ''}">${r.rating.toFixed(1)}</b></td>
-      <td>${r.capK}</td><td>${r.menK}</td><td>${r.falls}</td><td>${r.lost}</td><td>${r.earned}</td>
+      <td>${r.capK}</td><td>${r.menK}</td><td>${r.recruits}</td><td>${r.falls}</td><td>${r.lost}</td><td>${r.earned}</td>
     </tr>
-    <tr class="retro" data-for="${r.i}" hidden><td></td><td colspan="7"><span class="g">👍 ${esc(r.good)}</span><span class="b">👎 ${esc(r.bad)}</span></td></tr>`).join('')}</tbody></table>
+    <tr class="retro" data-for="${r.i}" hidden><td></td><td colspan="9"><span class="g">👍 ${esc(r.good)}</span><span class="b">👎 ${esc(r.bad)}</span></td></tr>`).join('')}</tbody></table>
     <small class="hint">Tap a captain for his retrospect</small>`;
   el.querySelectorAll('.crow').forEach(tr => {
     const toggle = () => { const rt = el.querySelector(`.retro[data-for="${tr.dataset.i}"]`); rt.hidden = !rt.hidden; tr.classList.toggle('open', !rt.hidden); };
