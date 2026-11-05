@@ -1311,17 +1311,19 @@ function holdsTick(dt) {
     if (G.crown && h.kind === 'plaza' && h.chest !== 2) { h.contested = false; h.prog = 0; h.cap = -1; continue; } // (the plaza is only up for grabs with the war chest in it)
     if (G.crown && h.kind === 'castle' && h.owner >= 0 && G.T < CROWN.siege) { h.contested = false; h.prog = 0; h.cap = -1; h.safe = true; crownIncome(h, dt); continue; } // (a held castle can't be stormed before the siege)
     h.safe = false;
+    const locked = G.crown && (h.lockT || 0) > G.T; // (just taken: the new owner holds it a while)
     const n = new Map(), count = u => { if (u.dead || u.routing || Math.hypot(u.x - h.x, u.z - h.z) > h.r) return; const a = allianceOf(u.ti); n.set(a, (n.get(a) || 0) + 1); };
     if (gridOk()) eachNear(h.x, h.z, h.r, count); else for (const u of G.units) count(u);
     h.contested = n.size > 1;
-    if (n.size === 1) {
+    if (locked) { h.prog = 0; h.cap = -1; }
+    else if (n.size === 1) {
       const [a] = n.keys();
       if (a === h.owner) { h.prog = 0; h.cap = -1; }
       else {
         if (h.cap !== a) { h.cap = a; h.prog = 0; }
         h.prog += dt / (HOLDS.capture * (h.chest === 2 ? CHEST.hold : 1) * (h.kind === 'castle' ? CROWN.castleTake : h.kind === 'mine' ? 1.3 : 1)) * Math.min(2, .6 + n.get(a) / 5); // (more men take it quicker; the war chest takes holding)
         if (h.prog >= 1) {
-          h.owner = a; h.prog = 0; h.cap = -1; h.tick = 0; say('holdTaken', a, h.kind, h.id); for (const i of sideArmies(a)) hl(i, h.kind === 'castle' ? 'castle' : 'hold');
+          h.owner = a; h.prog = 0; h.cap = -1; h.tick = 0; if (G.crown) h.lockT = G.T + CROWN.lockout; say('holdTaken', a, h.kind, h.id); for (const i of sideArmies(a)) hl(i, h.kind === 'castle' ? 'castle' : 'hold');
           if (G.crown) { for (const s of G.teams) s.homeSpot = null; for (const u of G.units) u.runTo = null; if (G.cgates[h.id]) G.cgates[h.id] = freshGates(G.cgates[h.id].lv | 0); applyCastleGates(); }
           if (h.chest === 2) chestTaken(h, a);
           G.teams.forEach(s => { if (!s.human) s.thinkT = Math.min(s.thinkT, rnd(.5, 2)); });

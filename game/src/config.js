@@ -30,6 +30,7 @@ export const MODES = {
 // The Crown: the online mode's ten minutes, in phases. Times in seconds.
 export const CROWN = {
   lms: { ringEnd: 45, ringTime: 75, ringDmg: 7, overtime: 90 }, // (Last Man Standing, the test variant: the ring closes to 45 m over 75 s, so the plaza and the mines stay inside; outside it hurts)
+  lockout: 75, // (a place just taken can't be taken back for this long: no flipping every few seconds)
   breakout: 15, rise: 60, siege: 240, chest: 360, crown: 540, // (break-out countdown, claim a castle, castles stormable, war chest, the Crown)
   base: 10, perCastle: 5, perVillage: 3, // army size: every captain's, plus his side's places
   startMen: 3, merc: 1.6, // (men he starts with; a recruit with no place held costs this much more and only fills the base 10)
