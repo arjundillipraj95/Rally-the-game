@@ -22,7 +22,7 @@ await page.click('#passBtn'); await frames(page, 2); console.log('toast', await 
 await page.evaluate(() => { window.__PURCHASE = (sku, done) => done(true); });
 await page.click('#passBtn'); await frames(page, 2); console.log('pass', await page.evaluate(() => document.getElementById('passBtn').textContent), await page.evaluate(() => document.getElementById('trackList').innerText.replace(/\s+/g, ' ')));
 await page.click('#missDone'); await page.click('#shopBtn'); await frames(page, 2);
-await page.click('[data-buy]'); await frames(page, 2); console.log('shop', await page.evaluate(() => document.getElementById('shopList').innerText.replace(/\s+/g, ' ')));
+await page.click('[data-buy="armour:3"]'); await frames(page, 2); console.log('shop', await page.evaluate(() => document.getElementById('shopList').innerText.replace(/\s+/g, ' ')));
 await page.click('#shopDone'); await page.click('#wardBtn'); await frames(page, 5);
 for (const [c, v] of [['helm', 3], ['armour', 3], ['cape', 3]]) if (await page.$(`.wcats [data-c="${c}"]`)) { await page.click(`.wcats [data-c="${c}"]`); await page.click(`.witem[data-i="${v}"]`); }
 await page.click('.wcats [data-c="helm"]'); await frames(page, 40);

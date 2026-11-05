@@ -56,6 +56,12 @@ const GEO = {
   hair: new THREE.SphereGeometry(.45, 18, 10, 0, Math.PI * 2, 0, Math.PI * .55),
   beard: ellip(.23, .17, .12),
   hand: new THREE.SphereGeometry(.12, 8, 6),
+  greathelm: new THREE.CylinderGeometry(.45, .47, .72, 16),
+  slit: new THREE.BoxGeometry(.5, .07, .05), bar: new THREE.BoxGeometry(.07, .5, .05),
+  visor: new THREE.BoxGeometry(.52, .26, .12),
+  laurel: new THREE.TorusGeometry(.43, .06, 5, 18),
+  plume: (() => { const g = new THREE.SphereGeometry(1, 10, 8); g.scale(.07, .42, .2); return g; })(),
+  wing: (() => { const g = new THREE.SphereGeometry(1, 10, 6); g.scale(.34, .06, .16); return g; })(),
   circlet: new THREE.TorusGeometry(.42, .045, 8, 22),
   mantle: (() => { const g = new THREE.TorusGeometry(.42, .14, 6, 14); g.rotateX(Math.PI / 2); return g; })(),
   face: new THREE.PlaneGeometry(.58, .3),
@@ -153,6 +159,7 @@ const crestCol = u => CREST_C[(G.crests && G.crests[u.ti]) || 0] || CREST_C[0];
 const MELEE = K('foot', 'captain'), HELMED = K('foot', 'captain');
 // the earned pieces (core/look.js: Gilded galea, Headsman hood, Black steel, Ermine cape)
 const GILT = new THREE.Color(0xe0b040), IRON = new THREE.Color(0x3a3c42), HOOD = new THREE.Color(0x1d1b1a), ERMINE = new THREE.Color(0xf2efe6);
+const PELT = new THREE.Color(0x7a6c5e), SILVER = new THREE.Color(0xe3e7ee), LEAF = new THREE.Color(0x5f8f3a), NIGHT = new THREE.Color(0x14120f);
 const armed = u => u.tier >= 1; // Footman/captain Arms upgrade: spear + javelin
 const armored = u => u.tier >= 2; // Footman/captain Armor upgrade: extra plate
 // what's in the weapon hand: a player captain shows the weapon they picked; everyone else by tier
@@ -185,17 +192,17 @@ const PARTS = [
   { bone: 'body', geo: 'head', mat: 'plain', m: e(0, 1.78, 0), col: skinOf },
   ...EXPRS.map(k => ({ bone: 'body', geo: 'face', mat: 'face_' + k, m: e(0, 1.73, .39), t: u => exprOf(u) === k })),
   // archers (every faction)
-  { bone: 'body', geo: 'hood', mat: 'plain', m: e(0, 1.82, -.02), k: K('arch'), s: S('helm', 0, 2, 3), col: team },
+  { bone: 'body', geo: 'hood', mat: 'plain', m: e(0, 1.82, -.02), k: K('arch'), s: S('helm', 0, 2, 3, 5, 6, 8, 10, 11, 12), col: team },
   { bone: 'body', geo: 'hood', mat: 'plain', m: e(0, 1.82, -.02), s: S('helm', 4), col: () => HOOD },
   { bone: 'body', geo: 'helm', mat: 'plain', m: e(0, 1.9, 0, 0, 0, 0, .8, .7, .8), k: K('arch'), s: S('helm', 1), col: () => C.leather },
   { bone: 'body', geo: 'brim', mat: 'plain', m: e(0, 1.98, 0), k: K('arch'), s: S('helm', 1), col: team },
   { bone: 'body', geo: 'quiver', mat: 'plain', m: e(.2, 1.25, -.42, 0, 0, .4), k: K('arch'), col: () => C.leather },
   // Roman galea
-  { bone: 'body', geo: 'helm', mat: 'metal', m: e(0, 1.86, 0), s: S('helm', 0), k: HELMED, col: () => C.steel },
+  { bone: 'body', geo: 'helm', mat: 'metal', m: e(0, 1.86, 0), s: S('helm', 0, 10), k: HELMED, col: () => C.steel },
   { bone: 'body', geo: 'helm', mat: 'metal', m: e(0, 1.86, 0), s: S('helm', 3), k: HELMED, col: () => GILT },
-  { bone: 'body', geo: 'cheek', mat: 'metal', m: e(.34, 1.64, .12, 0, 0, .12), s: S('helm', 0), k: HELMED, col: () => C.steel },
+  { bone: 'body', geo: 'cheek', mat: 'metal', m: e(.34, 1.64, .12, 0, 0, .12), s: S('helm', 0, 10), k: HELMED, col: () => C.steel },
   { bone: 'body', geo: 'cheek', mat: 'metal', m: e(.34, 1.64, .12, 0, 0, .12), s: S('helm', 3), k: HELMED, col: () => GILT },
-  { bone: 'body', geo: 'cheek', mat: 'metal', m: e(-.34, 1.64, .12, 0, 0, -.12), s: S('helm', 0), k: HELMED, col: () => C.steel },
+  { bone: 'body', geo: 'cheek', mat: 'metal', m: e(-.34, 1.64, .12, 0, 0, -.12), s: S('helm', 0, 10), k: HELMED, col: () => C.steel },
   { bone: 'body', geo: 'cheek', mat: 'metal', m: e(-.34, 1.64, .12, 0, 0, -.12), s: S('helm', 3), k: HELMED, col: () => GILT },
   { bone: 'body', geo: 'crest', mat: 'plain', m: e(0, 2.36, 0), s: S('helm', 0), k: K('foot'), t: u => !armed(u), col: team },
   { bone: 'body', geo: 'crest', mat: 'plain', m: e(0, 2.36, 0), s: S('helm', 3), k: K('foot'), t: u => !armed(u), col: team },
@@ -210,6 +217,39 @@ const PARTS = [
   { bone: 'body', geo: 'cheek', mat: 'metal', m: e(-.33, 1.62, .18, 0, 0, -.1), s: S('helm', 1), k: HELMED, col: () => C.bronze },
   { bone: 'body', geo: 'crest', mat: 'plain', m: e(0, 2.4, -.04, 0, 0, 0, 1.3, 1.6, 1.3), s: S('helm', 1), k: K('foot', 'spear'), col: team },
   { bone: 'body', geo: 'crest', mat: 'plain', m: e(0, 2.42, -.04, 0, 0, 0, 1.45, 1.7, 1.35), s: S('helm', 1), k: K('captain'), col: crestCol },
+  // Nasal helm: a steel cone with a nose guard. Leather cap: a plain stitched dome.
+  { bone: 'body', geo: 'cone', mat: 'metal', m: e(0, 2.2, 0, 0, 0, 0, 1, .9, 1), s: S('helm', 5), k: HELMED, col: () => C.steel },
+  { bone: 'body', geo: 'nose', mat: 'metal', m: e(0, 1.76, .43), s: S('helm', 5), k: HELMED, col: () => C.steel },
+  { bone: 'body', geo: 'knob', mat: 'metal', m: e(0, 2.55, 0), s: S('helm', 5), k: HELMED, col: () => C.bronze },
+  { bone: 'body', geo: 'helm', mat: 'plain', m: e(0, 1.86, 0, 0, 0, 0, .96, .8, .96), s: S('helm', 6), k: HELMED, col: () => C.leather },
+  { bone: 'body', geo: 'brim', mat: 'plain', m: e(0, 1.9, 0, 0, 0, 0, .8, 1, .8), s: S('helm', 6), k: HELMED, col: () => C.leather },
+  // Wolf pelt: a grey hood with ears and a muzzle over the brow
+  { bone: 'body', geo: 'hood', mat: 'plain', m: e(0, 1.84, -.02, 0, 0, 0, 1.04, 1.02, 1.04), s: S('helm', 7), col: () => PELT },
+  { bone: 'body', geo: 'tip', mat: 'plain', m: e(.22, 2.26, -.04, 0, 0, -.3, .9, .9, .9), s: S('helm', 7), col: () => PELT },
+  { bone: 'body', geo: 'tip', mat: 'plain', m: e(-.22, 2.26, -.04, 0, 0, .3, .9, .9, .9), s: S('helm', 7), col: () => PELT },
+  { bone: 'body', geo: 'nose', mat: 'plain', m: e(0, 2.02, .4, 1.25), s: S('helm', 7), col: () => PELT },
+  // Warden's great helm: a flat-topped steel bucket, an eye slit and a bar down the face
+  { bone: 'body', geo: 'greathelm', mat: 'metal', m: e(0, 1.92, 0), s: S('helm', 8), k: HELMED, col: () => C.steel },
+  { bone: 'body', geo: 'slit', mat: 'plain', m: e(0, 1.95, .44), s: S('helm', 8), k: HELMED, col: () => NIGHT },
+  { bone: 'body', geo: 'bar', mat: 'metal', m: e(0, 1.82, .45), s: S('helm', 8), k: HELMED, col: () => C.bronze },
+  // Laurel wreath: a gold-green ring on a bare head
+  { bone: 'body', geo: 'laurel', mat: 'plain', m: e(0, 1.96, -.02, Math.PI / 2), s: S('helm', 9), col: () => LEAF },
+  { bone: 'body', geo: 'knob', mat: 'metal', m: e(0, 1.98, .42), s: S('helm', 9), col: () => GILT },
+  // Plumed galea: the steel galea (rows above), a tall plume in the army's colour
+  { bone: 'body', geo: 'plume', mat: 'plain', m: e(0, 2.52, -.08, -.35), s: S('helm', 10), k: K('foot'), col: team },
+  { bone: 'body', geo: 'plume', mat: 'plain', m: e(0, 2.52, -.08, -.35, 0, 0, 1.2, 1.15, 1.2), s: S('helm', 10), k: K('captain'), col: crestCol },
+  // Winged helm: a silver helm with swept wings
+  { bone: 'body', geo: 'helm', mat: 'metal', m: e(0, 1.86, 0), s: S('helm', 11), k: HELMED, col: () => SILVER },
+  { bone: 'body', geo: 'cheek', mat: 'metal', m: e(.34, 1.64, .12, 0, 0, .12), s: S('helm', 11), k: HELMED, col: () => SILVER },
+  { bone: 'body', geo: 'cheek', mat: 'metal', m: e(-.34, 1.64, .12, 0, 0, -.12), s: S('helm', 11), k: HELMED, col: () => SILVER },
+  { bone: 'body', geo: 'wing', mat: 'metal', m: e(.5, 2.1, -.02, 0, 0, .55), s: S('helm', 11), k: HELMED, col: () => ERMINE },
+  { bone: 'body', geo: 'wing', mat: 'metal', m: e(-.5, 2.1, -.02, 0, 0, -.55), s: S('helm', 11), k: HELMED, col: () => ERMINE },
+  // Black visor helm: dark steel with a closed visor
+  { bone: 'body', geo: 'helm', mat: 'metal', m: e(0, 1.86, 0), s: S('helm', 12), k: HELMED, col: () => IRON },
+  { bone: 'body', geo: 'visor', mat: 'metal', m: e(0, 1.8, .38), s: S('helm', 12), k: HELMED, col: () => IRON },
+  { bone: 'body', geo: 'slit', mat: 'plain', m: e(0, 1.82, .445), s: S('helm', 12), k: HELMED, col: () => NIGHT },
+  { bone: 'body', geo: 'cheek', mat: 'metal', m: e(.34, 1.64, .12, 0, 0, .12), s: S('helm', 12), k: HELMED, col: () => IRON },
+  { bone: 'body', geo: 'cheek', mat: 'metal', m: e(-.34, 1.64, .12, 0, 0, -.12), s: S('helm', 12), k: HELMED, col: () => IRON },
   // barbarians: hair, beards, a gold circlet and fur mantle for the chief
   { bone: 'body', geo: 'hair', mat: 'plain', m: e(0, 1.82, -.03), s: S('helm', 2), k: HELMED, col: hairOf },
   { bone: 'body', geo: 'beard', mat: 'plain', m: e(0, 1.55, .3, .15), s: S('helm', 2), k: K('foot'), col: hairOf },

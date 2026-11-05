@@ -11,7 +11,9 @@ import { G } from './state.js';
 // track), { pass, tier } (its Gold track) or { shop }: the wardrobe shows how to get it (ui/season.js).
 // `army: true` slots are worn by the whole army; the rest by the captain alone.
 export const SLOTS = [
-  { id: 'helm', name: 'Helmet', army: true, items: [{ name: 'Galea' }, { name: 'Corinthian' }, { name: 'Wild hair' }, { name: 'Gilded galea', lock: { season: 1, tier: 4 } }, { name: 'Headsman hood', lock: { feat: 'exec', n: 50, text: '50 executions' } }] },
+  { id: 'helm', name: 'Helmet', army: true, items: [{ name: 'Galea' }, { name: 'Corinthian' }, { name: 'Wild hair' }, { name: 'Gilded galea', lock: { season: 1, tier: 4 } }, { name: 'Headsman hood', lock: { feat: 'exec', n: 50, text: '50 executions' } },
+    // (new pieces go on the end, so saved outfits and owned items keep their numbers)
+    { name: 'Nasal helm' }, { name: 'Leather cap' }, { name: 'Wolf pelt', lock: { feat: 'duel', n: 15, text: 'Win 15 duels' } }, { name: 'Warden\'s great helm', lock: { feat: 'castle', n: 20, text: 'Take 20 castles' } }, { name: 'Laurel wreath', lock: { feat: 'crown', n: 5, text: 'Carry the Crown 5 times' } }, { name: 'Plumed galea', lock: { season: 1, tier: 12 } }, { name: 'Winged helm', lock: { pass: true, tier: 10 } }, { name: 'Black visor helm', lock: { shop: true, price: '$1.49' } }] },
   { id: 'armour', name: 'Armour', army: true, items: [{ name: 'Steel bands' }, { name: 'Bronze' }, { name: 'Leather & fur' }, { name: 'Black steel', lock: { shop: true, price: '$1.99' } }] },
   { id: 'shield', name: 'Shield', army: true, items: [{ name: 'Tower' }, { name: 'Hoplon' }, { name: 'Wooden round' }] },
   { id: 'emblem', name: 'Emblem', army: true, items: [{ name: 'Eagle' }, { name: 'Sun' }, { name: 'Thunder' }] },
@@ -39,7 +41,7 @@ export const lookOfFaction = f => { const b = { roman: 0, greek: 1, barbarian: 2
 export function randomLook(seed) {
   let s = (seed >>> 0) || 1; const r = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
   const base = (r() * 3) | 0;
-  return SLOTS.map(sl => { const free = sl.items.length - sl.items.filter(i => i.lock).length; return r() < .65 ? base % free : (r() * free) | 0; }); // (computer captains never wear the earned pieces; locked items sit at the end of each list)
+  return SLOTS.map(sl => { const fr = sl.items.map((_, i) => i).filter(i => !sl.items[i].lock); return fr[r() < .65 ? base % fr.length : (r() * fr.length) | 0]; }); // (computer captains never wear the earned pieces)
 }
 // every army in the battle: the players' own picks, computer captains a random outfit from the seed
 export function assignLooks(chosen, seed) { return Array.from({ length: 12 }, (_, ti) => chosen[ti] || randomLook(seed * 31 + ti * 7919 + 1)); }

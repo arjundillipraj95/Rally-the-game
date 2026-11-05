@@ -23,8 +23,8 @@ export function seasonNow(now = Date.now()) {
 // the tracks: tier -> the item it gives ({slot id, item index}); a tier with no item gives gold-leaf
 // bragging rights only (the bar still fills)
 export const TRACK = {
-  free: { 4: { slot: 'helm', item: 3 } },
-  gold: { 6: { slot: 'cape', item: 3 } },
+  free: { 4: { slot: 'helm', item: 3 }, 12: { slot: 'helm', item: 10 } },
+  gold: { 6: { slot: 'cape', item: 3 }, 10: { slot: 'helm', item: 11 } },
 };
 const blank = n => ({ n, stars: 0, pass: false, claimed: [] });
 let S = read('rally-season', null);
