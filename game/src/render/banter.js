@@ -1,4 +1,4 @@
-import { SHOUTS } from '../config.js';
+import { SHOUTS, CALM } from '../config.js';
 // Soldiers' banter: short speech bubbles at the funny moments (sent flying, a big clout, the
 // captain falling, seeing stars, your orders, the odd grumble on the march). Purely cosmetic and
 // worked out on each device from what it can see, so it behaves the same solo, hosting or joined.
@@ -41,10 +41,11 @@ let quietT = 2, marchT = 12;
 // Put words in a soldier's mouth. `force` skips the pacing (the player's own orders).
 export function say(u, kind, force = false) {
   if (!u || !LINES[kind]) return;
-  if (!force && (quietT > 0 || bubbles.length >= 3)) return;
+  const crown = G.mode === 'crown' && !force;
+  if (!force && (quietT > 0 || bubbles.length >= (crown ? CALM.bubbles : 3))) return;
   if (bubbles.some(b => b.u === u)) return;
   bubbles.push({ u, text: pick(kind), t: 0, dur: kind === 'launch' ? 1.4 : 2.1, big: force });
-  quietT = force ? .6 : 1.3 + Math.random() * 1.2;
+  quietT = force ? .6 : crown ? CALM.bubbleGap : 1.3 + Math.random() * 1.2;
 }
 
 const seen = new WeakMap(); // per soldier: what we saw last frame

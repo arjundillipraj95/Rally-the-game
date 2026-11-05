@@ -1,7 +1,7 @@
 // The side feed: a short running log, under the minimap, of what is happening across the whole field
 // ("Red cut down Blue", "Green took Old Mill"). Banners are for what concerns you; this is for everything,
 // so you can read the battle at a glance. Built from the same announcements on every phone.
-import { TEAMS, SHOUTS } from '../config.js';
+import { TEAMS, SHOUTS, CALM } from '../config.js';
 import { G, bus, colorOf, isEnemyTi, matchTime } from '../core/state.js';
 
 let el = null, nickFor = () => null;
@@ -33,13 +33,14 @@ const HERALD = {
 };
 function herald(text) {
   if (!el || G.state !== 'play') return;
-  const now = performance.now(); if (now - heraldAt < 2500) return; heraldAt = now;
+  const now = performance.now(); if (now - heraldAt < (G.mode === 'crown' ? CALM.heraldGap : 2500)) return; heraldAt = now;
   const li = document.createElement('div'); li.className = 'fl herald'; li.innerHTML = '\u{1F4EF} ' + text;
   el.prepend(li);
   while (el.children.length > MAX) el.lastChild.remove();
   setTimeout(() => { li.classList.add('old'); setTimeout(() => li.remove(), 600); }, LIFE + 2000);
 }
 function heraldFor(k, a) {
+  if (G.mode === 'crown' && !CALM.herald.has(k)) return;
   if (k === 'start') return herald(pickOne(HERALD.start));
   if (k === 'capDown') {
     if (!firstBlood) { firstBlood = true; return herald(pickOne(HERALD.first)); }
@@ -135,6 +136,7 @@ bus.on('shownMsg', ({ k, a }) => {
   if (k === 'start') { setTimeout(() => heraldFor('start', []), 1200); return; }
   if (G.state !== 'play') return;
   setTimeout(() => heraldFor(k, a || []), 900);
+  if (G.mode === 'crown' && CALM.quiet.has(k)) return; // (the Crown's feed: the moves that matter)
   const html = feedLine(k, a || []); if (!html) return;
   const li = document.createElement('div'); li.className = 'fl'; li.innerHTML = html;
   el.prepend(li);

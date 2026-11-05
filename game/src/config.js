@@ -68,6 +68,15 @@ export const MAPS = {
 };
 
 export const KINDS = ['captain', 'foot', 'arch'];
+// The Crown is for thinking: these small happenings stay out of the banners, the side feed and the
+// herald there (they still happen, and show in the results). Castles, the Crown, the war chest and the
+// last stands are the beats that move the plan, so they keep their voice.
+export const CALM = {
+  quiet: new Set(['fortUp', 'towerUp', 'towerDown', 'rout', 'armourOn', 'duelNo', 'duelDraw', 'duelBroken', 'gateRepaired', 'bounty', 'bountyClaimed', 'flagTaken', 'pointCaptured', 'tickets0']),
+  herald: new Set(['start', 'first', 'castleDown', 'chestSoon', 'chestTaken', 'crownGo', 'crownSiege', 'crownRise', 'crownTaken', 'crownDropped', 'overtime', 'lastStand', 'lmsRing', 'champions', 'last']),
+  heraldGap: 20000, // (in the Crown the herald speaks at most this often)
+  bubbles: 1, bubbleGap: 5, // (speech bubbles: one at a time, and a longer pause between)
+};
 // Quick shouts (in battle, instead of typing): your captain calls it out, your side sees it in the feed
 export const SHOUTS = ['Follow me!', 'Defend!', 'Attack their castle!', 'Good game!'];
 export const STATS = {

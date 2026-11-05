@@ -1,6 +1,6 @@
 // Turns rule announcements ('castleDown', 'flagTaken'...) into banners, sounds and buzzes,
 // worded for this player. Hosts and clients use the same wording.
-import { TEAMS, MODES, CAPS_TO_WIN, UPGRADES } from '../config.js';
+import { TEAMS, MODES, CAPS_TO_WIN, UPGRADES, CALM } from '../config.js';
 import { G, isEnemyTi, colorOf, bus, rules } from '../core/state.js';
 import { allianceCaps, horseCooldown } from '../core/sim.js';
 import { groundY } from '../core/world.js';
@@ -117,6 +117,7 @@ export function showMsg(k, a) {
   if (k === 'chestTaken') { sfx.capture(); if (a[0] === G.ALLY[colorOf(myTi)]) { sfx.coin(); sfx.cheer(); buzz([60, 40, 60]); } }
   if (k === 'holdTaken') { sfx.capture(); if (a[0] === G.ALLY[colorOf(myTi)]) { sfx.cheer(); buzz([50, 30, 50]); } }
   const m = msgText(k, a); if (!m) return;
+  if (G.mode === 'crown' && CALM.quiet.has(k)) return; // (the Crown: small things don't take the banner)
   banner(m[0], m[1], m[2]);
   if (k === 'horseDown' && a[0] === myTi) { buzz(120); cam.shake = .5; }
   if (k === 'capture') { sfx.capture(); sfx.cheer(); if (!isEnemyTi(a[0], myTi)) buzz([60, 40, 60]); }
