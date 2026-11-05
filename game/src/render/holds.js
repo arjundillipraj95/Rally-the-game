@@ -6,6 +6,7 @@ import { TEAMS } from '../config.js';
 import { G, colorOf } from '../core/state.js';
 import { terrainMeshY } from '../core/world.js';
 import { lmsRing } from '../core/sim.js';
+import { buildCastleFort, updateCastleFort } from './castlefort.js';
 
 let objs = [];
 const neutral = new THREE.Color(0xe8e2d0), gold = new THREE.Color(0xffcf3a), tmp = new THREE.Color();
@@ -67,7 +68,7 @@ function updateCastleWalls() {
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3(1, 1, 1);
   c.gates.forEach((o, i) => {
     const cw = c.list.find(x => x.hid === o.cgate), st = G.cgates[o.cgate], h = G.holds && G.holds[o.cgate];
-    const down = st && ((st.broken >> (o.gi | 0)) & 1), open = !h || h.owner < 0; // (an empty castle: the gate stands open, swung back)
+    const down = st && ((st.broken >> (o.gi | 0)) & 1), open = !h || h.owner < 0 || h.owner === G.ALLY[colorOf(G.myTi)]; // (an empty castle, or your own side's: the gate stands open, swung back)
     e.set(down ? Math.PI / 2 * .95 : 0, Math.atan2(o.x - cw.x, o.z - cw.z) + (open && !down ? Math.PI / 2 : 0), 0); q.setFromEuler(e);
     const y = terrainMeshY(o.x, o.z) + (down ? .25 : 1.2), off = open && !down ? 1.2 : 0;
     m.compose(v.set(o.x, y, o.z), q, sc); c.gm.setMatrixAt(i, m);
@@ -76,7 +77,7 @@ function updateCastleWalls() {
   c.gm.count = c.gates.length; c.gm.instanceMatrix.needsUpdate = true; if (c.gm.instanceColor) c.gm.instanceColor.needsUpdate = true;
 }
 export function buildHolds(world, L) {
-  cwalls = null; if (G.mode === 'crown' && L.cwalls && L.cwalls.length) buildCastleWalls(world, L.cwalls);
+  cwalls = null; if (G.mode === 'crown' && L.cwalls && L.cwalls.length) { buildCastleWalls(world, L.cwalls); buildCastleFort(world, L); }
   ring = null; if (G.mode === 'crown' && G.lms) { ring = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 14, 96, 1, true), new THREE.MeshBasicMaterial({ color: 0xff4a2a, transparent: true, opacity: .22, side: THREE.DoubleSide, depthWrite: false })); ring.visible = false; ring.renderOrder = 2; world.add(ring); }
   crown = null; wall = null; towerWorld = G.mode === 'crown' ? world : null; towerObjs.clear(); if (G.mode === 'crown') { buildCrown(world); if (L.plazaWall) buildWall(world, L.plazaWall); }
   objs = (L.holds || []).map(h => {
@@ -133,7 +134,7 @@ let ring = null;
 function updateRing() { if (!ring) return; const R = lmsRing(); ring.visible = R > 0; if (!R) return; ring.scale.set(R, 1, R); ring.position.y = 4; ring.material.opacity = .18 + Math.sin(G.T * 3) * .05; }
 let lastT = 0;
 export function updateHolds() {
-  updateCrown(); updateWall(Math.max(0, Math.min(.1, G.T - lastT))); lastT = G.T; updateTowers(); updateCastleWalls(); updateRing();
+  updateCrown(); updateWall(Math.max(0, Math.min(.1, G.T - lastT))); lastT = G.T; updateTowers(); updateCastleWalls(); updateCastleFort(); updateRing();
   const hs = G.holds; if (!hs) return;
   objs.forEach((o, i) => {
     const h = hs[i]; if (!h) return;

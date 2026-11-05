@@ -40,7 +40,7 @@ export const CROWN = {
   size: 1.6, // (the Crown's field is this many times the standard size, so places sit further apart and there's room to hold ground)
   castles: 6, villages: 6, mines: 4, lateJoin: 60, // (a friend can still join a battle in its first minute)
   tower: { build: 4, hp: 260, max: 2, reach: 2.2 },
-  cwallR: 13.6, cgateW: 6.4, cgateSmall: 2.6, cgateHp: 700, cgateSmallHp: 450, fortCost: [100, 170], fortGate: .6, // (Fortify a castle you stand in: tougher gates that mend faster, then towers that shoot) cgateMend: 60, // (castle curtain walls: radius, gate width and toughness, seconds a broken gate takes to mend) // (watchtowers: seconds to build, toughness, how many a side may have)
+  cwallR: 13.6, cgateW: 6.4, cgateSmall: 2.6, cgateHp: 700, cgateSmallHp: 450, fortCost: [100, 170, 250], fortMult: [1, 2, 3, 4], fortTowers: [0, 1, 4, 4], fortTowerEvery: [0, 1.8, 1.8, 1.2], fortMend: 2, // (Fortify a castle you stand in, three levels: gates tougher by fortMult (x base HP), towers from level 1 (fortTowers of the four), shooting every fortTowerEvery s; a broken gate mends only with your men inside, fortMend times as fast) cgateMend: 60, // (castle curtain walls: radius, gate width and toughness, seconds a broken gate takes to mend) // (watchtowers: seconds to build, toughness, how many a side may have)
 };
 // Match length, in minutes: Quick, Standard (the default) or Long. A shorter battle runs hotter: more
 // gold, and computer armies march out with smaller squads (gather).
