@@ -19,7 +19,7 @@ const BIG = new Set(['valley', 'frost', 'desert', 'forum']);
 TEAMS.forEach(t => { t.pos0 = t.pos.slice(); });
 export const W = { R: 91, S: 1 };
 export function sizeWorld(mapId) {
-  W.S = BIG.has(mapId) ? 1.3 : 1; W.R = Math.round(91 * W.S);
+  W.S = G.mode === 'crown' ? CROWN.size : BIG.has(mapId) ? 1.3 : 1; W.R = Math.round(91 * W.S);
   TEAMS.forEach(t => { t.pos[0] = t.pos0[0] * W.S; t.pos[1] = t.pos0[1] * W.S; });
 }
 export const isBig = id => BIG.has(id);
@@ -321,7 +321,7 @@ function crownPlaces(L, R, box, trees) {
     for (const [dx, dz] of [[-6.6, -8.8], [6.6, -8.8], [-6.6, 8.8], [6.6, 8.8]]) box(L, x + ux * dx - uz * dz, z + uz * dx + ux * dz, 1.9, 1.5, -a + (dz > 0 ? Math.PI : 0) + r(-.15, .15), 3.2, 'cottage').keep = true;
   }
   for (let k = 0; k < CROWN.mines; k++) {
-    let a = phi + Math.PI / 4 + k * Math.PI / 2 + r(-.2, .2), d = r(28, 36) * W.S;
+    let a = phi + Math.PI / 4 + k * Math.PI / 2 + r(-.2, .2), d = r(28, 36); // (the mines stay inside the Last Man Standing ring whatever the field's size)
     [a, d] = spot(a, d, 10, 25, 46, 8);
     const x = Math.cos(a) * d, z = Math.sin(a) * d;
     clear(x, z, 15);
