@@ -679,10 +679,10 @@ $('segFmt').addEventListener('click', e => { const b = e.target.closest('button'
 // Colosseum against computer captains: nothing counts, you're straight back up when you fall, and it
 // ends the moment the battle is found (or the search is called off).
 function warmupStart() {
-  const keep = { mode: G.mode, time: G.time, target: G.target };
-  G.mode = 'dm'; G.time = 15; G.target = null;
+  const keep = { mode: G.mode, time: G.time, target: G.target, squadCap: G.squadCap };
+  G.mode = 'dm'; G.time = 15; G.target = null; G.squadCap = 0; // (captains only: no men to start with, and nothing to recruit into)
   soloStart({ al: [0, 1, 2, 3], duo: [0, 0, 0, 0], map: MAPS.colosseum });
-  Object.assign(G, keep, { mode: 'dm' }); G.warmup = keep;
+  Object.assign(G, keep, { mode: 'dm', squadCap: 0 }); G.warmup = keep;
   document.body.appendChild($('searchBox')); $('searchBox').classList.add('warm');
   toast('Warm-up: nothing counts here. Your battle starts when it\'s found');
 }

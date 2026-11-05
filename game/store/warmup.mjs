@@ -8,7 +8,7 @@ const p = await ctx.newPage(); p.on('pageerror', e => console.log('ERR', e.messa
 await p.goto('http://127.0.0.1:8766/?online=http://127.0.0.1:8787');
 await p.waitForFunction(async () => (await import('/src/net/online.js')).ON.up, null, { timeout: 15000 });
 await p.click('#playBtn'); await p.waitForTimeout(2500);
-const st = () => p.evaluate(() => { const G = window.__fb.G; return { state: G.state, mode: G.mode, map: G.map && G.map.id, warm: !!G.warmup, T: +G.T.toFixed(1), box: !document.getElementById('searchBox').hidden && document.getElementById('searchBox').className, net: window.__fb.info.net && window.__fb.info.net.role }; });
+const st = () => p.evaluate(() => { const G = window.__fb.G; return { state: G.state, mode: G.mode, map: G.map && G.map.id, soldiers: G.units.filter(u => !u.leader && !u.dead).length, captains: G.units.filter(u => u.leader && !u.dead).length, warm: !!G.warmup, T: +G.T.toFixed(1), box: !document.getElementById('searchBox').hidden && document.getElementById('searchBox').className, net: window.__fb.info.net && window.__fb.info.net.role }; });
 console.log('searching', JSON.stringify(await st()));
 await p.screenshot({ path: process.env.S + '/warm.png' });
 await p.evaluate(() => { const L = window.__fb.G.player; L.hp = 1; L.armour = 0; }); // (then a blow)
