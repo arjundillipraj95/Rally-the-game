@@ -100,6 +100,9 @@ for view in FIG:
         raster([(px[f[0]], py[f[0]]), (px[f[1]], py[f[1]]), (px[f[2]], py[f[2]])], put, SW, SH)
     depth[view] = D
 
+# skin colour, from the front picture at the cheek
+_px, _py, _ = proj('front', np.array([[.2, .42, .3]])); SKIN = sheet[int(_py[0]), int(_px[0])].copy(); print('skin', SKIN)
+
 # unwrap, and per-vertex normals for the new layout
 vmap, NF, UV = xatlas.parametrize(V.astype(np.float32), F.astype(np.uint32))
 NV = V[vmap]; vn = trimesh.Trimesh(V, F, process=False).vertex_normals[vmap]
@@ -116,9 +119,12 @@ for f in NF:
     uvp = [(UV[i, 0] * TS, (1 - UV[i, 1]) * TS) for i in f]
     def paint(ys, xs, bc, f=f):
         P = bc @ NV[f]; N = bc @ vn[f]; N /= np.linalg.norm(N, axis=1, keepdims=True) + 1e-9
+        # the front of the head (face and cheeks, up to the ears) is painted from the front picture only
+        # (the face itself, eased in toward the front so there's no hard line on the cheek or the hair)
+        facepart = np.clip((P[:, 2] - .04) / .1, 0, 1) * np.clip((P[:, 1] - .28) / .06, 0, 1) * np.clip((.66 - P[:, 1]) / .08, 0, 1)
         acc = np.zeros((len(P), 3)); wsum = np.zeros(len(P)); best = np.zeros((len(P), 3)); bestw = np.full(len(P), -1.)
         for view in FIG:
-            if view == 'side': face = np.abs(N[:, 0])
+            if view == 'side': face = np.abs(N[:, 0]) * (1 - facepart)  # (the side picture's profile eye must not land on the cheek)
             else: face = N @ DIRS[view]
             px, py, d = proj(view, P)
             col = sample(px, py)
@@ -128,6 +134,9 @@ for f in NF:
             acc += col * w[:, None]; wsum += w
             fb = np.clip(face, 0, 1) * np.where(isbg, .1, 1); better = fb > bestw; best[better] = col[better]; bestw[better] = fb[better]
         c = np.where(wsum[:, None] > 1e-4, acc / np.maximum(wsum, 1e-9)[:, None], best)
+        # under the chin and jaw (facing down, seen by no picture): skin, fading in by how far it faces down
+        under = np.clip((-N[:, 1] - .25) / .35, 0, 1) * ((P[:, 1] > .22) & (P[:, 1] < .5))
+        c = c * (1 - under[:, None]) + SKIN * under[:, None]
         tex[ys, xs] = c; filled[ys, xs] = True
     raster(uvp, paint, TS, TS)
 
