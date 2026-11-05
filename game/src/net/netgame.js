@@ -71,7 +71,9 @@ function encodeSnap() {
   const fo = (G.forts || []).map(f => f.broken).join(',') + (G.plazaWall ? ',' + (G.plazaWall.up ? 16 : 0) + G.plazaWall.broken : ''); // (Fortify: each castle's broken palisade sections)
   const du = (G.duels || []).map(d => [d.id, b36(d.a.id), b36(d.b.id), d.state === 'on' ? 1 : 0, encX(d.x), encX(d.z), Math.max(0, Math.ceil(d.t))].join(',')).join(';'); // (duels: called out, or on)
   const wt = (G.wtowers || []).map(w => [w.id, encX(w.x), encX(w.z), w.a, Math.max(0, Math.round(w.hp)), Math.round(w.build * 99), w.ti].join(',')).join(';'); // (the Crown's watchtowers)
-  return [Math.round(G.T * 10), teams, us.join(';'), ars.join(';'), hs.join(';'), fl, pl, G.bounty, hd, cp, fo, du, wt].join('|');
+  // captains: stamina, and in a duel the side his blow is coming from (sideN counts the blows)
+  const cx = G.units.filter(u => u.leader && !u.dead).map(u => [b36(u.id), Math.round(u.st ?? 100), (u.swingSide | 0) + 1, u.sideN | 0].join(',')).join(';');
+  return [Math.round(G.T * 10), teams, us.join(';'), ars.join(';'), hs.join(';'), fl, pl, G.bounty, hd, cp, fo, du, wt, cx].join('|');
 }
 // a remote player's blow landing (or landing on them) goes out at once rather than waiting for the
 // next regular snapshot, so their hits register as quickly as the network allows
@@ -145,7 +147,7 @@ export function netHostReadInputs() {
     const last = NET.inp[ti] || (NET.inp[ti] = { atk: 0, chg: 0, ride: 0, vly: 0, par: 0, ahN: 0, hold: '', rec: [0, 0, 0], up: UPGRADES.map(() => 0) }); // (one count per upgrade: a short list once lost the Horse)
     if (L && !L.dead && Array.isArray(pr.cap) && pr.cap[0] === L.id) {
       L.x = +pr.cap[1]; L.z = +pr.cap[2]; L.face = +pr.cap[3]; L.vx = +pr.cap[4]; L.vz = +pr.cap[5];
-      L.blocking = !!pr.blk; L.jy = Math.max(0, +pr.cap[6] || 0); L.ahHeld = !!pr.ah;
+      L.blocking = !!pr.blk; L.stickSide = (pr.gs | 0) || 0; // (in a duel: which way their stick points, for their guard and their blow) L.jy = Math.max(0, +pr.cap[6] || 0); L.ahHeld = !!pr.ah;
       const w = WEAPONS[pr.cap[7] | 0]; if (w && L.weapon !== w) { L.weapon = w; s.weapon = w; }
     }
     if (typeof pr.par === 'number' && pr.par > last.par) { if (L && !L.dead) blockPress(L); last.par = pr.par; } // Block pressed: a parry window
@@ -287,6 +289,11 @@ function clientApply(hp) {
   }
   for (const u of [...C.byId.values()]) if (!seen.has(u.id)) clientKill(u);
   if (secs[12] != null && G.mode === 'crown') G.wtowers = secs[12] ? secs[12].split(';').map(r => { const f = r.split(','); return { id: +f[0], x: decX(f[1]), z: decX(f[2]), a: +f[3], hp: +f[4], build: +f[5] / 99, ti: +f[6] }; }) : [];
+  if (secs[13]) for (const r of secs[13].split(';')) { // captains: stamina, and a duel blow's side
+    const f = r.split(','), u = C.byId.get(p36(f[0])); if (!u) continue;
+    u.st = +f[1]; const n = +f[3] | 0;
+    if (n !== (u.sideN | 0)) { u.sideN = n; u.swingSide = (+f[2] | 0) - 1; u.sideT = G.T; }
+  }
   if (secs[11] != null) { // duels: who's called out whom, and the rings that are up
     for (const u of G.units) u.duelId = 0;
     G.duels = secs[11] ? secs[11].split(';').map(r => { const f = r.split(','); return { id: +f[0], a: C.byId.get(p36(f[1])), b: C.byId.get(p36(f[2])), state: f[3] === '1' ? 'on' : 'offer', x: decX(f[4]), z: decX(f[5]), t: +f[6] }; }).filter(d => d.a && d.b) : [];
@@ -416,7 +423,7 @@ export function clientTick(dt) {
   // send my captain and my buttons
   if ((performance.now() - C.sendAt > 66 || C.sendNow) && G.state === 'play') {
     C.sendAt = performance.now(); C.sendNow = false;
-    const pres = { role: 'player', sh: C.inp.sh || 0, shK: C.inp.shK || 0, want: G.myTi, nick: session.myNick || 'Captain', ph: 'play', seed: G.seed, evN: C.inp.evN, evK: C.inp.evK, rly: C.inp.rly, rb: C.inp.rb, bsh: C.inp.bsh, dl: C.inp.dl, dlId: C.inp.dlId, foc: C.inp.foc, par: C.inp.par, ahN: C.inp.ahN, ahD: C.inp.ahD, ah: C.inp.ah, atk: C.inp.atk, ride: C.inp.ride, vly: C.inp.vly, vat: C.inp.vat, chg: C.inp.chg, rec: C.inp.rec, up: C.inp.up, ord: C.inp.ord, hold: C.inp.hold, face: C.inp.face, blk: inp.blockHeld ? 1 : 0 };
+    const pres = { role: 'player', gs: (G.player && G.player.stickSide) | 0, sh: C.inp.sh || 0, shK: C.inp.shK || 0, want: G.myTi, nick: session.myNick || 'Captain', ph: 'play', seed: G.seed, evN: C.inp.evN, evK: C.inp.evK, rly: C.inp.rly, rb: C.inp.rb, bsh: C.inp.bsh, dl: C.inp.dl, dlId: C.inp.dlId, foc: C.inp.foc, par: C.inp.par, ahN: C.inp.ahN, ahD: C.inp.ahD, ah: C.inp.ah, atk: C.inp.atk, ride: C.inp.ride, vly: C.inp.vly, vat: C.inp.vat, chg: C.inp.chg, rec: C.inp.rec, up: C.inp.up, ord: C.inp.ord, hold: C.inp.hold, face: C.inp.face, blk: inp.blockHeld ? 1 : 0 };
     if (me && !me.dead) pres.cap = [me.id, r2(me.x), r2(me.z), r2(me.face), r1(me.vx), r1(me.vz), r2(me.jy || 0), Math.max(0, WEAPONS.indexOf(me.weapon || 'sword'))];
     NET.room.presence(pres).catch(() => {});
   }

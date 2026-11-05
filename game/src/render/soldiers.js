@@ -56,6 +56,8 @@ const GEO = {
   hair: new THREE.SphereGeometry(.45, 18, 10, 0, Math.PI * 2, 0, Math.PI * .55),
   beard: ellip(.23, .17, .12),
   hand: new THREE.SphereGeometry(.12, 8, 6),
+  dent: (() => { const g = new THREE.SphereGeometry(.07, 8, 6); g.scale(1, .8, .35); return g; })(),
+  crack: new THREE.BoxGeometry(.035, .42, .02),
   greathelm: new THREE.CylinderGeometry(.45, .47, .72, 16),
   slit: new THREE.BoxGeometry(.5, .07, .05), bar: new THREE.BoxGeometry(.07, .5, .05),
   visor: new THREE.BoxGeometry(.52, .26, .12),
@@ -159,7 +161,7 @@ const crestCol = u => CREST_C[(G.crests && G.crests[u.ti]) || 0] || CREST_C[0];
 const MELEE = K('foot', 'captain'), HELMED = K('foot', 'captain');
 // the earned pieces (core/look.js: Gilded galea, Headsman hood, Black steel, Ermine cape)
 const GILT = new THREE.Color(0xe0b040), IRON = new THREE.Color(0x3a3c42), HOOD = new THREE.Color(0x1d1b1a), ERMINE = new THREE.Color(0xf2efe6);
-const PELT = new THREE.Color(0x7a6c5e), SILVER = new THREE.Color(0xe3e7ee), LEAF = new THREE.Color(0x5f8f3a), NIGHT = new THREE.Color(0x14120f);
+const DENT = new THREE.Color(0x24211e), PELT = new THREE.Color(0x7a6c5e), SILVER = new THREE.Color(0xe3e7ee), LEAF = new THREE.Color(0x5f8f3a), NIGHT = new THREE.Color(0x14120f);
 const armed = u => u.tier >= 1; // Footman/captain Arms upgrade: spear + javelin
 const armored = u => u.tier >= 2; // Footman/captain Armor upgrade: extra plate
 // what's in the weapon hand: a player captain shows the weapon they picked; everyone else by tier
@@ -250,6 +252,16 @@ const PARTS = [
   { bone: 'body', geo: 'slit', mat: 'plain', m: e(0, 1.82, .445), s: S('helm', 12), k: HELMED, col: () => NIGHT },
   { bone: 'body', geo: 'cheek', mat: 'metal', m: e(.34, 1.64, .12, 0, 0, .12), s: S('helm', 12), k: HELMED, col: () => IRON },
   { bone: 'body', geo: 'cheek', mat: 'metal', m: e(-.34, 1.64, .12, 0, 0, -.12), s: S('helm', 12), k: HELMED, col: () => IRON },
+  // the wear of a fight: dents in metal helmets and armour, cracks across the shield, as he's hurt
+  { bone: 'body', geo: 'dent', mat: 'plain', m: e(.17, 1.22, .42, 0, .35, 0), s: S('armour', 0, 1, 3), k: HELMED, t: u => u.hp < u.max * .66, col: () => DENT },
+  { bone: 'body', geo: 'dent', mat: 'plain', m: e(-.2, .98, .41, 0, -.4, 0), s: S('armour', 0, 1, 3), k: HELMED, t: u => u.hp < u.max * .4, col: () => DENT },
+  { bone: 'body', geo: 'dent', mat: 'plain', m: e(.3, 2.0, .24, 0, .9, 0), s: S('helm', 0, 1, 3, 5, 10, 11, 12), k: HELMED, t: u => u.hp < u.max * .5, col: () => DENT },
+  { bone: 'shield', geo: 'crack', mat: 'plain', m: e(.1, .06, .07, 0, 0, .5), s: S('shield', 0), k: MELEE, t: u => u.hp < u.max * .5, col: () => DENT },
+  { bone: 'shield', geo: 'crack', mat: 'plain', m: e(-.12, -.14, .07, 0, 0, -.8, 1, .7, 1), s: S('shield', 0), k: MELEE, t: u => u.hp < u.max * .3, col: () => DENT },
+  { bone: 'shield', geo: 'crack', mat: 'plain', m: e(.12, .08, .19, 0, 0, .5), s: S('shield', 1), k: MELEE, t: u => u.hp < u.max * .5, col: () => DENT },
+  { bone: 'shield', geo: 'crack', mat: 'plain', m: e(-.13, -.12, .19, 0, 0, -.8, 1, .7, 1), s: S('shield', 1), k: MELEE, t: u => u.hp < u.max * .3, col: () => DENT },
+  { bone: 'shield', geo: 'crack', mat: 'plain', m: e(.12, .08, .08, 0, 0, .5), s: S('shield', 2), k: MELEE, t: u => u.hp < u.max * .5, col: () => DENT },
+  { bone: 'shield', geo: 'crack', mat: 'plain', m: e(-.13, -.12, .08, 0, 0, -.8, 1, .7, 1), s: S('shield', 2), k: MELEE, t: u => u.hp < u.max * .3, col: () => DENT },
   // barbarians: hair, beards, a gold circlet and fur mantle for the chief
   { bone: 'body', geo: 'hair', mat: 'plain', m: e(0, 1.82, -.03), s: S('helm', 2), k: HELMED, col: hairOf },
   { bone: 'body', geo: 'beard', mat: 'plain', m: e(0, 1.55, .3, .15), s: S('helm', 2), k: K('foot'), col: hairOf },
@@ -470,6 +482,13 @@ function swingPhase(t) {
 const near = (x, to, k) => x + (to - x) * k;
 
 // Advances one soldier's pose (walk, swing, block, brace, aim, ride, stagger, landing).
+// the arc a sword blow takes: its combo stroke, or in a duel the side he swung from
+// (from his weapon side: a forehand, from the other: a backhand, neither: overhead)
+const SIDE_ARC = { '1': 1, '-1': 0, '0': 2 }; // (his weapon arm is on his left of the line as sideToward reckons it, so -1 is a forehand)
+function swingArc(u, kind) {
+  if (u.duelId && u.sideT != null && u.swingSide != null && G.T - u.sideT < .7 && kind < 3) return SIDE_ARC[u.swingSide];
+  return kind;
+}
 function pose(u, dt) {
   const a = stateOf(u);
   if (u.dead) { a.bodyRY = 0; a.expr = 'dead'; a.dizzy = 0; ragdoll(u, a, dt); return a; }
@@ -480,7 +499,12 @@ function pose(u, dt) {
     const dmg = a.hp - u.hp, sev = Math.min(1, dmg / 18), blocked = u.blockT > 0 || (u.human && u.blocking);
     a.flash = Math.min(1, Math.max(a.flash || 0, sev));
     if (dmg > u.max * .3 && Math.random() < .35) a.dizzy = 1.4; // a real clout (a third of his health) leaves him seeing stars
-    a.stagV = (a.stagV || 0) - (blocked ? 2 + 3 * sev : 4 + 9 * sev); a.stagYV = (a.stagYV || 0) + (Math.random() < .5 ? -1 : 1) * 5 * sev; // (a kick to the spring)
+    // which way the blow came from: he reels away from it (back from the front, sideways from a flank,
+    // pitched forward from behind). The host knows; a joining phone takes the nearest enemy.
+    let h = u.hitT != null && G.T - u.hitT < .4 ? u.hitAng : null;
+    if (h == null) { let bd = 16, best = null; for (const o of G.units) { if (o.dead || !isEnemyTi(o.ti, u.ti)) continue; const dd = (o.x - u.x) ** 2 + (o.z - u.z) ** 2; if (dd < bd) { bd = dd; best = o; } } if (best) h = Math.atan2(best.x - u.x, best.z - u.z); }
+    const fwd = h == null ? -1 : -Math.cos(h - u.face), lat = h == null ? 0 : -Math.sin(h - u.face), kick = blocked ? 2 + 3 * sev : 4 + 9 * sev;
+    a.stagV = (a.stagV || 0) + fwd * kick; a.stagRV = (a.stagRV || 0) + lat * kick * .8; a.stagYV = (a.stagYV || 0) + lat * 5 * sev; // (a kick to the springs)
     // a proper clout: he stumbles back a step, arms thrown up, and kicks up dust
     if (!blocked && dmg >= 20 && !u.mounted) { a.stumble = .4; dust(u.x, u.z); }
     if (!blocked && dmg >= 26 && powCd <= 0 && nearCam(u, 12)) {
@@ -492,6 +516,7 @@ function pose(u, dt) {
   a.stag = a.stag || 0; a.stagY = a.stagY || 0; a.stagV = a.stagV || 0; a.stagYV = a.stagYV || 0;
   a.stagV += (-a.stag * 140 - a.stagV * 13) * dt; a.stag += a.stagV * dt;
   a.stagYV += (-a.stagY * 120 - a.stagYV * 12) * dt; a.stagY += a.stagYV * dt;
+  a.stagR = a.stagR || 0; a.stagRV = a.stagRV || 0; a.stagRV += (-a.stagR * 140 - a.stagRV * 13) * dt; a.stagR += a.stagRV * dt; // (the sideways reel)
 
   const sp = Math.hypot(u.vx, u.vz), mv = Math.min(1, sp / 3);
   const t = u.swing > 0 ? 1 - u.swing / .38 : -1, P = t >= 0 ? swingPhase(t) : 0;
@@ -534,7 +559,7 @@ function pose(u, dt) {
     if (air) { a.legL[0] = -.9; a.legR[0] = .35; a.bodyY = 0; a.bodyRX = .12; }
     if (land) { a.bodyY -= .2 * land; a.legL[0] = -.55 * land; a.legR[0] = .45 * land; a.bodyRX += .15 * land; }
   }
-  a.bodyRX += a.stag; a.bodyRY += a.stagY * .5;
+  a.bodyRX += a.stag; a.bodyRY += a.stagY * .5; a.bodyRZ += a.stagR;
   a.yaw = a.stagY * .3;
 
   let blocking = false;
@@ -567,13 +592,19 @@ function pose(u, dt) {
     if (u.aim) a.bodyRY += .25; // side-on to draw the bow
   } else {
     if (t >= 0) {
-      if (kind === 2) { // overhead: raised high behind the head, chopped straight down through
+      // each blade swings its own way: the gladius stabs short and quick, the long blade sweeps wide,
+      // the axe chops down on a slant. In a duel the side he picked decides the arc.
+      const wpn = u.mounted ? 1 : W(u, 'weapon') | 0, sk = swingArc(u, kind), lat = wpn === 0 ? .45 : wpn === 1 ? 1.3 : 1, turnK = wpn === 0 ? .25 : wpn === 1 ? .65 : .3;
+      if (sk === 2) { // overhead: raised high behind the head, chopped straight down through
         a.wArmX = -1.55 - 1.65 * P; a.wArmZ = -.1;
-      } else if (kind === 1) { // backhand: wound across the body, swept out the other way
-        a.wArmX = -1.5 - .9 * Math.abs(P); a.wArmZ = .25 + .75 * P; a.bodyRY -= .45 * P;
+      } else if (wpn === 2) { // the axe: a slanting chop, high on the wind-up
+        a.wArmX = -1.55 - 1.35 * P; a.wArmZ = sk === 1 ? .35 : -.35; a.bodyRY += (sk === 1 ? -turnK : turnK) * P;
+      } else if (sk === 1) { // backhand: wound across the body, swept out the other way
+        a.wArmX = -1.5 - (wpn === 0 ? .5 : .9) * Math.abs(P); a.wArmZ = (.25 + .75 * P) * lat; a.bodyRY -= turnK * P;
       } else { // forehand: wound out to the side, swept across
-        a.wArmX = -1.5 - .9 * Math.abs(P); a.wArmZ = (u.mounted ? -.6 : -.2) - .7 * P; a.bodyRY += .45 * P;
+        a.wArmX = -1.5 - (wpn === 0 ? .5 : .9) * Math.abs(P); a.wArmZ = ((u.mounted ? -.6 : -.2) - .7 * P) * lat; a.bodyRY += turnK * P;
       }
+      if (wpn === 0 && sk !== 2) a.bodyRX += .18 * Math.max(0, -P); // (the gladius: weight forward into the stab)
     } else {
       const rest = -.35 + armSw * (1 - a.ready) - .5 * a.ready + .03 * Math.sin(a.idle * 2.1 + 1);
       a.wArmX = near(a.wArmX, rest, Math.min(1, dt * 10)); a.wArmZ = near(a.wArmZ, 0, Math.min(1, dt * 10));
@@ -691,7 +722,7 @@ function pose(u, dt) {
 
 // ---------- bones ----------
 const M = { root: new THREE.Matrix4(), hips: new THREE.Matrix4(), body: new THREE.Matrix4(), legL: new THREE.Matrix4(), legR: new THREE.Matrix4(), sArm: new THREE.Matrix4(), wArm: new THREE.Matrix4(), spear: new THREE.Matrix4(), shield: new THREE.Matrix4() };
-const flashC = new THREE.Color(), WHITE = new THREE.Color(1, 1, 1);
+const flashC = new THREE.Color(), WHITE = new THREE.Color(1, 1, 1), wearC = new THREE.Color(), SOOT = new THREE.Color(0x2e2a26);
 const tmp = new THREE.Matrix4(), slashM = new THREE.Matrix4(), out = new THREE.Matrix4(), eu = new THREE.Euler(), qq = new THREE.Quaternion(), vp = new THREE.Vector3(), vs = new THREE.Vector3(), tipV = new THREE.Vector3();
 function local(x, y, z, rx, ry, rz) { eu.set(rx, ry, rz); qq.setFromEuler(eu); return tmp.compose(vp.set(x, y, z), qq, vs.set(1, 1, 1)); }
 function bones(u, a) {
@@ -769,7 +800,7 @@ export function drawSoldiers(units, dt) {
       }
       if (a && !a.slashed && st >= .17 && st < .4 && !spearOut(u) && u.weapon !== 'jav' && nearCam(u, 22)) {
         a.slashed = true;
-        const kind = u.mounted ? 0 : u.swingKind | 0, s = u.kind === 'captain' ? 1.18 : 1, R = u.mounted ? 2.3 : 2;
+        const wpn = u.mounted ? 1 : W(u, 'weapon') | 0, k0 = swingArc(u, u.mounted ? 0 : u.swingKind | 0), kind = wpn === 2 && k0 < 2 ? 2 : k0, s = u.kind === 'captain' ? 1.18 : 1, R = (u.mounted ? 2.3 : 2) * (wpn === 0 ? .8 : wpn === 1 ? 1.25 : 1);
         eu.set(0, u.face, 0); qq.setFromEuler(eu);
         slashM.compose(vp.set(u.x, u.y + a.lift + (u.mounted ? 2.2 : 1.25 + a.bodyY) * s, u.z), qq, vs.set(1, 1, 1));
         // (tilted so the follow camera, behind and above, sees the face of the arc rather than its edge)
@@ -780,7 +811,7 @@ export function drawSoldiers(units, dt) {
       }
     }
     if (u.swing <= 0) { const a = anim.get(u); if (a) a.slashed = false; }
-    const ring = ringFor(u), look = lookOf(u.ti);
+    const ring = ringFor(u), look = lookOf(u.ti), wear = u.kind === 'captain' || u.kind === 'foot' ? Math.min(1, Math.max(0, 1 - u.hp / u.max)) : 0; // (battered: dull, dented metal)
     for (const p of PARTS) {
       if (p.k && !p.k.has(u.kind)) continue;
       if (p.s && !p.s.v.has(look[p.s.i])) continue;
@@ -791,7 +822,7 @@ export function drawSoldiers(units, dt) {
       const b = p.batch, i = b.n++;
       out.multiplyMatrices(M[p.bone], p.m);
       b.mesh.setMatrixAt(i, out);
-      if (p.col) b.mesh.setColorAt(i, a.flash > 0 ? flashC.copy(p.col(u)).lerp(WHITE, a.flash * .75) : p.col(u));
+      if (p.col) { let c = p.col(u); if (wear > .15 && p.mat === 'metal') c = wearC.copy(c).lerp(SOOT, wear * .4); b.mesh.setColorAt(i, a.flash > 0 ? flashC.copy(c).lerp(WHITE, a.flash * .75) : c); }
     }
   }
   drawProps(dt);

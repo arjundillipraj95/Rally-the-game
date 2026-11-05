@@ -41,6 +41,7 @@
   #hp .bar{height:8px;border-radius:4px;background:rgba(255,255,255,.12);overflow:hidden;margin-top:2px;}
   #hp .bar i{display:block;height:100%;background:linear-gradient(90deg,#b8d43a,#e0c43a);transform-origin:left;}
   #hp .horse{height:4px;margin-top:3px;} #hp .horse i{background:#b07a42;}
+  #hp .st{height:4px;margin-top:3px;} #hp .st i{background:#f2dc8a;transition:background .2s;} #hp .st.low i{background:#e0703a;} /* (stamina: pale gold, orange when winded) */
   #goldTag{position:absolute;right:max(12px, env(safe-area-inset-right,0px));top:110px;padding:4px 14px;font-family:var(--display);font-size:18px;font-style:italic;pointer-events:none;}
   #goldTag b{font-weight:400;color:var(--gold);}
   #feed{position:absolute;right:max(12px, env(safe-area-inset-right,0px));top:150px;width:min(36vw,260px);display:flex;flex-direction:column;align-items:flex-end;gap:3px;pointer-events:none;}

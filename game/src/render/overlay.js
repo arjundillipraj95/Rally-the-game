@@ -1,7 +1,8 @@
 // The 2D layer drawn over the 3D view: sparks, floating text, health bars, names,
 // the banner pointer, the joystick and the red tint while you are down. Also the minimap.
 import * as THREE from 'three';
-import { TEAMS, DUEL, STREAK, RHYTHM, CAPTAIN_COMBAT, ARMOUR } from '../config.js';
+import { TEAMS, DUEL, STREAK, RHYTHM, CAPTAIN_COMBAT, ARMOUR, STAMINA, DUEL_DIR } from '../config.js';
+import { bus } from '../core/state.js';
 import { G, isEnemyTi, isFfa, colorOf, isOut, noCastle } from '../core/state.js';
 import { fogGrid } from './fog.js';
 import { groundY, clamp, W } from '../core/world.js';
@@ -20,6 +21,54 @@ export function proj(x, y, z) { v3.set(x, y, z).project(camera); return v3.z <= 
 export function clearOverlay() { ctx.setTransform(view.DPR, 0, 0, view.DPR, 0, 0); ctx.clearRect(0, 0, view.W, view.H); }
 
 // opts: { joy, nickFor(ti) }
+// A heavy blow being wound up: a red wedge on the ground where it will land, deepening as it comes,
+// flashing gold at the glint (the moment to parry).
+const windAt = new WeakMap();
+function drawWindups() {
+  const now = performance.now();
+  for (const u of G.units) {
+    const on = !u.dead && u.leader && !u.mounted && !u.fog && u !== G.player && (u.windup > 0 || u.heavyCharge > 0);
+    if (!on) { windAt.delete(u); continue; }
+    if (!windAt.has(u)) windAt.set(u, now);
+    if (Math.hypot(u.x - camera.position.x, u.z - camera.position.z) > 30) continue;
+    const k = Math.min(1, (now - windAt.get(u)) / 800), R = 3.4, A = .95, n = 10, pts = [[u.x, u.z]];
+    for (let i = 0; i <= n; i++) { const a = u.face - A + 2 * A * i / n; pts.push([u.x + Math.sin(a) * R, u.z + Math.cos(a) * R]); }
+    ctx.beginPath(); let ok = true;
+    pts.forEach(([x, z], i) => { const [px, py, on2] = proj(x, groundY(x, z) + .08, z); if (!on2) ok = false; if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py); });
+    if (!ok) continue;
+    ctx.closePath();
+    ctx.fillStyle = u.glint ? 'rgba(255,214,90,.5)' : `rgba(255,70,50,${.1 + .25 * k})`; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = u.glint ? 'rgba(255,240,180,.95)' : `rgba(255,90,60,${.3 + .45 * k})`; ctx.stroke();
+  }
+}
+// Duels: his blow on its way shows as a red arrow on the side it comes from (overhead: above you);
+// while you hold Block a gold shield marks the side your guard is turned to. Match them.
+let duelTipped = false;
+function chevron(x, y, ang, col, a) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.globalAlpha = a;
+  ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-10, -14); ctx.lineTo(-4, 0); ctx.lineTo(-10, 14); ctx.closePath();
+  ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.stroke(); ctx.fillStyle = col; ctx.fill(); ctx.restore(); ctx.globalAlpha = 1;
+}
+function shieldMark(x, y) {
+  ctx.beginPath(); ctx.moveTo(x - 9, y - 10); ctx.lineTo(x + 9, y - 10); ctx.lineTo(x + 9, y + 1); ctx.quadraticCurveTo(x + 8, y + 9, x, y + 13); ctx.quadraticCurveTo(x - 8, y + 9, x - 9, y + 1); ctx.closePath();
+  ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.stroke(); ctx.fillStyle = '#ffd23a'; ctx.fill();
+}
+function drawDuelSide() {
+  const me = G.player; if (!me || me.dead || !me.duelId) return;
+  const d = (G.duels || []).find(x => x.id === me.duelId && x.state === 'on'); if (!d) return;
+  const foe = d.a === me ? d.b : d.a; if (!foe || foe.dead) return;
+  if (!duelTipped) { duelTipped = true; bus.emit('fighttip', 'duelDir'); }
+  if (foe.sideT != null && foe.swingSide != null && G.T - foe.sideT < DUEL_DIR.tell + .12) {
+    const th = Math.atan2(me.x - foe.x, me.z - foe.z), lx = Math.cos(th), lz = -Math.sin(th), s = foe.swingSide; // (the side as his blow reckons it)
+    const [px, py, ok] = proj(me.x + lx * s * 1.3, me.y + (s ? 1.9 : 3.4), me.z + lz * s * 1.3), [cx, cy] = proj(me.x, me.y + 1.9, me.z);
+    if (ok) chevron(px, py, s ? Math.atan2(cy - py, cx - px) : Math.PI / 2, '#ff4a3a', 1);
+  }
+  if (me.blocking) {
+    const th = Math.atan2(foe.x - me.x, foe.z - me.z), g = me.stickSide | 0;
+    const [px, py, ok] = proj(me.x + Math.cos(th) * g * 1.0, me.y + (g ? 1.6 : 3.0), me.z - Math.sin(th) * g * 1.0);
+    if (ok) shieldMark(px, py);
+  }
+}
 export function drawOverlay(opts) {
   const W = view.W, H = view.H;
   clearOverlay();
@@ -46,6 +95,7 @@ export function drawOverlay(opts) {
       const w = u.leader ? 40 : 26;
       ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, sy, w, 4);
       ctx.fillStyle = TEAMS[colorOf(u.ti)].css; ctx.fillRect(sx - w / 2, sy, w * Math.max(0, u.hp / u.max), 4);
+      if (u.leader && (u.st ?? STAMINA.max) < STAMINA.max - 1) { ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, sy + 5, w, 2.5); ctx.fillStyle = u.st < STAMINA.low ? '#e0703a' : '#f2dc8a'; ctx.fillRect(sx - w / 2, sy + 5, w * Math.max(0, u.st) / STAMINA.max, 2.5); } // (stamina, when it's not full)
       if (u.leader && u.armour > .5) { ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, sy - 4, w, 3); ctx.fillStyle = '#c9d2dc'; ctx.fillRect(sx - w / 2, sy - 4, w * Math.min(1, u.armour / ARMOUR.hp), 3); } // (armour: a steel bar over the health)
       if (u.leader && G.teams[u.ti] && G.teams[u.ti].human && opts.nickFor) {
         const nick = opts.nickFor(u.ti);
@@ -56,7 +106,7 @@ export function drawOverlay(opts) {
         ctx.strokeText('BOUNTY', sx, sy - 20); ctx.fillStyle = '#ffcf3a'; ctx.fillText('BOUNTY', sx, sy - 20);
       }
     }
-    drawDuels(); drawBeat(); drawStars(); drawFinish(); drawStreak();
+    drawWindups(); drawDuelSide(); drawDuels(); drawBeat(); drawStars(); drawFinish(); drawStreak();
     drawBubbles();
     if (G.flag) drawFlagPointer();
     if (G.mode === 'ctrl') drawControlLabels(); drawHoldLabels();

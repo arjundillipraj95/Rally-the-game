@@ -1,5 +1,6 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
+import { STAMINA, DUEL_DIR } from '../config.js';
 import { CROWN, ECON, TEAMS, MODES, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, DM_TICKETS, CAPS_TO_WIN, CASTLE_R, CASTLE_REACH, RECRUITS, WORLD_LIMIT, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, HOLDS, EVADE, FORT, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT, DUEL, CHEST, STREAK, BASH, LAST, VCHARGE, RHYTHM, PUSH, ARMOUR } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, activeFrom, gateOff, ARMIES, rules, matchTime, isOut, noCastle, capOf } from './state.js';
 import { deepWater, groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W, groundSlow, onIce } from './world.js';
@@ -37,7 +38,7 @@ export function mkUnit(ti, x, z, kind, human = false) {
     kick: { n: 0, vx: 0, vz: 0, st: 0, dirty: false },
     // player captains: current weapon, jump state, javelin ammo, sword combo, buffered attack press
     weapon: kind === 'captain' && human ? ((G.teams[ti] && G.teams[ti].weapon) || 'sword') : undefined,
-    jy: 0, jvy: 0, jumpCd: 0, javAmmo: CAPTAIN_COMBAT.jav.ammo + tier, javRegen: 0, combo: 0, lastSwingT: -9, atkBuf: 0 };
+    jy: 0, jvy: 0, jumpCd: 0, javAmmo: CAPTAIN_COMBAT.jav.ammo + tier, javRegen: 0, combo: 0, lastSwingT: -9, atkBuf: 0, st: STAMINA.max, stT: -9 };
   G.units.push(u); return u;
 }
 // Every army's moments of the match, for the results screen (yours, and your side's): counts (and the best streak).
@@ -360,10 +361,42 @@ export function nearestEnemyCastle(u) {
   return [best, bd];
 }
 const aiDmg = ti => G.teams[ti] && G.teams[ti].human ? 1 : DIFF[G.diff].dmg;
+// ---------- stamina (captains; see STAMINA) ----------
+export const winded = u => !!u && u.leader && (u.st ?? STAMINA.max) < STAMINA.low;
+function spendSt(u, n) { // (false: he hadn't enough, and spends what he had)
+  if (!u.leader) return true;
+  const had = u.st ?? STAMINA.max; u.st = Math.max(0, had - n); u.stT = G.T; return had >= n;
+}
+function staminaTick(dt) {
+  for (const s of G.teams) { const L = s.leader; if (!L || L.dead) continue;
+    if (L.st == null) L.st = STAMINA.max;
+    if (G.T - (L.stT ?? -9) < STAMINA.delay) continue;
+    L.st = Math.min(STAMINA.max, L.st + STAMINA.regen * dt * (L.blocking || L.guardT > 0 ? STAMINA.blockRegen : 1)); }
+}
+// ---------- duels: blows from a side (see DUEL_DIR) ----------
+export const duelFoeOf = u => { if (!u || !u.duelId) return null; const d = (G.duels || []).find(x => x.id === u.duelId && x.state === 'on'); return d ? (d.a === u ? d.b : d.a) : null; };
+// which way a stick (wx, wz, mag) points across the line to his man: -1 or 1, or 0 (neither)
+export function sideToward(u, foe, wx, wz, mag) {
+  if (!foe || !(mag > .35)) return 0;
+  const th = Math.atan2(foe.x - u.x, foe.z - u.z), lat = wx * Math.cos(th) - wz * Math.sin(th);
+  return Math.abs(lat) > DUEL_DIR.lat ? Math.sign(lat) : 0;
+}
+// a captain's blow in a duel: which side it comes from (his stick; a computer captain picks), shown before it lands
+function duelTell(u) {
+  if (!u.leader || !u.pending || u.pending.side != null) return;
+  const foe = duelFoeOf(u); if (!foe) return;
+  const side = u.human ? (u.stickSide | 0) : [-1, 0, 1][(Math.random() * 3) | 0];
+  u.pending.side = side; u.pending.t = Math.max(u.pending.t, DUEL_DIR.tell);
+  u.swingSide = side; u.sideT = G.T; u.sideN = ((u.sideN | 0) + 1) % 36;
+}
+// the defender's guard turns a blow from `side` only if his stick points toward it (or neither way, for overhead)
+const guardMatches = (b, side) => (b.stickSide | 0) === -side;
 function startSwing(u, target) {
   if (u.cd > 0 || u.stun > 0 || u.dead || u.carrying || u.guardUp) return false;
   u.swing = .38; u.cd = (u.leader ? (u.mounted ? .8 : .6) : STATS[u.kind].cd) * rnd(.9, 1.15) * (u.execReady ? EXEC.beatenCd : 1); // (a beaten captain swings slowly)
   u.pending = { t: .15, target };
+  if (u.leader && !spendSt(u, STAMINA.light)) u.pending.tired = true; // (winded: a softer blow)
+  duelTell(u);
   sound('swing', u.x, u.z);
   return true;
 }
@@ -387,7 +420,7 @@ function shieldTick(u, dt) {
 }
 function resolveSwing(u) {
   const pend = u.pending, tg = pend.target; u.pending = null;
-  const mult = pend.mult || 1;
+  const mult = (pend.mult || 1) * (pend.tired ? STAMINA.tiredMult : 1);
   if (pend.leap) { resolveLeap(u); return; }
   if (pend.sweep) {
     const m = mult * .8 * (1 + Math.hypot(u.vx, u.vz) / 12);
@@ -412,9 +445,10 @@ function resolveSwing(u) {
     return;
   }
   const reach = u.reach + (pend.reachB || 0), ex = pend.kb || pend.heavy || pend.stun || pend.bash ? { kb: pend.kb || 1, heavy: !!pend.heavy, stun: pend.stun, shove: pend.shove, bash: pend.bash, unblockable: pend.streak, unparryable: pend.streak || pend.bash, streak: pend.streak } : undefined;
+  const exS = pend.side != null ? Object.assign({}, ex, { side: pend.side }) : ex; // (a duel blow carries its side)
   let landed = false;
   const slack = u.human ? .9 : .5; // (a player's blow at a man who has just stepped back still connects)
-  if (tg && !tg.dead && Math.hypot(tg.x - u.x, tg.z - u.z) <= u.r + tg.r + reach + slack) { hit(u, tg, mult, ex); landed = true; }
+  if (tg && !tg.dead && Math.hypot(tg.x - u.x, tg.z - u.z) <= u.r + tg.r + reach + slack) { hit(u, tg, mult, exS); landed = true; }
   else if (u.isMe && G.capStats && tg && tg.castle === undefined) G.capStats.outOfReach++;
   // sword finisher: the heavy third hit also catches up to two more men beside the target
   if (pend.cleave) {
@@ -471,8 +505,11 @@ function hit(a, b, mult = 1, extra) {
   if (b.human && !b.mounted && b.stun <= 0 && !b.carrying && G.T - (b.parryT ?? -9) <= (heavy || (extra && extra.shown) ? PARRY.window : PARRY.light) + (b.remote ? PARRY.remote : 0)
     && Math.abs(angDiff(b.face, Math.atan2(a.x - b.x, a.z - b.z))) < 1.5 && !(extra && extra.unparryable)) { parry(b, a, heavy, false, G.T - b.parryT <= PARRY.perfect + (b.remote ? PARRY.remote * .4 : 0)); return; }
   // a computer captain on guard turns most light blows from another captain aside
-  const onGuard = !b.human && b.guardT > 0 && b.stun <= 0 && !b.mounted && Math.abs(angDiff(b.face, Math.atan2(a.x - b.x, a.z - b.z))) < 1.2;
-  if (onGuard && a.leader && !heavy && !(extra && (extra.unblockable || extra.unparryable)) && Math.random() < GUARD.parry) { if (a.isMe && G.capStats) G.capStats.parried++; parry(b, a, false, true); return; }
+  // a duel: a light blow from a side is turned only by a guard to that side (a computer captain reads it, or not)
+  const dside = extra && extra.side != null && a.duelId && a.duelId === b.duelId && a.leader && b.leader && !heavy && !extra.bash ? extra.side : null;
+  const readOk = dside == null || (b.human ? guardMatches(b, dside) : Math.random() < DUEL_DIR.read[G.diff]);
+  const onGuard = !b.human && b.guardT > 0 && b.stun <= 0 && !b.mounted && readOk && Math.abs(angDiff(b.face, Math.atan2(a.x - b.x, a.z - b.z))) < 1.2;
+  if (onGuard && a.leader && !heavy && !(extra && (extra.unblockable || extra.unparryable)) && Math.random() < GUARD.parry && spendSt(b, STAMINA.block)) { if (a.isMe && G.capStats) G.capStats.parried++; parry(b, a, false, true); return; }
   if (b.heavyCharge > 0 || b.ahT > 0) b.chargeBrokeT = G.T; // (hit while winding up a heavy blow: it's lost)
   let dmg = a.dmg * rnd(.8, 1.2) * mult * aiDmg(a.ti);
   if (!a.leader && a.aura) dmg *= 1 + auraBonus(a.ti);
@@ -489,7 +526,7 @@ function hit(a, b, mult = 1, extra) {
   const held = frontal && b.holding && !b.human; // a footman standing his place in a held line
   let blocked = onGuard;
   if (frontal && b.stun <= 0 && !b.mounted && !b.carrying && !(extra && extra.unblockable)) {
-    if (b.human) blocked = b.blocking;
+    if (b.human) blocked = b.blocking && readOk;
     else if (a.leader && b.kind === 'foot') blocked = !!b.guardUp; // (against a captain: exactly when his shield is up)
     else if (a.leader && b.leader) blocked = onGuard; // (a captain against a captain: only his guard, which shows, stops a blow)
     else if (Math.random() < (b.block || 0) + (b.aura ? auraBonus(b.ti) : 0) + (b.shieldwall && b.kind === 'foot' ? .3 : 0) + (held ? .15 : 0)) { blocked = true; b.blockT = .45; }
@@ -498,6 +535,10 @@ function hit(a, b, mult = 1, extra) {
   // a heavy blow smashes through a guard: no block, and the blocker is knocked off balance
   let broke = false;
   if (heavy && frontal && (blocked || (b.human && b.blocking))) { blocked = false; broke = true; dmg *= HEAVY.guardDmg; }
+  // a blow taken on a captain's guard costs him stamina; with none left, the guard gives way
+  else if (blocked && b.leader && !(extra && extra.bash) && !spendSt(b, STAMINA.block)) { blocked = false; broke = true; dmg *= HEAVY.guardDmg; }
+  // guarded the wrong side in a duel: it lands, and he's caught off balance
+  if (dside != null && b.human && b.blocking && !readOk && frontal) { b.stun = Math.max(b.stun, DUEL_DIR.wrongStun); fx('fxmsg', { k: 'fxwrong', u: b, a }); }
   if (extra && extra.bash) { // the shield bash: through any guard, and knocks it aside
     const guard = frontal && (blocked || b.guardUp || (b.human && b.blocking) || b.guardT > 0 || b.blockT > 0);
     blocked = false; b.guardUp = false; b.gT = SHIELD.open; b.guardT = 0; b.guardCd = Math.max(b.guardCd || 0, 1.2); b.blockT = 0;
@@ -508,6 +549,7 @@ function hit(a, b, mult = 1, extra) {
   // a heavy blow (or any big hit) knocks a man out of his own wind-up
   if (b.windup > 0 && (heavy || mult >= 1.35 || (extra && extra.unblockable))) { b.windup = 0; b.glint = false; b.stun = Math.max(b.stun, .5); fx('fxmsg', { k: 'fxint', u: b }); }
   const hx = (a.x + b.x) / 2, hz = (a.z + b.z) / 2, hy = (a.y + b.y) / 2 + 1.2;
+  b.hitAng = Math.atan2(a.x - b.x, a.z - b.z); b.hitT = G.T; // (where the blow came from: he reels away from it)
   const shove = !!(extra && extra.shove);
   if (blocked) {
     dmg *= b.human ? .12 : shove ? CC.spear.shieldDmg : .25; kb *= shove ? 1 : .4; // (a spear thrust into a shield still drives him back)
@@ -865,6 +907,7 @@ function parry(b, a, heavy, byAI, perfect) {
     fx('fxmsg', { k: 'fxdisarm', u: a, a: b }); gainRally(b, RALLY.parry); hl(b.ti, 'disarm');
   }
   b.parryT = -9; b.lastBlow = null; b.cd = 0; b.stun = 0; if (b.human) hl(b.ti, 'parry');
+  if (b.leader) b.st = Math.min(STAMINA.max, (b.st ?? STAMINA.max) + STAMINA.parry); // (a parry gives some breath back)
   b.riposteT = G.T + PARRY.riposteT; b.ripN = PARRY.riposteN; b.parries = (b.parries || 0) + 1; gainRally(b, RALLY.parry);
   if (byAI) { b.guardT = 0; b.guardCd = 1.5; } // (he turned your blow: now he comes at you)
   a.windup = 0; a.glint = false; a.pending = null; a.stun = Math.max(a.stun, byAI ? GUARD.stun : heavy ? PARRY.heavyStun : PARRY.stun);
@@ -891,7 +934,8 @@ export function blockPress(p) {
 }
 // a telegraphed heavy blow: the weapon goes up, then comes down `windup` seconds later
 function startHeavy(u, tg, windup) {
-  if (u.cd > 0 || u.stun > 0 || u.windup > 0 || u.mounted) return false;
+  if (u.cd > 0 || u.stun > 0 || u.windup > 0 || u.mounted || (u.leader && (u.st ?? STAMINA.max) < STAMINA.heavy)) return false;
+  spendSt(u, STAMINA.heavy);
   u.windup = windup; u.glint = false; u.heavyTg = tg; u.cd = windup + .55; u.swingKind = 5;
   u.face = Math.atan2(tg.x - u.x, tg.z - u.z);
   return true;
@@ -948,6 +992,7 @@ function heavySwing(p, k) {
   p.cd = Math.min(p.cd, 0);
   const tg = softAim(p, CC.sword.aim + 1.2);
   if (!startSwing(p, tg)) return;
+  if (!spendSt(p, STAMINA.heavy - STAMINA.light)) p.pending.tired = true;
   if (tg) { const ang = Math.atan2(tg.x - p.x, tg.z - p.z); p.face = ang; p.vx += Math.sin(ang) * 6; p.vz += Math.cos(ang) * 6; }
   Object.assign(p.pending, { t: .1, mult: 1.35 + .5 * k, heavy: true, cleave: true, kb: 1.4 + .6 * k, unblockable: false });
   p.cd = .7; p.combo = 0; p.swingKind = 5; p.lastSwingT = G.T;
@@ -1540,6 +1585,8 @@ export function evadeKind(p, wx, wz, mag) {
 export function captainEvade(p, kind, remote = false) {
   if (!p || p.dead || p.mounted || p.carrying || p.execT > 0 || p.execA || p.execV) return false;
   if (!remote && (p.stun > 0 || (p.evadeCd || 0) > 0)) return false;
+  if ((p.st ?? STAMINA.max) < STAMINA.evade) { if (p.isMe || (G.role === 'client' && p === G.player)) fx('fxmsg', { k: 'fxtired', u: p }); return false; } // (winded: no evade)
+  spendSt(p, STAMINA.evade);
   const ref = evadeRef(p), side = kind === 'left' ? 1 : kind === 'right' ? -1 : 0, E = EVADE[side ? 'side' : kind];
   if (!E) return false;
   p.evade = { kind: side ? 'side' : kind, t: G.T };
@@ -1605,6 +1652,10 @@ function leapSlam(p) {
 // The player captain's Attack: what it does depends on the weapon in hand and whether you're in the
 // air. Presses that land during a cooldown are buffered briefly instead of being dropped.
 export function captainAttack(p) {
+  const had = p && p.pending; captainAttack0(p);
+  if (p && p.pending && p.pending !== had && p.pending.side != null && !p.pending.heavy) p.pending.t = Math.max(p.pending.t, DUEL_DIR.tell);
+}
+function captainAttack0(p) {
   if (!p || p.dead || p.carrying) return;
   if (p.cd > 0 || p.stun > 0) { p.atkBuf = .4; return; }
   p.atkBuf = 0;
@@ -1721,10 +1772,11 @@ function streakFinisher(p) {
 export function captainBash(p) {
   if (!p || p.dead || p.mounted || p.carrying || airborne(p)) return false;
   if (p.ripN > 0 && p.riposteT > G.T) return false; // (a parry just now: the riposte)
-  if ((p.bashCd || 0) > G.T || p.cd > 0 || p.stun > 0) return false;
+  if ((p.bashCd || 0) > G.T || p.cd > 0 || p.stun > 0 || (p.st ?? STAMINA.max) < STAMINA.bash) return false;
   const v = softAim(p, BASH.reach + 1); if (!v) return false;
   p.face = Math.atan2(v.x - p.x, v.z - p.z);
   if (!startSwing(p, v)) return false;
+  spendSt(p, STAMINA.bash - STAMINA.light);
   Object.assign(p.pending, { t: .1, mult: BASH.mult, kb: BASH.kb, bash: true, reachB: .3 });
   p.vx += Math.sin(p.face) * 5; p.vz += Math.cos(p.face) * 5; // (shoulder behind the shield)
   p.cd = .55; p.bashCd = G.T + BASH.cd; p.blockT = .3; p.swingKind = 6; p.combo = 0; p.lastSwingT = G.T;
@@ -2169,6 +2221,12 @@ export function driveCaptain(p, input, dt) {
   if (p.execT > 0 || p.execA || p.execV) { p.blocking = false; return; } // (an execution: the moment holds still)
   const air = (p.jy || 0) > .01;
   p.blocking = !!input.block && !p.mounted && !air;
+  const dfoe = duelFoeOf(p);
+  p.stickSide = sideToward(p, dfoe, input.wx, input.wz, input.mag); // (in a duel: which way his blow or guard goes)
+  if (dfoe && p.blocking && !(p.dashT > 0)) { // holding Block in a duel: he stands his ground facing his man, the stick angles the guard
+    p.face = turn(p.face, Math.atan2(dfoe.x - p.x, dfoe.z - p.z), dt * 8);
+    input = Object.assign({}, input, { mag: 0 });
+  }
   const swinging = p.swing > 0 && !p.mounted;
   const spd = speedOf(p) * (swinging ? .85 : 1);
   if (p.charge > 0) { // charging: full tilt, straight on unless steered
@@ -2186,7 +2244,7 @@ export function driveCaptain(p, input, dt) {
     const tr = Math.abs(angDiff(face0, p.face)) / Math.max(dt, 1e-3), straight = input.mag > .7 && tr < 1;
     p.gallop = clamp((p.gallop || 0) + (p.charge > 0 ? 1 : straight ? dt / RIDE.gallop : -dt * (tr > 2 ? RIDE.turnLoss : input.mag < .3 ? .8 : .3)), 0, 1);
   } else p.gallop = 0;
-  if (p.blocking && input.mag < .15) p.face = turn(p.face, input.camYaw, dt * 6);
+  if (p.blocking && input.mag < .15 && !dfoe) p.face = turn(p.face, input.camYaw, dt * 6);
   stepJump(p, dt);
 }
 // Javelin ammo trickles back one at a time.
@@ -2202,6 +2260,7 @@ export function update(dt, input) {
   G.T += dt;
   syncGates();
   execMark();
+  staminaTick(dt);
   // Duo battles can field twice the soldiers of a solo one; searching fewer new paths per frame
   // as the field gets crowded keeps worst-case frame cost bounded instead of growing with it.
   pathBudget = Math.max(2, Math.round(4 * 80 / Math.max(80, G.units.length)));
@@ -2297,7 +2356,7 @@ export function update(dt, input) {
     if (u.dead) continue;
     // (the two men in a parry live a beat in slow motion; everyone else carries on)
     let dt = DT; if (u.slowT > 0) { u.slowT -= DT; dt = DT * PARRY.slow; }
-    u.cd -= dt; u.shootCd -= dt; u.javCd -= dt; u.stun -= dt; u.blockT -= dt; u.rt -= dt; u.trampleT -= dt;
+    u.cd -= u.leader && winded(u) ? dt * STAMINA.cdSlow : dt; u.shootCd -= dt; u.javCd -= dt; u.stun -= dt; u.blockT -= dt; u.rt -= dt; u.trampleT -= dt;
     if (u.guardT > 0) u.guardT -= dt; if (u.guardCd > 0) u.guardCd -= dt; if (u.rallyT > 0) u.rallyT -= dt;
     if (u.iframeT > 0) { u.iframeT -= dt; if (u.iframeT <= 0) u.evadedAt = 0; } if (u.evadeCd > 0) u.evadeCd -= dt; if (u.vaultT > 0) u.vaultT -= dt;
     if (u.horseCd > 0) u.horseCd -= dt;

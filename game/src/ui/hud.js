@@ -1,4 +1,5 @@
 // Scoreboard, clock, health, gold, squad count and button labels.
+import { STAMINA } from '../config.js';
 import { CROWN, TEAMS, MODES, STATS, DM_TICKETS, CAPS_TO_WIN, CTRL, AL_LETTER, ORDER_NAMES, UPGRADES, WEAPON_NAMES, STREAK, LAST } from '../config.js';
 import { G, isFfa, colorOf, rules, matchTime, SLOT_NAME, isOut, capOf } from '../core/state.js';
 import { colorOut, colorScore, colorHuman, squadOf, canRecruit, horseMax, upgradeCost, javMax, execTarget, castleHere } from '../core/sim.js';
@@ -53,6 +54,7 @@ export function updateHud(lastSnapAt) {
     $('hpT').textContent = `${Math.max(0, Math.ceil(p.hp))}/${p.max}` + (p.armour > .5 ? `  ⛨ ${Math.ceil(p.armour)}` : '');
     $('hpWrap') && $('hpWrap').classList.toggle('armoured', p.armour > .5);
     $('hpBar').style.transform = `scaleX(${Math.max(0, p.hp) / p.max})`;
+    { const st = p.st ?? STAMINA.max; $('stBar').style.transform = `scaleX(${Math.max(0, st) / STAMINA.max})`; $('stBar').parentNode.classList.toggle('low', st < STAMINA.low); } // (stamina)
     $('horseBarWrap').hidden = !p.mounted;
     $('horseBar').style.transform = `scaleX(${Math.min(1, Math.max(0, p.horseHp) / horseMax(G.myTi))})`;
   }

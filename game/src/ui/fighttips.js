@@ -20,9 +20,11 @@ const TIPS = {
   vcharge: 'Volley landed! Order Charge now: they hit harder',
   push: 'Shieldwall: press Attack to heave the whole wall forward',
   armour: 'Your armour is gone. Buy it again from Upgrades',
+  duelDir: 'Duel: the red arrow shows where his blow comes from. Hold Block and push the stick toward it',
+  tired: 'Winded! Ease off a moment and your stamina comes back',
 };
 let lastAt = 0; const shown = new Set(); // (each tip at most once a match; the parry ones jump the queue)
-const URGENT = new Set(['parry', 'break', 'guard', 'rider', 'horn', 'vcharge']);
+const URGENT = new Set(['parry', 'break', 'guard', 'rider', 'horn', 'vcharge', 'duelDir', 'tired']);
 bus.on('msg', m => { if (m && m.k === 'start') shown.clear(); });
 export function fightTip(k) {
   const p = G.player, text = TIPS[k]; if (!p || p.dead || !text || G.state !== 'play' || shown.has(k)) return;

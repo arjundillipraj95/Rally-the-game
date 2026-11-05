@@ -233,6 +233,16 @@ export const CHARGE = { dur: 2.2, cd: 12, spd: 1.45, dmg: 32, kb: 15 };
 // a limited, regenerating ranged burst. Attacking in mid-air is a leap slam that hits a whole arc.
 export const WEAPONS = ['sword', 'spear', 'jav'];
 export const WEAPON_NAMES = { sword: 'Sword', spear: 'Spear', jav: 'Javelins' };
+// Captain stamina (every captain, computer ones too). Each action draws on it: a light blow, a heavy
+// one, an evade, a shield bash, a blow taken on the guard. It comes back regen per second, after delay
+// s without spending. Run dry and he's winded: slower between blows (cdSlow), blows land softer
+// (tiredMult), no evades or bashes, and a blow on his guard breaks it. A parry gives some back.
+export const STAMINA = { max: 100, regen: 30, delay: .7, blockRegen: .4, light: 9, heavy: 22, evade: 20, bash: 16, block: 9, parry: 12, low: 15, cdSlow: .6, tiredMult: .8, breakStun: .6 };
+// Duels: blows come from a side. The attacker's stick at the moment he swings picks it (pushed to his
+// left or right, or neither: overhead); the defender holding Block turns it only by pushing his stick
+// the same way, toward the arrow (neither, for overhead). A light blow shows its side for tell s
+// before it lands. read: how often a computer captain on guard reads the side (Recruit, Soldier, Warlord).
+export const DUEL_DIR = { tell: .34, lat: .42, read: [.35, .55, .75], wrongStun: .25 };
 export const CAPTAIN_COMBAT = {
   sword: { cd: .36, finisherCd: .62, window: .85, mult: 1, finisherMult: 1.5, aim: 3.6, step: 2.2, spinN: 3 }, // the third blow of a combo is a spin that cuts all round
   spear: { cd: .8, reachB: 1.1, mult: 1.3, pierce: .8, pierceN: 1, kb: 1.7, stun: .35, lunge: 5, aim: 4.6, shieldDmg: .3,
