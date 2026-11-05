@@ -1899,7 +1899,7 @@ function planLeader(u, s) {
     const hp = holdPlan(u, s); s.plan = hp || { kind: 'defend' };
   } else if (G.mode === 'dm') {
     const gather = Math.round((s.plan && s.plan.kind === 'hunt' ? 3 : 9) * rules().gather);
-    if (squadN < gather && s.tickets > 0) { s.plan = { kind: 'defend' }; return; }
+    if (squadN < gather && s.tickets > 0 && !G.warmup) { s.plan = { kind: 'defend' }; return; } // (the warm-up: captains only, nobody to gather, so straight at each other)
     { const hp = holdPlan(u, s); if (hp) { s.plan = hp; return; } }
     const [cap] = nearestFoe(u, 400, o => o.leader), [any] = nearestFoe(u, 400);
     const bl = G.bounty >= 0 && isEnemyTi(G.bounty, u.ti) && Math.random() < .65 ? G.teams[G.bounty].leader : null;
