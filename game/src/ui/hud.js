@@ -1,6 +1,6 @@
 // Scoreboard, clock, health, gold, squad count and button labels.
 import { STAMINA } from '../config.js';
-import { CROWN, TEAMS, MODES, STATS, DM_TICKETS, CAPS_TO_WIN, CTRL, AL_LETTER, ORDER_NAMES, UPGRADES, WEAPON_NAMES, STREAK, LAST } from '../config.js';
+import { CROWN, TEAMS, MODES, STATS, DM_TICKETS, CAPS_TO_WIN, CTRL, AL_LETTER, ORDER_NAMES, UPGRADES, WEAPON_NAMES, WEAPON_CLASS, STREAK, LAST } from '../config.js';
 import { G, isFfa, colorOf, rules, matchTime, SLOT_NAME, isOut, capOf } from '../core/state.js';
 import { colorOut, colorScore, colorHuman, squadOf, canRecruit, horseMax, upgradeCost, javMax, execTarget, castleHere } from '../core/sim.js';
 import { session, isClient } from '../net/session.js';
@@ -99,6 +99,7 @@ export function updateHud(lastSnapAt) {
   if (atkIcon !== w) { atkIcon = w; $('atkIc').innerHTML = ICONS[w]; document.querySelectorAll('#wheel button').forEach(b => { b.classList.toggle('cur', b.dataset.w === w); const s = b.querySelector('svg'); if (!s.innerHTML) s.innerHTML = ICONS[b.dataset.w]; }); }
   const mx = javMax(G.myTi), am = p ? Math.min(mx, p.javAmmo | 0) : 0;
   $('wpnS').textContent = w === 'jav' ? 'Javelin' : WEAPON_NAMES[w];
+  $('wpnS').dataset.cls = WEAPON_CLASS[w] || '';
   // on horseback the Jump button becomes the charge
   const mounted = !!(p && p.mounted), jk = mounted ? (p.chargeCd > 0 ? 'cd' : 'charge') : 'jump';
   if (jmpMode !== jk + (jk === 'cd' ? Math.ceil(p.chargeCd) : '')) {

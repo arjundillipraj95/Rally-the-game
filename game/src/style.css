@@ -108,7 +108,7 @@
     border:2px solid rgba(255,255,255,.7);background:rgba(12,14,18,.62);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:0;cursor:pointer;touch-action:none;
     transform:translate(var(--x),var(--y)) scale(.4);opacity:0;transition:transform .12s ease-out, opacity .1s, background .08s;}
   .wheel.show button{transform:translate(var(--x),var(--y)) scale(1);opacity:1;}
-  .wheel button svg{width:42%;height:42%;} .wheel button small{font:800 9px var(--body);letter-spacing:.06em;text-transform:uppercase;text-shadow:0 1px 2px #000;}
+  .wheel button svg{width:42%;height:42%;} .wheel button small{font:800 9px var(--body);letter-spacing:.06em;text-transform:uppercase;text-shadow:0 1px 2px #000;display:flex;flex-direction:column;align-items:center;line-height:1.1;} .wheel button small i{font:700 7px var(--body);font-style:normal;color:#ffd23a;letter-spacing:.1em;}
   .wheel button.cur{border-color:var(--gold);background:rgba(120,90,10,.6);}
   .wheel button.hot{background:rgba(255,207,58,.55);border-color:#fff;transform:translate(var(--x),var(--y)) scale(1.12);}
   .wheel button[data-w="sword"]{--x:calc(var(--W) * -1.25);--y:calc(var(--W) * -.5);}

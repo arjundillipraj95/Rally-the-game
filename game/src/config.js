@@ -233,6 +233,9 @@ export const CHARGE = { dur: 2.2, cd: 12, spd: 1.45, dmg: 32, kb: 15 };
 // a limited, regenerating ranged burst. Attacking in mid-air is a leap slam that hits a whole arc.
 export const WEAPONS = ['sword', 'spear', 'jav'];
 export const WEAPON_NAMES = { sword: 'Sword', spear: 'Spear', jav: 'Javelins' };
+// the three weapon classes: primary (the sword family, the fast combo), secondary (the spear family, reach and
+// the skewer), ranged (javelins, thrown and recovered over time). Shown on the weapon picker.
+export const WEAPON_CLASS = { sword: 'Primary', spear: 'Secondary', jav: 'Ranged' };
 // Captain stamina (every captain, computer ones too). Each action draws on it: a light blow, a heavy
 // one, an evade, a shield bash, a blow taken on the guard. It comes back regen per second, after delay
 // s without spending. Run dry and he's winded: slower between blows (cdSlow), blows land softer
