@@ -9,7 +9,7 @@ import { TEAMS } from '../config.js';
 import { G, colorOf } from '../core/state.js';
 import { scene } from './scene.js';
 import { groundY } from '../core/world.js';
-import { rigCaptain, addArmour, applyPose, moveAt, mixPose, CLIPS, POSES } from './rig/captainrig.js';
+import { rigCaptain, addArmour, applyPose, moveAt, mixPose, CLIPS, POSES, teamMaterial } from './rig/captainrig.js';
 import { SLOTS, SLOT_IX } from '../core/look.js';
 
 // the warhorse's leg joints, in its own (Z-up) model space: each leg swings from the top of its upper part
@@ -43,13 +43,14 @@ if (on) {
     ...['models/body_plain.glb', 'models/soldier.glb', 'models/armour_segmented.glb'].map(mesh$),
     ...PACK.helmet.map(n => scene$(`models/pack/captain_helmet_${n}.glb`)),
     ...PACK.shield.map(n => scene$(`models/pack/captain_shield_${n}.glb`)),
-    scene$('models/horse.glb')
+    scene$('models/horse.glb'), mesh$('models/soldier_lod.glb')
   ]).then(all => {
-    const [b, sd, ar, ...rest] = all, helmets = rest.slice(0, 3), shields = rest.slice(3, 6), horse = rest[6];
+    const [b, sd, ar, ...rest] = all, helmets = rest.slice(0, 3), shields = rest.slice(3, 6), horse = rest[6], lod = rest[7].geometry;
+    { const P = lod.attributes.position; let x0 = 1e9, x1 = -1e9; for (let i = 0; i < P.count; i++) { const y = P.getY(i); if (y > -.2 && y < -.15) { x0 = Math.min(x0, P.getX(i)); x1 = Math.max(x1, P.getX(i)); } } if (x1 > x0) lod.translate(-(x0 + x1) / 2, 0, 0); } // (centred on the waist, as the rig centres the full one)
     sd.material.metalness = 0; sd.material.roughness = .8; sd.geometry.userData.material = sd.material;
     b.material.metalness = 0; b.material.roughness = .8; b.geometry.userData.material = b.material;
     const by = (list, names) => Object.fromEntries(names.map((n, i) => [n, list[i]]));
-    SRC = { body: b.geometry, soldier: sd.geometry, horse: horseTemplate(horse),
+    SRC = { body: b.geometry, soldier: sd.geometry, soldierMat: sd.material, lod, horse: horseTemplate(horse),
       armours: Object.fromEntries(Object.entries(ARMOUR_FINISH).map(([n, [c, mt, rg]]) => { const m = ar.material.clone(); m.color.set(c); m.metalness = mt; m.roughness = rg; return [n, { geo: ar.geometry, mat: m }]; })),
       helmets: by(helmets, PACK.helmet), shields: by(shields, PACK.shield) };
   }).catch(e => { console.warn('captain models failed to load', e); on = false; });
@@ -116,6 +117,28 @@ export function drawFreeHorses(list, dt) {
   for (const [k, m] of freeH) if (!seen.has(k)) { scene.remove(m.root); freeH.delete(k); }
   return true;
 }
+// distant soldiers and archers: one batch per team of the low-detail new soldier, standing (no
+// skeleton), with a stride bob and a lean when moving. Hundreds cost a few draw calls.
+const FAR_MAX = 600, far = new Map(); let farReset = true, farDrawn = false;
+const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _e = new THREE.Euler();
+function farBatch(hex) {
+  let b = far.get(hex);
+  if (!b) { b = new THREE.InstancedMesh(SRC.lod, teamMaterial(SRC.soldierMat, hex, .26), FAR_MAX); b.count = 0; b.frustumCulled = false; b.castShadow = true; scene.add(b); far.set(hex, b); }
+  return b;
+}
+export function drawFar(u, a) {
+  if (u.dead || u.hidden || u.mounted || (u.kind !== 'foot' && u.kind !== 'arch')) return false;
+  if (on && !SRC) return true; // (still loading: hidden rather than the old figure)
+  if (!heroesOn()) return false;
+  if (farReset) { for (const b of far.values()) b.count = 0; farReset = false; }
+  const b = farBatch(TEAMS[colorOf(u.ti)].hex); if (b.count >= FAR_MAX) return false;
+  const sc = SCALE * SOLDIER_SCALE, sp = Math.hypot(u.vx || 0, u.vz || 0), moving = sp > .3;
+  const bob = moving ? Math.abs(Math.sin(G.T * 9 + (u.id || 0) * 1.7)) * .08 : 0;
+  _p.set(u.x, (u.y || 0) + (a.lift || 0) - (a.sink || 0) + .998 * sc + bob, u.z);
+  _e.set(moving ? .12 : 0, u.face + (a.yaw || 0), 0, 'YXZ'); _q.setFromEuler(_e); _s.setScalar(sc);
+  b.setMatrixAt(b.count++, _m.compose(_p, _q, _s)); farDrawn = true;
+  return true;
+}
 function drop(h) {
   scene.remove(h.U || h.R.root);
   h.R.root.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); // (the horse's geometry is shared: only the rider's is freed)
@@ -160,5 +183,7 @@ export function drawHero(u, a, dt) {
 // after a frame's drawing: captains no longer drawn this way (gone, mounted, dead) are taken down
 export function sweepHeroes() {
   if (!on) return;
+  if (farDrawn) { for (const b of far.values()) b.instanceMatrix.needsUpdate = true; } else for (const b of far.values()) b.count = 0;
+  farDrawn = false; farReset = true; // (the distant batches: sent for this frame, refilled from the next)
   for (const [u, h] of live) if (h.seen !== G.T) { if (u.dead || !G.units.includes(u)) { drop(h); live.delete(u); } else (h.U || h.R.root).visible = false; }
 }

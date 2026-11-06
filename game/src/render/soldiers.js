@@ -13,7 +13,7 @@ import { camTarget } from './camera.js';
 import { trail, slash, pow, dust, spark } from './effects.js';
 import { groundY } from '../core/world.js';
 import { quality } from './quality.js';
-import { drawHero, sweepHeroes } from './heroes.js';
+import { drawHero, drawFar, sweepHeroes } from './heroes.js';
 
 const MAX_UNITS = 320;
 
@@ -775,7 +775,7 @@ export function drawSoldiers(units, dt) {
     drawn++;
     const a = pose(u, u.slowT > 0 ? dt * .25 : dt); // (a parry's two men move in slow motion)
     bones(u, a);
-    const hero = (u.kind === 'captain' || nearCam(u, 26)) && drawHero(u, a, dt); // (the new 3D captain, and the soldiers, archers and mounts near the camera: only their shadow and ring come from the parts below)
+    const hero = ((u.kind === 'captain' || nearCam(u, 26)) && drawHero(u, a, dt)) || drawFar(u, a); // (the new 3D captain, and the soldiers, archers and mounts near the camera: only their shadow and ring come from the parts below)
     if (u.mounted && u.charge > 0 && Math.random() < dt * 16) dust(u.x - Math.sin(u.face) * 1.4, u.z - Math.cos(u.face) * 1.4); // a charge kicks up a trail
     // a brief streak off the blade/spear tip while mid-swing, so a fast hit reads as motion
     if (u.swing > 0 && !u.dead && (u.kind === 'foot' || u.kind === 'captain')) {
