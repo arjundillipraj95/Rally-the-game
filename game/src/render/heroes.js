@@ -18,10 +18,10 @@ const SCALE = 1.22; // (the old captain stood about 2.4 tall; the model is 1.96)
 let SRC = null;
 if (on) {
   const L = new GLTFLoader(), first = g => { let m = null; g.scene.traverse(o => { if (o.isMesh && !m) m = o; }); return m; };
-  Promise.all(['models/body_plain.glb', 'models/armour_segmented.glb'].map(f => L.loadAsync(f).then(first))).then(([b, a]) => {
+  Promise.all([...['models/body_plain.glb', 'models/armour_segmented.glb'].map(f => L.loadAsync(f).then(first)), L.loadAsync('models/pack/captain_shield_red_scutum.glb').then(g => g.scene)]).then(([b, a, shield]) => {
     b.material.metalness = 0; b.material.roughness = .8; b.geometry.userData.material = b.material;
     a.material.metalness = .35; a.material.roughness = .45;
-    SRC = { body: b.geometry, armour: a.geometry, armourMat: a.material };
+    SRC = { body: b.geometry, armour: a.geometry, armourMat: a.material, pack: { shield } }; // (the equipment pack's scutum, in team colour)
   }).catch(e => { console.warn('captain models failed to load', e); on = false; });
 }
 
@@ -30,7 +30,7 @@ const KIND = ['forehand', 'backhand', 'overhead', 'thrust', 'spin', 'heavy', 'ba
 function weaponOf(u) { return u.weapon === 'spear' ? 'spear' : u.weapon === 'jav' ? 'jav' : 'sword'; }
 function make(u) {
   const weapon = weaponOf(u), team = TEAMS[colorOf(u.ti)].hex;
-  const R = rigCaptain(SRC.body, { team, weapon }); addArmour(R, SRC.armour, SRC.armourMat);
+  const R = rigCaptain(SRC.body, { team, weapon, pack: SRC.pack }); addArmour(R, SRC.armour, SRC.armourMat);
   R.root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
   R.root.scale.setScalar(SCALE); scene.add(R.root);
   return { R, weapon, team, run: 0, moveName: null, moveT: 0, hp: u.hp, blockHitT: -1 };

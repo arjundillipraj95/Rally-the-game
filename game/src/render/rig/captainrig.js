@@ -177,7 +177,7 @@ export const FIT = {
 function packPiece(src, fit, team = null) {
   const o = src.clone(true), w = new THREE.Group(); o.rotation.x = -Math.PI / 2; w.add(o);
   if (Array.isArray(fit.s)) o.scale.fromArray(fit.s); else w.scale.setScalar(fit.s); // (an array: across, front-to-back, up, in the pack's own frame)
-  if (team != null) o.traverse(m => { if (m.isMesh && /crest|plume|scutum|oval|kite|face|field/i.test(m.name) && !/mount|rim|gold|boss/i.test(m.name)) { m.material = m.material.clone(); m.material.color.set(team); } });
+  if (team != null) o.traverse(m => { if (m.isMesh && /crest|plume|scutum|oval|kite|face|field/i.test(m.name) && !/mount|rim|gold|boss/i.test(m.name)) { m.material = m.material.clone(); m.material.vertexColors = false; m.material.color.set(team); m.material.needsUpdate = true; } }); // (vertex colours off: the team colour would multiply with them)
   o.traverse(m => { if (m.isMesh) { m.castShadow = true; m.material = m.material.clone(); m.material.metalness = Math.min(m.material.metalness, .3); m.material.roughness = Math.max(m.material.roughness, .45); } }); // (the pack's metals are fully metallic: black without a sky to reflect)
   return w;
 }
