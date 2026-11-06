@@ -451,7 +451,9 @@ function homeCamera(dt) {
   for (const [id, side] of [['pedL', 1], ['pedR', -1]]) {
     const el = $(id); if (!el) continue;
     if (homeView !== 'home') { el.hidden = true; continue; }
-    const pm = partyOthers()[side > 0 ? 0 : 1]; el.classList.toggle('taken', !!pm); el.querySelector('span').textContent = pm ? pm.nick : '+';
+    const pm = partyOthers()[side > 0 ? 0 : 1];
+    if (!pm && playFmt < (side > 0 ? 1 : 2)) { el.hidden = true; continue; } // (a "+" only for the places the chosen mode needs: duo one, trio two)
+    el.classList.toggle('taken', !!pm); el.querySelector('span').textContent = pm ? pm.nick : '+';
     el.setAttribute('aria-label', pm ? `${pm.nick}, in your party` : 'Play with a friend');
     _v.set(c.x + rx * side * 2.5, gy + (pm ? 3 : 1.15), c.z + rz * side * 2.5).project(camera);
     const px = (_v.x + 1) / 2 * innerWidth, py = (1 - _v.y) / 2 * innerHeight, pr = $('home').querySelector('.hplay').getBoundingClientRect();
