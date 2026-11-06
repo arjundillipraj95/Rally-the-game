@@ -1,0 +1,24 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Anim</title><style>html,body{margin:0;background:#d8d8d8}</style></head>
+<body><canvas id="c"></canvas>
+<script type="module">
+// Dev view: a move (?clip=run) played by the captain (gladius) and a soldier (spear), side by side;
+// window.frame(t) draws time t, for recording
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { rigCaptain, CLIPS, POSES, applyPose, addArmour } from './captainrig.js';
+const q = new URLSearchParams(location.search), W = +(q.get('w') || 960), H = +(q.get('h') || 540), clip = q.get('clip') || 'run';
+const r = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true, preserveDrawingBuffer: true }); r.setPixelRatio(1); r.setSize(W, H); r.setClearColor(0xd8d8d8);
+const scene = new THREE.Scene(); scene.add(new THREE.HemisphereLight(0xffffff, 0x777777, 1.1)); const sun = new THREE.DirectionalLight(0xffffff, 1.4); sun.position.set(2, 3, 4); scene.add(sun);
+const L = new GLTFLoader(), first = g => { let m = null; g.scene.traverse(o => { if (o.isMesh && !m) m = o; }); m.material.metalness = 0; m.material.roughness = .8; m.geometry.userData.material = m.material; return m; };
+const [cb, ca, sb] = await Promise.all(['models/body_plain.glb', 'models/armour_segmented.glb', 'models/soldier.glb'].map(f => L.loadAsync(f).then(first)));
+ca.material.metalness = .35; ca.material.roughness = .45;
+const ground = new THREE.Mesh(new THREE.CircleGeometry(5, 48), new THREE.MeshStandardMaterial({ color: 0xa8b890 })); ground.rotation.x = -Math.PI / 2; scene.add(ground);
+const C = rigCaptain(cb.geometry, { team: 0x3a5cf0, weapon: q.get('cw') || 'sword' }); addArmour(C, ca.geometry, ca.material);
+const Sd = rigCaptain(sb.geometry, { body: 'soldier', team: 0xe0352b, weapon: q.get('sw') || 'spear' });
+const rigs = [[C, -.75, 1], [Sd, .85, .8]]; for (const [R, x, s] of rigs) { R.root.scale.setScalar(s); R.root.position.set(x, .998 * s, 0); R.root.rotation.y = +(q.get('face') || -.9); scene.add(R.root); }
+const cam = new THREE.PerspectiveCamera(30, W / H, .1, 100); cam.position.set(0, 1.25, 5.6); cam.lookAt(0, .8, 0);
+const get = t => CLIPS[clip] ? CLIPS[clip](t) : POSES[clip];
+window.frame = t => { for (const [R] of rigs) applyPose(R, get(t)); r.render(scene, cam); };
+window.frame(0); window.__done = true;
+</script></body></html>

@@ -259,5 +259,44 @@ export function aimGear(R, P) {
 }
 export function applyPose(R, P) {
   for (const n in R.bones) { const r = P[n] || [0, 0, 0]; R.bones[n].rotation.set(r[0], r[1], r[2]); }
+  const h = R.bones.hips; if (h.userData.y0 === undefined) h.userData.y0 = h.position.y;
+  h.position.y = h.userData.y0 + (P.hipsY || 0); // (the body's bob and crouch)
   aimGear(R, P);
 }
+
+// blend two poses: bone rotations and the hip height by k, gear directions turned between the two
+export function mixPose(A, B, k) {
+  const out = {};
+  for (const key of new Set([...Object.keys(A), ...Object.keys(B)])) {
+    const a = A[key], b = B[key];
+    if (typeof a === 'number' || typeof b === 'number') out[key] = (a || 0) * (1 - k) + (b || 0) * k;
+    else { const x = a || (key === 'blade' || key === 'face' || key === 'up' || key === 'pole' ? b : [0, 0, 0]), y = b || (key === 'blade' || key === 'face' || key === 'up' || key === 'pole' ? a : [0, 0, 0]); out[key] = [0, 1, 2].map(i => x[i] * (1 - k) + y[i] * k); }
+  }
+  return out;
+}
+
+// looping moves, as poses worked out from the time t (seconds). Arms swing about x once hanging
+// (negative: forward), thighs likewise; a positive shin bends the knee back.
+const sin = Math.sin, cos = Math.cos, TAU = Math.PI * 2;
+export const CLIPS = {
+  // standing: slow breathing, a slight sway of the weight, the weapon held ready
+  idle: t => {
+    const b = sin(t * TAU / 2.6), w = sin(t * TAU / 5.2);
+    return { ...POSES.rest, chest: [.035 * b, .03 * w, 0], spine: [.02, 0, .015 * w], hips: [0, 0, -.015 * w], neck: [-.02 * b, 0, 0], head: [-.015 * b, -.04 * w, 0],
+      upperArm_R: [-.04 * b, 0, 1.25 + .04 * b], upperArm_L: [-.03 * b, 0, -1.25 - .04 * b], hipsY: -.006 + .006 * b };
+  },
+  // running: a forward lean, legs reaching and kicking back, the sword arm pumping, the shield kept up
+  // in front, the body bobbing twice a stride and twisting with it
+  run: t => {
+    const p = t * TAU * 1.5, s = sin(p), c = cos(p), up = Math.abs(cos(p));
+    return { ...POSES.rest,
+      spine: [.22, .1 * s, 0], hips: [0, -.14 * s, 0], chest: [0, -.06 * s, 0], neck: [-.12, .04 * s, 0], head: [-.08, 0, 0],
+      thigh_R: [-.9 * s - .1, 0, 0], thigh_L: [.9 * s - .1, 0, 0],
+      shin_R: [.35 + .75 * Math.max(0, c) + .25 * Math.max(0, s), 0, 0], shin_L: [.35 + .75 * Math.max(0, -c) + .25 * Math.max(0, -s), 0, 0],
+      foot_R: [-.2 * s, 0, 0], foot_L: [.2 * s, 0, 0],
+      upperArm_R: [.75 * s, 0, 1.15], foreArm_R: [0, 1.1, 0],
+      upperArm_L: [-.25 * s - .3, -.3, -1.05], foreArm_L: [0, -.9, 0],
+      blade: [-.25, .85, .45], pole: [-.2, 1, .45], face: [.25, 0, 1], up: [0, 1, 0],
+      hipsY: -.03 + .06 * up };
+  },
+};
