@@ -1,0 +1,22 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Pack</title><style>html,body{margin:0;background:#d8d8d8}</style></head>
+<body><canvas id="c"></canvas>
+<script type="module">
+// Dev view: the captain equipment pack (Z-up, front -Y: turned to the game's Y-up, front +Z), each item from the front and side
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+const FILES = ['helmets/captain_helmet_red_crest', 'helmets/captain_helmet_blue_crest', 'helmets/captain_helmet_gold_ridge', 'armour/captain_armour_segmented_steel', 'armour/captain_armour_bronze', 'armour/captain_armour_leather', 'shields/captain_shield_red_scutum', 'shields/captain_shield_blue_oval', 'shields/captain_shield_blue_kite', 'weapons/captain_weapon_gladius', 'weapons/captain_weapon_spear', 'weapons/captain_weapon_javelin'];
+const q = new URLSearchParams(location.search), yaw = +(q.get('yaw') || -35) * Math.PI / 180, raw = q.get('raw') === '1';
+const W = 1600, H = 900, r = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true }); r.setPixelRatio(1); r.setSize(W, H); r.setClearColor(0xd8d8d8); r.setScissorTest(true);
+const scene = new THREE.Scene(); scene.environment = new THREE.PMREMGenerator(r).fromScene(new RoomEnvironment(), .04).texture; const sun = new THREE.DirectionalLight(0xffffff, 1.5); sun.position.set(2, 3, 4); scene.add(sun);
+const L = new GLTFLoader(), gs = await Promise.all(FILES.map(f => L.loadAsync('pack/' + f + '.glb')));
+gs.forEach((g, i) => {
+  const o = g.scene; if (!raw) o.rotation.x = -Math.PI / 2; const w = new THREE.Group(); w.add(o); w.rotation.y = yaw; scene.add(w); w.updateMatrixWorld(true);
+  const b = new THREE.Box3().setFromObject(w), c = b.getCenter(new THREE.Vector3()), s = b.getSize(new THREE.Vector3()), R = Math.max(s.x, s.y, s.z) * .62;
+  scene.children.forEach(x => { if (x.isGroup) x.visible = x === w; });
+  const cw = W / 6, ch = H / 2, cam = new THREE.OrthographicCamera(-R, R, R * ch / cw, -R * ch / cw, .01, 100); cam.position.set(c.x, c.y + .2, c.z + 8); cam.lookAt(c);
+  r.setViewport((i % 6) * cw, (1 - Math.floor(i / 6)) * ch, cw, ch); r.setScissor((i % 6) * cw, (1 - Math.floor(i / 6)) * ch, cw, ch); r.render(scene, cam);
+});
+window.__done = true;
+</script></body></html>

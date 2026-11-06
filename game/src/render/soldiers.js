@@ -13,6 +13,7 @@ import { camTarget } from './camera.js';
 import { trail, slash, pow, dust, spark } from './effects.js';
 import { groundY } from '../core/world.js';
 import { quality } from './quality.js';
+import { drawHero, sweepHeroes } from './heroes.js';
 
 const MAX_UNITS = 320;
 
@@ -774,6 +775,7 @@ export function drawSoldiers(units, dt) {
     drawn++;
     const a = pose(u, u.slowT > 0 ? dt * .25 : dt); // (a parry's two men move in slow motion)
     bones(u, a);
+    const hero = drawHero(u, a, dt); // (the new 3D captain, when on: only his shadow and ring come from the parts below)
     if (u.mounted && u.charge > 0 && Math.random() < dt * 16) dust(u.x - Math.sin(u.face) * 1.4, u.z - Math.cos(u.face) * 1.4); // a charge kicks up a trail
     // a brief streak off the blade/spear tip while mid-swing, so a fast hit reads as motion
     if (u.swing > 0 && !u.dead && (u.kind === 'foot' || u.kind === 'captain')) {
@@ -813,6 +815,7 @@ export function drawSoldiers(units, dt) {
     if (u.swing <= 0) { const a = anim.get(u); if (a) a.slashed = false; }
     const ring = ringFor(u), look = lookOf(u.ti), wear = u.kind === 'captain' || u.kind === 'foot' ? Math.min(1, Math.max(0, 1 - u.hp / u.max)) : 0; // (battered: dull, dented metal)
     for (const p of PARTS) {
+      if (hero && p.geo !== 'shadow' && p.geo !== 'ring' && p.geo !== 'ringAlly') continue;
       if (p.k && !p.k.has(u.kind)) continue;
       if (p.s && !p.s.v.has(look[p.s.i])) continue;
       if (p.s2 && (!p.s2[0].v.has(look[p.s2[0].i]) || !p.s2[1].v.has(look[p.s2[1].i]))) continue;
@@ -825,7 +828,7 @@ export function drawSoldiers(units, dt) {
       if (p.col) { let c = p.col(u); if (wear > .15 && p.mat === 'metal') c = wearC.copy(c).lerp(SOOT, wear * .4); b.mesh.setColorAt(i, a.flash > 0 ? flashC.copy(c).lerp(WHITE, a.flash * .75) : c); }
     }
   }
-  drawProps(dt);
+  drawProps(dt); sweepHeroes();
   for (const b of batches.values()) {
     b.mesh.count = b.n;
     if (b.outline) b.outline.count = outlines ? b.n : 0;
