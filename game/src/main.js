@@ -453,7 +453,9 @@ function homeCamera(dt) {
   // world. On a narrow screen both come in closer, evenly, so the right one stays clear of the Play panel.
   const pr = $('home').querySelector('.hplay').getBoundingClientRect();
   const under = (side, off) => { _v.set(c.x + rx * side * off, gy + 1.15, c.z + rz * side * off).project(camera); const px = (_v.x + 1) / 2 * innerWidth, py = (1 - _v.y) / 2 * innerHeight; return px > pr.left - 36 && py > pr.top - 36; };
-  const off = [2.5, 2.2, 1.9, 1.7].find(o => !under(-1, o)) || 1.7;
+  const mr = $('home').querySelector('.hleft').getBoundingClientRect();
+  const overMenu = off => { _v.set(c.x + rx * off, gy + 1.15, c.z + rz * off).project(camera); return (_v.x + 1) / 2 * innerWidth < mr.right + 40; }; // (the left place, clear of the menu buttons)
+  const off = [2.5, 2.2, 1.9, 1.7, 1.5].find(o => !under(-1, o) && !overMenu(o)) || 1.5;
   if (off !== pedOff) { pedOff = off; placeParty(); }
   for (const [id, k] of [['pedL', 0], ['pedR', 1]]) {
     const el = $(id); if (!el) continue;
@@ -894,6 +896,7 @@ function loop(now) {
 
 // read-only hook for automated play-testing
 const r1 = v => Math.round(v * 10) / 10;
+if (import.meta.env.DEV) window.__on = { ON, bus }; // (dev: tests fake the online party)
 window.__fb = {
   end() { endMatch(G.ALLY[colorOf(G.myTi)], 'time'); },
   get info() {

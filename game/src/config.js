@@ -38,7 +38,7 @@ export const CROWN = {
   gold: { castle: .8, village: .3, mine: 1.6 }, // per second, to every army on the side
   casing: 22, overtime: 60, carrierSlow: .85, plazaR: 15, wallR: 17.5, gateW: 4.4, gateHp: 1000, // (the plaza's wall at 9:00, and its four gates) // (seconds of men in the plaza to break the Crown's casing)
   size: 1.6, // (the Crown's field is this many times the standard size, so places sit further apart and there's room to hold ground)
-  castles: 6, villages: 6, mines: 4, lateJoin: 60, // (a friend can still join a battle in its first minute)
+  castles: 6, villages: 6, mines: 4, lateJoin: 120, // (a friend, or the next searcher, can still take over a computer captain in its first two minutes)
   tower: { build: 4, hp: 260, max: 2, reach: 2.2 },
   cwallR: 13.6, cgateW: 6.4, cgateSmall: 2.6, cgateHp: 700, cgateSmallHp: 450, fortCost: [100, 170, 250], fortMult: [1, 2, 3, 4], fortTowers: [0, 1, 4, 4], fortTowerEvery: [0, 1.8, 1.8, 1.2], fortMend: 2, // (Fortify a castle you stand in, three levels: gates tougher by fortMult (x base HP), towers from level 1 (fortTowers of the four), shooting every fortTowerEvery s; a broken gate mends only with your men inside, fortMend times as fast) cgateMend: 60, // (castle curtain walls: radius, gate width and toughness, seconds a broken gate takes to mend) // (watchtowers: seconds to build, toughness, how many a side may have)
 };

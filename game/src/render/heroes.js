@@ -77,6 +77,7 @@ function horseTemplate(sc) {
   }
   const tpl = new THREE.Group(); tpl.add(H); return tpl;
 }
+let FRAME = 0; // (frames drawn: what was drawn this frame stays up, the rest is taken down)
 const live = new Map(); // unit -> { R, weapon, team, run, moveName, moveT, hp, sc, U, legs }
 const KIND = ['forehand', 'backhand', 'overhead', 'thrust', 'spin', 'heavy', 'bash'];
 // the Arms upgrade (tier 1+) puts a spear in the hand of a footman, and of a captain who has not picked one
@@ -248,7 +249,7 @@ export function drawHero(u, a, dt) {
   let h = live.get(u);
   if (h && (h.weapon !== weaponOf(u) || h.key !== keyOf(u) || h.mounted !== !!u.mounted)) { drop(h); live.delete(u); h = null; }
   if (!h) { h = make(u); live.set(u, h); }
-  h.seen = G.T;
+  h.seen = FRAME; // (drawn this frame: by a frame count, since the game clock stands still on the home screen)
   const R = h.R, sp = Math.hypot(u.vx || 0, u.vz || 0), mv = Math.min(1, sp / 4);
   h.run += dt * (.55 + sp * .12); // (the stride keeps time with his speed)
   const blocking = (u.human && u.blocking) || u.blockT > 0;
@@ -299,5 +300,6 @@ export function sweepHeroes() {
   if (!on) return;
   if (farDrawn) { for (const b of far.values()) b.instanceMatrix.needsUpdate = true; } else for (const b of far.values()) b.count = 0;
   farDrawn = false; farReset = true; // (the distant batches: sent for this frame, refilled from the next)
-  for (const [u, h] of live) if (h.seen !== G.T) { if (u.dead || !G.units.includes(u)) { drop(h); live.delete(u); } else (h.U || h.R.root).visible = false; }
+  for (const [u, h] of live) if (h.seen !== FRAME) { if (u.dead || !G.units.includes(u)) { drop(h); live.delete(u); } else (h.U || h.R.root).visible = false; }
+  FRAME++;
 }
