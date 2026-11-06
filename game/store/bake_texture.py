@@ -27,15 +27,21 @@ V = np.asarray(m.vertices, dtype=np.float64); F = np.asarray(m.faces)
 # centre x on the torso (as the rig does), so the model and its texture line up with the skeleton
 waist = V[(V[:, 1] > -.2) & (V[:, 1] < -.15)]
 x0 = (waist[:, 0].min() + waist[:, 0].max()) / 2; V[:, 0] -= x0
-# smooth away the sculpted eyes, brows and mouth on the front of the face: the painted ones carry the
-# expression, and sculpted ones that don't line up with the paint read as a second set of features
-nbr = [set() for _ in range(len(V))]
-for a, b, c in F: nbr[a].update((b, c)); nbr[b].update((a, c)); nbr[c].update((a, b))
-face = (V[:, 1] > .22) & (V[:, 1] < .82) & (V[:, 2] > -.08) & (np.abs(V[:, 0]) < .36)
-fw = np.clip((V[:, 2] + .08) / .14, 0, 1) * np.clip((V[:, 1] - .22) / .06, 0, 1) * face  # (the whole face and cheeks, easing out toward the ears)
-for _ in range(0 if ITEM else 16):
-    avg = np.array([V[list(n)].mean(0) if n else V[i] for i, n in enumerate(nbr)])
-    V = V + (avg - V) * (.6 * fw)[:, None]
+# the head: smoothed evenly all over (Taubin: a pass that smooths, then one that swells back, so it
+# keeps its size and shape: cheeks, chin, nose) to take out the small sculpted creases (eye sockets,
+# mouth lines) that fight the painted features. All over, not just the face: no rim, no flat plate.
+NEWHEAD = os.environ.get('BAKE_NEWHEAD') == '1'
+if not ITEM:
+    nbr = [set() for _ in range(len(V))]
+    for a, b, c in F: nbr[a].update((b, c)); nbr[b].update((a, c)); nbr[c].update((a, b))
+    hw = np.clip((V[:, 1] - .24) / .08, 0, 1) * (np.abs(V[:, 0]) < .46)
+    for it in range(30):
+        avg = np.array([V[list(n)].mean(0) if n else V[i] for i, n in enumerate(nbr)])
+        V = V + (avg - V) * ((.5 if it % 2 == 0 else -.53) * hw)[:, None]
+    sk = V[(V[:, 1] > .6) & (np.abs(V[:, 0]) < .34)]
+    HC = np.array([0., (V[:, 1].max() + .3) / 2, (sk[:, 2].max() + sk[:, 2].min()) / 2])
+    HR = np.array([np.percentile(np.abs(sk[:, 0]), 99), V[:, 1].max() - HC[1], (sk[:, 2].max() - sk[:, 2].min()) / 2])
+    print('head', HC.round(3), HR.round(3))
 sheet = np.asarray(Image.open(sheet_path).convert('RGB')).astype(np.float32)
 SH, SW = sheet.shape[:2]
 bg = np.median(np.concatenate([sheet[:10].reshape(-1, 3), sheet[-10:].reshape(-1, 3)]), axis=0)
@@ -106,11 +112,14 @@ for view in FIG:
     depth[view] = D
 
 # the head's centre and hairline (elevation in radians from that centre: at the front, the sides, the back)
-HEAD_C = np.array([0, .62, -.02]); HEAD_Y0 = .27; HAIR_FRONT, HAIR_BACK = .5, -.95
+HEAD_C = HC if not ITEM else np.array([0, .62, -.02]); HEAD_Y0 = .27; HAIR_FRONT, HAIR_BACK = .5, -.95
 _, HAIR_LOW_PY, _ = proj('back', np.array([[0, .44, -.3]])); HAIR_LOW_PY = float(HAIR_LOW_PY[0])
 _, HAIR_LOW_SPY, _ = proj('side', np.array([[.3, .62, -.25]])); HAIR_LOW_SPY = float(HAIR_LOW_SPY[0])
-# skin colour, from the front picture at the cheek
-_px, _py, _ = proj('front', np.array([[.2, .42, .3]])); SKIN = sheet[int(_py[0]), int(_px[0])].copy(); print('skin', SKIN)
+# skin colour: the typical colour of the front picture's face (brows, eyes and mouth left out)
+_fp = V[(V[:, 1] > .38) & (V[:, 1] < .62) & (np.abs(V[:, 0]) < .26) & (V[:, 2] > .05)] if not ITEM else V[:1]
+_px, _py, _ = proj('front', _fp); _c = sheet[np.clip(_py.astype(int), 0, SH - 1), np.clip(_px.astype(int), 0, SW - 1)]
+_l = _c.sum(1); SKIN = np.median(_c[_l > np.median(_l) * .9], axis=0); print('skin', SKIN.round())
+INTERIOR = np.array([46., 40., 36.]); ZMID = (V[:, 2].max() + V[:, 2].min()) / 2  # (inside an item, where no picture sees: dark)
 
 # unwrap, and per-vertex normals for the new layout
 vmap, NF, UV = xatlas.parametrize(V.astype(np.float32), F.astype(np.uint32))
@@ -122,6 +131,23 @@ def sample(px, py):
     out = ~inner[yi, xi]; px = np.where(out, NIX[yi, xi] + .5, px); py = np.where(out, NIY[yi, xi] + .5, py)  # (edge samples: from just inside the figure)
     x = np.clip(px, 0, SW - 1.001); y = np.clip(py, 0, SH - 1.001); x0_, y0_ = np.floor(x).astype(int), np.floor(y).astype(int); fx, fy = (x - x0_)[:, None], (y - y0_)[:, None]
     return (sheet[y0_, x0_] * (1 - fx) * (1 - fy) + sheet[y0_, x0_ + 1] * fx * (1 - fy) + sheet[y0_ + 1, x0_] * (1 - fx) * fy + sheet[y0_ + 1, x0_ + 1] * fx * fy)
+
+def head_colour(P, N):
+    """the head, painted by rule: hair above a smooth hairline (forehead, past the ears, down to the nape)
+    from the pictures' hair; skin below; the features from the front picture where they differ from skin"""
+    d = P - HEAD_C; d /= np.linalg.norm(d, axis=1, keepdims=True) + 1e-9
+    el = np.arcsin(np.clip(d[:, 1], -1, 1)); az = np.abs(np.arctan2(d[:, 0], d[:, 2])) / np.pi  # (0 front, 1 back)
+    line = HAIR_FRONT + (HAIR_BACK - HAIR_FRONT) * (1 - np.cos(az * np.pi)) / 2
+    hairw = np.clip((el - line) / .06 + .5, 0, 1) * np.clip((.36 - np.abs(P[:, 0])) / .04, 0, 1)  # (the ears stay skin)
+    bx, by, _ = proj('back', P); by = np.minimum(by, HAIR_LOW_PY)
+    sx_, sy_, _ = proj('side', P); sy_ = np.minimum(sy_, HAIR_LOW_SPY)
+    sidew = np.clip((np.abs(d[:, 0]) - .45) / .3, 0, 1)[:, None]
+    hair = sample(bx, by) * (1 - sidew) + sample(sx_, sy_) * sidew
+    fx, fy, _ = proj('front', P); feat = sample(fx, fy)
+    fw = np.clip((N[:, 2] - .45) / .2, 0, 1) * (1 - hairw) * np.clip((P[:, 1] - .32) / .04, 0, 1) * np.clip((.3 - np.abs(P[:, 0])) / .06, 0, 1)
+    fw = fw * np.clip((np.abs(feat - SKIN).sum(1) - 30) / 45, 0, 1)  # (only what differs from skin: brows, eyes, nose shading, mouth)
+    skin = SKIN * (1 - fw[:, None]) + feat * fw[:, None]
+    return hair * hairw[:, None] + skin * (1 - hairw[:, None])
 
 tex = np.zeros((TS, TS, 3), np.float32); filled = np.zeros((TS, TS), bool)
 for f in NF:
@@ -142,7 +168,14 @@ for f in NF:
             w = np.clip(face, 0, 1) ** 8 * vis * np.where(isbg, .02, 1)  # (steep: each spot mostly from the view that faces it, so features don't double)
             acc += col * w[:, None]; wsum += w
             fb = np.clip(face, 0, 1) * np.where(isbg, .1, 1); better = fb > bestw; best[better] = col[better]; bestw[better] = fb[better]
-        c = np.where(wsum[:, None] > 1e-4, acc / np.maximum(wsum, 1e-9)[:, None], best)
+        seen = wsum > 1e-4
+        # unseen by every picture: an item's insides (surfaces facing in toward its middle) dark; anything
+        # else (tops of shoulders, undersides) takes the best view it has
+        inward = ((N[:, 0] * P[:, 0] + N[:, 2] * (P[:, 2] - ZMID)) < 0) & (np.abs(N[:, 1]) < .7)
+        c = np.where(seen[:, None], acc / np.maximum(wsum, 1e-9)[:, None], np.where((inward & ITEM)[:, None], INTERIOR, best))
+        if not ITEM:  # (the fists: skin, as in the pictures)
+            hand = np.clip((np.abs(P[:, 0]) - .62) / .04, 0, 1) * ((P[:, 1] > -.2) & (P[:, 1] < .2))
+            c = c * (1 - hand[:, None]) + SKIN * .96 * hand[:, None]
         # under the chin and jaw (facing down, seen by no picture): skin, fading in by how far it faces down
         under = np.clip((-N[:, 1] - .25) / .35, 0, 1) * ((P[:, 1] > .22) & (P[:, 1] < .5)) * (not ITEM)
         c = c * (1 - under[:, None]) + SKIN * under[:, None]
@@ -150,24 +183,13 @@ for f in NF:
         # hair above a smooth hairline (forehead, past the ears, down to the nape), from the back picture's
         # hair; skin below; the features from the front picture only where the face looks straight ahead
         head = (P[:, 1] > HEAD_Y0) & (np.abs(P[:, 0]) < .5) & (not ITEM)
-        if head.any():
-            d = P[head] - HEAD_C; d /= np.linalg.norm(d, axis=1, keepdims=True) + 1e-9
-            el = np.arcsin(np.clip(d[:, 1], -1, 1)); az = np.abs(np.arctan2(d[:, 0], d[:, 2])) / np.pi  # (0 front, 1 back)
-            line = HAIR_FRONT + (HAIR_BACK - HAIR_FRONT) * (1 - np.cos(az * np.pi)) / 2  # (smooth all round: no point at the back)
-            hairw = np.clip((el - line) / .06 + .5, 0, 1) * np.clip((.37 - np.abs(P[head][:, 0])) / .04, 0, 1)  # (the ears stay skin)
-            bx, by, _ = proj('back', P[head]); by = np.minimum(by, HAIR_LOW_PY)  # (hair texture from the back picture, kept above its nape)
-            sx_, sy_, _ = proj('side', P[head]); sy_ = np.minimum(sy_, HAIR_LOW_SPY)
-            sidew = np.clip((np.abs(d[:, 0]) - .45) / .3, 0, 1)[:, None]  # (the sides of the head: hair from the side picture, not the back one stretched)
-            hair = sample(bx, by) * (1 - sidew) + sample(sx_, sy_) * sidew
-            fx, fy, _ = proj('front', P[head]); feat = sample(fx, fy)
-            fw = np.clip((N[head][:, 2] - .55) / .2, 0, 1) * (1 - hairw) * np.clip((P[head][:, 1] - .34) / .04, 0, 1) * np.clip((.34 - np.abs(P[head][:, 0])) / .06, 0, 1)  # (features only: brows to mouth)
-            skin = SKIN * (1 - fw[:, None]) + feat * fw[:, None]
-            c[head] = hair * hairw[:, None] + skin * (1 - hairw[:, None])
-        tex[ys, xs] = c; filled[ys, xs] = True
+        if head.any(): c[head] = head_colour(P[head], N[head])
+        if not ITEM: seen = seen | head
+        tex[ys, xs] = c; filled[ys, xs] = seen if not ITEM else True  # (the body: unseen spots are filled from their seen neighbours below)
     raster(uvp, paint, TS, TS)
 
 # pad the islands outward so filtering at the seams doesn't pull in black
-for _ in range(8):
+for _ in range(8 if ITEM else 30):
     nb = np.zeros_like(tex); cnt = np.zeros((TS, TS))
     for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
         sh = np.roll(np.roll(tex, dy, 0), dx, 1); sf = np.roll(np.roll(filled, dy, 0), dx, 1)
@@ -176,9 +198,55 @@ for _ in range(8):
 tex[~filled] = bg
 
 img = Image.fromarray(np.clip(tex, 0, 255).astype(np.uint8))
+parts = []
+if not ITEM and NEWHEAD:
+    # a clean head: an ellipsoid the size of the generated skull, the jaw easing in toward a soft chin
+    nla, nlo = 40, 64
+    th = np.linspace(0, np.pi, nla + 1); ph = np.linspace(0, 2 * np.pi, nlo + 1)
+    TH, PH = np.meshgrid(th, ph, indexing='ij')
+    def head_point(TH, PH):
+        u = np.stack([np.sin(TH) * np.sin(PH), np.cos(TH), np.sin(TH) * np.cos(PH)], -1)  # (PH 0: the front, +z)
+        jaw = 1 - .2 * np.clip(-u[..., 1], 0, 1) ** 1.6  # (narrower toward the chin)
+        return HC + u * HR * np.stack([jaw, np.ones_like(jaw), jaw], -1)
+    HP = head_point(TH, PH)
+    hv = HP.reshape(-1, 3); huv = np.stack([PH / (2 * np.pi), 1 - TH / np.pi], -1).reshape(-1, 2)
+    hf = []
+    for i in range(nla):
+        for j in range(nlo):
+            a, b, c2, d2 = i * (nlo + 1) + j, i * (nlo + 1) + j + 1, (i + 1) * (nlo + 1) + j, (i + 1) * (nlo + 1) + j + 1
+            if i > 0: hf.append((a, c2, b))
+            if i < nla - 1: hf.append((b, c2, d2))
+    hmesh = trimesh.Trimesh(hv, np.array(hf), process=False)
+    hn = hmesh.vertex_normals
+    # its texture, painted texel by texel by the head rule
+    HT_W, HT_H = 1024, 512
+    tu, tv = np.meshgrid((np.arange(HT_W) + .5) / HT_W, (np.arange(HT_H) + .5) / HT_H)
+    TT, PP = (tv * np.pi).reshape(-1), (tu * 2 * np.pi).reshape(-1)
+    Pt = head_point(TT, PP); e = 1e-3
+    Nt = np.cross(head_point(TT, PP + e) - head_point(TT, PP - e), head_point(TT + e, PP) - head_point(TT - e, PP)); Nt /= np.linalg.norm(Nt, axis=1, keepdims=True) + 1e-9
+    Nt *= np.sign(((Pt - HC) * Nt).sum(1, keepdims=True))
+    htex = head_colour(Pt, Nt).reshape(HT_H, HT_W, 3)
+    himg = Image.fromarray(np.clip(htex, 0, 255).astype(np.uint8))
+    hmesh.vertices += np.array([x0, 0, 0])
+    hmesh.visual = trimesh.visual.TextureVisuals(uv=huv, image=himg, material=trimesh.visual.material.PBRMaterial(baseColorTexture=himg, metallicFactor=0., roughnessFactor=.8))
+    parts.append(('head', hmesh))
+    # ears: small flattened rounds at the sides, skin
+    for sgn in (-1, 1):
+        ear = trimesh.creation.uv_sphere(radius=1, count=[12, 16]); ear.vertices *= np.array([.05, .1, .075])
+        ear.vertices += np.array([sgn * (HR[0] * .97) + x0, HC[1] - .07, HC[2] - .02])
+        ear.visual = trimesh.visual.ColorVisuals(ear, vertex_colors=np.tile(np.r_[SKIN * .97, 255].astype(np.uint8), (len(ear.vertices), 1)))
+        parts.append(('ear', ear))
+    # tuck the generated head away inside the new one
+    hid = (NV[:, 1] > .3) & (np.abs(NV[:, 0]) < .46)
+    NV[hid] = HC + (NV[hid] - HC) * .55
+    img.save(out_path.rsplit('.', 1)[0] + '_head.png') if False else himg.save(out_path.rsplit('.', 1)[0] + '_head.png')
 out = trimesh.Trimesh(NV + np.array([x0, 0, 0]), NF, process=False)  # (back to the original x, as the rig re-centres)
 out.visual = trimesh.visual.TextureVisuals(uv=UV, image=img, material=trimesh.visual.material.PBRMaterial(baseColorTexture=img, metallicFactor=0., roughnessFactor=.85))
 out.vertex_normals = vn  # (normals from the unsplit surface: smooth across the texture seams)
-out.export(out_path)
+if parts:
+    scene = trimesh.Scene(); scene.add_geometry(out, node_name='body', geom_name='body')
+    for k, (n, g) in enumerate(parts): scene.add_geometry(g, node_name=f'{n}{k}', geom_name=f'{n}{k}')
+    scene.export(out_path)
+else: out.export(out_path)
 img.save(out_path.rsplit('.', 1)[0] + '_tex.png')
 print('vertices', len(NV), 'faces', len(NF), 'texture', TS)

@@ -131,7 +131,7 @@ function armourWeights(x, y) {
 // fit a generated armour (its own scale, centred on itself) over the body, and skin it to the same
 // skeleton. fit: scale per axis and where its neck rim and belt land. Its shoulder guards were made for
 // arms hanging at `armAngle` below level, so that's the pose it's bound in: they follow the arms from there.
-export function addArmour(R, srcGeo, material, { s = [.5, .4375, .48], src = { yNeck: .82, yBelt: -.3, zMid: .03 }, dst = { yNeck: .2, yBelt: -.29, zMid: .018 }, armAngle = .75 } = {}) {
+export function addArmour(R, srcGeo, material, { s = [.5, .4375, .48], src = { yNeck: .82, yBelt: -.3, zMid: .03 }, dst = { yNeck: .23, yBelt: -.29, zMid: .018 }, armAngle = .75 } = {}) {
   const geo = srcGeo.clone(), pos = geo.attributes.position;
   const sy = (dst.yNeck - dst.yBelt) / (src.yNeck - src.yBelt);
   let xmin = 1e9, xmax = -1e9; for (let i = 0; i < pos.count; i++) { const x = pos.getX(i); xmin = Math.min(xmin, x); xmax = Math.max(xmax, x); }
@@ -152,9 +152,15 @@ export function addArmour(R, srcGeo, material, { s = [.5, .4375, .48], src = { y
   const bp = R.mesh.geometry.attributes.position;
   for (let i = 0; i < bp.count; i++) {
     const x = bp.getX(i), y = bp.getY(i), z = bp.getZ(i);
-    if (y < -.32 || y > .19 || Math.abs(x) > .3) continue;
-    const k = .8 + .2 * sm((y - .12) / .07); // (full tuck over the chest, easing out at the collar)
-    bp.setXYZ(i, x * k, y, dst.zMid + (z - dst.zMid) * k);
+    const ax = Math.abs(x);
+    if (y < -.32 || y > .22 || ax > .52) continue;
+    if (ax <= .3) { // the chest and back: in toward the spine, full under the plate, easing out at the collar
+      const k = .8 + .2 * sm((y - .15) / .07);
+      bp.setXYZ(i, x * k, y, dst.zMid + (z - dst.zMid) * k);
+    } else if (y > -.12) { // the shoulder and upper arm under the guard: in toward the arm's line
+      const k = .82 + .18 * sm((ax - .44) / .08);
+      bp.setXYZ(i, x, y * k, z * k);
+    }
   }
   bp.needsUpdate = true; R.mesh.geometry.computeBoundingSphere();
   R.armour = mesh; return mesh;
