@@ -174,16 +174,21 @@ def head_colour(P, N):
     from the pictures' hair; skin below; the features from the front picture where they differ from skin"""
     d = P - HEAD_C; d /= np.linalg.norm(d, axis=1, keepdims=True) + 1e-9
     el = np.arcsin(np.clip(d[:, 1], -1, 1)); az = np.abs(np.arctan2(d[:, 0], d[:, 2])) / np.pi  # (0 front, 1 back)
-    line = np.interp(az, [0, .15, .19, .22, .3, .45, .6, 1], [HAIR_FRONT, .45, .33, .02, -.12, -.25, -.6, HAIR_BACK])  # (the hair comes down the temples to the ears, as in the picture)
+    line = np.interp(az, [0, .14, .2, .25, .32, .45, .65, .85, 1], [HAIR_FRONT, .46, .34, .14, .02, -.1, -.5, -.72, -.76])  # (a soft turn at the temple, short sideburns to the top of the ear, a rounded nape)  # (the hair comes down the temples to the ears, as in the picture)
     hairw = np.clip((el - line) / .09 + .5, 0, 1) * np.clip((.36 - np.abs(P[:, 0])) / .04, 0, 1)  # (the ears stay skin; a soft hairline)
-    bx, by, _ = proj('back', P); by = np.minimum(by, HAIR_LOW_PY)
-    sx_, sy_, _ = proj('side', P); sy_ = np.minimum(sy_, HAIR_LOW_SPY)
-    sidew = np.clip((np.abs(d[:, 0]) - .45) / .3, 0, 1)[:, None]
-    hair = sample(bx, by) * (1 - sidew) + sample(sx_, sy_) * sidew
-    light = np.clip((hair.sum(1) - HAIR_LUM * 1.25) / 60, 0, 1)[:, None]  # (a light sample in the hair is skin from the picture's edge: use hair)
-    hair = hair * (1 - light) + HAIR_AVG * light
+    # the hair, painted by rule (the captain mostly wears a helmet, so it's a clean short cut whose edges
+    # show tidily under one): the picture's hair colour, fine strands combed out from the crown, a little
+    # darker toward the hairline
+    crown = np.array([0., 1., -.25]); crown /= np.linalg.norm(crown)
+    tang = d - crown * (d @ crown)[:, None]; tang /= np.linalg.norm(tang, axis=1, keepdims=True) + 1e-9
+    ref = np.cross(crown, [1., 0, 0]); ref /= np.linalg.norm(ref)
+    ang = np.arctan2(tang @ np.cross(crown, ref), tang @ ref)  # (angle round the crown: strands run outward from it)
+    q = np.round(P * 160).astype(np.int64); rnd = ((q[:, 0] * 73856093) ^ (q[:, 1] * 19349663) ^ (q[:, 2] * 83492791)) % 1000 / 1000.
+    strand = .5 + .5 * np.sin(ang * 140 + rnd * 4.0) * (.6 + .4 * np.sin(ang * 23 + el * 9))  # (fine, irregular strands)
+    edge = np.clip((el - line) / .25, 0, 1)
+    hair = HAIR_AVG[None, :] * (.9 + .07 * strand + .05 * rnd)[:, None] * (.86 + .14 * edge)[:, None]
     fx, fy, _ = proj('front', P); feat = sample(fx, fy)
-    fw = np.clip((N[:, 2] - .45) / .2, 0, 1) * (1 - hairw) * np.clip((P[:, 1] - .32) / .04, 0, 1) * np.clip((.3 - np.abs(P[:, 0])) / .06, 0, 1)
+    fw = np.clip((N[:, 2] - .45) / .2, 0, 1) * (1 - hairw) * np.clip((P[:, 1] - .32) / .04, 0, 1) * np.clip((.3 - np.abs(P[:, 0])) / .06, 0, 1) * np.clip((.71 - P[:, 1]) / .03, 0, 1)  # (the picture's features stop above the brows: its hairline stays out)
     fw = fw * np.clip((np.abs(feat - SKIN).sum(1) - 30) / 45, 0, 1)  # (only what differs from skin: brows, eyes, nose shading, mouth)
     skin = SKIN * (1 - fw[:, None]) + feat * fw[:, None]
     return hair * hairw[:, None] + skin * (1 - hairw[:, None])

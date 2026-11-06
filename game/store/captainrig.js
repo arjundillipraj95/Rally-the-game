@@ -111,8 +111,8 @@ export function rigCaptain(srcGeo, { gear = true, show = false } = {}) {
     sh.add(new THREE.Mesh(new THREE.BoxGeometry(.5, .7, .06), new THREE.MeshStandardMaterial({ color: 0x2f62c8, roughness: .6 })));
     const boss = new THREE.Mesh(new THREE.SphereGeometry(.07, 12, 8), gold); boss.position.z = .04; sh.add(boss);
     // the helmet: a cap over the hair, its rim just above the brows (placeholder until the real one)
-    const helm = new THREE.Mesh(new THREE.SphereGeometry(.37, 24, 14, 0, Math.PI * 2, 0, Math.PI * .5), steel); helm.position.set(0, .32, -.02); helm.scale.set(1.02, 1.0, 1.1); bones.head.add(helm);
-    const crest = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x2f62c8 })); crest.scale.set(.05, .2, .28); crest.position.set(0, .68, -.03); bones.head.add(crest);
+    const helm = new THREE.Mesh(new THREE.SphereGeometry(.355, 24, 14, 0, Math.PI * 2, 0, Math.PI * .55), steel); helm.position.set(0, .33, -.03); helm.rotation.x = -.3; helm.scale.set(.97, .96, 1.06); bones.head.add(helm); // (tilted back: the rim rides above the brows and comes down over the nape, like a galea)
+    const crest = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x2f62c8 })); crest.scale.set(.05 / .97, .2 / .96, .28 / 1.06); crest.position.set(0, .34, 0); helm.add(crest); // (rides the helmet's own top, so it follows the tilt)
   }
   return { root, mesh, bones, x0 };
 }
