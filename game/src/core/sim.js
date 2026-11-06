@@ -141,6 +141,10 @@ export function setOrder(ti, o, pt) {
 }
 // ---------- morale, routs and the rally horn ----------
 export const routing = ti => G.teams[ti] && G.teams[ti].routT > 0;
+// Can a footman stop a charge? Holding his place in a line, or marching at a walk, and not in a blow. Standing
+// idle or running at pace, or in the middle of a swing, he's bowled over;
+// a rider who comes in on his flank or from behind hits harder.
+export const canBrace = u => !u.mounted && !u.routing && !u.swing && (u.holding || (Math.hypot(u.vx || 0, u.vz || 0) > .3 && Math.hypot(u.vx || 0, u.vz || 0) < 3.5));
 const behind = (victim, from) => Math.abs(angDiff(victim.face, Math.atan2(from.x - victim.x, from.z - victim.z))) > MORALE.flankAng;
 function loseHeart(ti, amt) { const s = G.teams[ti]; if (s) s.morale = Math.max(0, s.morale - amt); }
 export function gainRally(u, amt) { if (!u || !u.leader) return; const s = G.teams[u.ti]; if (s) s.rally = Math.min(100, (s.rally || 0) + amt); }
@@ -2414,7 +2418,7 @@ export function update(dt, input) {
         break;
       }
       // a charge into a held line stalls on it: the horse is hurt and pulls up, the line stands
-      if (r.charge > 0 && o.holding && d < o.r + r.r + 1.1 && Math.abs(angDiff(o.face, Math.atan2(r.x - o.x, r.z - o.z))) < 1.1) {
+      if (r.charge > 0 && o.kind !== 'captain' && canBrace(o) && d < o.r + r.r + 1.1 && Math.abs(angDiff(o.face, Math.atan2(r.x - o.x, r.z - o.z))) < 1.1) {
         r.charge = 0; horseDamage(r, HOLD.horse); push(r, -Math.sin(r.face) * 6, -Math.cos(r.face) * 6, .5);
         spark(o.x, o.y + 1.5, o.z, '#fff3b0', 8); sound('clang', o.x, o.z);
         fx('float', { x: o.x, y: o.y + 2.8, z: o.z, text: 'The line holds!', color: TEAMS[colorOf(o.ti)].css });
@@ -2428,7 +2432,7 @@ export function update(dt, input) {
         o.trampleT = 1; o.lastHit = G.T;
         const ang = Math.atan2(dx, dz), side = angDiff(r.face, ang) > 0 ? 1 : -1, out = r.face + side * .9; // thrown forward and out to the side
         push(o, Math.sin(out) * CHARGE.kb + r.vx * .3, Math.cos(out) * CHARGE.kb + r.vz * .3, .9);
-        o.hp -= CHARGE.dmg * aiDmg(r.ti);
+        o.hp -= CHARGE.dmg * aiDmg(r.ti) * (!o.leader && behind(o, r) ? MORALE.flankX : 1); // (a flank or the back: the charge bites harder)
         spark(o.x, o.y + 1.2, o.z, TEAMS[colorOf(o.ti)].css, 8); sound('trample', o.x, o.z); sound('hit', o.x, o.z);
         if (r.isMe) { fx('hitstop', .045); fx('shake', .3); }
         if (r.remote || o.remote) fx('netFlush');

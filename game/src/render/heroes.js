@@ -11,6 +11,7 @@ import { scene } from './scene.js';
 import { groundY } from '../core/world.js';
 import { rigCaptain, addArmour, applyPose, moveAt, mixPose, CLIPS, POSES, teamMaterial } from './rig/captainrig.js';
 import { SLOTS, SLOT_IX } from '../core/look.js';
+import { canBrace } from '../core/sim.js';
 
 // the warhorse's leg joints, in its own (Z-up) model space: each leg swings from the top of its upper part
 const LEGS = { frontL: [-.34, -.63, 1.2], frontR: [.34, -.63, 1.2], backL: [-.36, .58, 1.2], backR: [.36, .58, 1.2] };
@@ -241,6 +242,7 @@ function drawFallen(u, a, h, dt) {
 // coming at him fast
 let chFrame = -1, chList = [];
 function chargeAt(u) {
+  if (!canBrace(u)) return false; // (running, or in a blow, or idle: he's bowled over, no brace)
   if (chFrame !== FRAME) { chFrame = FRAME; chList = G.units.filter(c => c.mounted && !c.dead && (c.charge > 0 || Math.hypot(c.vx || 0, c.vz || 0) > 9)); }
   for (const c of chList) {
     if (G.ALLY[c.ti % 4] === G.ALLY[u.ti % 4]) continue;
