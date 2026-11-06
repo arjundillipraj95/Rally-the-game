@@ -18,29 +18,34 @@ const SCALE = 1.22; // (the old captain stood about 2.4 tall; the model is 1.96)
 let SRC = null;
 if (on) {
   const L = new GLTFLoader(), first = g => { let m = null; g.scene.traverse(o => { if (o.isMesh && !m) m = o; }); return m; };
-  Promise.all([...['models/body_plain.glb', 'models/armour_segmented.glb'].map(f => L.loadAsync(f).then(first)), L.loadAsync('models/pack/captain_shield_red_scutum.glb').then(g => g.scene)]).then(([b, a, shield]) => {
+  Promise.all([...['models/body_plain.glb', 'models/armour_segmented.glb', 'models/soldier.glb'].map(f => L.loadAsync(f).then(first)), L.loadAsync('models/pack/captain_shield_red_scutum.glb').then(g => g.scene)]).then(([b, a, sd, shield]) => {
+    sd.material.metalness = 0; sd.material.roughness = .8; sd.geometry.userData.material = sd.material;
     b.material.metalness = 0; b.material.roughness = .8; b.geometry.userData.material = b.material;
     a.material.metalness = .35; a.material.roughness = .45;
-    SRC = { body: b.geometry, armour: a.geometry, armourMat: a.material, pack: { shield } }; // (the equipment pack's scutum, in team colour)
+    SRC = { body: b.geometry, armour: a.geometry, armourMat: a.material, soldier: sd.geometry, pack: { shield } }; // (the equipment pack's scutum, in team colour)
   }).catch(e => { console.warn('captain models failed to load', e); on = false; });
 }
 
-const live = new Map(); // unit -> { R, weapon, team, run, moveName, moveT, hp }
+const live = new Map(); // unit -> { R, weapon, team, run, moveName, moveT, hp, sc }
 const KIND = ['forehand', 'backhand', 'overhead', 'thrust', 'spin', 'heavy', 'bash'];
 function weaponOf(u) { return u.weapon === 'spear' ? 'spear' : u.weapon === 'jav' ? 'jav' : 'sword'; }
+const SOLDIER_SCALE = .8; // (a foot soldier stands about 80% of the captain's height)
 function make(u) {
-  const weapon = weaponOf(u), team = TEAMS[colorOf(u.ti)].hex;
-  const R = rigCaptain(SRC.body, { team, weapon, pack: SRC.pack }); addArmour(R, SRC.armour, SRC.armourMat);
+  const weapon = weaponOf(u), team = TEAMS[colorOf(u.ti)].hex, soldier = u.kind !== 'captain';
+  const R = soldier ? rigCaptain(SRC.soldier, { body: 'soldier', team, weapon, pack: { shield: SRC.pack.shield } })
+    : rigCaptain(SRC.body, { team, weapon, pack: SRC.pack });
+  if (!soldier) addArmour(R, SRC.armour, SRC.armourMat);
   R.root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
-  R.root.scale.setScalar(SCALE); scene.add(R.root);
-  return { R, weapon, team, run: 0, moveName: null, moveT: 0, hp: u.hp, blockHitT: -1 };
+  const sc = soldier ? SCALE * SOLDIER_SCALE : SCALE;
+  R.root.scale.setScalar(sc); scene.add(R.root);
+  return { R, weapon, team, run: 0, moveName: null, moveT: 0, hp: u.hp, blockHitT: -1, sc };
 }
 function drop(h) { scene.remove(h.R.root); h.R.root.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); }
 
 // pose and place one captain. a: the old renderer's state for him (lift, sink, yaw, stumble).
 // Returns false when this one is left to the old renderer (models not loaded, mounted, dead).
 export function drawHero(u, a, dt) {
-  if (!heroesOn() || u.kind !== 'captain' || u.mounted || u.dead || u.hidden) return false;
+  if (!heroesOn() || (u.kind !== 'captain' && u.kind !== 'foot') || u.mounted || u.dead || u.hidden) return false;
   let h = live.get(u);
   if (h && (h.weapon !== weaponOf(u) || h.team !== TEAMS[colorOf(u.ti)].hex)) { drop(h); live.delete(u); h = null; }
   if (!h) { h = make(u); live.set(u, h); }
@@ -62,7 +67,7 @@ export function drawHero(u, a, dt) {
   else if (blocking) P = G.T - h.blockHitT < .3 ? moveAt('block', (G.T - h.blockHitT) / .3) : POSES.guard;
   else P = mv > .05 ? mixPose(CLIPS.idle(G.T), CLIPS.run(h.run), Math.min(1, mv * 1.6)) : CLIPS.idle(G.T);
   applyPose(R, P);
-  R.root.position.set(u.x, (u.y || 0) + (a.lift || 0) - (a.sink || 0) + .998 * SCALE, u.z);
+  R.root.position.set(u.x, (u.y || 0) + (a.lift || 0) - (a.sink || 0) + .998 * h.sc, u.z);
   R.root.rotation.set(0, u.face + (a.yaw || 0), 0);
   R.root.visible = true;
   return true;
