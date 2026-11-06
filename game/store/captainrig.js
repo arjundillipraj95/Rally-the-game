@@ -4,14 +4,35 @@
 // the surface so joints bend instead of creasing. His right hand (the sword) is on -x.
 import * as THREE from 'three';
 
-// joint positions (model space, after centring x on the torso)
-const J = {
-  hips: [0, -.38, 0], spine: [0, -.2, 0], chest: [0, 0, 0], neck: [0, .24, 0], head: [0, .32, 0],
-  upperArm_R: [-.24, 0, 0], foreArm_R: [-.45, 0, 0], hand_R: [-.63, 0, 0],
-  upperArm_L: [.24, 0, 0], foreArm_L: [.45, 0, 0], hand_L: [.63, 0, 0],
-  thigh_R: [-.14, -.42, 0], shin_R: [-.17, -.66, 0], foot_R: [-.19, -.9, .02],
-  thigh_L: [.14, -.42, 0], shin_L: [.17, -.66, 0], foot_L: [.19, -.9, .02],
+// joint positions (model space, after centring x on the torso), and the heights and reaches the skin
+// weights split at, per body: the captain, and the soldier (shorter arms, a bigger helmeted head, the
+// arms straightened out level at his shoulders before rigging: see STRAIGHTEN)
+const PROFILES = {
+  captain: {
+    J: {
+      hips: [0, -.38, 0], spine: [0, -.2, 0], chest: [0, 0, 0], neck: [0, .24, 0], head: [0, .32, 0],
+      upperArm_R: [-.24, 0, 0], foreArm_R: [-.45, 0, 0], hand_R: [-.63, 0, 0],
+      upperArm_L: [.24, 0, 0], foreArm_L: [.45, 0, 0], hand_L: [.63, 0, 0],
+      thigh_R: [-.14, -.42, 0], shin_R: [-.17, -.66, 0], foot_R: [-.19, -.9, .02],
+      thigh_L: [.14, -.42, 0], shin_L: [.17, -.66, 0], foot_L: [.19, -.9, .02],
+    },
+    W: { armX: .25, armY0: -.17, armY1: .2, arm: [.22, .33, .40, .50, .58, .66], neckY: .18, neck: [.16, .26, .26, .34], torsoY: -.3, torso: [-.25, 0], pad: [.17, -.05], skirtY: -.62, skirt: [-.33, -.62], knee: [-.62, -.72], ankle: [-.8, -.9] },
+  },
+  soldier: {
+    J: {
+      hips: [0, -.32, 0], spine: [0, -.12, 0], chest: [0, .08, 0], neck: [0, .27, 0], head: [0, .34, 0],
+      upperArm_R: [-.27, .1, 0], foreArm_R: [-.46, .1, 0], hand_R: [-.62, .1, .02],
+      upperArm_L: [.27, .1, 0], foreArm_L: [.46, .1, 0], hand_L: [.62, .1, .02],
+      thigh_R: [-.13, -.38, 0], shin_R: [-.16, -.67, 0], foot_R: [-.18, -.88, .03],
+      thigh_L: [.13, -.38, 0], shin_L: [.16, -.67, 0], foot_L: [.18, -.88, .03],
+    },
+    W: { armX: .27, armY0: -.08, armY1: .28, arm: [.25, .35, .41, .51, .56, .63], neckY: .22, neck: [.2, .28, .28, .35], torsoY: -.28, torso: [-.22, .05], pad: [.2, 0], skirtY: -.57, skirt: [-.3, -.57], knee: [-.6, -.72], ankle: [-.8, -.88] },
+    // his arms hang ~52° below level in the model; they're turned up to level about the shoulder first,
+    // so the same poses fit both bodies
+    straighten: { pivot: [.27, .1], angle: .9, dir: [.616, -.788] },
+  },
 };
+let J = PROFILES.captain.J;
 const PARENT = {
   spine: 'hips', chest: 'spine', neck: 'chest', head: 'neck',
   upperArm_R: 'chest', foreArm_R: 'upperArm_R', hand_R: 'foreArm_R',
@@ -19,36 +40,54 @@ const PARENT = {
   thigh_R: 'hips', shin_R: 'thigh_R', foot_R: 'shin_R',
   thigh_L: 'hips', shin_L: 'thigh_L', foot_L: 'shin_L',
 };
-const NAMES = Object.keys(J);
+const NAMES = Object.keys(PROFILES.captain.J);
 const sm = t => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t); };
 
 // the raw weights for one vertex, by region: {bone: weight}
-function rawWeights(x, y) {
-  const ax = Math.abs(x), S = x < 0 ? '_R' : '_L', w = {};
+const rawWeightsFor = W => function rawWeights(x, y) {
+  const ax = Math.abs(x), S = x < 0 ? '_R' : '_L', w = {}, A = W.arm;
   const add = (b, v) => { if (v > 0) w[b] = (w[b] || 0) + v; };
-  if (ax > .25 && y > -.17 && y < .2) { // the arm, out along x
+  if (ax > W.armX && y > W.armY0 && y < W.armY1) { // the arm, out along x
     const t = ax;
-    if (t < .33) { const s = sm((t - .22) / .11); add('chest', 1 - s); add('upperArm' + S, s); }
-    else if (t < .40) add('upperArm' + S, 1);
-    else if (t < .50) { const s = sm((t - .40) / .10); add('upperArm' + S, 1 - s); add('foreArm' + S, s); }
-    else if (t < .58) add('foreArm' + S, 1);
-    else if (t < .66) { const s = sm((t - .58) / .08); add('foreArm' + S, 1 - s); add('hand' + S, s); }
+    if (t < A[1]) { const s = sm((t - A[0]) / (A[1] - A[0])); add('chest', 1 - s); add('upperArm' + S, s); }
+    else if (t < A[2]) add('upperArm' + S, 1);
+    else if (t < A[3]) { const s = sm((t - A[2]) / (A[3] - A[2])); add('upperArm' + S, 1 - s); add('foreArm' + S, s); }
+    else if (t < A[4]) add('foreArm' + S, 1);
+    else if (t < A[5]) { const s = sm((t - A[4]) / (A[5] - A[4])); add('foreArm' + S, 1 - s); add('hand' + S, s); }
     else add('hand' + S, 1);
-  } else if (y > .18) { // neck and head
-    if (y < .27) { const s = sm((y - .16) / .1); add('chest', 1 - s); add('neck', s); }
-    else { const s = sm((y - .26) / .08); add('neck', 1 - s); add('head', s); }
-  } else if (y > -.3) { // the torso; the shoulder pads lean toward the arm
-    const s = sm((y + .25) / .25); add('spine', 1 - s); add('chest', s);
-    if (ax > .17 && y > -.05) { const k = sm((ax - .17) / .1) * .45; for (const b in w) w[b] *= 1 - k; add('upperArm' + S, k); }
-  } else if (y > -.62) { // hips and skirt: lower down, the skirt follows the legs more
-    const lw = sm((-.33 - y) / .29) * .6, c = sm(ax / .06);
+  } else if (y > W.neckY) { // neck and head
+    const N = W.neck;
+    if (y < N[1] + .01) { const s = sm((y - N[0]) / (N[1] - N[0])); add('chest', 1 - s); add('neck', s); }
+    else { const s = sm((y - N[2]) / (N[3] - N[2])); add('neck', 1 - s); add('head', s); }
+  } else if (y > W.torsoY) { // the torso; the shoulder pads lean toward the arm
+    const s = sm((y - W.torso[0]) / (W.torso[1] - W.torso[0])); add('spine', 1 - s); add('chest', s);
+    if (ax > W.pad[0] && y > W.pad[1]) { const k = sm((ax - W.pad[0]) / .1) * .45; for (const b in w) w[b] *= 1 - k; add('upperArm' + S, k); }
+  } else if (y > W.skirtY) { // hips and skirt: lower down, the skirt follows the legs more
+    const lw = sm((W.skirt[0] - y) / (W.skirt[0] - W.skirt[1])) * .6, c = sm(ax / .06);
     add('hips', 1 - lw);
     if (c > .99) add('thigh' + S, lw); else { add('thigh' + S, lw * (.5 + .5 * c)); add('thigh' + (S === '_R' ? '_L' : '_R'), lw * (.5 - .5 * c)); }
   } else { // the legs
-    if (y > -.74) { const s = sm((-.62 - y) / .1); add('thigh' + S, 1 - s); add('shin' + S, s); }
-    else { const s = sm((-.8 - y) / .1); add('shin' + S, 1 - s); add('foot' + S, s); }
+    if (y > W.knee[1] - .02) { const s = sm((W.knee[0] - y) / (W.knee[0] - W.knee[1])); add('thigh' + S, 1 - s); add('shin' + S, s); }
+    else { const s = sm((W.ankle[0] - y) / (W.ankle[0] - W.ankle[1])); add('shin' + S, 1 - s); add('foot' + S, s); }
   }
   return w;
+};
+
+// turn the arms of a body modelled with them hanging up to level, about the shoulder (positions and
+// normals; the bend eases in from the armpit so the shoulder stays round)
+function straightenArms(geo, { pivot: [px, py], angle, dir: [dx, dy] }) {
+  const pos = geo.attributes.position, nor = geo.attributes.normal;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i), ax = Math.abs(x), sg = x < 0 ? -1 : 1;
+    if (ax < px - .06) continue;
+    const s = (ax - px) * dx + (y - py) * dy, p = Math.abs((ax - px) * -dy + (y - py) * dx);
+    const t = sm((s + .02) / .1) * sm((.17 - p) / .04);
+    if (t <= 0) continue;
+    const a = angle * t * sg, c = Math.cos(a), sn = Math.sin(a), rx = x - sg * px, ry = y - py;
+    pos.setXY(i, sg * px + rx * c - ry * sn, py + rx * sn + ry * c);
+    if (nor) { const nx = nor.getX(i), ny = nor.getY(i); nor.setXY(i, nx * c - ny * sn, nx * sn + ny * c); }
+  }
+  pos.needsUpdate = true; if (nor) nor.needsUpdate = true;
 }
 
 // skin weights per vertex from a region function, smoothed over the surface
@@ -78,13 +117,15 @@ function skinWeights(geo, weightFn) {
   geo.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sW, 4));
 }
 
-export function rigCaptain(srcGeo, { gear = true, show = false } = {}) {
+export function rigCaptain(srcGeo, { gear = true, show = false, body = 'captain' } = {}) {
+  const PR = PROFILES[body]; J = PR.J;
   const geo = srcGeo.clone(); geo.computeBoundingBox();
   // centre x on the torso (measured at the waist), keep y and z
   const pos = geo.attributes.position, nV = pos.count;
   let xmin = 1e9, xmax = -1e9; for (let i = 0; i < nV; i++) { const y = pos.getY(i); if (y > -.2 && y < -.15) { const x = pos.getX(i); xmin = Math.min(xmin, x); xmax = Math.max(xmax, x); } }
   const x0 = (xmin + xmax) / 2; geo.translate(-x0, 0, 0); if (!geo.attributes.normal) geo.computeVertexNormals();
-  skinWeights(geo, rawWeights);
+  if (PR.straighten) straightenArms(geo, PR.straighten);
+  skinWeights(geo, rawWeightsFor(PR.W));
   // the skeleton
   const bones = {}; for (const n of NAMES) { bones[n] = new THREE.Bone(); bones[n].name = n; }
   for (const n of NAMES) {
@@ -111,8 +152,10 @@ export function rigCaptain(srcGeo, { gear = true, show = false } = {}) {
     sh.add(new THREE.Mesh(new THREE.BoxGeometry(.5, .7, .06), new THREE.MeshStandardMaterial({ color: 0x2f62c8, roughness: .6 })));
     const boss = new THREE.Mesh(new THREE.SphereGeometry(.07, 12, 8), gold); boss.position.z = .04; sh.add(boss);
     // the helmet: a cap over the hair, its rim just above the brows (placeholder until the real one)
+    if (body === 'captain') {
     const helm = new THREE.Mesh(new THREE.SphereGeometry(.355, 24, 14, 0, Math.PI * 2, 0, Math.PI * .55), steel); helm.position.set(0, .33, -.03); helm.rotation.x = -.3; helm.scale.set(.97, .96, 1.06); bones.head.add(helm); // (tilted back: the rim rides above the brows and comes down over the nape, like a galea)
     const crest = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x2f62c8 })); crest.scale.set(.05 / .97, .2 / .96, .28 / 1.06); crest.position.set(0, .34, 0); helm.add(crest); // (rides the helmet's own top, so it follows the tilt)
+    }
   }
   return { root, mesh, bones, x0 };
 }

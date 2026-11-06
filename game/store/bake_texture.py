@@ -274,11 +274,11 @@ for f in NF:
         head = (P[:, 1] > HEAD_Y0) & (np.abs(P[:, 0]) < .5) & (not ITEM)
         if head.any(): c[head] = head_colour(P[head], N[head])
         if not ITEM: seen = seen | head
-        tex[ys, xs] = c; filled[ys, xs] = seen if not ITEM else True  # (the body: unseen spots are filled from their seen neighbours below)
+        tex[ys, xs] = c; filled[ys, xs] = seen if (not ITEM or SOLDIER) else True  # (the body: unseen spots are filled from their seen neighbours below)
     raster(uvp, paint, TS, TS)
 
 # pad the islands outward so filtering at the seams doesn't pull in black
-for _ in range(8 if ITEM else 30):
+for _ in range(8 if ITEM and not SOLDIER else 60 if SOLDIER else 30):  # (the soldier, like the body: spots no picture sees, such as the skirt behind his hands, take their neighbours' colour, not the hand in front)
     nb = np.zeros_like(tex); cnt = np.zeros((TS, TS))
     for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
         sh = np.roll(np.roll(tex, dy, 0), dx, 1); sf = np.roll(np.roll(filled, dy, 0), dx, 1)
