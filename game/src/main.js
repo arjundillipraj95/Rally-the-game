@@ -448,12 +448,12 @@ function homeCamera(dt) {
   const tx = c.x + rx * homeV.sx, tz = c.z + rz * homeV.sx;
   camera.position.set(tx + fx * dist, ty + 1.15, tz + fz * dist);
   camera.lookAt(tx, ty, tz);
-  // the "+" places beside him, on screen where they stand in the world. The second sits on his other
-  // side; when that side is under the Play panel (a phone), it stacks beside the first, further out.
+  // the "+" places beside him, one on each side (as in a game lobby), on screen where they stand in the
+  // world. On a narrow screen both come in closer, evenly, so the right one stays clear of the Play panel.
   const pr = $('home').querySelector('.hplay').getBoundingClientRect();
   const under = (side, off) => { _v.set(c.x + rx * side * off, gy + 1.15, c.z + rz * side * off).project(camera); const px = (_v.x + 1) / 2 * innerWidth, py = (1 - _v.y) / 2 * innerHeight; return px > pr.left - 36 && py > pr.top - 36; };
-  const stack = under(-1, 2.5);
-  if (stack !== pedStack) { pedStack = stack; placeParty(); }
+  const off = [2.5, 2.2, 1.9, 1.7].find(o => !under(-1, o)) || 1.7;
+  if (off !== pedOff) { pedOff = off; placeParty(); }
   for (const [id, k] of [['pedL', 0], ['pedR', 1]]) {
     const el = $(id); if (!el) continue;
     if (homeView !== 'home') { el.hidden = true; continue; }
@@ -468,9 +468,9 @@ function homeCamera(dt) {
     el.style.left = px + 'px'; el.style.top = py + 'px';
   }
 }
-// where party place k stands beside your captain: [side, distance]
-let pedStack = false;
-const pedSpot = k => k === 0 ? [1, 2.5] : pedStack ? [1, 3.8] : [-1, 2.5];
+// where party place k stands beside your captain: [side, distance] (left, then right)
+let pedOff = 2.5;
+const pedSpot = k => [k === 0 ? 1 : -1, pedOff];
 // ---------- online: the party on your stage, friends, invites, the search ----------
 const partyOthers = () => (ON.party && ON.party.members || []).filter(m => !ON.me || m.id !== ON.me.id);
 let partyFigs = [];
