@@ -8,13 +8,15 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { TEAMS } from '../config.js';
 import { G, colorOf } from '../core/state.js';
 import { scene } from './scene.js';
+import { groundY } from '../core/world.js';
 import { rigCaptain, addArmour, applyPose, moveAt, mixPose, CLIPS, POSES } from './rig/captainrig.js';
 import { SLOTS, SLOT_IX } from '../core/look.js';
 
 // the warhorse's leg joints, in its own (Z-up) model space: each leg swings from the top of its upper part
 const LEGS = { frontL: [-.34, -.63, 1.2], frontR: [.34, -.63, 1.2], backL: [-.36, .58, 1.2], backR: [.36, .58, 1.2] };
-const HORSE_SCALE = .75; // (the raw horse is about 3.2 units long; a man on foot is about 2.4 in game)
-const SEAT = 1.9; // (the rider's root height: his hips sit on the saddle, about 1.4 up)
+const HORSE_SCALE = .85; // (the raw horse is about 3.2 units long; a man on foot is about 2.4 in game)
+// the saddle seat, in the horse's raw model: its top 2.28 up, its middle .08 behind centre (raw +y is backward)
+const SEAT_TOP = 2.28 * HORSE_SCALE, SEAT_Z = -.08 * HORSE_SCALE;
 // the legs of a rider in the saddle: thighs forward over the horse, shins bent down its flanks
 const RIDE = { thigh_L: [-1.25, 0, 0], thigh_R: [-1.25, 0, 0], shin_L: [1.45, 0, 0], shin_R: [1.45, 0, 0] };
 
@@ -27,28 +29,29 @@ const SOLDIER_SCALE = .8; // (a foot soldier stands about 80% of the captain's h
 let SRC = null;
 // the look's choices (core/look.js) become pack pieces: helmet, armour and shield. The weapon stays the
 // one you fight with (gameplay), so it is not a look here.
-const PACK = { helmet: ['blue_crest', 'gold_ridge', 'red_crest'], armour: ['bronze', 'leather', 'segmented_steel'], shield: ['red_scutum', 'blue_oval', 'blue_kite'] };
+const PACK = { helmet: ['blue_crest', 'gold_ridge', 'red_crest'], shield: ['red_scutum', 'blue_oval', 'blue_kite'] };
+// the armour choices: the painted armour in four finishes (the tint multiplies its painted steel)
+const ARMOUR_FINISH = { steel: [0xffffff, .35, .45], bronze: [0xe0a458, .55, .38], leather: [0x9a6238, 0, .85], black: [0x3b3e46, .6, .3] };
 const pick = (slot, i) => (SLOTS[SLOT_IX[slot]].items[i] || {}).name || '';
 function helmFile(name) { if (/wild hair/i.test(name)) return null; if (/gild|gold|corinth/i.test(name)) return 'gold_ridge'; if (/great|wolf|warden/i.test(name)) return 'red_crest'; return 'blue_crest'; }
-function armourFile(name) { if (/bronze/i.test(name)) return 'bronze'; if (/leather|fur/i.test(name)) return 'leather'; return 'segmented_steel'; }
+function armourFile(name) { if (/bronze/i.test(name)) return 'bronze'; if (/leather|fur/i.test(name)) return 'leather'; if (/black/i.test(name)) return 'black'; return 'steel'; }
 function shieldFile(name) { if (/hoplon|oval/i.test(name)) return 'blue_oval'; if (/round|kite/i.test(name)) return 'blue_kite'; return 'red_scutum'; }
 if (on) {
   const L = new GLTFLoader(), first = g => { let m = null; g.scene.traverse(o => { if (o.isMesh && !m) m = o; }); return m; };
   const scene$ = f => L.loadAsync(f).then(g => g.scene), mesh$ = f => L.loadAsync(f).then(first);
   Promise.all([
-    ...['models/body_plain.glb', 'models/soldier.glb'].map(mesh$),
-    ...PACK.armour.map(n => mesh$(`models/pack/captain_armour_${n}.glb`)),
+    ...['models/body_plain.glb', 'models/soldier.glb', 'models/armour_segmented.glb'].map(mesh$),
     ...PACK.helmet.map(n => scene$(`models/pack/captain_helmet_${n}.glb`)),
     ...PACK.shield.map(n => scene$(`models/pack/captain_shield_${n}.glb`)),
     scene$('models/horse.glb')
   ]).then(all => {
-    const [b, sd, ...rest] = all, armours = rest.slice(0, 3), helmets = rest.slice(3, 6), shields = rest.slice(6, 9), horse = rest[9];
+    const [b, sd, ar, ...rest] = all, helmets = rest.slice(0, 3), shields = rest.slice(3, 6), horse = rest[6];
     sd.material.metalness = 0; sd.material.roughness = .8; sd.geometry.userData.material = sd.material;
     b.material.metalness = 0; b.material.roughness = .8; b.geometry.userData.material = b.material;
-    armours.forEach(a => { a.material.metalness = .35; a.material.roughness = .45; });
     const by = (list, names) => Object.fromEntries(names.map((n, i) => [n, list[i]]));
     SRC = { body: b.geometry, soldier: sd.geometry, horse: horseTemplate(horse),
-      armours: by(armours.map(a => ({ geo: a.geometry, mat: a.material })), PACK.armour), helmets: by(helmets, PACK.helmet), shields: by(shields, PACK.shield) };
+      armours: Object.fromEntries(Object.entries(ARMOUR_FINISH).map(([n, [c, mt, rg]]) => { const m = ar.material.clone(); m.color.set(c); m.metalness = mt; m.roughness = rg; return [n, { geo: ar.geometry, mat: m }]; })),
+      helmets: by(helmets, PACK.helmet), shields: by(shields, PACK.shield) };
   }).catch(e => { console.warn('captain models failed to load', e); on = false; });
 }
 
@@ -77,18 +80,41 @@ function make(u) {
   const R = soldier ? rigCaptain(SRC.soldier, { body: 'soldier', team, weapon, pack: u.kind === 'arch' ? { noShield: true } : { shield } })
     : rigCaptain(SRC.body, { team, weapon, pack: { shield, helmet: L ? SRC.helmets[helmFile(pick('helm', L[SLOT_IX.helm]))] || null : SRC.helmets.blue_crest } });
   if (!soldier) { const a = SRC.armours[armourFile(L ? pick('armour', L[SLOT_IX.armour]) : '')]; addArmour(R, a.geo, a.mat); }
-  else if (u.kind === 'foot' && u.tier >= 2) { const a = SRC.armours.segmented_steel; addArmour(R, a.geo, a.mat); } // (the Armour upgrade: a steel plate over the tunic)
+  else if (u.kind === 'foot' && u.tier >= 2) { const a = SRC.armours[armourFile(L ? pick('armour', L[SLOT_IX.armour]) : '')]; addArmour(R, a.geo, a.mat); } // (the Armour upgrade: your army's armour over the tunic)
   R.root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
   const sc = soldier ? SCALE * SOLDIER_SCALE : SCALE;
   R.root.scale.setScalar(sc);
   const h = { R, weapon, team, key: keyOf(u), run: 0, moveName: null, moveT: 0, hp: u.hp, blockHitT: -1, sc, mounted: !!u.mounted, U: null, legs: null };
   if (u.mounted) { // on the warhorse: the rider sits on the saddle, and the unit moves as one
     const hc = SRC.horse.clone(true), U = new THREE.Group();
-    U.add(hc); U.add(R.root); R.root.position.set(0, SEAT, 0);
-    h.U = U; h.legs = {}; for (const k of Object.keys(LEGS)) h.legs[k] = hc.getObjectByName('leg_' + k);
+    U.add(hc); U.add(R.root); R.root.position.set(0, SEAT_TOP + (.38 + .04) * sc, SEAT_Z); // (his hips, .38 below his root, on the seat)
+    h.U = U; h.legs = legsOf(hc);
     scene.add(U);
   } else scene.add(R.root);
   return h;
+}
+const legsOf = hc => Object.fromEntries(Object.keys(LEGS).map(k => [k, hc.getObjectByName('leg_' + k)]));
+const swing = (legs, run, mv) => { const amp = mv * .5, ph = run * 5; for (const k in legs) legs[k].rotation.x = amp * Math.sin(ph + ((k === 'frontL' || k === 'backR') ? 0 : Math.PI)); };
+// the horses without a rider on them (galloping in when called, leaving, fallen): the new warhorse too.
+// Ridden ones are drawn with their rider (drawHero). Returns false when the old horses should be drawn.
+const freeH = new Map();
+export function drawFreeHorses(list, dt) {
+  if (!on) return false;
+  if (!SRC) return true; // (still loading: no horse rather than the old one)
+  const seen = new Set();
+  for (const h of list) {
+    if (h.state === 'ridden') continue;
+    seen.add(h.key);
+    let m = freeH.get(h.key);
+    if (!m) { const hc = SRC.horse.clone(true); hc.traverse(o => { if (o.isMesh) o.castShadow = true; }); scene.add(hc); m = { root: hc, legs: legsOf(hc), run: 0 }; freeH.set(h.key, m); }
+    const sp = h.spd || 0; m.run += dt * (.55 + sp * .12);
+    m.root.position.set(h.x, groundY(h.x, h.z), h.z);
+    const down = h.state === 'dead' ? Math.min(1, (h.t || 0) * 2.5) : 0; // (a fallen horse rolls onto its side)
+    m.root.rotation.set(0, h.face || 0, (h.fall || 1) * down * Math.PI / 2);
+    swing(m.legs, m.run, down ? 0 : Math.min(1, sp / 4));
+  }
+  for (const [k, m] of freeH) if (!seen.has(k)) { scene.remove(m.root); freeH.delete(k); }
+  return true;
 }
 function drop(h) {
   scene.remove(h.U || h.R.root);
@@ -99,7 +125,7 @@ function drop(h) {
 // Returns false when this one is left to the old renderer (models not loaded, mounted, dead).
 export function drawHero(u, a, dt) {
   // while the new models load, the old captain stays hidden (no flash of the old one)
-  if (on && !SRC) return u.kind === 'captain' && !u.dead;
+  if (on && !SRC) return !u.dead && (u.kind === 'captain' || u.kind === 'foot' || u.kind === 'arch');
   if (!heroesOn() || (u.kind !== 'captain' && u.kind !== 'foot' && u.kind !== 'arch') || u.dead || u.hidden) return false;
   let h = live.get(u);
   if (h && (h.weapon !== weaponOf(u) || h.key !== keyOf(u) || h.mounted !== !!u.mounted)) { drop(h); live.delete(u); h = null; }
@@ -128,10 +154,7 @@ export function drawHero(u, a, dt) {
   top.position.set(u.x, (u.y || 0) + (a.lift || 0) - (a.sink || 0) + (h.U ? 0 : .998 * h.sc), u.z);
   top.rotation.set(0, u.face + (a.yaw || 0), 0);
   top.visible = true;
-  if (h.legs) { // the horse's legs swing in a trot, in diagonal pairs, and stand still when he does
-    const amp = mv * .5, ph = h.run * 5;
-    for (const k of Object.keys(h.legs)) h.legs[k].rotation.x = amp * Math.sin(ph + ((k === 'frontL' || k === 'backR') ? 0 : Math.PI)) ;
-  }
+  if (h.legs) swing(h.legs, h.run, mv); // (the horse's legs swing in a trot, in diagonal pairs, and stand still when he does)
   return true;
 }
 // after a frame's drawing: captains no longer drawn this way (gone, mounted, dead) are taken down

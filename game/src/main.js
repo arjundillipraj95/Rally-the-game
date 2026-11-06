@@ -29,6 +29,7 @@ import './ui/fighttips.js';
 import { duelTagTick, hideDuelTag } from './ui/dueltag.js';
 import { spawnCritters, updateCritters, clearCritters } from './render/critters.js';
 import { drawHorses, clearHorses } from './render/horses.js';
+import { drawFreeHorses } from './render/heroes.js';
 import { spark, splat, dust, drawAura, floatText, pow, shockwave, castleFx, effectsTick, drawEffects, clearEffects } from './render/effects.js';
 import { drawOverlay, clearOverlay, resizeOverlay } from './render/overlay.js';
 import { cam, followCamera, orbitCamera, camTarget, CAM_PITCH } from './render/camera.js';
@@ -447,20 +448,29 @@ function homeCamera(dt) {
   const tx = c.x + rx * homeV.sx, tz = c.z + rz * homeV.sx;
   camera.position.set(tx + fx * dist, ty + 1.15, tz + fz * dist);
   camera.lookAt(tx, ty, tz);
-  // the "+" places beside him, on screen where they stand in the world
-  for (const [id, side] of [['pedL', 1], ['pedR', -1]]) {
+  // the "+" places beside him, on screen where they stand in the world. The second sits on his other
+  // side; when that side is under the Play panel (a phone), it stacks beside the first, further out.
+  const pr = $('home').querySelector('.hplay').getBoundingClientRect();
+  const under = (side, off) => { _v.set(c.x + rx * side * off, gy + 1.15, c.z + rz * side * off).project(camera); const px = (_v.x + 1) / 2 * innerWidth, py = (1 - _v.y) / 2 * innerHeight; return px > pr.left - 36 && py > pr.top - 36; };
+  const stack = under(-1, 2.5);
+  if (stack !== pedStack) { pedStack = stack; placeParty(); }
+  for (const [id, k] of [['pedL', 0], ['pedR', 1]]) {
     const el = $(id); if (!el) continue;
     if (homeView !== 'home') { el.hidden = true; continue; }
-    const pm = partyOthers()[side > 0 ? 0 : 1];
-    if (!pm && playFmt < (side > 0 ? 1 : 2)) { el.hidden = true; continue; } // (a "+" only for the places the chosen mode needs: duo one, trio two)
+    const pm = partyOthers()[k];
+    if (!pm && playFmt < k + 1) { el.hidden = true; continue; } // (a "+" only for the places the chosen mode needs: duo one, trio two)
     el.classList.toggle('taken', !!pm); el.querySelector('span').textContent = pm ? pm.nick : '+';
     el.setAttribute('aria-label', pm ? `${pm.nick}, in your party` : 'Play with a friend');
-    _v.set(c.x + rx * side * 2.5, gy + (pm ? 3 : 1.15), c.z + rz * side * 2.5).project(camera);
-    const px = (_v.x + 1) / 2 * innerWidth, py = (1 - _v.y) / 2 * innerHeight, pr = $('home').querySelector('.hplay').getBoundingClientRect();
-    el.hidden = _v.z > 1 || (px > pr.left - 36 && py > pr.top - 36); // (not under the Play panel on a small screen)
+    const [side, off] = pedSpot(k);
+    _v.set(c.x + rx * side * off, gy + (pm ? 3 : 1.15), c.z + rz * side * off).project(camera);
+    const px = (_v.x + 1) / 2 * innerWidth, py = (1 - _v.y) / 2 * innerHeight;
+    el.hidden = _v.z > 1 || (px > pr.left - 36 && py > pr.top - 36); // (never under the Play panel)
     el.style.left = px + 'px'; el.style.top = py + 'px';
   }
 }
+// where party place k stands beside your captain: [side, distance]
+let pedStack = false;
+const pedSpot = k => k === 0 ? [1, 2.5] : pedStack ? [1, 3.8] : [-1, 2.5];
 // ---------- online: the party on your stage, friends, invites, the search ----------
 const partyOthers = () => (ON.party && ON.party.members || []).filter(m => !ON.me || m.id !== ON.me.id);
 let partyFigs = [];
@@ -469,7 +479,7 @@ function placeParty() { // party members' captains on the pedestals beside yours
   const c = homeCap; if (!c || G.state !== 'title') return;
   const d = Math.hypot(c.x, c.z) || 1, rx = -c.z / d, rz = c.x / d;
   partyOthers().slice(0, 2).forEach((m, k) => {
-    const side = k === 0 ? 1 : -1, ti = G.myTi + 4 * (k + 1), u = mkUnit(ti, c.x + rx * side * 2.5, c.z + rz * side * 2.5, 'captain');
+    const [side, off] = pedSpot(k), ti = G.myTi + 4 * (k + 1), u = mkUnit(ti, c.x + rx * side * off, c.z + rz * side * off, 'captain');
     u.demo = true; u.face = c.face; G.looks[ti] = lookFrom(m.look) || G.looks[ti]; partyFigs.push(u);
   });
 }
@@ -828,7 +838,7 @@ function drawScene(dt) {
   banterTick(dt); updateCritters(dt); fogTick(dt);
   drawSoldiers(G.units, dt);
   const horses = (isClient() ? clientHorses() : G.horses.map(h => ({ key: h.id, ti: h.ti, x: h.x, z: h.z, face: h.face, spd: h.spd, state: h.state, t: h.t, fall: h.fall }))).filter(h => !fogGrid() || !isEnemyTi(h.ti, G.myTi) || seenAt(h.x, h.z));
-  drawHorses(horses, dt);
+  if (drawFreeHorses(horses, dt)) drawHorses([], dt); else drawHorses(horses, dt); // (the new warhorse when the new models are on)
   updateWorldView(dt, castleFx);
   effectsTick(dt);
   drawEffects();
