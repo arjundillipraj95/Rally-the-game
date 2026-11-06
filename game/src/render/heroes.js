@@ -141,6 +141,22 @@ export function drawFar(u, a) {
   b.setMatrixAt(b.count++, _m.compose(_p, _q, _s)); farDrawn = true;
   return true;
 }
+const EV_T = .42; // (how long an evade's body move lasts on screen)
+// ease the pose he's in toward the one wanted (k of the way this frame): every bone, the hip height, and
+// where his gear points. Angles go the short way round, so the spin's full turn doesn't unwind.
+const GEAR = { blade: [-.15, .75, .65], face: [.3, 0, 1], up: [0, 1, 0] };
+const wrap = d => d - Math.round(d / (Math.PI * 2)) * Math.PI * 2;
+function settle(cur, P, k) {
+  const want = k2 => P[k2] || (k2 === 'pole' ? P.blade || GEAR.blade : GEAR[k2]) || [0, 0, 0];
+  if (!cur) { cur = {}; for (const key in P) cur[key] = Array.isArray(P[key]) ? P[key].slice() : P[key]; }
+  for (const key of new Set([...Object.keys(cur), ...Object.keys(P)])) {
+    if (key === 'hipsY') { cur.hipsY = (cur.hipsY || 0) + ((P.hipsY || 0) - (cur.hipsY || 0)) * k; continue; }
+    const w = want(key), c = cur[key] || (key in GEAR || key === 'pole' ? w.slice() : [0, 0, 0]), gear = key in GEAR || key === 'pole';
+    for (let i = 0; i < 3; i++) { const d = gear ? w[i] - c[i] : wrap(w[i] - c[i]); c[i] = gear ? c[i] + d * k : wrap(c[i] + d * k); }
+    cur[key] = c;
+  }
+  return cur;
+}
 function drop(h) {
   scene.remove(h.U || h.R.root);
   h.R.root.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); // (the horse's geometry is shared: only the rider's is freed)
@@ -161,23 +177,42 @@ export function drawHero(u, a, dt) {
   const blocking = (u.human && u.blocking) || u.blockT > 0;
   if (blocking && u.hp < h.hp - .5) h.blockHitT = G.T; // (a blow taken on the shield: it jolts)
   h.hp = u.hp;
-  let P;
-  if (a.stumble > 0) P = moveAt('stagger', Math.min(1, 1 - a.stumble / .4) * .7);
+  let P, rate = 16, roll = 0; // (rate: how fast he moves into the pose; roll: the side evade's turn)
+  if (u.execA || u.execV) h.exT = (h.exT || 0) + dt; else h.exT = 0;
+  const ev = u.evade && !h.U && G.T - u.evade.t < EV_T ? (G.T - u.evade.t) / EV_T : -1;
+  if (ev >= 0 && h.evT !== u.evade.t) { h.evT = u.evade.t; const dx = Math.sin(u.face) * (u.vz || 0) - Math.cos(u.face) * (u.vx || 0); h.evDir = dx > 0 ? -1 : 1; } // (which way the roll turns: the way he's going)
+  if (u.execV) { P = POSES.kneel; rate = 10; }
+  else if (u.execA && !h.U) { P = moveAt(h.weapon === 'spear' ? 'exec_spear' : h.weapon === 'jav' ? 'exec_jav' : 'exec_sword', Math.min(1, h.exT / 1.3)); rate = 26; }
+  else if (ev >= 0) { // the evades: into the move fast, held, then out of it
+    const k = ev < .22 ? ev / .22 : ev < .7 ? 1 : 1 - (ev - .7) / .3, kind = u.evade.kind;
+    P = mixPose(CLIPS.idle(G.T), kind === 'pounce' ? POSES.evPounce : kind === 'back' ? POSES.evBack : POSES.evRoll, Math.min(1, k * 1.3)); rate = 30;
+    if (kind === 'side') { const r = Math.min(1, Math.max(0, (ev - .06) / .62)); roll = h.evDir * Math.PI * 2 * r * r * (3 - 2 * r); } // (a full turn, eased in and out)
+  }
+  else if (a.stumble > 0) { P = moveAt('stagger', Math.min(1, 1 - a.stumble / .4) * .7); rate = 30; }
   else if (u.windup > 0) P = moveAt('heavy', .4); // (wound up, weapon high, the glint coming)
   else if (u.swing > 0) {
     const t = 1 - u.swing / .38, k = u.swingKind | 0;
     let name = KIND[k] || 'forehand';
-    if (h.weapon !== 'sword' && k <= 2) name = 'thrust'; // (spear and javelin: they stab)
+    if (h.weapon === 'spear') name = k === 5 ? 'lunge' : k === 6 ? 'bash' : (k === 1 || k === 2) ? 'thrustHigh' : 'thrust'; // (the spear: a low stab, an overhand stab, the skewer)
+    else if (h.weapon === 'jav') name = k === 6 ? 'bash' : 'throw'; // (javelins are thrown)
     if (h.weapon === 'bow') name = null; // (the archer looses: the bow held up)
-    P = name === null ? POSES.guard : name === 'heavy' ? moveAt('heavy', .4 + .6 * t) : moveAt(name, t);
-  } else if (u.parryT != null && G.T - u.parryT < .32 && G.T - u.parryT >= 0) P = moveAt('parry', (G.T - u.parryT) / .32);
-  else if (blocking) P = G.T - h.blockHitT < .3 ? moveAt('block', (G.T - h.blockHitT) / .3) : POSES.guard;
+    P = name === null ? POSES.guard : name === 'heavy' ? moveAt('heavy', .4 + .6 * t) : moveAt(name, t); rate = 34;
+  } else if (u.parryT != null && G.T - u.parryT < .32 && G.T - u.parryT >= 0) { P = moveAt('parry', (G.T - u.parryT) / .32); rate = 34; }
+  else if (u.heavyCharge > 0 && h.weapon === 'sword') { // the held heavy blow: raised and trembling, deeper the longer it's held
+    P = moveAt('heavy', .25 + .15 * Math.min(1, u.heavyCharge)); P = Object.assign({}, P, { upperArm_R: P.upperArm_R.map((v, i) => i === 2 ? v + Math.sin(G.T * 40) * .03 * u.heavyCharge : v) }); rate = 20;
+  }
+  else if (u.bracing) { P = POSES.brace; rate = 18; }
+  else if (u.javDraw > 0) { P = mixPose(POSES.rest, POSES.javDraw, Math.min(1, .55 + .45 * u.javDraw)); rate = 20; }
+  else if (blocking) { P = G.T - h.blockHitT < .3 ? moveAt('block', (G.T - h.blockHitT) / .3) : POSES.guard; rate = G.T - h.blockHitT < .3 ? 30 : 18; }
+  else if (a.cheerT > 0) { P = mixPose(CLIPS.idle(G.T), POSES.cheer, Math.min(1, Math.sin(Math.PI * Math.min(1, a.cheerT / .9)) * 1.6)); }
   else P = mv > .05 ? mixPose(CLIPS.idle(G.T), CLIPS.run(h.run), Math.min(1, mv * 1.6)) : CLIPS.idle(G.T);
   const top = h.U || R.root; // (mounted: the horse and rider move together, their feet on the ground)
   if (h.U) P = Object.assign({}, P, RIDE); // (mounted: his legs go over the saddle whatever he is doing)
-  applyPose(R, P);
+  h.cur = settle(h.cur, P, 1 - Math.exp(-rate * Math.min(dt, .1))); // (eased into each pose, never snapped)
+  applyPose(R, h.cur);
   top.position.set(u.x, (u.y || 0) + (a.lift || 0) - (a.sink || 0) + (h.U ? 0 : .998 * h.sc), u.z);
   top.rotation.set(0, u.face + (a.yaw || 0), 0);
+  if (roll) { R.root.rotateZ(roll); R.root.position.y -= .25 * Math.sin(Math.abs(roll) / 2) * h.sc; } // (the side roll: a full turn about his forward axis, tucked low)
   top.visible = true;
   if (h.legs) swing(h.legs, h.run, mv); // (the horse's legs swing in a trot, in diagonal pairs, and stand still when he does)
   return true;

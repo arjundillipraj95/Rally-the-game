@@ -361,8 +361,47 @@ export const MOVES = {
 // defence and hit reactions
 const GUARD = { spine: [.12, 0, 0], upperArm_L: [0, -1.3, .35], foreArm_L: [0, -1.0, 0], face: [0, 0, 1], up: [0, 1, 0], upperArm_R: [0, .2, 1.0], foreArm_R: [0, .8, 0], blade: [-.3, .7, .55], pole: [-.15, .4, 1], hipsY: -.06, ...BRACE };
 POSES.guard = { ...R0, ...GUARD }; // (held while blocking: shield up in front of the chest, crouched behind it)
-// a block taking a hit: the shield jolts back and he gives a little, then sets again
-MOVES.block = { dur: .3, keys: [[0, POSES.guard], [.25, { ...POSES.guard, spine: [-.05, 0, 0], upperArm_L: [0, -1.1, .45], foreArm_L: [0, -1.3, 0], hipsY: -.09 }], [1, POSES.guard]] };
+// a block taking a hit: the shield stays where it is and the whole man gives behind it (rocked back on
+// his heels, knees taking it), then sets again. (The arm does not move: it read as pulling the shield in.)
+MOVES.block = { dur: .3, keys: [[0, POSES.guard], [.22, { ...POSES.guard, spine: [-.04, 0, 0], chest: [-.06, 0, 0], thigh_L: [-.45, 0, 0], shin_L: [.55, 0, 0], hipsY: -.11 }], [1, POSES.guard]] };
+// the spear's overhand stab: raised over the shoulder, point down-forward, driven over the shield's rim
+MOVES.thrustHigh = { dur: .38, keys: blow(
+  { spine: [-.05, -.15, 0], chest: [0, -.25, 0], upperArm_R: [0, -.2, -1.2], foreArm_R: [0, 1.3, 0], blade: [0, -.15, 1], pole: [0, -.15, 1], hipsY: -.03 },
+  { spine: [.3, .15, 0], chest: [0, .2, 0], upperArm_R: [0, 1.25, -.55], foreArm_R: [0, .05, 0], blade: [0, -.25, 1], pole: [0, -.25, 1], hipsY: -.08 },
+  { spine: [.32, .18, 0], chest: [0, .22, 0], upperArm_R: [0, 1.3, -.5], foreArm_R: [0, 0, 0], blade: [0, -.28, 1], pole: [0, -.28, 1], hipsY: -.08 }) };
+// the spear's skewer (its heavy): a running lunge, the whole body flat behind the point
+MOVES.lunge = { dur: .38, keys: blow(
+  { spine: [-.1, -.3, 0], chest: [0, -.35, 0], upperArm_R: [0, -.45, .95], foreArm_R: [0, 1.9, 0], blade: [0, .05, 1], pole: [0, .05, 1], hipsY: -.08 },
+  { spine: [.5, .25, 0], chest: [0, .25, 0], upperArm_R: [0, 1.5, .1], foreArm_R: [0, 0, 0], blade: [0, -.05, 1], pole: [0, -.05, 1], thigh_R: [-1.05, 0, 0], shin_R: [.85, 0, 0], thigh_L: [.65, 0, 0], shin_L: [.2, 0, 0], hipsY: -.2 },
+  { spine: [.52, .25, 0], chest: [0, .25, 0], upperArm_R: [0, 1.5, .1], foreArm_R: [0, 0, 0], blade: [0, -.05, 1], pole: [0, -.05, 1], thigh_R: [-1.05, 0, 0], shin_R: [.85, 0, 0], thigh_L: [.65, 0, 0], shin_L: [.2, 0, 0], hipsY: -.2 }) };
+// the javelin's throw: cocked back above the shoulder, the body turned away, then whipped through
+const JAV_COCK = { spine: [-.12, -.45, 0], chest: [0, -.4, 0], upperArm_R: [0, -.75, -1.0], foreArm_R: [0, 1.15, 0], blade: [0, .25, 1], pole: [0, .25, 1], upperArm_L: [0, -1.2, .1], foreArm_L: [0, -.3, 0], hipsY: -.04 };
+MOVES.throw = { dur: .38, keys: [[0, R0], [.2, { ...R0, ...BRACE, ...JAV_COCK }],
+  [.34, { ...R0, ...LUNGE_R, spine: [.3, .35, 0], chest: [0, .4, 0], upperArm_R: [0, 1.35, -.7], foreArm_R: [0, .1, 0], blade: [0, .05, 1], pole: [0, .05, 1], upperArm_L: [0, .2, -1.0], hipsY: -.07 }],
+  [.6, { ...R0, ...LUNGE_R, spine: [.35, .4, 0], chest: [0, .45, 0], upperArm_R: [0, 1.4, .2], foreArm_R: [0, .2, 0], blade: [0, -.5, .8], pole: [0, -.5, .8], upperArm_L: [0, .2, -1.1], hipsY: -.07 }], [1, R0]] };
+POSES.javDraw = { ...R0, ...BRACE, ...JAV_COCK }; // (a javelin held drawn back, ready to throw)
+// the spear planted against a charge: crouched low behind the levelled point, feet wide
+POSES.brace = { ...R0, ...SH_UP, spine: [.32, 0, 0], neck: [-.25, 0, 0], thigh_L: [-.75, 0, 0], shin_L: [.95, 0, 0], thigh_R: [.55, 0, 0], shin_R: [.45, 0, 0], upperArm_R: [0, 1.15, .55], foreArm_R: [0, .55, 0], blade: [0, .05, 1], pole: [0, .05, 1], hipsY: -.22 };
+// the horn's cheer: weapon and shield thrown up
+POSES.cheer = { ...R0, upperArm_R: [0, .2, -1.3], foreArm_R: [0, .3, 0], upperArm_L: [0, -.2, 1.3], foreArm_L: [0, -.3, 0], blade: [0, 1, .15], pole: [0, 1, .15], face: [0, .6, .8], up: [0, 0, -1], neck: [-.2, 0, 0], head: [-.15, 0, 0] };
+// the evades: a dive forward (pounce), a crouched hop back behind the shield, and a tucked side roll
+// (the roll itself, a full turn about his forward axis, is the root's: see heroes.js)
+POSES.evPounce = { ...R0, ...SH_UP, spine: [.55, 0, 0], neck: [-.3, 0, 0], thigh_R: [-1.2, 0, 0], shin_R: [1.0, 0, 0], thigh_L: [.75, 0, 0], shin_L: [.5, 0, 0], upperArm_R: [0, 1.3, .2], foreArm_R: [0, .2, 0], blade: [0, -.1, 1], pole: [0, -.05, 1], hipsY: -.05 };
+POSES.evBack = { ...POSES.guard, spine: [.28, 0, 0], neck: [-.2, 0, 0], thigh_L: [-.95, 0, 0], shin_L: [1.25, 0, 0], thigh_R: [-.45, 0, 0], shin_R: [1.1, 0, 0], hipsY: -.16 };
+POSES.evRoll = { ...R0, spine: [.75, 0, 0], neck: [.35, 0, 0], thigh_L: [-1.65, 0, 0], shin_L: [2.0, 0, 0], thigh_R: [-1.65, 0, 0], shin_R: [2.0, 0, 0], upperArm_R: [0, .7, .6], foreArm_R: [0, 1.3, 0], upperArm_L: [0, -1.0, .45], foreArm_L: [0, -1.2, 0], blade: [0, .6, .8], pole: [0, .6, .8], face: [0, 0, 1], up: [0, 1, 0] };
+// the executions, one per weapon (1.3 s, the blow at .75 s): raised high over the kneeling man, then down
+const EX = (raise, strike) => ({ dur: 1.3, keys: [[0, R0], [.42, { ...R0, ...SH_UP, ...BRACE, ...raise }], [.52, { ...R0, ...SH_UP, ...BRACE, ...raise }], [.64, { ...R0, ...SH_UP, ...LUNGE_R, ...strike }], [.88, { ...R0, ...SH_UP, ...LUNGE_R, ...strike }], [1, R0]] });
+MOVES.exec_sword = EX( // the coup de grâce: the blade turned point-down above his head, plunged down
+  { spine: [-.25, 0, 0], neck: [-.15, 0, 0], upperArm_R: [0, .55, -1.5], foreArm_R: [0, .9, 0], blade: [0, -.55, .85], hipsY: -.02 },
+  { spine: [.7, 0, 0], neck: [.2, 0, 0], upperArm_R: [0, 1.25, .35], foreArm_R: [0, .3, 0], blade: [0, -.95, .3], hipsY: -.24 });
+MOVES.exec_spear = EX( // run through: drawn far back at the hip, then the whole body behind one thrust, point low
+  { spine: [-.1, -.4, 0], chest: [0, -.45, 0], upperArm_R: [0, -.55, .9], foreArm_R: [0, 1.95, 0], blade: [0, -.2, 1], pole: [0, -.2, 1], hipsY: -.06 },
+  { spine: [.5, .25, 0], chest: [0, .25, 0], upperArm_R: [0, 1.5, .2], foreArm_R: [0, 0, 0], blade: [0, -.4, 1], pole: [0, -.4, 1], thigh_R: [-1.0, 0, 0], shin_R: [.85, 0, 0], thigh_L: [.6, 0, 0], hipsY: -.2 });
+MOVES.exec_jav = EX( // hefted high in both hands, point down, and driven down into him
+  { spine: [-.25, 0, 0], neck: [-.15, 0, 0], upperArm_R: [0, .25, -1.55], foreArm_R: [0, 1.0, 0], blade: [0, -.85, .5], pole: [0, -.85, .5], upperArm_L: [0, -.3, 1.3], foreArm_L: [0, -.9, 0], hipsY: -.02 },
+  { spine: [.65, 0, 0], neck: [.2, 0, 0], upperArm_R: [0, 1.2, .1], foreArm_R: [0, .2, 0], blade: [0, -.97, .25], pole: [0, -.97, .25], upperArm_L: [0, -1.2, .1], foreArm_L: [0, -.6, 0], hipsY: -.22 });
+// the beaten captain, on one knee with his head bowed, weapon and shield hanging
+POSES.kneel = { ...R0, spine: [.42, 0, 0], neck: [.25, 0, 0], head: [.2, 0, 0], thigh_L: [-1.45, 0, 0], shin_L: [1.45, 0, 0], foot_L: [.0, 0, 0], thigh_R: [.15, 0, 0], shin_R: [1.75, 0, 0], foot_R: [.6, 0, 0], upperArm_R: [.2, 0, 1.35], upperArm_L: [.2, 0, -1.35], blade: [.1, -.9, .4], pole: [.1, -.9, .4], hipsY: .08 };
 // a parry: the blade flicks up and across to turn the blow aside, then out
 MOVES.parry = { dur: .32, keys: [[0, R0],
   [.3, { ...R0, ...SH_UP, ...BRACE, chest: [0, .25, 0], upperArm_R: [0, 1.0, -.45], foreArm_R: [0, .9, 0], blade: [.5, .85, .3], hipsY: -.04 }],
