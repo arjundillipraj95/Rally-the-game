@@ -117,7 +117,7 @@ function archerGear(R, team, tier) {
     ARCH.wood = new THREE.MeshStandardMaterial({ color: 0x6b4423, roughness: .85 }); ARCH.white = new THREE.MeshStandardMaterial({ color: 0xf4f0e6, roughness: .9 });
   }
   const cloth = new THREE.MeshStandardMaterial({ color: team, roughness: .9 }), head = R.bones.head, chest = R.bones.chest;
-  const hood = new THREE.Mesh(ARCH.hood, cloth); hood.position.set(0, .3, -.04); hood.scale.set(1.42, 1.3, 1.48); hood.rotation.x = -.22; head.add(hood);
+  const hood = new THREE.Mesh(ARCH.hood, cloth); hood.position.set(0, .29, -.04); hood.scale.set(1.3, 1.22, 1.36); hood.rotation.x = -.22; head.add(hood);
   const tip = new THREE.Mesh(ARCH.tip, cloth); tip.position.set(0, .25, -.02); tip.rotation.x = 1.25; hood.add(tip); // (the Phrygian point, flopped forward)
   const q = new THREE.Group(); q.position.set(.06, .02, -.2); q.rotation.set(-.15, 0, -.45); chest.add(q); // (across the back, top over his right shoulder)
   q.add(new THREE.Mesh(ARCH.quiver, ARCH.wood));

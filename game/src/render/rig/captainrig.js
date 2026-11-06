@@ -156,7 +156,11 @@ export function rigCaptain(srcGeo, { gear = true, show = false, body = 'captain'
     const boss = new THREE.Mesh(new THREE.SphereGeometry(.07, 12, 8), gold); boss.position.z = .04; sh.add(boss);
     }
     // the helmet: a cap over the hair, its rim just above the brows (placeholder until the real one)
-    if (body === 'captain' && pack && pack.helmet) { const p = packPiece(pack.helmet, FIT.helmet, team); p.position.fromArray(FIT.helmet.at); p.rotation.x += FIT.helmet.tilt; bones.head.add(p); }
+    if (body === 'captain' && pack && pack.helmet) {
+      const p = packPiece(pack.helmet, FIT.helmet, team); p.position.fromArray(FIT.helmet.at); p.rotation.x += FIT.helmet.tilt; bones.head.add(p);
+      // the pack's steel came out chalk-white in daylight: a deeper, polished steel, with a sheen
+      p.traverse(m => { if (!m.isMesh || /crest|plume/i.test(m.name)) return; const c = m.material.color, hsl = {}; c.getHSL(hsl); if (hsl.s < .25) { c.multiplyScalar(.62); m.material.metalness = .55; m.material.roughness = .32; } });
+    }
     else if (body === 'captain') {
     const helm = new THREE.Mesh(new THREE.SphereGeometry(.355, 24, 14, 0, Math.PI * 2, 0, Math.PI * .55), steel); helm.position.set(0, .33, -.03); helm.rotation.x = -.3; helm.scale.set(.97, .96, 1.06); bones.head.add(helm); // (tilted back: the rim rides above the brows and comes down over the nape, like a galea)
     const crest = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: teamCol })); crest.scale.set(.05 / .97, .2 / .96, .28 / 1.06); crest.position.set(0, .34, 0); helm.add(crest); // (rides the helmet's own top, so it follows the tilt)
