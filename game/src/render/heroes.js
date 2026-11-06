@@ -1,7 +1,7 @@
-// The new captains (test): the generated, painted and rigged 3D captain in place of the built-from-parts
+// The new captains: the generated, painted and rigged 3D captain in place of the built-from-parts
 // one, posed every frame from the same game state the old one reads (moving, swinging, guarding, a
-// heavy wind-up, a bash, a parry, reeling from a clout). On only with ?models=1 in the address (or
-// localStorage 'rally.models' = '1'); off, nothing here runs and the game looks as before.
+// heavy wind-up, a bash, a parry, reeling from a clout). On by default; ?models=0 in the address (or
+// localStorage 'rally.models' = '0') turns it off and the game looks as before.
 // Captains only for now: a few skinned meshes are cheap; soldiers (hundreds) need baked instancing.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -11,7 +11,7 @@ import { scene } from './scene.js';
 import { rigCaptain, addArmour, applyPose, moveAt, mixPose, CLIPS, POSES } from './rig/captainrig.js';
 
 let on = false;
-try { on = new URLSearchParams(location.search).get('models') === '1' || localStorage.getItem('rally.models') === '1'; } catch (e) { /* (no storage: off) */ }
+try { on = new URLSearchParams(location.search).get('models') !== '0' && localStorage.getItem('rally.models') !== '0'; } catch (e) { /* (no storage: on) */ }
 export const heroesOn = () => on && !!SRC;
 
 const SCALE = 1.22; // (the old captain stood about 2.4 tall; the model is 1.96)
