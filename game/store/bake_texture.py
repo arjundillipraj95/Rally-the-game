@@ -1,6 +1,7 @@
 """Paint a generated (untextured) model from its turnaround sheet.
 
-Usage: python3 -I bake_texture.py mesh.glb sheet.png out.glb [size]
+Usage: python3 -I bake_texture.py mesh.glb sheet.png out.glb [size] [figures-json]
+(figures-json: {"front": [l, t, r, b], "side": [...], "back": [...]}, where each view sits on the sheet)
 
 The mesh is unwrapped (xatlas), then every texel of the new texture is looked up in the views
 that can see it: front, back and the side view (used for both sides: the character is near enough
@@ -18,6 +19,8 @@ from scipy import ndimage
 
 mesh_path, sheet_path, out_path = sys.argv[1:4]
 TS = int(sys.argv[4]) if len(sys.argv) > 4 else 1024
+import os
+ITEM = os.environ.get('BAKE_KIND') == 'item'  # (armour, weapons, helmets: no head or face rules)
 
 m = trimesh.load(mesh_path, force='mesh')
 V = np.asarray(m.vertices, dtype=np.float64); F = np.asarray(m.faces)
@@ -28,9 +31,9 @@ x0 = (waist[:, 0].min() + waist[:, 0].max()) / 2; V[:, 0] -= x0
 # expression, and sculpted ones that don't line up with the paint read as a second set of features
 nbr = [set() for _ in range(len(V))]
 for a, b, c in F: nbr[a].update((b, c)); nbr[b].update((a, c)); nbr[c].update((a, b))
-face = (V[:, 1] > .3) & (V[:, 1] < .82) & (V[:, 2] > .02)
-fw = np.clip((V[:, 2] - .02) / .12, 0, 1) * face  # (more toward the front of the face, nothing at the sides)
-for _ in range(10):
+face = (V[:, 1] > .22) & (V[:, 1] < .82) & (V[:, 2] > -.08) & (np.abs(V[:, 0]) < .36)
+fw = np.clip((V[:, 2] + .08) / .14, 0, 1) * np.clip((V[:, 1] - .22) / .06, 0, 1) * face  # (the whole face and cheeks, easing out toward the ears)
+for _ in range(0 if ITEM else 16):
     avg = np.array([V[list(n)].mean(0) if n else V[i] for i, n in enumerate(nbr)])
     V = V + (avg - V) * (.6 * fw)[:, None]
 sheet = np.asarray(Image.open(sheet_path).convert('RGB')).astype(np.float32)
@@ -39,6 +42,8 @@ bg = np.median(np.concatenate([sheet[:10].reshape(-1, 3), sheet[-10:].reshape(-1
 
 # where each view's figure sits on the sheet (left, top, right, bottom), from the cropped views
 FIG = {'front': (15, 130, 502, 759), 'side': (581, 128, 794, 759), 'back': (838, 128, 1352, 759)}
+if len(sys.argv) > 5:
+    import json; FIG = {k: tuple(v) for k, v in json.loads(sys.argv[5]).items()}
 lo, hi = V.min(0), V.max(0)
 ADJ = {v: (1., 1., 0., 0.) for v in FIG}  # (scale x, scale y, shift x, shift y) about the figure's centre
 def proj(view, P):
@@ -67,7 +72,7 @@ def raster(tri2d, cb, W, H):
 # the picture's figure (not background), and for each pixel the nearest figure pixel (to pull edge samples inside)
 fig = np.abs(sheet - bg).sum(2) > 30
 fig = ndimage.binary_fill_holes(ndimage.binary_opening(fig, iterations=1))  # (the armour's shine is background-grey: still figure)
-inner = ndimage.binary_erosion(fig, iterations=3)
+inner = ndimage.binary_erosion(fig, iterations=3)  # (keep clear of the picture's outline shading)
 _, (NIY, NIX) = ndimage.distance_transform_edt(~inner, return_indices=True)
 
 def mesh_mask(view):
@@ -100,6 +105,10 @@ for view in FIG:
         raster([(px[f[0]], py[f[0]]), (px[f[1]], py[f[1]]), (px[f[2]], py[f[2]])], put, SW, SH)
     depth[view] = D
 
+# the head's centre and hairline (elevation in radians from that centre: at the front, the sides, the back)
+HEAD_C = np.array([0, .62, -.02]); HEAD_Y0 = .27; HAIR_FRONT, HAIR_BACK = .5, -.95
+_, HAIR_LOW_PY, _ = proj('back', np.array([[0, .44, -.3]])); HAIR_LOW_PY = float(HAIR_LOW_PY[0])
+_, HAIR_LOW_SPY, _ = proj('side', np.array([[.3, .62, -.25]])); HAIR_LOW_SPY = float(HAIR_LOW_SPY[0])
 # skin colour, from the front picture at the cheek
 _px, _py, _ = proj('front', np.array([[.2, .42, .3]])); SKIN = sheet[int(_py[0]), int(_px[0])].copy(); print('skin', SKIN)
 
@@ -121,11 +130,11 @@ for f in NF:
         P = bc @ NV[f]; N = bc @ vn[f]; N /= np.linalg.norm(N, axis=1, keepdims=True) + 1e-9
         # the front of the head (face and cheeks, up to the ears) is painted from the front picture only
         # (the face itself, eased in toward the front so there's no hard line on the cheek or the hair)
-        facepart = np.clip((P[:, 2] - .04) / .1, 0, 1) * np.clip((P[:, 1] - .28) / .06, 0, 1) * np.clip((.66 - P[:, 1]) / .08, 0, 1)
+        facepart = (not ITEM) * np.clip((P[:, 2] - .04) / .1, 0, 1) * np.clip((N[:, 2] - .3) / .25, 0, 1) * np.clip((P[:, 1] - .28) / .06, 0, 1) * np.clip((.66 - P[:, 1]) / .08, 0, 1)  # (only where the face really faces forward: the cheeks come from the side view, not the front one stretched)
         acc = np.zeros((len(P), 3)); wsum = np.zeros(len(P)); best = np.zeros((len(P), 3)); bestw = np.full(len(P), -1.)
         for view in FIG:
             if view == 'side': face = np.abs(N[:, 0]) * (1 - facepart)  # (the side picture's profile eye must not land on the cheek)
-            else: face = N @ DIRS[view]
+            else: face = (N @ DIRS[view]) * (np.clip(((N @ DIRS[view]) - .15) / .35, 0, 1) if view == 'front' else 1)  # (no front paint stretched round the sides)
             px, py, d = proj(view, P)
             col = sample(px, py)
             vis = np.abs(depth[view][np.clip(py.astype(int), 0, SH - 1), np.clip(px.astype(int), 0, SW - 1)] - d) < .04
@@ -135,8 +144,25 @@ for f in NF:
             fb = np.clip(face, 0, 1) * np.where(isbg, .1, 1); better = fb > bestw; best[better] = col[better]; bestw[better] = fb[better]
         c = np.where(wsum[:, None] > 1e-4, acc / np.maximum(wsum, 1e-9)[:, None], best)
         # under the chin and jaw (facing down, seen by no picture): skin, fading in by how far it faces down
-        under = np.clip((-N[:, 1] - .25) / .35, 0, 1) * ((P[:, 1] > .22) & (P[:, 1] < .5))
+        under = np.clip((-N[:, 1] - .25) / .35, 0, 1) * ((P[:, 1] > .22) & (P[:, 1] < .5)) * (not ITEM)
         c = c * (1 - under[:, None]) + SKIN * under[:, None]
+        # the head, painted by rule (projected pictures never line up at the face's edges or the hairline):
+        # hair above a smooth hairline (forehead, past the ears, down to the nape), from the back picture's
+        # hair; skin below; the features from the front picture only where the face looks straight ahead
+        head = (P[:, 1] > HEAD_Y0) & (np.abs(P[:, 0]) < .5) & (not ITEM)
+        if head.any():
+            d = P[head] - HEAD_C; d /= np.linalg.norm(d, axis=1, keepdims=True) + 1e-9
+            el = np.arcsin(np.clip(d[:, 1], -1, 1)); az = np.abs(np.arctan2(d[:, 0], d[:, 2])) / np.pi  # (0 front, 1 back)
+            line = HAIR_FRONT + (HAIR_BACK - HAIR_FRONT) * (1 - np.cos(az * np.pi)) / 2  # (smooth all round: no point at the back)
+            hairw = np.clip((el - line) / .06 + .5, 0, 1) * np.clip((.37 - np.abs(P[head][:, 0])) / .04, 0, 1)  # (the ears stay skin)
+            bx, by, _ = proj('back', P[head]); by = np.minimum(by, HAIR_LOW_PY)  # (hair texture from the back picture, kept above its nape)
+            sx_, sy_, _ = proj('side', P[head]); sy_ = np.minimum(sy_, HAIR_LOW_SPY)
+            sidew = np.clip((np.abs(d[:, 0]) - .45) / .3, 0, 1)[:, None]  # (the sides of the head: hair from the side picture, not the back one stretched)
+            hair = sample(bx, by) * (1 - sidew) + sample(sx_, sy_) * sidew
+            fx, fy, _ = proj('front', P[head]); feat = sample(fx, fy)
+            fw = np.clip((N[head][:, 2] - .55) / .2, 0, 1) * (1 - hairw) * np.clip((P[head][:, 1] - .34) / .04, 0, 1) * np.clip((.34 - np.abs(P[head][:, 0])) / .06, 0, 1)  # (features only: brows to mouth)
+            skin = SKIN * (1 - fw[:, None]) + feat * fw[:, None]
+            c[head] = hair * hairw[:, None] + skin * (1 - hairw[:, None])
         tex[ys, xs] = c; filled[ys, xs] = True
     raster(uvp, paint, TS, TS)
 

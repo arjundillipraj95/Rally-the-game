@@ -7,7 +7,7 @@
 // pose him to check how he bends. ?pose=a,b,c,d picks the poses; ?view=front|side|three
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { rigCaptain, POSES, applyPose } from './captainrig.js';
+import { rigCaptain, POSES, applyPose, addArmour } from './captainrig.js';
 const q = new URLSearchParams(location.search), poses = (q.get('pose') || 'tpose,rest,windup,strike').split(','), view = q.get('view') || 'three';
 const W = 1600, H = 620, r = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true });
 r.setPixelRatio(1); r.setSize(W, H); r.setClearColor(0xd8d8d8); r.setScissorTest(true);
@@ -15,7 +15,8 @@ const scene = new THREE.Scene(); scene.add(new THREE.HemisphereLight(0xffffff, 0
 const g = await new GLTFLoader().loadAsync(q.get('f') || 'models/captain.glb');
 let src = null; g.scene.traverse(o => { if (o.isMesh && !src) src = o; });
 if (src.material && src.material.map) { src.material.metalness = 0; src.material.roughness = .8; src.geometry.userData.material = src.material; }
-const n = poses.length, rigs = poses.map(() => rigCaptain(src.geometry, { gear: q.get('gear') !== '0', show: q.get('bones') === '1' }));
+let arm = null; if (q.get('armour')) { const ga = await new GLTFLoader().loadAsync(q.get('armour')); ga.scene.traverse(o => { if (o.isMesh && !arm) arm = o; }); arm.material.metalness = .35; arm.material.roughness = .45; }
+const n = poses.length, rigs = poses.map(() => { const R = rigCaptain(src.geometry, { gear: q.get('gear') !== '0', show: q.get('bones') === '1' }); if (arm) addArmour(R, arm.geometry, arm.material); return R; });
 rigs.forEach((R, i) => { R.root.visible = false; scene.add(R.root); });
 const ang = { front: 0, side: Math.PI / 2, three: -Math.PI / 4.5, back: Math.PI }[view];
 poses.forEach((p, i) => {

@@ -51,19 +51,16 @@ function rawWeights(x, y) {
   return w;
 }
 
-export function rigCaptain(srcGeo, { gear = true, show = false } = {}) {
-  const geo = srcGeo.clone(); geo.computeBoundingBox();
-  // centre x on the torso (measured at the waist), keep y and z
+// skin weights per vertex from a region function, smoothed over the surface
+function skinWeights(geo, weightFn) {
   const pos = geo.attributes.position, nV = pos.count;
-  let xmin = 1e9, xmax = -1e9; for (let i = 0; i < nV; i++) { const y = pos.getY(i); if (y > -.2 && y < -.15) { const x = pos.getX(i); xmin = Math.min(xmin, x); xmax = Math.max(xmax, x); } }
-  const x0 = (xmin + xmax) / 2; geo.translate(-x0, 0, 0); if (!geo.attributes.normal) geo.computeVertexNormals();
   // weights per vertex, as dense rows, then smoothed over the mesh's neighbours
   // (texture seams split vertices; weights are worked out per welded point so both sides of a seam bend alike)
   const key = i => `${Math.round(pos.getX(i) * 1e4)},${Math.round(pos.getY(i) * 1e4)},${Math.round(pos.getZ(i) * 1e4)}`;
   const weld = new Int32Array(nV), first = new Map(); let nP = 0; const pIdx = [];
   for (let i = 0; i < nV; i++) { const k = key(i); if (!first.has(k)) { first.set(k, nP++); pIdx.push(i); } weld[i] = first.get(k); }
   const B = NAMES.length, Wt = new Float32Array(nP * B);
-  for (let p = 0; p < nP; p++) { const i = pIdx[p], w = rawWeights(pos.getX(i), pos.getY(i)); for (const b in w) Wt[p * B + NAMES.indexOf(b)] = w[b]; }
+  for (let p = 0; p < nP; p++) { const i = pIdx[p], w = weightFn(pos.getX(i), pos.getY(i), pos.getZ(i)); for (const b in w) Wt[p * B + NAMES.indexOf(b)] = w[b]; }
   const idx = geo.index.array, nb = Array.from({ length: nP }, () => new Set());
   for (let f = 0; f < idx.length; f += 3) { const a = weld[idx[f]], b = weld[idx[f + 1]], c = weld[idx[f + 2]]; nb[a].add(b).add(c); nb[b].add(a).add(c); nb[c].add(a).add(b); }
   const tmp = new Float32Array(nP * B);
@@ -79,6 +76,15 @@ export function rigCaptain(srcGeo, { gear = true, show = false } = {}) {
   }
   geo.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(sIdx, 4));
   geo.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sW, 4));
+}
+
+export function rigCaptain(srcGeo, { gear = true, show = false } = {}) {
+  const geo = srcGeo.clone(); geo.computeBoundingBox();
+  // centre x on the torso (measured at the waist), keep y and z
+  const pos = geo.attributes.position, nV = pos.count;
+  let xmin = 1e9, xmax = -1e9; for (let i = 0; i < nV; i++) { const y = pos.getY(i); if (y > -.2 && y < -.15) { const x = pos.getX(i); xmin = Math.min(xmin, x); xmax = Math.max(xmax, x); } }
+  const x0 = (xmin + xmax) / 2; geo.translate(-x0, 0, 0); if (!geo.attributes.normal) geo.computeVertexNormals();
+  skinWeights(geo, rawWeights);
   // the skeleton
   const bones = {}; for (const n of NAMES) { bones[n] = new THREE.Bone(); bones[n].name = n; }
   for (const n of NAMES) {
@@ -108,7 +114,50 @@ export function rigCaptain(srcGeo, { gear = true, show = false } = {}) {
     const helm = new THREE.Mesh(new THREE.SphereGeometry(.37, 24, 14, 0, Math.PI * 2, 0, Math.PI * .5), steel); helm.position.set(0, .32, -.02); helm.scale.set(1.02, 1.0, 1.1); bones.head.add(helm);
     const crest = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x2f62c8 })); crest.scale.set(.05, .2, .28); crest.position.set(0, .68, -.03); bones.head.add(crest);
   }
-  return { root, mesh, bones };
+  return { root, mesh, bones, x0 };
+}
+
+// armour regions: the shoulder guards ride the upper arms; the cuirass the chest and spine; the belt
+// and the hanging strips the hips, the strips' lower ends partly following the legs (like the skirt)
+function armourWeights(x, y) {
+  const ax = Math.abs(x), S = x < 0 ? '_R' : '_L', w = {};
+  const add = (b, v) => { if (v > 0) w[b] = (w[b] || 0) + v; };
+  const arm = y > -.2 ? sm((ax - .23) / .07) : 0;
+  if (y > -.05) { add('chest', 1 - arm); add('upperArm' + S, arm); }
+  else if (y > -.27) { const s = sm((y + .27) / .22); add('spine', (1 - s) * (1 - arm)); add('chest', s * (1 - arm)); add('upperArm' + S, arm); }
+  else { const lw = sm((-.36 - y) / .2) * .5; add('hips', 1 - lw); add('thigh' + S, lw); }
+  return w;
+}
+// fit a generated armour (its own scale, centred on itself) over the body, and skin it to the same
+// skeleton. fit: scale per axis and where its neck rim and belt land. Its shoulder guards were made for
+// arms hanging at `armAngle` below level, so that's the pose it's bound in: they follow the arms from there.
+export function addArmour(R, srcGeo, material, { s = [.5, .4375, .48], src = { yNeck: .82, yBelt: -.3, zMid: .03 }, dst = { yNeck: .2, yBelt: -.29, zMid: .018 }, armAngle = .75 } = {}) {
+  const geo = srcGeo.clone(), pos = geo.attributes.position;
+  const sy = (dst.yNeck - dst.yBelt) / (src.yNeck - src.yBelt);
+  let xmin = 1e9, xmax = -1e9; for (let i = 0; i < pos.count; i++) { const x = pos.getX(i); xmin = Math.min(xmin, x); xmax = Math.max(xmax, x); }
+  const ax0 = (xmin + xmax) / 2;
+  for (let i = 0; i < pos.count; i++) pos.setXYZ(i, (pos.getX(i) - ax0) * s[0], (pos.getY(i) - src.yBelt) * sy + dst.yBelt, (pos.getZ(i) - src.zMid) * s[2] + dst.zMid);
+  geo.computeVertexNormals(); geo.computeBoundingSphere();
+  skinWeights(geo, armourWeights);
+  const mesh = new THREE.SkinnedMesh(geo, material); R.root.add(mesh);
+  // bind with the arms at the guards' angle, then back to whatever pose they were in
+  const keep = Object.fromEntries(Object.entries(R.bones).map(([n, b]) => [n, b.quaternion.clone()]));
+  for (const b of Object.values(R.bones)) b.quaternion.identity();
+  R.bones.upperArm_R.rotation.set(0, 0, armAngle); R.bones.upperArm_L.rotation.set(0, 0, -armAngle);
+  R.root.updateMatrixWorld(true);
+  mesh.bind(new THREE.Skeleton(NAMES.map(n => R.bones[n])), mesh.matrixWorld);
+  for (const [n, q] of Object.entries(keep)) R.bones[n].quaternion.copy(q);
+  R.root.updateMatrixWorld(true);
+  // tuck the body in under the armour (unseen there), so the tunic never pokes through the chest plate
+  const bp = R.mesh.geometry.attributes.position;
+  for (let i = 0; i < bp.count; i++) {
+    const x = bp.getX(i), y = bp.getY(i), z = bp.getZ(i);
+    if (y < -.32 || y > .19 || Math.abs(x) > .3) continue;
+    const k = .8 + .2 * sm((y - .12) / .07); // (full tuck over the chest, easing out at the collar)
+    bp.setXYZ(i, x * k, y, dst.zMid + (z - dst.zMid) * k);
+  }
+  bp.needsUpdate = true; R.mesh.geometry.computeBoundingSphere();
+  R.armour = mesh; return mesh;
 }
 
 // poses: bone -> [x, y, z] rotation (radians, in the parent's frame); and where the gear points, in
