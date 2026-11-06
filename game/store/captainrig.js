@@ -3,6 +3,7 @@
 // y≈-0.6, short legs and sandals below), skin weights worked out by region and then smoothed across
 // the surface so joints bend instead of creasing. His right hand (the sword) is on -x.
 import * as THREE from 'three';
+import { makeWeapon } from './weapons.js';
 
 // joint positions (model space, after centring x on the torso), and the heights and reaches the skin
 // weights split at, per body: the captain, and the soldier (shorter arms, a bigger helmeted head, the
@@ -117,7 +118,7 @@ function skinWeights(geo, weightFn) {
   geo.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sW, 4));
 }
 
-export function rigCaptain(srcGeo, { gear = true, show = false, body = 'captain' } = {}) {
+export function rigCaptain(srcGeo, { gear = true, show = false, body = 'captain', weapon = 'sword' } = {}) {
   const PR = PROFILES[body]; J = PR.J;
   const geo = srcGeo.clone(); geo.computeBoundingBox();
   // centre x on the torso (measured at the waist), keep y and z
@@ -141,10 +142,7 @@ export function rigCaptain(srcGeo, { gear = true, show = false, body = 'captain'
   if (gear) {
     // a sword in the right fist (blade forward along +z), a shield on the left forearm, a helmet on the head
     const steel = new THREE.MeshStandardMaterial({ color: 0xd8dde2, metalness: .6, roughness: .3 }), gold = new THREE.MeshStandardMaterial({ color: 0xe0b040, metalness: .5, roughness: .4 }), leather = new THREE.MeshStandardMaterial({ color: 0x5a3a20 });
-    const sw = new THREE.Group(); sw.position.set(-.08, 0, 0);
-    sw.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(.05, .05, .2), leather), {}));
-    const guard = new THREE.Mesh(new THREE.BoxGeometry(.06, .3, .05), gold); guard.position.z = .12; sw.add(guard);
-    const blade = new THREE.Mesh(new THREE.BoxGeometry(.1, .03, .75), steel); blade.position.z = .5; sw.add(blade);
+    const sw = makeWeapon(weapon); sw.position.set(-.08, 0, 0); if (weapon === 'sword') sw.scale.setScalar(1.3); /* (a touch big, so the blade reads at game distance) */ // (the grip in the fist, the point along the hand's +z)
     bones.hand_R.add(sw);
     // the shield: gripped in the left fist, its face along the hand's +z, its long side along +y.
     // Which way both point is set per pose (see aimGear): the wrist turns to match.
@@ -157,7 +155,7 @@ export function rigCaptain(srcGeo, { gear = true, show = false, body = 'captain'
     const crest = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x2f62c8 })); crest.scale.set(.05 / .97, .2 / .96, .28 / 1.06); crest.position.set(0, .34, 0); helm.add(crest); // (rides the helmet's own top, so it follows the tilt)
     }
   }
-  return { root, mesh, bones, x0 };
+  return { root, mesh, bones, x0, weapon };
 }
 
 // armour regions: the shoulder guards ride the upper arms; the cuirass the chest and spine; the belt
@@ -214,13 +212,13 @@ export function addArmour(R, srcGeo, material, { s = [.5, .4375, .48], src = { y
 // the shield's front faces) and up (the shield's long side). The wrists turn to match.
 export const POSES = {
   tpose: {},
-  rest: { upperArm_R: [0, 0, 1.25], upperArm_L: [0, 0, -1.25], foreArm_R: [0, .5, 0], foreArm_L: [0, -.5, 0], blade: [-.15, .75, .65], face: [.35, 0, 1], up: [0, 1, 0] },
-  windup: { chest: [0, .45, 0], spine: [-.05, .15, 0], upperArm_R: [0, -.6, -.35], foreArm_R: [0, 1.7, 0], upperArm_L: [0, -.9, 1.0], foreArm_L: [0, -.6, 0], thigh_R: [.25, 0, 0], thigh_L: [-.35, 0, 0], shin_L: [.4, 0, 0], blade: [-.35, .55, -.75], face: [.2, 0, 1], up: [0, 1, 0] },
+  rest: { pole: [-.08, 1, .2], upperArm_R: [0, 0, 1.25], upperArm_L: [0, 0, -1.25], foreArm_R: [0, .5, 0], foreArm_L: [0, -.5, 0], blade: [-.15, .75, .65], face: [.35, 0, 1], up: [0, 1, 0] },
+  windup: { pole: [-.1, .25, 1], chest: [0, .45, 0], spine: [-.05, .15, 0], upperArm_R: [0, -.6, -.35], foreArm_R: [0, 1.7, 0], upperArm_L: [0, -.9, 1.0], foreArm_L: [0, -.6, 0], thigh_R: [.25, 0, 0], thigh_L: [-.35, 0, 0], shin_L: [.4, 0, 0], blade: [-.35, .55, -.75], face: [.2, 0, 1], up: [0, 1, 0] },
   strike: { chest: [0, -.5, 0], spine: [.15, -.2, 0], hips: [0, -.15, 0], upperArm_R: [0, 1.1, .3], foreArm_R: [0, .15, 0], upperArm_L: [0, -.3, -1.1], thigh_R: [-.6, 0, 0], shin_R: [.5, 0, 0], thigh_L: [.35, 0, 0], blade: [.9, .05, .45], face: [.5, 0, .9], up: [0, 1, 0] },
   thrust: { spine: [.2, 0, 0], upperArm_R: [0, 1.45, .1], foreArm_R: [0, 0, 0], upperArm_L: [0, -.8, -.9], foreArm_L: [0, -.6, 0], thigh_R: [-.7, 0, 0], shin_R: [.6, 0, 0], thigh_L: [.4, 0, 0], blade: [0, .03, 1], face: [.3, 0, 1], up: [0, 1, 0] },
-  overhead: { spine: [-.15, 0, 0], upperArm_R: [0, -.3, -1.35], foreArm_R: [0, 1.6, 0], upperArm_L: [0, -.6, .8], foreArm_L: [0, -.5, 0], blade: [0, .45, -.9], face: [.2, 0, 1], up: [0, 1, 0] },
-  block: { upperArm_L: [0, -1.25, .2], foreArm_L: [0, -.9, 0], upperArm_R: [0, .2, 1.0], foreArm_R: [0, .6, 0], spine: [.1, 0, 0], blade: [-.3, .7, .65], face: [0, 0, 1], up: [0, 1, 0] },
-  walk: { upperArm_R: [0, 0, 1.2], upperArm_L: [0, 0, -1.2], thigh_R: [-.6, 0, 0], shin_R: [.7, 0, 0], thigh_L: [.45, 0, 0], shin_L: [.3, 0, 0], foot_L: [-.3, 0, 0], blade: [-.15, .75, .65], face: [.35, 0, 1], up: [0, 1, 0] },
+  overhead: { pole: [0, -.25, 1], spine: [-.15, 0, 0], upperArm_R: [0, -.3, -1.35], foreArm_R: [0, 1.6, 0], upperArm_L: [0, -.6, .8], foreArm_L: [0, -.5, 0], blade: [0, .45, -.9], face: [.2, 0, 1], up: [0, 1, 0] },
+  block: { pole: [-.08, 1, .2], upperArm_L: [0, -1.25, .2], foreArm_L: [0, -.9, 0], upperArm_R: [0, .2, 1.0], foreArm_R: [0, .6, 0], spine: [.1, 0, 0], blade: [-.3, .7, .65], face: [0, 0, 1], up: [0, 1, 0] },
+  walk: { pole: [-.08, 1, .2], upperArm_R: [0, 0, 1.2], upperArm_L: [0, 0, -1.2], thigh_R: [-.6, 0, 0], shin_R: [.7, 0, 0], thigh_L: [.45, 0, 0], shin_L: [.3, 0, 0], foot_L: [-.3, 0, 0], blade: [-.15, .75, .65], face: [.35, 0, 1], up: [0, 1, 0] },
 };
 const _qp = new THREE.Quaternion(), _qm = new THREE.Quaternion(), _qd = new THREE.Quaternion(), _m = new THREE.Matrix4(), _x = new THREE.Vector3(), _y = new THREE.Vector3(), _z = new THREE.Vector3();
 // turn a bone so its frame matches a wanted orientation, given in the character's frame
@@ -232,7 +230,7 @@ function aimBone(R, bone, qChar) {
 // front (+z) faces `face` with its long side (+y) toward `up`
 export function aimGear(R, P) {
   R.root.updateMatrixWorld(true);
-  const blade = _z.fromArray(P.blade || [-.15, .75, .65]).normalize();
+  const pole = R.weapon === 'spear' || R.weapon === 'jav', blade = _z.fromArray((pole && P.pole) || P.blade || [-.15, .75, .65]).normalize(); // (spears and javelins point their own way in some poses: upright at rest, the point kept forward)
   aimBone(R, R.bones.hand_R, new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), blade));
   _z.fromArray(P.face || [.3, 0, 1]).normalize(); _y.fromArray(P.up || [0, 1, 0]); _y.addScaledVector(_z, -_y.dot(_z)).normalize(); _x.crossVectors(_y, _z);
   aimBone(R, R.bones.hand_L, new THREE.Quaternion().setFromRotationMatrix(_m.makeBasis(_x, _y, _z)));

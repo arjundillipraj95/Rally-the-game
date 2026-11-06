@@ -55,7 +55,8 @@ export function makeWeapon(kind) {
     const head = lathe([[.009, .9], [.04, .97], [.042, 1.0], [0, 1.09]], M.steel, 4); head.scale.z = .55; g.add(head);
   }
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
-  const out = new THREE.Group(); g.rotation.x = Math.PI / 2; out.add(g); // (+y → +z: the point forward)
+  const out = new THREE.Group(); g.rotation.x = Math.PI / 2; out.add(g);
+  if (kind === 'spear') g.position.z = .2; // (held a little below the middle: more reach, and the butt clears the ground at rest) // (+y → +z: the point forward)
   out.userData.kind = kind;
   return out;
 }

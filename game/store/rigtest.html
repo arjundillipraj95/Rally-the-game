@@ -16,7 +16,7 @@ const g = await new GLTFLoader().loadAsync(q.get('f') || 'models/captain.glb');
 let src = null; g.scene.traverse(o => { if (o.isMesh && !src) src = o; });
 if (src.material && src.material.map) { src.material.metalness = 0; src.material.roughness = .8; src.geometry.userData.material = src.material; }
 let arm = null; if (q.get('armour')) { const ga = await new GLTFLoader().loadAsync(q.get('armour')); ga.scene.traverse(o => { if (o.isMesh && !arm) arm = o; }); arm.material.metalness = .35; arm.material.roughness = .45; }
-const n = poses.length, rigs = poses.map(() => { const R = rigCaptain(src.geometry, { gear: q.get('gear') !== '0', show: q.get('bones') === '1', body: q.get('body') || 'captain' }); if (arm) addArmour(R, arm.geometry, arm.material); return R; });
+const n = poses.length, rigs = poses.map(() => { const R = rigCaptain(src.geometry, { gear: q.get('gear') !== '0', show: q.get('bones') === '1', body: q.get('body') || 'captain', weapon: q.get('weapon') || 'sword' }); if (arm) addArmour(R, arm.geometry, arm.material); return R; });
 rigs.forEach((R, i) => { R.root.visible = false; scene.add(R.root); });
 const ang = { front: 0, side: Math.PI / 2, three: -Math.PI / 4.5, back: Math.PI }[view];
 poses.forEach((p, i) => {
