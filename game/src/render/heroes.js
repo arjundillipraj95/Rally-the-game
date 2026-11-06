@@ -219,6 +219,36 @@ export function drawFar(u, a) {
   if (u.kind === 'arch') { const hb = farHoodBatch(TEAMS[colorOf(u.ti)].hex); if (hb.count < FAR_MAX) hb.setMatrixAt(hb.count++, _m2.multiplyMatrices(_m, HOOD_AT)); }
   return true;
 }
+// a man going down: knocked over (or launched, tumbling, limbs flailing) and lying where he fell. The body
+// turns about his feet, as the old figure's did, so he lands flat on the ground, not floating at the waist.
+const LIMP = { ...POSES.rest, spine: [-.15, 0, 0], neck: [-.3, 0, 0], upperArm_R: [-.6, 0, .55], upperArm_L: [-.6, 0, -.55], foreArm_R: [0, .3, 0], foreArm_L: [0, -.3, 0], thigh_R: [-.25, 0, -.12], thigh_L: [.15, 0, .12], shin_R: [.4, 0, 0], shin_L: [.2, 0, 0] };
+const _qf = new THREE.Quaternion(), _ef = new THREE.Euler(), _vf = new THREE.Vector3();
+function drawFallen(u, a, h, dt) {
+  const R = h.R, r = a.rag, air = r && (r.flip || r.cart);
+  let P = LIMP;
+  if (air) { const f = r.fl || 0; P = { ...LIMP, upperArm_R: [Math.sin(f) * 1.2, 0, Math.cos(f * .7) * .8], upperArm_L: [Math.sin(f + 2) * 1.2, 0, -Math.cos(f * .7 + 1) * .8], thigh_R: [Math.sin(f + 1) * .9, 0, -.2], thigh_L: [Math.sin(f + 3.5) * .9, 0, .2], shin_R: [.6, 0, 0], shin_L: [.6, 0, 0] }; }
+  h.cur = settle(h.cur, P, 1 - Math.exp(-(air ? 30 : 12) * Math.min(dt, .1)));
+  applyPose(R, h.cur);
+  const top = h.U || R.root;
+  _ef.set(a.bodyRX || 0, u.face + (a.yaw || 0), a.bodyRZ || 0, 'YXZ'); _qf.setFromEuler(_ef);
+  _vf.set(0, .998 * h.sc, 0).applyQuaternion(_qf);
+  top.quaternion.copy(_qf);
+  top.position.set(u.x + _vf.x, (u.y || 0) + (a.lift || 0) * .4 - (a.sink || 0) + _vf.y + .12 * h.sc, u.z + _vf.z);
+  top.visible = true;
+  return true;
+}
+// riders charging this frame (cached per frame), and whether one is bearing down on a man: an enemy, close,
+// coming at him fast
+let chFrame = -1, chList = [];
+function chargeAt(u) {
+  if (chFrame !== FRAME) { chFrame = FRAME; chList = G.units.filter(c => c.mounted && !c.dead && (c.charge > 0 || Math.hypot(c.vx || 0, c.vz || 0) > 9)); }
+  for (const c of chList) {
+    if (G.ALLY[c.ti % 4] === G.ALLY[u.ti % 4]) continue;
+    const dx = u.x - c.x, dz = u.z - c.z, d = Math.hypot(dx, dz); if (d > 10 || d < .5) continue;
+    if (((c.vx || 0) * dx + (c.vz || 0) * dz) / d > 5) return true;
+  }
+  return false;
+}
 const EV_T = .42; // (how long an evade's body move lasts on screen)
 // ease the pose he's in toward the one wanted (k of the way this frame): every bone, the hip height, and
 // where his gear points. Angles go the short way round, so the spin's full turn doesn't unwind.
@@ -245,13 +275,15 @@ function drop(h) {
 export function drawHero(u, a, dt) {
   // while the new models load, the old captain stays hidden (no flash of the old one)
   if (on && !SRC) return !u.dead && (u.kind === 'captain' || u.kind === 'foot' || u.kind === 'arch');
-  if (!heroesOn() || (u.kind !== 'captain' && u.kind !== 'foot' && u.kind !== 'arch') || u.dead || u.hidden) return false;
+  if (!heroesOn() || (u.kind !== 'captain' && u.kind !== 'foot' && u.kind !== 'arch') || u.hidden) return false;
+  if (u.dead && (!a.rag || (u.deadT || 0) > 14)) return false; // (the fallen: drawn as they go down and lie there; the sinking last moments are left to the old figure's fade)
   let h = live.get(u);
   if (h && (h.weapon !== weaponOf(u) || h.key !== keyOf(u) || h.mounted !== !!u.mounted)) { drop(h); live.delete(u); h = null; }
   if (!h) { h = make(u); live.set(u, h); }
   h.seen = FRAME; // (drawn this frame: by a frame count, since the game clock stands still on the home screen)
   const R = h.R, sp = Math.hypot(u.vx || 0, u.vz || 0), mv = Math.min(1, sp / 4);
-  h.run += dt * (.55 + sp * .12); // (the stride keeps time with his speed)
+  h.run += dt * sp / (2.0 * h.sc * 1.5); // (the stride keeps time with the ground: one stride (two steps) per 2 m at his size, so his feet don't skate)
+  if (u.dead) return drawFallen(u, a, h, dt);
   const blocking = (u.human && u.blocking) || u.blockT > 0;
   if (blocking && u.hp < h.hp - .5) h.blockHitT = G.T; // (a blow taken on the shield: it jolts)
   h.hp = u.hp;
@@ -282,8 +314,9 @@ export function drawHero(u, a, dt) {
   else if (u.bracing) { P = POSES.brace; rate = 18; }
   else if (u.javDraw > 0) { P = mixPose(POSES.rest, POSES.javDraw, Math.min(1, .55 + .45 * u.javDraw)); rate = 20; }
   else if (blocking) { P = G.T - h.blockHitT < .3 ? moveAt('block', (G.T - h.blockHitT) / .3) : POSES.guard; rate = G.T - h.blockHitT < .3 ? 30 : 18; }
+  else if (u.kind !== 'captain' && !u.mounted && chargeAt(u)) { P = u.kind === 'arch' ? mixPose(POSES.rest, POSES.evBack, .8) : h.weapon === 'spear' ? POSES.brace : POSES.guard; rate = 14; } // (a rider bearing down on him: shield up and crouched, spear set, an archer shrinking back)
   else if (a.cheerT > 0) { P = mixPose(CLIPS.idle(G.T), POSES.cheer, Math.min(1, Math.sin(Math.PI * Math.min(1, a.cheerT / .9)) * 1.6)); }
-  else P = mv > .05 ? mixPose(CLIPS.idle(G.T), CLIPS.run(h.run), Math.min(1, mv * 1.6)) : CLIPS.idle(G.T);
+  else P = mv > .05 ? mixPose(CLIPS.idle(G.T), CLIPS.run(h.run, Math.min(1, .45 + sp / 9)), Math.min(1, mv * 1.6)) : CLIPS.idle(G.T);
   const top = h.U || R.root; // (mounted: the horse and rider move together, their feet on the ground)
   if (h.U) P = Object.assign({}, P, RIDE); // (mounted: his legs go over the saddle whatever he is doing)
   h.cur = settle(h.cur, P, 1 - Math.exp(-rate * Math.min(dt, .1))); // (eased into each pose, never snapped)

@@ -315,17 +315,18 @@ export const CLIPS = {
   },
   // running: a forward lean, legs reaching and kicking back, the sword arm pumping, the shield kept up
   // in front, the body bobbing twice a stride and twisting with it
-  run: t => {
-    const p = t * TAU * 1.5, s = sin(p), c = cos(p), up = Math.abs(cos(p));
+  run: (t, k = 1) => { // k: how hard he's going (a jog at .5, a sprint at 1): stride, lean and bounce grow with it
+    const p = t * TAU * 1.5, s = sin(p), c = cos(p), up = Math.abs(cos(p)), A = .55 + .45 * k;
     return { ...POSES.rest,
-      spine: [.22, .1 * s, 0], hips: [0, -.14 * s, 0], chest: [0, -.06 * s, 0], neck: [-.12, .04 * s, 0], head: [-.08, 0, 0],
-      thigh_R: [-.9 * s - .1, 0, 0], thigh_L: [.9 * s - .1, 0, 0],
-      shin_R: [.35 + .75 * Math.max(0, c) + .25 * Math.max(0, s), 0, 0], shin_L: [.35 + .75 * Math.max(0, -c) + .25 * Math.max(0, -s), 0, 0],
-      foot_R: [-.2 * s, 0, 0], foot_L: [.2 * s, 0, 0],
-      upperArm_R: [.75 * s, 0, 1.15], foreArm_R: [0, 1.1, 0],
-      upperArm_L: [-.25 * s - .3, -.3, -1.05], foreArm_L: [0, -.9, 0],
+      spine: [.1 + .14 * k, .1 * s * A, 0], hips: [0, -.14 * s * A, 0], chest: [0, -.06 * s, 0], neck: [-.06 - .08 * k, .04 * s, 0], head: [-.06, 0, 0],
+      thigh_R: [(-.9 * s - .12) * A, 0, 0], thigh_L: [(.9 * s - .12) * A, 0, 0],
+      // the knee folds as the leg swings through (most as it passes under him), and lands near straight
+      shin_R: [.2 + (.95 * Math.max(0, c) + .3 * Math.max(0, s)) * A, 0, 0], shin_L: [.2 + (.95 * Math.max(0, -c) + .3 * Math.max(0, -s)) * A, 0, 0],
+      foot_R: [-.25 * s * A, 0, 0], foot_L: [.25 * s * A, 0, 0],
+      upperArm_R: [.7 * s * A, 0, 1.15], foreArm_R: [0, .9 + .3 * k, 0],
+      upperArm_L: [-.25 * s * A - .3, -.3, -1.05], foreArm_L: [0, -.9, 0],
       blade: [-.25, .85, .45], pole: [-.2, 1, .45], face: [.25, 0, 1], up: [0, 1, 0],
-      hipsY: -.03 + .06 * up };
+      hipsY: -.02 - .02 * k + .07 * k * up };
   },
 };
 
