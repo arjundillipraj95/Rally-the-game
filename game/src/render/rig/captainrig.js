@@ -148,7 +148,7 @@ export function rigCaptain(srcGeo, { gear = true, show = false, body = 'captain'
     bones.hand_R.add(sw);
     // the shield: gripped in the left fist, its face along the hand's +z, its long side along +y.
     // Which way both point is set per pose (see aimGear): the wrist turns to match.
-    const sh = new THREE.Group(); sh.position.set(.09, 0, .08); bones.hand_L.add(sh);
+    const sh = new THREE.Group(); sh.position.set(-.1, 0, .12); bones.hand_L.add(sh);
     if (pack && pack.shield) { const p = packPiece(pack.shield, FIT.shield, team); p.position.z = FIT.shield.grip; sh.add(p); }
     else {
     sh.add(new THREE.Mesh(new THREE.BoxGeometry(.5, .7, .06), new THREE.MeshStandardMaterial({ color: teamCol, roughness: .6 })));
@@ -169,7 +169,7 @@ export function rigCaptain(srcGeo, { gear = true, show = false, body = 'captain'
 // scale, and where it sits (head-bone space for the helmet; the grip's offset for shield and weapons).
 export const FIT = {
   helmet: { s: [.68, .8, .74], at: [0, .32, -.03], tilt: -.28 },
-  shield: { s: .72, grip: .12 },
+  shield: { s: .6, grip: .1 },
   weapon: { sword: { s: .72, grip: .05 }, spear: { s: 1.12, grip: .75 }, jav: { s: .92, grip: .62 } },
 };
 // a piece from the pack: cloned, turned upright, scaled; its main colour (the one that isn't
