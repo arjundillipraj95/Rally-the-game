@@ -334,6 +334,24 @@ export const MOVES = {
     [.52, { ...R0, ...SH_UP, ...LUNGE_R, spine: [.55, .1, 0], upperArm_R: [0, 1.1, -.25], foreArm_R: [0, .1, 0], blade: [0, -.55, .9], hipsY: -.16 }],
     [.75, { ...R0, ...SH_UP, ...LUNGE_R, spine: [.6, .1, 0], upperArm_R: [0, 1.2, .5], foreArm_R: [0, .1, 0], blade: [0, -.95, .3], hipsY: -.17 }], [1, R0]] },
 };
+// defence and hit reactions
+const GUARD = { spine: [.12, 0, 0], upperArm_L: [0, -1.3, .35], foreArm_L: [0, -1.0, 0], face: [0, 0, 1], up: [0, 1, 0], upperArm_R: [0, .2, 1.0], foreArm_R: [0, .8, 0], blade: [-.3, .7, .55], pole: [-.15, .4, 1], hipsY: -.06, ...BRACE };
+POSES.guard = { ...R0, ...GUARD }; // (held while blocking: shield up in front of the chest, crouched behind it)
+// a block taking a hit: the shield jolts back and he gives a little, then sets again
+MOVES.block = { dur: .3, keys: [[0, POSES.guard], [.25, { ...POSES.guard, spine: [-.05, 0, 0], upperArm_L: [0, -1.1, .45], foreArm_L: [0, -1.3, 0], hipsY: -.09 }], [1, POSES.guard]] };
+// a parry: the blade flicks up and across to turn the blow aside, then out
+MOVES.parry = { dur: .32, keys: [[0, R0],
+  [.3, { ...R0, ...SH_UP, ...BRACE, chest: [0, .25, 0], upperArm_R: [0, 1.0, -.45], foreArm_R: [0, .9, 0], blade: [.5, .85, .3], hipsY: -.04 }],
+  [.55, { ...R0, ...SH_UP, ...BRACE, chest: [0, -.25, 0], upperArm_R: [0, .55, -.2], foreArm_R: [0, .4, 0], blade: [-.7, .55, .45], hipsY: -.04 }], [1, R0]] };
+// a shield bash: the shield drawn in, then driven forward with the shoulder and a step
+MOVES.bash = { dur: .4, keys: [[0, R0],
+  [.25, { ...R0, ...BRACE, chest: [0, .3, 0], spine: [-.05, .1, 0], upperArm_L: [0, -.6, .65], foreArm_L: [0, -1.4, 0], face: [.4, 0, 1], up: [0, 1, 0], hipsY: -.05 }],
+  [.45, { ...R0, chest: [0, -.45, 0], spine: [.25, -.2, 0], upperArm_L: [0, -1.5, .05], foreArm_L: [0, -.3, 0], face: [-.1, 0, 1], up: [0, 1, 0], thigh_L: [-.75, 0, 0], shin_L: [.6, 0, 0], thigh_R: [.4, 0, 0], shin_R: [.1, 0, 0], hipsY: -.09 }],
+  [.7, { ...R0, chest: [0, -.4, 0], spine: [.22, -.2, 0], upperArm_L: [0, -1.45, .05], foreArm_L: [0, -.35, 0], face: [-.1, 0, 1], up: [0, 1, 0], thigh_L: [-.7, 0, 0], shin_L: [.6, 0, 0], thigh_R: [.4, 0, 0], hipsY: -.09 }], [1, R0]] };
+// staggered by a blow: thrown back, arms flung out, a step back, then he finds his feet
+MOVES.stagger = { dur: .55, keys: [[0, R0],
+  [.18, { ...R0, spine: [-.4, 0, .1], neck: [-.25, 0, 0], head: [-.1, .2, 0], upperArm_R: [-.5, 0, .5], foreArm_R: [0, .3, 0], upperArm_L: [-.5, 0, -.5], foreArm_L: [0, -.3, 0], face: [.6, .3, .7], up: [0, 1, 0], thigh_R: [.4, 0, 0], shin_R: [.35, 0, 0], thigh_L: [-.15, 0, 0], hipsY: -.05 }],
+  [.45, { ...R0, spine: [.15, 0, -.05], neck: [.05, 0, 0], upperArm_R: [-.1, 0, 1.0], upperArm_L: [-.1, 0, -1.0], thigh_R: [.25, 0, 0], shin_R: [.3, 0, 0], hipsY: -.06 }], [1, R0]] };
 // the sword combo's third blow: a full turn on the spot, blade out at arm's length
 MOVES.spin = { dur: .38, at: t => {
   const k = t < .12 ? sm(t / .12) : t < .7 ? 1 : 1 - sm((t - .7) / .3), turn = t < .12 ? 0 : t < .62 ? sm((t - .12) / .5) : 1;
