@@ -514,8 +514,12 @@ function renderSearch() {
   box.hidden = !L; $('playBtn').hidden = !!L;
   if (!L) { if (G.warmup) warmupStop(true); return; }
   if (!G.warmup && G.state === 'title') warmupStart();
-  $('searchT').textContent = `${G.warmup ? 'Warm-up · ' : ''}Searching ${['Solo', 'Duo', 'Trio'][L.fmt]}`;
-  $('searchSides').innerHTML = L.sides.map((sd, c) => `<div style="--c:${TEAMS[c].css}">${sd.map(x => esc(x.nick)).join('<br>') || '<em>open</em>'}</div>`).join('');
+  const cap = [1, 2, 3][L.fmt], filled = L.sides.flat().length, total = cap * 4, me = ON.me && ON.me.id;
+  $('searchT').textContent = `Lobby · ${['Solo', 'Duo', 'Trio'][L.fmt]} · ${filled}/${total}`;
+  // the lobby: four armies, a seat per captain of each; players by name (yours marked), open seats waiting
+  $('searchSides').innerHTML = L.sides.map((sd, c) => `<div class="lobSide" style="--c:${TEAMS[c].css}"><h4>Army ${'ABCD'[c]}</h4>` +
+    Array.from({ length: cap }, (_, k) => { const x = sd[k]; return x ? `<p class="lobSlot${x.id === me ? ' me' : ''}"><b>${esc(x.nick)}</b>${x.id === me ? '<em>you</em>' : ''}</p>` : `<p class="lobSlot open">Open seat</p>`; }).join('') + '</div>').join('');
+  $('searchNote').textContent = filled === total ? 'Full: starting now' : 'Starts when all seats are filled, or when the clock runs out. Empty seats are played by computer captains.';
   L.at = performance.now();
 }
 setInterval(() => { const L = ON.lobby; if (L && L.at != null) $('searchClock').textContent = fmtClock(L.endsIn - (performance.now() - L.at)); }, 250);

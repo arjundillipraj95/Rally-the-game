@@ -179,21 +179,21 @@ export class Hub {
     if (ids.length > FMT_CAP[fmt]) return this.send(s, { t: 'note', msg: `Your party is too big for ${['Solo', 'Duo', 'Trio'][fmt]}` });
     for (const id of ids) { const w = this.quitWait(id); if (w > 0) return this.send(s, { t: 'note', msg: `${id === s.id ? 'You' : 'Someone in your party'} left battles early: searching again in ${Math.ceil(w / 1000)}s` }); }
     for (const id of ids) { const x = this.live.get(id); if (x) this.cancelQueue(x); }
-    // One shared battlefield per search, not a lobby each: 4, 8 or 12 captains (Solo, Duo, Trio), the
-    // computer playing every seat nobody has yet. A battle already under way in its first minutes, with
-    // room for the whole party on one side, takes them in: each takes over a computer captain. Otherwise
-    // a new one starts at once with this party, and the next searchers drop into it.
+    // One lobby per format: everyone searching joins the open one (4, 8 or 12 captain seats for Solo, Duo,
+    // Trio) and sees who's in it. It starts when every seat is full or after the wait, the computer
+    // playing the empty seats. A battle still in its first minutes also takes a late party in.
     const now = Date.now();
+    let room = [...this.rooms.values()].find(r => !r.started && r.fmt === fmt && this.fits(r, ids.length));
+    if (room) { this.seat(room, ids); this.lobbyUpdate(room); this.arm(); return; }
     const open = [...this.rooms.values()].filter(r => r.started && r.fmt === fmt && now - r.startedAt < QUEUE_JOIN && this.live.has(r.host) && this.fits(r, ids.length))
-      .sort((a, b) => b.sides.flat().length - a.sides.flat().length); // (the fullest first: real people together)
-    const room = open[0];
-    if (room && this.seat(room, ids, null, true)) {
-      const nicks = Object.fromEntries(Object.keys(room.seats).filter(i => this.live.has(i)).map(i => [i, this.live.get(i).nick]));
-      for (const id of ids) { const x = this.live.get(id); if (!x) continue; this.send(x, { t: 'start', room: room.id, fmt: room.fmt, host: room.host, code: room.code, seats: room.seats, nicks, late: true }); this.to(room.host, { t: 'lateJoin', id, nick: x.nick, ti: room.seats[id] }); this.notifyFriends(id); }
+      .sort((a, b) => b.sides.flat().length - a.sides.flat().length);
+    if (open[0] && this.seat(open[0], ids, null, true)) {
+      const room2 = open[0], nicks = Object.fromEntries(Object.keys(room2.seats).filter(i => this.live.has(i)).map(i => [i, this.live.get(i).nick]));
+      for (const id of ids) { const x = this.live.get(id); if (!x) continue; this.send(x, { t: 'start', room: room2.id, fmt: room2.fmt, host: room2.host, code: room2.code, seats: room2.seats, nicks, late: true }); this.to(room2.host, { t: 'lateJoin', id, nick: x.nick, ti: room2.seats[id] }); this.notifyFriends(id); }
       return;
     }
-    const fresh = { id: rid(8), fmt, sides: [[], [], [], []], created: now, started: false }; this.rooms.set(fresh.id, fresh);
-    this.seat(fresh, ids); this.start(fresh); this.arm();
+    room = { id: rid(8), fmt, sides: [[], [], [], []], created: now, started: false }; this.rooms.set(room.id, room);
+    this.seat(room, ids); this.lobbyUpdate(room); this.arm();
   }
   fits(room, n) { const cap = FMT_CAP[room.fmt]; return room.sides.some(sd => cap - sd.length >= n); }
   // Seats: a whole party stays on one side. Fill sides that already have players first (teaming with
