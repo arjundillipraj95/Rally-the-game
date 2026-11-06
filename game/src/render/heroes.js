@@ -249,6 +249,14 @@ function chargeAt(u) {
   }
   return false;
 }
+// the reel from a blow (the springs the old figure used, kicked by each hit): rocked back from the front,
+// thrown forward from behind, knocked sideways from a flank, twisted round; his feet stay where they are
+function reeled(P, a) {
+  const st = a.stag || 0, sr = a.stagR || 0, sy = a.stagY || 0;
+  if (Math.abs(st) + Math.abs(sr) + Math.abs(sy) < .005) return P;
+  const add = (k, x, y, z) => { const v = P[k] || [0, 0, 0]; return [v[0] + x, v[1] + y, v[2] + z]; };
+  return { ...P, spine: add('spine', st * .45, 0, sr * .45), chest: add('chest', st * .3, sy * .6, sr * .25), neck: add('neck', st * .2, 0, sr * .15), hips: add('hips', 0, sy * .5, 0), hipsY: (P.hipsY || 0) - Math.abs(st) * .08 };
+}
 const EV_T = .42; // (how long an evade's body move lasts on screen)
 // ease the pose he's in toward the one wanted (k of the way this frame): every bone, the hip height, and
 // where his gear points. Angles go the short way round, so the spin's full turn doesn't unwind.
@@ -320,7 +328,9 @@ export function drawHero(u, a, dt) {
   const top = h.U || R.root; // (mounted: the horse and rider move together, their feet on the ground)
   if (h.U) P = Object.assign({}, P, RIDE); // (mounted: his legs go over the saddle whatever he is doing)
   h.cur = settle(h.cur, P, 1 - Math.exp(-rate * Math.min(dt, .1))); // (eased into each pose, never snapped)
-  applyPose(R, h.cur);
+  applyPose(R, reeled(h.cur, a));
+  // the blow landing: a white flash through him (his own body's material only: the gear is shared)
+  const fl = Math.max(0, Math.min(1, a.flash || 0)); if (R.mesh.material.emissive && fl !== h.fl) { h.fl = fl; R.mesh.material.emissive.setScalar(fl * .55); }
   top.position.set(u.x, (u.y || 0) + (a.lift || 0) - (a.sink || 0) + (h.U ? 0 : .998 * h.sc), u.z);
   top.rotation.set(0, u.face + (a.yaw || 0), 0);
   if (roll) { R.root.rotateZ(roll); R.root.position.y -= .25 * Math.sin(Math.abs(roll) / 2) * h.sc; } // (the side roll: a full turn about his forward axis, tucked low)
