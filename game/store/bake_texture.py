@@ -21,6 +21,8 @@ mesh_path, sheet_path, out_path = sys.argv[1:4]
 TS = int(sys.argv[4]) if len(sys.argv) > 4 else 1024
 import os
 ITEM = os.environ.get('BAKE_KIND') == 'item'  # (armour, weapons, helmets: no head or face rules)
+SOLDIER = os.environ.get('BAKE_KIND') == 'soldier'  # (painted as an item, helmet and all, but the face rebuilt and painted from the front picture: see FACE_MASK)
+ITEM = ITEM or SOLDIER
 
 m = trimesh.load(mesh_path, force='mesh')
 V = np.asarray(m.vertices, dtype=np.float64); F = np.asarray(m.faces)
@@ -136,6 +138,45 @@ if not ITEM and os.environ.get('BAKE_FACE'):
     V[:, 2] += nose
     print('face rebuilt:', len(free), 'points')
 
+# the soldier's face: the generated surface has sculpted brows, eye sockets and a nose that never line
+# up with the painted ones. The face is the picture's own: the skin between the helmet rim and the
+# cheek guards (found by colour, with the eyes, brows and mouth inside it). Where the mesh's front lands
+# on it, the surface is replaced by the smoothest one carrying on around it, a small nose goes where
+# the picture's is, and it is painted from the front picture alone.
+FACE_MASK = None
+if SOLDIER and os.environ.get('BAKE_FACE'):
+    import json as _j; FR = _j.loads(os.environ['BAKE_FACE'])
+    from scipy import sparse
+    from scipy.sparse.linalg import spsolve
+    l_, t_, r_, b_ = FIG['front']
+    cx_, cy_ = FR['skinx'], FR['skiny']; _sk = np.median(sheet[cy_ - 8:cy_ + 8, cx_ - 8:cx_ + 8].reshape(-1, 3), axis=0)
+    near = np.abs(sheet - _sk).sum(2) < 70
+    lab, _ = ndimage.label(ndimage.binary_opening(near, iterations=1)); comp = lab == lab[cy_, cx_]
+    comp = ndimage.binary_fill_holes(ndimage.binary_closing(comp, iterations=6))
+    comp[:FR['brow'] - 14] = False; comp[FR['chin'] + 4:] = False  # (from just above the brows to the chin)
+    FACE_MASK = ndimage.binary_erosion(comp, iterations=2); print('face mask px', FACE_MASK.sum())
+    vn0 = trimesh.Trimesh(V, F, process=False).vertex_normals
+    px_, py_, _ = proj('front', V)
+    inm = FACE_MASK[np.clip(py_.astype(int), 0, SH - 1), np.clip(px_.astype(int), 0, SW - 1)]
+    zc = np.median(V[(V[:, 1] > .3) & (np.abs(V[:, 0]) < .1), 2])
+    R = inm & (vn0[:, 2] > .15) & (V[:, 2] > zc - .05) & (np.abs(V[:, 0]) < .3)
+    nb2 = [set() for _ in range(len(V))]
+    for a, b, c in F: nb2[a].update((b, c)); nb2[b].update((a, c)); nb2[c].update((a, b))
+    free = np.where(R)[0]; ring = set(free.tolist()); [ring.update(nb2[i]) for i in free.tolist()]; rows = sorted(ring)
+    Lr, Lc, Lv = [], [], []
+    for r2, i in enumerate(rows):
+        n = list(nb2[i]); Lr += [r2] * (len(n) + 1); Lc += [i] + n; Lv += [1.] + [-1. / len(n)] * len(n)
+    L = sparse.csr_matrix((Lv, (Lr, Lc)), shape=(len(rows), len(V)))
+    Lf, Lk = L[:, free], L[:, np.where(~R)[0]]; A = (Lf.T @ Lf).tocsc()
+    for k in range(3): V[free, k] = spsolve(A, -(Lf.T @ (Lk @ V[~R, k])))
+    def _my(py):
+        ys = np.linspace(-1, 1, 4001); _, pys, _ = proj('front', np.stack([np.zeros_like(ys), ys, np.zeros_like(ys)], 1)); return float(ys[np.argmin(np.abs(pys - py))])
+    def _mx(px):
+        xs = np.linspace(-1, 1, 4001); pxs, _, _ = proj('front', np.stack([xs, np.full_like(xs, .5), np.zeros_like(xs)], 1)); return float(xs[np.argmin(np.abs(pxs - px))])
+    y_nose, x_nose = _my(FR['nose']), _mx(FR['nosex'])
+    V[:, 2] += FR.get('nosez', .06) * np.exp(-(((V[:, 0] - x_nose) / .05) ** 2 + ((V[:, 1] - y_nose) / .045) ** 2) / 2) * R
+    print('soldier face rebuilt:', len(free), 'points; nose at', round(x_nose, 3), round(y_nose, 3))
+
 # depth maps per view (the nearest surface at each sheet pixel), from the mesh itself
 depth = {}
 for view in FIG:
@@ -217,6 +258,10 @@ for f in NF:
         # else (tops of shoulders, undersides) takes the best view it has
         inward = ((N[:, 0] * P[:, 0] + N[:, 2] * (P[:, 2] - ZMID)) < 0) & (np.abs(N[:, 1]) < .7)
         c = np.where(seen[:, None], acc / np.maximum(wsum, 1e-9)[:, None], np.where((inward & ITEM)[:, None], INTERIOR, best))
+        if FACE_MASK is not None:  # (the soldier's face: the front picture alone, where it faces forward and lands on the face)
+            fx_, fy_, fd_ = proj('front', P); xi_, yi_ = np.clip(fx_.astype(int), 0, SW - 1), np.clip(fy_.astype(int), 0, SH - 1)
+            on = FACE_MASK[yi_, xi_] & (np.abs(depth['front'][yi_, xi_] - fd_) < .04) & (N[:, 2] > .1)
+            if on.any(): c[on] = sample(fx_[on], fy_[on])
         if not ITEM:  # (the fists: skin, as in the pictures)
             hand = np.clip((np.abs(P[:, 0]) - .62) / .04, 0, 1) * ((P[:, 1] > -.2) & (P[:, 1] < .2))
             c = c * (1 - hand[:, None]) + SKIN * .96 * hand[:, None]
