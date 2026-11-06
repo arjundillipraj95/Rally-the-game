@@ -1,0 +1,21 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Lineup</title><style>html,body{margin:0;background:#d8d8d8}</style></head>
+<body><canvas id="c"></canvas>
+<script type="module">
+// Dev view: the captain and soldiers side by side at game scale (soldier ?s= of the captain's height, default 0.8)
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { rigCaptain, POSES, applyPose, addArmour } from './captainrig.js';
+const q = new URLSearchParams(location.search), SC = +(q.get('s') || .8), W = 1600, H = 800;
+const r = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true }); r.setPixelRatio(window.devicePixelRatio || 1); r.setSize(W, H); r.setClearColor(0xd8d8d8);
+const scene = new THREE.Scene(); scene.add(new THREE.HemisphereLight(0xffffff, 0x777777, 1.1)); const sun = new THREE.DirectionalLight(0xffffff, 1.4); sun.position.set(2, 3, 4); scene.add(sun);
+const L = new GLTFLoader(), first = g => { let m = null; g.scene.traverse(o => { if (o.isMesh && !m) m = o; }); m.material.metalness = 0; m.material.roughness = .8; m.geometry.userData.material = m.material; return m; };
+const [cb, ca, sb] = await Promise.all(['models/body_plain.glb', 'models/armour_segmented.glb', 'models/soldier.glb'].map(f => L.loadAsync(f).then(first)));
+ca.material.metalness = .35; ca.material.roughness = .45;
+const ground = new THREE.Mesh(new THREE.CircleGeometry(4, 48), new THREE.MeshStandardMaterial({ color: 0xa8b890 })); ground.rotation.x = -Math.PI / 2; scene.add(ground);
+const place = (R, x, z, s) => { applyPose(R, POSES[q.get('pose') || 'rest']); R.root.scale.setScalar(s); R.root.position.set(x, .998 * s, z); scene.add(R.root); };
+const C = rigCaptain(cb.geometry, { gear: q.get('gear') !== '0' }); addArmour(C, ca.geometry, ca.material); place(C, 0, 0, 1);
+for (const [x, z] of [[-1.1, -.6], [1.1, -.6], [-2.1, -1.2], [2.1, -1.2]]) place(rigCaptain(sb.geometry, { gear: false, body: 'soldier' }), x, z, SC);
+const cam = new THREE.PerspectiveCamera(30, W / H, .1, 100); cam.position.set(1.2, 2.2, 7.5); cam.lookAt(0, .85, -.4);
+r.render(scene, cam); window.__done = true;
+</script></body></html>
