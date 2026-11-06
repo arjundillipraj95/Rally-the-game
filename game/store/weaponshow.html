@@ -1,0 +1,23 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Weapons</title>
+<style>html,body{margin:0;background:#e2e2e2}</style></head>
+<body><canvas id="c"></canvas>
+<script type="module">
+// Dev view: the three weapons built in code (weapons.js), standing upright, front and turned views
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { makeWeapon } from './weapons.js';
+const W = 1536, H = 1024, r = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true });
+r.setPixelRatio(window.devicePixelRatio || 1); r.setSize(W, H); r.setClearColor(0xe2e2e2); r.toneMapping = THREE.ACESFilmicToneMapping;
+const scene = new THREE.Scene(); scene.environment = new THREE.PMREMGenerator(r).fromScene(new RoomEnvironment(), .04).texture;
+const sun = new THREE.DirectionalLight(0xffffff, 1.6); sun.position.set(2, 3, 4); scene.add(sun);
+// [kind, x, scale]: the gladius shown bigger, as on the sheet
+const items = [['sword', -1.55, 1.7], ['sword', -1.05, 1.7], ['spear', -.25, 1], ['spear', .3, 1], ['jav', 1.1, 1], ['jav', 1.55, 1]];
+items.forEach(([k, x, s], i) => {
+  const w0 = makeWeapon(k); w0.rotation.x = -Math.PI / 2; const w = new THREE.Group(); w.add(w0); w.scale.setScalar(s); // (point up)
+  w.rotation.y = i % 2 ? Math.PI / 2 : .35; // (second of each pair: turned side-on)
+  w.position.set(x, k === 'sword' ? -.1 : k === 'spear' ? -.25 : -.2, 0); scene.add(w);
+});
+const cam = new THREE.OrthographicCamera(-2.1, 2.1, 1.4, -1.4, .01, 50); cam.position.set(0, .1, 6); cam.lookAt(0, .1, 0);
+r.render(scene, cam); window.__done = true;
+</script></body></html>
