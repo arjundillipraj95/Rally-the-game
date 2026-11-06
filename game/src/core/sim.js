@@ -1859,7 +1859,7 @@ export function moveToward(u, gx, gz, spd, dt, stopAt = .3) {
   const dx = gx - u.x, dz = gz - u.z, d = Math.hypot(dx, dz);
   let tvx = 0, tvz = 0;
   if (d > stopAt) { const s = spd * Math.min(1, (d - stopAt) / 1.2 + .2); tvx = dx / d * s; tvz = dz / d * s; }
-  const k = (u.stun > 0 ? 1.5 : u.charge > 0 ? 7 : u.mounted ? 4 : 10) * (onIce(u.x, u.z) ? .18 : 1); // (on ice you slide)
+  const k = (u.stun > 0 ? 1.5 : u.charge > 0 ? 3.2 : u.mounted ? 3.2 : 10) * (onIce(u.x, u.z) ? .18 : 1); // (on ice you slide)
   u.vx += (tvx - u.vx) * Math.min(1, dt * k); u.vz += (tvz - u.vz) * Math.min(1, dt * k);
   return d;
 }
