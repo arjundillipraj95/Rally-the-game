@@ -580,3 +580,8 @@
 #shoutTray[hidden]{display:none;}
 #shoutTray button{font:800 14px var(--body);color:#fff;background:rgba(22,20,18,.88);border:1.5px solid rgba(255,207,58,.6);border-radius:9px;padding:7px 12px;text-align:left;cursor:pointer;}
 @media (max-height:430px){ #shoutBtn{top:8px;right:calc(max(12px, env(safe-area-inset-right,0px)) + 112px);width:30px;height:30px;padding:5px;} #shoutTray{top:44px;right:calc(max(12px, env(safe-area-inset-right,0px)) + 78px);} #shoutTray button{font-size:13px;padding:5px 10px;} }
+
+.introT{position:fixed;left:50%;top:42%;transform:translate(-50%,-50%);z-index:90;pointer-events:none;font:400 96px var(--display);font-style:italic;color:#fff;text-shadow:0 4px 0 #000,0 0 24px rgba(0,0,0,.6);text-align:center;white-space:nowrap;}
+.introT.go{font-size:min(9vw,56px);color:var(--gold);}
+.introT.pop{animation:introPop .5s ease-out;}
+@keyframes introPop{0%{transform:translate(-50%,-50%) scale(1.7);opacity:0}35%{opacity:1}100%{transform:translate(-50%,-50%) scale(1);opacity:1}}

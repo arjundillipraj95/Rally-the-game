@@ -4,6 +4,8 @@ import { groundY, terrainMeshY, rnd, W } from '../core/world.js';
 import { camera, view } from './scene.js';
 
 export const cam = { yaw: 0, pitch: .42, shake: 0 };
+// the match's opening (main.js): when set, it may move the camera after the follow camera has placed it
+export const introCam = { on: null };
 export const CAM_PITCH = .42; // a little higher than eye level, so the squad behind you doesn't wall off the fight
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -60,6 +62,7 @@ export function followCamera(dt) {
   const ground = Math.max(groundY(camera.position.x, camera.position.z), terrainMeshY(camera.position.x, camera.position.z)) + 1; if (camera.position.y < ground) camera.position.y = ground;
   if (cam.shake > 0 && !reduceMotion) { camera.position.x += rnd(-1, 1) * cam.shake * .3; camera.position.y += rnd(-1, 1) * cam.shake * .3; }
   camera.lookAt(px + Math.sin(yaw) * 3, py + 1.6 + (tgt.mounted ? 1 : 0), pz + Math.cos(yaw) * 3);
+  if (introCam.on) introCam.on(camera, tgt);
 }
 
 // Slow orbit over the battlefield behind the menus.

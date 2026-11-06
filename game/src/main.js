@@ -10,7 +10,7 @@ import './style.css';
 import { TEAMS, MODES, MAPS, PRESETS, RANKS, CRESTS, QUIPS, TIPS, AL_LETTER, TARGETS, DUEL } from './config.js';
 import { G, bus, colorOf, rules, matchTime, modeDesc, activeFrom, targetFor, SLOT_NAME, isEnemyTi } from './core/state.js';
 import { rideRelease, orderVolley, challenge, canChallenge, startMatch, mkUnit, newTeams, update, fallStep, endMatch, auraRange, endStep, setOrder, applyFort } from './core/sim.js';
-import { makeLayout, gatePos, groundY } from './core/world.js';
+import { makeLayout, gatePos, groundY, W } from './core/world.js';
 import { buildNav, findPath } from './core/nav.js';
 import { renderer, scene, camera, resize, applyPixelRatio, applyShadowQuality, followSun } from './render/scene.js';
 import { quality, saveSetting, stepDown, LEVELS } from './render/quality.js';
@@ -32,7 +32,7 @@ import { drawHorses, clearHorses } from './render/horses.js';
 import { drawFreeHorses } from './render/heroes.js';
 import { spark, splat, dust, drawAura, floatText, pow, shockwave, castleFx, effectsTick, drawEffects, clearEffects } from './render/effects.js';
 import { drawOverlay, clearOverlay, resizeOverlay } from './render/overlay.js';
-import { cam, followCamera, orbitCamera, camTarget, CAM_PITCH } from './render/camera.js';
+import { cam, followCamera, orbitCamera, camTarget, CAM_PITCH, introCam } from './render/camera.js';
 import { initAudio, sfx, buzz, gateS, startCrowd, stopCrowd, audioTick, audioStats, setMuted, musicCue, setMusic, musicEnabled } from './ui/audio.js';
 import { portal, portalInit, onPortal } from './portal.js';
 import { showMsg, allyNames } from './ui/messages.js';
@@ -385,6 +385,33 @@ function viewForMatch() {
   watchdog.reset();
   startCrowd(G.map.id);
 }
+// The opening of a computer battle: the camera rises over the whole field, comes in to your captain while
+// the count runs 3, 2, 1, and the men are let go on "RUN FOR YOUR LIFE, YOU FOOLS!". The sim waits for it.
+const INTRO = { fly: 2.2, from: 4.6, go: 7.0, count: [[4.6, '3'], [5.4, '2'], [6.2, '1'], [7.0, 'RUN FOR YOUR LIFE, YOU FOOLS!']] };
+let intro = null;
+function introText(txt, big) {
+  const el = $('introT'); el.textContent = txt; el.classList.toggle('go', !!big); el.hidden = false;
+  el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+}
+function startIntro(p) {
+  intro = { t: 0, next: 0, a0: Math.atan2(p.x, p.z), p, fp: new THREE.Vector3(), fl: new THREE.Vector3() };
+  $('hudWrap').style.visibility = 'hidden';
+  introCam.on = (c, tgt) => {
+    const I = intro; if (!I) return;
+    const yaw = cam.yaw, fx = tgt.x + Math.sin(yaw) * 3, fz = tgt.z + Math.cos(yaw) * 3;
+    I.fp.copy(c.position); I.fl.set(fx, tgt.y + 1.6, fz); // (where the follow camera had him)
+    const R = W.R * 1.05, a = I.a0 + I.t * .07, H = W.R * .55 + 8;
+    const ov = new THREE.Vector3(Math.sin(a) * R, H, Math.cos(a) * R), ovl = new THREE.Vector3(0, groundY(0, 0) + 2, 0);
+    const k = Math.min(1, Math.max(0, (I.t - INTRO.fly + .6) / (INTRO.from - INTRO.fly))), s = k * k * (3 - 2 * k);
+    c.position.lerpVectors(ov, I.fp, s); const look = new THREE.Vector3().lerpVectors(ovl, I.fl, s); c.lookAt(look);
+  };
+  introText('', false); $('introT').hidden = true;
+}
+function introTick(dt) {
+  const I = intro; I.t += dt;
+  while (I.next < INTRO.count.length && I.t >= INTRO.count[I.next][0]) { const [, txt] = INTRO.count[I.next++]; const big = txt.length > 2; introText(txt, big); if (big) sfx.horn(); else sfx.uiClick(); }
+  if (I.t >= INTRO.go) { intro = null; introCam.on = null; $('hudWrap').style.visibility = ''; setTimeout(() => { $('introT').hidden = true; }, 1800); }
+}
 function beginMatch(humans, active) {
   G.crownAward = null;
   if (!session.NET) G.role = 'solo';
@@ -393,6 +420,7 @@ function beginMatch(humans, active) {
   viewForMatch();
   sfx.horn();
   startTutorial();
+  if (!session.NET) { G.state = 'intro'; startIntro(G.player); }
 }
 setNetHooks({ onMatchStart: viewForMatch, onAbort: msg => netLeave(msg), onLobby: () => showLobby() });
 bindLobby({ startMatch: beginMatch, seedDemo, teams: () => soloAl.slice(), resetSolo: () => resetSolo() });
@@ -876,6 +904,10 @@ function loop(now) {
     if (isClient() && (G.state === 'play' || G.state === 'end')) {
       let live = true; try { live = clientTick(dt); } catch (e) { fault('net', e); }
       if (live && (G.state === 'play' || G.state === 'end')) drawMatch(dt); else demo(dt);
+    } else if (G.state === 'intro') {
+      if (intro) introTick(dt); // (the opening: the sim waits, the camera tells the story)
+      if (!intro) G.state = 'play';
+      drawMatch(dt);
     } else if (G.state === 'play') {
       if (isHost()) netHostReadInputs();
       try { update(dt, import.meta.env.DEV && window.__moveOverride ? window.__moveOverride() : readMove(dt)); } catch (e) { fault('rules', e); } // (dev-only override for scripted capture)
