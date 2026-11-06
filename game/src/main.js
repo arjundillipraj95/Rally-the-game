@@ -428,7 +428,8 @@ function seedDemo() {
   const d = Math.hypot(cx, cz) || 1, lx = cx / d, lz = cz / d; // (the way he looks: back toward his castle and the camera)
   homeCap.face = Math.atan2(lx, lz); homeCap.y = groundY(cx, cz);
   // his men, two ranks behind him
-  [[-2.4, -4.2, 'foot'], [0, -4.6, 'foot'], [2.4, -4.2, 'foot'], [-3.4, -2.2, 'arch'], [3.4, -2.2, 'arch']].forEach(([sp, ex, k]) => {
+  // (kept clear of the two party places, 2.5 to each side of him: the rank close behind, the archers out wide)
+  [[-1.3, -4.4, 'foot'], [0, -4.9, 'foot'], [1.3, -4.4, 'foot'], [-6.4, -4, 'arch'], [6.4, -4, 'arch']].forEach(([sp, ex, k]) => {
     const [x, z] = gatePos(t, sp0 + sp, ex0 - ex); const u = mkUnit(G.myTi, x, z, k); u.face = homeCap.face; u.demo = true;
   });
   spawnMeadow(cx, cz, lx, lz);
@@ -439,7 +440,7 @@ function homeCamera(dt) {
   const c = homeCap; if (!c) { orbitCamera(demoT); return; }
   const d = Math.hypot(c.x, c.z) || 1, fx = c.x / d, fz = c.z / d, rx = -fz, rz = fx; // (from him toward the camera, and sideways)
   const wide = innerWidth / Math.max(1, innerHeight) > 1.5;
-  const want = homeView === 'home' ? -.7 : homeView === 'ward' || homeView === 'friends' ? (wide ? 1.7 : 1.3) : (wide ? -4.4 : -2.4); // (beside the sheet: right of the wardrobe, left of the setup)
+  const want = homeView === 'home' ? -2.2 : homeView === 'ward' || homeView === 'friends' ? (wide ? 1.7 : 1.3) : (wide ? -4.4 : -2.4); // (beside the sheet: right of the wardrobe, left of the setup)
   homeV.sx += (want - homeV.sx) * Math.min(1, dt * 5);
   // the captain turns to face you, swaying a little in the wardrobe so the cape shows
   const sway = homeView === 'ward' || homeView === 'friends' ? Math.sin(demoT * .7) * .75 : Math.sin(demoT * .3) * .12;

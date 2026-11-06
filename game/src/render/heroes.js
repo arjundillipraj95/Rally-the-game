@@ -126,7 +126,9 @@ function farBatch(hex) {
   if (!b) { b = new THREE.InstancedMesh(SRC.lod, teamMaterial(SRC.soldierMat, hex, .26), FAR_MAX); b.count = 0; b.frustumCulled = false; b.castShadow = true; scene.add(b); far.set(hex, b); }
   return b;
 }
+let FAR_ON = false; try { FAR_ON = new URLSearchParams(location.search).get('far') === '1'; } catch (e) { /* off */ } // (on test only until it's checked: ?far=1)
 export function drawFar(u, a) {
+  if (!FAR_ON) return false;
   if (u.dead || u.hidden || u.mounted || (u.kind !== 'foot' && u.kind !== 'arch')) return false;
   if (on && !SRC) return true; // (still loading: hidden rather than the old figure)
   if (!heroesOn()) return false;
