@@ -14,8 +14,9 @@ const [cb, ca, sb] = await Promise.all(['models/body_plain.glb', 'models/armour_
 ca.material.metalness = .35; ca.material.roughness = .45;
 const ground = new THREE.Mesh(new THREE.CircleGeometry(4, 48), new THREE.MeshStandardMaterial({ color: 0xa8b890 })); ground.rotation.x = -Math.PI / 2; scene.add(ground);
 const place = (R, x, z, s) => { applyPose(R, POSES[q.get('pose') || 'rest']); R.root.scale.setScalar(s); R.root.position.set(x, .998 * s, z); scene.add(R.root); };
-const C = rigCaptain(cb.geometry, { gear: q.get('gear') !== '0' }); addArmour(C, ca.geometry, ca.material); place(C, 0, 0, 1);
-for (const [x, z] of [[-1.1, -.6], [1.1, -.6], [-2.1, -1.2], [2.1, -1.2]]) place(rigCaptain(sb.geometry, { gear: q.get('sgear') === '1', body: 'soldier', weapon: q.get('sw') || 'spear' }), x, z, SC);
+const TEAMS = [0x3a5cf0, 0xe0352b, 0x2fbf46, 0xf0c419], T = q.get('team') != null ? TEAMS[+q.get('team')] : null, TS = q.get('teams') === '1';
+const C = rigCaptain(cb.geometry, { gear: q.get('gear') !== '0', team: T }); addArmour(C, ca.geometry, ca.material); place(C, 0, 0, 1);
+[[-1.1, -.6], [1.1, -.6], [-2.1, -1.2], [2.1, -1.2]].forEach(([x, z], i) => place(rigCaptain(sb.geometry, { gear: q.get('sgear') === '1', body: 'soldier', weapon: q.get('sw') || 'spear', team: TS ? TEAMS[i] : T }), x, z, SC));
 const cam = new THREE.PerspectiveCamera(30, W / H, .1, 100); cam.position.set(1.2, 2.2, 7.5); cam.lookAt(0, .85, -.4);
 r.render(scene, cam); window.__done = true;
 </script></body></html>

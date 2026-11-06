@@ -118,7 +118,7 @@ function skinWeights(geo, weightFn) {
   geo.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sW, 4));
 }
 
-export function rigCaptain(srcGeo, { gear = true, show = false, body = 'captain', weapon = 'sword' } = {}) {
+export function rigCaptain(srcGeo, { gear = true, show = false, body = 'captain', weapon = 'sword', team = null } = {}) {
   const PR = PROFILES[body]; J = PR.J;
   const geo = srcGeo.clone(); geo.computeBoundingBox();
   // centre x on the torso (measured at the waist), keep y and z
@@ -135,7 +135,8 @@ export function rigCaptain(srcGeo, { gear = true, show = false, body = 'captain'
     else bones[n].position.set(...p);
   }
   const mat = geo.attributes.color ? new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .75 }) : new THREE.MeshStandardMaterial({ color: 0xe8e2d8, roughness: .7 });
-  const mesh = new THREE.SkinnedMesh(geo, srcGeo.userData.material || mat);
+  const base = srcGeo.userData.material || mat, mesh = new THREE.SkinnedMesh(geo, team != null && base.map ? teamMaterial(base, team, body === 'soldier' ? .26 : .23) : base);
+  const teamCol = team != null ? team : 0x2f62c8;
   mesh.add(bones.hips); mesh.bind(new THREE.Skeleton(NAMES.map(n => bones[n])));
   const root = new THREE.Group(); root.add(mesh);
   if (show) root.add(new THREE.SkeletonHelper(mesh));
@@ -147,15 +148,36 @@ export function rigCaptain(srcGeo, { gear = true, show = false, body = 'captain'
     // the shield: gripped in the left fist, its face along the hand's +z, its long side along +y.
     // Which way both point is set per pose (see aimGear): the wrist turns to match.
     const sh = new THREE.Group(); sh.position.set(.09, 0, .08); bones.hand_L.add(sh);
-    sh.add(new THREE.Mesh(new THREE.BoxGeometry(.5, .7, .06), new THREE.MeshStandardMaterial({ color: 0x2f62c8, roughness: .6 })));
+    sh.add(new THREE.Mesh(new THREE.BoxGeometry(.5, .7, .06), new THREE.MeshStandardMaterial({ color: teamCol, roughness: .6 })));
     const boss = new THREE.Mesh(new THREE.SphereGeometry(.07, 12, 8), gold); boss.position.z = .04; sh.add(boss);
     // the helmet: a cap over the hair, its rim just above the brows (placeholder until the real one)
     if (body === 'captain') {
     const helm = new THREE.Mesh(new THREE.SphereGeometry(.355, 24, 14, 0, Math.PI * 2, 0, Math.PI * .55), steel); helm.position.set(0, .33, -.03); helm.rotation.x = -.3; helm.scale.set(.97, .96, 1.06); bones.head.add(helm); // (tilted back: the rim rides above the brows and comes down over the nape, like a galea)
-    const crest = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x2f62c8 })); crest.scale.set(.05 / .97, .2 / .96, .28 / 1.06); crest.position.set(0, .34, 0); helm.add(crest); // (rides the helmet's own top, so it follows the tilt)
+    const crest = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: teamCol })); crest.scale.set(.05 / .97, .2 / .96, .28 / 1.06); crest.position.set(0, .34, 0); helm.add(crest); // (rides the helmet's own top, so it follows the tilt)
     }
   }
   return { root, mesh, bones, x0, weapon };
+}
+
+// team colour: the cream cloth (tunic, sleeves, skirt) in the painted texture is recoloured to the team's
+// colour, keeping its folds and shading; skin (much warmer), steel (neutral), leather and gold (darker,
+// more saturated) are left alone. Returns a new material; the source one is untouched.
+export function teamMaterial(src, hex, neckY = .24) {
+  const m = src.clone(), col = new THREE.Color(hex);
+  m.onBeforeCompile = sh => {
+    sh.uniforms.uTeam = { value: col }; sh.uniforms.uNeck = { value: neckY };
+    sh.vertexShader = 'varying float vRestY;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vRestY = position.y;'); // (the body as modelled, before posing: the head is left alone, whatever the pose)
+    sh.fragmentShader = 'uniform vec3 uTeam;\nuniform float uNeck;\nvarying float vRestY;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+      {
+        vec3 c = pow(max(diffuseColor.rgb, vec3(0.)), vec3(1. / 2.2)); // (judged in picture colours)
+        float warm = c.r - c.b, lum = dot(c, vec3(.333)), sat = (max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b))) / max(max(c.r, max(c.g, c.b)), .001);
+        float k = smoothstep(.08, .14, warm) * (1. - smoothstep(.31, .37, warm)) * smoothstep(.5, .62, lum) * (1. - smoothstep(.33, .4, sat)) * (1. - smoothstep(uNeck - .03, uNeck, vRestY)); // (cloth only below the neck: the pale skin round the eyes stays skin)
+        vec3 t = uTeam * (.55 + .55 * smoothstep(.45, .95, lum)); // (the folds stay darker)
+        diffuseColor.rgb = mix(diffuseColor.rgb, t, k);
+      }`);
+  };
+  m.customProgramCacheKey = () => 'team';
+  return m;
 }
 
 // armour regions: the shoulder guards ride the upper arms; the cuirass the chest and spine; the belt
