@@ -100,6 +100,42 @@ for view in FIG:
                     if iou > best[0]: best = (iou, (sx, sy, float(ox), float(oy)))
     ADJ[view] = best[1]; print(view, 'aligned', best[1], 'overlap %.3f' % best[0])
 
+# the face, rebuilt to match the picture: from just above the brows to the chin, the generated surface
+# (its sculpted eyes, snout-like nose and mouth) is replaced by the smoothest surface that carries on
+# the curve of the cheeks and forehead around it (a biharmonic fill: round, not flat), then a small
+# round nose is added exactly where the picture's nose is. Picture rows (FACE_ROWS, sheet pixels):
+# brow top, nose tip, chin; and the nose's column.
+if not ITEM and os.environ.get('BAKE_FACE'):
+    import json as _j; FR = _j.loads(os.environ['BAKE_FACE'])
+    def model_y(py):  # (the model height that lands on this picture row, front view)
+        ys = np.linspace(-1, 1, 4001); _, pys, _ = proj('front', np.stack([np.zeros_like(ys), ys, np.zeros_like(ys)], 1)); return float(ys[np.argmin(np.abs(pys - py))])
+    def model_x(px):
+        xs = np.linspace(-1, 1, 4001); pxs, _, _ = proj('front', np.stack([xs, np.full_like(xs, .5), np.zeros_like(xs)], 1)); return float(xs[np.argmin(np.abs(pxs - px))])
+    y_top, y_nose, y_chin, x_nose = model_y(FR['brow']), model_y(FR['nose']), model_y(FR['chin']), model_x(FR['nosex'])
+    print('face rows: brow %.3f nose %.3f chin %.3f nose x %.3f' % (y_top, y_nose, y_chin, x_nose))
+    from scipy import sparse
+    from scipy.sparse.linalg import spsolve
+    nb2 = [set() for _ in range(len(V))]
+    for a, b, c in F: nb2[a].update((b, c)); nb2[b].update((a, c)); nb2[c].update((a, b))
+    front = V[:, 2] > HC[2] + .1
+    R = front & (V[:, 1] < y_top) & (V[:, 1] > y_chin - .05) & (np.abs(V[:, 0]) < .26)
+    free = np.where(R)[0]; idx = -np.ones(len(V), int); idx[free] = np.arange(len(free))
+    # uniform Laplacian on the region and its rim; minimise |L x|^2 with everything outside the region held
+    ring = set(free.tolist()); [ring.update(nb2[i]) for i in free.tolist()]; rows = sorted(ring)
+    Lr, Lc, Lv = [], [], []
+    for r_, i in enumerate(rows):
+        n = list(nb2[i]); Lr += [r_] * (len(n) + 1); Lc += [i] + n; Lv += [1.] + [-1. / len(n)] * len(n)
+    L = sparse.csr_matrix((Lv, (Lr, Lc)), shape=(len(rows), len(V)))
+    Lf, Lk = L[:, free], L[:, np.where(~R)[0]]
+    A = (Lf.T @ Lf).tocsc()
+    for k in range(3):
+        bvec = -(Lf.T @ (Lk @ V[~R, k]))
+        V[free, k] = spsolve(A, bvec)
+    # the nose: a small round bump where the picture's nose is
+    nose = .075 * np.exp(-(((V[:, 0] - x_nose) / .058) ** 2 + ((V[:, 1] - y_nose) / .052) ** 2) / 2) * front
+    V[:, 2] += nose
+    print('face rebuilt:', len(free), 'points')
+
 # depth maps per view (the nearest surface at each sheet pixel), from the mesh itself
 depth = {}
 for view in FIG:
@@ -119,6 +155,7 @@ _, HAIR_LOW_SPY, _ = proj('side', np.array([[.3, .62, -.25]])); HAIR_LOW_SPY = f
 _fp = V[(V[:, 1] > .38) & (V[:, 1] < .62) & (np.abs(V[:, 0]) < .26) & (V[:, 2] > .05)] if not ITEM else V[:1]
 _px, _py, _ = proj('front', _fp); _c = sheet[np.clip(_py.astype(int), 0, SH - 1), np.clip(_px.astype(int), 0, SW - 1)]
 _l = _c.sum(1); SKIN = np.median(_c[_l > np.median(_l) * .9], axis=0); print('skin', SKIN.round())
+_hp = V[(V[:, 1] > .8) & (V[:, 2] < HC[2])] if not ITEM else V[:1]; _hx, _hy, _ = proj('back', _hp); HAIR_AVG = np.median(sheet[np.clip(_hy.astype(int), 0, SH - 1), np.clip(_hx.astype(int), 0, SW - 1)], axis=0); HAIR_LUM = HAIR_AVG.sum()
 INTERIOR = np.array([46., 40., 36.]); ZMID = (V[:, 2].max() + V[:, 2].min()) / 2  # (inside an item, where no picture sees: dark)
 
 # unwrap, and per-vertex normals for the new layout
@@ -137,12 +174,14 @@ def head_colour(P, N):
     from the pictures' hair; skin below; the features from the front picture where they differ from skin"""
     d = P - HEAD_C; d /= np.linalg.norm(d, axis=1, keepdims=True) + 1e-9
     el = np.arcsin(np.clip(d[:, 1], -1, 1)); az = np.abs(np.arctan2(d[:, 0], d[:, 2])) / np.pi  # (0 front, 1 back)
-    line = HAIR_FRONT + (HAIR_BACK - HAIR_FRONT) * (1 - np.cos(az * np.pi)) / 2
-    hairw = np.clip((el - line) / .06 + .5, 0, 1) * np.clip((.36 - np.abs(P[:, 0])) / .04, 0, 1)  # (the ears stay skin)
+    line = np.interp(az, [0, .15, .19, .22, .3, .45, .6, 1], [HAIR_FRONT, .45, .33, .02, -.12, -.25, -.6, HAIR_BACK])  # (the hair comes down the temples to the ears, as in the picture)
+    hairw = np.clip((el - line) / .09 + .5, 0, 1) * np.clip((.36 - np.abs(P[:, 0])) / .04, 0, 1)  # (the ears stay skin; a soft hairline)
     bx, by, _ = proj('back', P); by = np.minimum(by, HAIR_LOW_PY)
     sx_, sy_, _ = proj('side', P); sy_ = np.minimum(sy_, HAIR_LOW_SPY)
     sidew = np.clip((np.abs(d[:, 0]) - .45) / .3, 0, 1)[:, None]
     hair = sample(bx, by) * (1 - sidew) + sample(sx_, sy_) * sidew
+    light = np.clip((hair.sum(1) - HAIR_LUM * 1.25) / 60, 0, 1)[:, None]  # (a light sample in the hair is skin from the picture's edge: use hair)
+    hair = hair * (1 - light) + HAIR_AVG * light
     fx, fy, _ = proj('front', P); feat = sample(fx, fy)
     fw = np.clip((N[:, 2] - .45) / .2, 0, 1) * (1 - hairw) * np.clip((P[:, 1] - .32) / .04, 0, 1) * np.clip((.3 - np.abs(P[:, 0])) / .06, 0, 1)
     fw = fw * np.clip((np.abs(feat - SKIN).sum(1) - 30) / 45, 0, 1)  # (only what differs from skin: brows, eyes, nose shading, mouth)
