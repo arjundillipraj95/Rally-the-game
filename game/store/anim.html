@@ -6,7 +6,7 @@
 // window.frame(t) draws time t, for recording
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { rigCaptain, CLIPS, POSES, applyPose, addArmour } from './captainrig.js';
+import { rigCaptain, CLIPS, POSES, MOVES, moveAt, applyPose, addArmour } from './captainrig.js';
 const q = new URLSearchParams(location.search), W = +(q.get('w') || 960), H = +(q.get('h') || 540), clip = q.get('clip') || 'run';
 const r = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true, preserveDrawingBuffer: true }); r.setPixelRatio(1); r.setSize(W, H); r.setClearColor(0xd8d8d8);
 const scene = new THREE.Scene(); scene.add(new THREE.HemisphereLight(0xffffff, 0x777777, 1.1)); const sun = new THREE.DirectionalLight(0xffffff, 1.4); sun.position.set(2, 3, 4); scene.add(sun);
@@ -18,7 +18,8 @@ const C = rigCaptain(cb.geometry, { team: 0x3a5cf0, weapon: q.get('cw') || 'swor
 const Sd = rigCaptain(sb.geometry, { body: 'soldier', team: 0xe0352b, weapon: q.get('sw') || 'spear' });
 const rigs = [[C, -.75, 1], [Sd, .85, .8]]; for (const [R, x, s] of rigs) { R.root.scale.setScalar(s); R.root.position.set(x, .998 * s, 0); R.root.rotation.y = +(q.get('face') || -.9); scene.add(R.root); }
 const cam = new THREE.PerspectiveCamera(30, W / H, .1, 100); cam.position.set(0, 1.25, 5.6); cam.lookAt(0, .8, 0);
-const get = t => CLIPS[clip] ? CLIPS[clip](t) : POSES[clip];
+// a list of moves (?clip=forehand,backhand,...) plays one after another, with a breath of idle between
+const seq = clip.split(','), get = t => { if (seq.length === 1 && CLIPS[clip]) return CLIPS[clip](t); let T = t; for (const m of seq) { const d = MOVES[m] ? MOVES[m].dur * (+(q.get('slow') || 1)) : 0; if (T < d) return moveAt(m, T / d); T -= d; if (T < .35) return CLIPS.idle(T); T -= .35; } return CLIPS.idle(T); };
 window.frame = t => { for (const [R] of rigs) applyPose(R, get(t)); r.render(scene, cam); };
 window.frame(0); window.__done = true;
 </script></body></html>

@@ -300,3 +300,50 @@ export const CLIPS = {
       hipsY: -.03 + .06 * up };
   },
 };
+
+// one-off moves: key poses at times through the move (0..1 of its length), eased between. The blows
+// follow the game's swing timing (.38 s: wound back by .18, the blade through by .34, held, then
+// recovering), so the hit lands while the blade is visibly sweeping through.
+const R0 = POSES.rest, SH_UP = { upperArm_L: [0, -.9, .85], foreArm_L: [0, -.7, 0], face: [.3, 0, 1], up: [0, 1, 0] }; // (the shield kept up in front through a blow)
+const LUNGE_R = { thigh_R: [-.55, 0, 0], shin_R: [.5, 0, 0], thigh_L: [.35, 0, 0], shin_L: [.15, 0, 0] }, BRACE = { thigh_L: [-.35, 0, 0], shin_L: [.4, 0, 0], thigh_R: [.25, 0, 0], shin_R: [.1, 0, 0] };
+const blow = (wind, hit, follow) => [[0, R0], [.18, { ...R0, ...SH_UP, ...BRACE, ...wind }], [.27, { ...R0, ...SH_UP, ...LUNGE_R, ...hit }], [.36, { ...R0, ...SH_UP, ...LUNGE_R, ...follow }], [.62, { ...R0, ...SH_UP, ...LUNGE_R, ...follow }], [1, R0]];
+export const MOVES = {
+  // a forehand: cocked back over the right shoulder, swept flat across to the left
+  forehand: { dur: .38, keys: blow(
+    { spine: [0, -.25, 0], chest: [0, -.35, 0], upperArm_R: [0, -.5, .25], foreArm_R: [0, 1.0, 0], blade: [-.6, .55, -.55], hipsY: -.04 },
+    { spine: [.1, .25, 0], chest: [0, .35, 0], upperArm_R: [0, 1.3, .15], foreArm_R: [0, .2, 0], blade: [.95, .05, .3], hipsY: -.06 },
+    { spine: [.1, .35, 0], chest: [0, .5, 0], upperArm_R: [0, 1.65, .35], foreArm_R: [0, .4, 0], blade: [.8, -.15, -.55], hipsY: -.06 }) },
+  // a backhand: wound across to the left shoulder, swept out to the right
+  backhand: { dur: .38, keys: blow(
+    { spine: [0, .25, 0], chest: [0, .4, 0], upperArm_R: [0, 1.75, .3], foreArm_R: [0, 1.4, 0], blade: [.7, .5, -.5], hipsY: -.04 },
+    { spine: [.1, -.2, 0], chest: [0, -.3, 0], upperArm_R: [0, .45, .1], foreArm_R: [0, .1, 0], blade: [-.95, .05, .35], hipsY: -.06 },
+    { spine: [.1, -.3, 0], chest: [0, -.45, 0], upperArm_R: [0, -.25, .2], foreArm_R: [0, .2, 0], blade: [-.8, -.1, -.6], hipsY: -.06 }) },
+  // an overhead chop: the blade raised behind the head, brought straight down in front
+  overhead: { dur: .38, keys: blow(
+    { spine: [-.22, 0, 0], neck: [-.1, 0, 0], upperArm_R: [0, .1, -1.55], foreArm_R: [0, 1.2, 0], blade: [-.1, .8, -.6], hipsY: -.01 },
+    { spine: [.35, 0, 0], upperArm_R: [0, 1.2, -.45], foreArm_R: [0, .2, 0], blade: [0, -.3, 1], hipsY: -.08 },
+    { spine: [.45, 0, 0], upperArm_R: [0, 1.3, .4], foreArm_R: [0, .2, 0], blade: [0, -.85, .5], hipsY: -.1 }) },
+  // a thrust: drawn back to the hip, then the arm straight out with the body behind it
+  thrust: { dur: .38, keys: blow(
+    { spine: [-.05, -.2, 0], chest: [0, -.3, 0], upperArm_R: [0, -.35, .95], foreArm_R: [0, 1.8, 0], blade: [0, .1, 1], pole: [0, .1, 1], hipsY: -.03 },
+    { spine: [.25, .2, 0], chest: [0, .2, 0], upperArm_R: [0, 1.45, .05], foreArm_R: [0, 0, 0], blade: [0, .02, 1], pole: [0, .02, 1], thigh_R: [-.75, 0, 0], shin_R: [.6, 0, 0], thigh_L: [.45, 0, 0], hipsY: -.09 },
+    { spine: [.28, .22, 0], chest: [0, .22, 0], upperArm_R: [0, 1.45, .05], foreArm_R: [0, 0, 0], blade: [0, 0, 1], pole: [0, 0, 1], thigh_R: [-.75, 0, 0], shin_R: [.6, 0, 0], thigh_L: [.45, 0, 0], hipsY: -.09 }) },
+  // the heavy blow: a deep crouch with the blade high behind, then a slam down with the whole body
+  heavy: { dur: .5, keys: [[0, R0],
+    [.4, { ...R0, ...SH_UP, ...BRACE, spine: [-.3, -.3, 0], chest: [0, -.2, 0], upperArm_R: [0, -.4, -1.5], foreArm_R: [0, 1.9, 0], blade: [-.2, .5, -.9], hipsY: -.12 }],
+    [.52, { ...R0, ...SH_UP, ...LUNGE_R, spine: [.55, .1, 0], upperArm_R: [0, 1.1, -.25], foreArm_R: [0, .1, 0], blade: [0, -.55, .9], hipsY: -.16 }],
+    [.75, { ...R0, ...SH_UP, ...LUNGE_R, spine: [.6, .1, 0], upperArm_R: [0, 1.2, .5], foreArm_R: [0, .1, 0], blade: [0, -.95, .3], hipsY: -.17 }], [1, R0]] },
+};
+// the sword combo's third blow: a full turn on the spot, blade out at arm's length
+MOVES.spin = { dur: .38, at: t => {
+  const k = t < .12 ? sm(t / .12) : t < .7 ? 1 : 1 - sm((t - .7) / .3), turn = t < .12 ? 0 : t < .62 ? sm((t - .12) / .5) : 1;
+  const out = { ...R0, ...SH_UP, upperArm_R: [0, .25, .15], foreArm_R: [0, .05, 0], blade: [-1, 0, .25], spine: [.1, 0, 0], hipsY: -.06 };
+  const P = mixPose(R0, out, k); P.hips = [0, -turn * Math.PI * 2, 0]; return P;
+} };
+// the pose t (0..1) of the way through a move
+export function moveAt(name, t) {
+  const M = MOVES[name]; if (M.at) return M.at(t);
+  const K = M.keys; let i = 0; while (i < K.length - 2 && t > K[i + 1][0]) i++;
+  const [t0, A] = K[i], [t1, B] = K[i + 1], u = Math.min(1, Math.max(0, (t - t0) / (t1 - t0 || 1)));
+  return mixPose(A, B, sm(u));
+}

@@ -7,7 +7,7 @@
 // pose him to check how he bends. ?pose=a,b,c,d picks the poses; ?view=front|side|three
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { rigCaptain, POSES, CLIPS, applyPose, addArmour } from './captainrig.js';
+import { rigCaptain, POSES, CLIPS, MOVES, moveAt, applyPose, addArmour } from './captainrig.js';
 const q = new URLSearchParams(location.search), poses = (q.get('pose') || 'tpose,rest,windup,strike').split(','), view = q.get('view') || 'three';
 const W = 1600, H = 620, r = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true });
 r.setPixelRatio(1); r.setSize(W, H); r.setClearColor(0xd8d8d8); r.setScissorTest(true);
@@ -21,7 +21,7 @@ rigs.forEach((R, i) => { R.root.visible = false; scene.add(R.root); });
 const ang = { front: 0, side: Math.PI / 2, three: -Math.PI / 4.5, back: Math.PI }[view];
 poses.forEach((p, i) => {
   rigs.forEach((R, k) => R.root.visible = k === i);
-  applyPose(rigs[i], p.includes('@') ? CLIPS[p.split('@')[0]](+p.split('@')[1]) : (POSES[p] || POSES.tpose)); rigs[i].root.updateMatrixWorld(true);
+  const [pn, pt] = p.split('@'); applyPose(rigs[i], pt != null ? (MOVES[pn] ? moveAt(pn, +pt) : CLIPS[pn](+pt)) : (POSES[p] || POSES.tpose)); rigs[i].root.updateMatrixWorld(true);
   const Z = +(q.get('zoom') || 1), CY = +(q.get('cy') || .02), R = 1.25 / Z, a2 = q.get('angs') ? +q.get('angs').split(',')[i] * Math.PI / 180 : ang, cam = new THREE.OrthographicCamera(-R, R, R * H / (W / n), -R * H / (W / n), .01, 100);
   cam.position.set(Math.sin(a2) * 6, CY + .58, Math.cos(a2) * 6); cam.lookAt(0, CY, 0);
   r.setViewport(i * W / n, 0, W / n, H); r.setScissor(i * W / n, 0, W / n, H); r.render(scene, cam);
