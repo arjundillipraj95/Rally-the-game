@@ -12,7 +12,7 @@ export async function open(browser, w, h, opts = {}) {
     window.requestAnimationFrame = cb => { window.__raf.push(cb); return window.__raf.length; };
     window.__frame = (n = 1, dt = 1000 / 30) => { for (let i = 0; i < n; i++) { window.__t += dt; const q = window.__raf; window.__raf = []; q.forEach(cb => cb(window.__t)); } };
   });
-  await page.goto('http://127.0.0.1:8766/');
+  await page.goto('http://127.0.0.1:8766/' + (opts.q || ''));
   await page.waitForFunction(() => window.__fb && window.__fb.G);
   await page.evaluate(() => window.__frame(3));
   return page;

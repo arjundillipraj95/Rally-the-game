@@ -91,6 +91,7 @@ function make(u) {
     : rigCaptain(SRC.body, { team, weapon, pack: { shield, helmet: L ? SRC.helmets[helmFile(pick('helm', L[SLOT_IX.helm]))] || null : SRC.helmets.blue_crest } });
   if (!soldier) { const a = SRC.armours[armourFile(L ? pick('armour', L[SLOT_IX.armour]) : '')]; addArmour(R, a.geo, a.mat); }
   else if (u.kind === 'foot' && u.tier >= 2) { const a = SRC.armours[armourFile(L ? pick('armour', L[SLOT_IX.armour]) : '')]; addArmour(R, a.geo, a.mat); } // (the Armour upgrade: your army's armour over the tunic)
+  if (u.kind === 'arch') archerGear(R, team, u.tier | 0);
   R.root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
   const sc = soldier ? SCALE * SOLDIER_SCALE : SCALE;
   R.root.scale.setScalar(sc);
@@ -102,6 +103,27 @@ function make(u) {
     scene.add(U);
   } else scene.add(R.root);
   return h;
+}
+// the archer, told apart from a footman at a glance: a soft hood in his army's colour over the helmet
+// with its tip falling forward, and a quiver of white-fletched arrows across his back. Training adds a
+// leather jerkin; Marksman a tall white feather in the hood.
+const ARCH = { hood: null, tip: null, quiver: null, fletch: null, plume: null, leather: null };
+function archerGear(R, team, tier) {
+  if (!ARCH.hood) {
+    ARCH.hood = new THREE.SphereGeometry(.3, 18, 10, 0, Math.PI * 2, 0, Math.PI * .58);
+    ARCH.tip = new THREE.ConeGeometry(.13, .34, 10); ARCH.tip.translate(0, .17, 0);
+    ARCH.quiver = new THREE.CylinderGeometry(.075, .06, .52, 10); ARCH.fletch = new THREE.ConeGeometry(.05, .12, 6);
+    ARCH.plume = new THREE.ConeGeometry(.035, .42, 6); ARCH.plume.translate(0, .21, 0);
+    ARCH.wood = new THREE.MeshStandardMaterial({ color: 0x6b4423, roughness: .85 }); ARCH.white = new THREE.MeshStandardMaterial({ color: 0xf4f0e6, roughness: .9 });
+  }
+  const cloth = new THREE.MeshStandardMaterial({ color: team, roughness: .9 }), head = R.bones.head, chest = R.bones.chest;
+  const hood = new THREE.Mesh(ARCH.hood, cloth); hood.position.set(0, .3, -.04); hood.scale.set(1.42, 1.3, 1.48); hood.rotation.x = -.22; head.add(hood);
+  const tip = new THREE.Mesh(ARCH.tip, cloth); tip.position.set(0, .25, -.02); tip.rotation.x = 1.25; hood.add(tip); // (the Phrygian point, flopped forward)
+  const q = new THREE.Group(); q.position.set(.06, .02, -.2); q.rotation.set(-.15, 0, -.45); chest.add(q); // (across the back, top over his right shoulder)
+  q.add(new THREE.Mesh(ARCH.quiver, ARCH.wood));
+  for (let i = 0; i < 4; i++) { const f = new THREE.Mesh(ARCH.fletch, ARCH.white); f.position.set((i % 2 - .5) * .06, .31 + (i >> 1) * .03, (i >> 1) * .05 - .025); q.add(f); }
+  if (tier >= 1) addArmour(R, SRC.armours.leather.geo, SRC.armours.leather.mat);
+  if (tier >= 2) { const p = new THREE.Mesh(ARCH.plume, ARCH.white); p.position.set(.12, .12, -.05); p.rotation.set(-.35, 0, -.3); hood.add(p); }
 }
 const legsOf = hc => ({ hip: Object.fromEntries(Object.keys(LEGS).map(k => [k, hc.getObjectByName('leg_' + k)])), knee: Object.fromEntries(Object.keys(LEGS).map(k => [k, hc.getObjectByName('knee_' + k)])), body: hc.children[0], gp: 0, vs: 0, acc: 0, pitch: 0 });
 // the horse's gaits, by speed: a four-beat walk, a two-beat trot in diagonal pairs, and the gallop (hind
@@ -169,7 +191,18 @@ function farBatch(hex) {
   if (!b) { b = new THREE.InstancedMesh(SRC.lod, teamMaterial(SRC.soldierMat, hex, .26), FAR_MAX); b.count = 0; b.frustumCulled = false; b.castShadow = true; scene.add(b); far.set(hex, b); }
   return b;
 }
-let FAR_ON = false; try { FAR_ON = new URLSearchParams(location.search).get('far') === '1'; } catch (e) { /* off */ } // (on test only until it's checked: ?far=1)
+// a distant archer's hood: a rounded cap in his army's colour with its point, over the helmet (as up close)
+let HOOD_GEO = null; const HOOD_AT = new THREE.Matrix4().makeTranslation(0, .6, -.04), _m2 = new THREE.Matrix4();
+function farHoodBatch(hex) {
+  let b = far.get(hex + 'h');
+  if (!b) {
+    if (!HOOD_GEO) { HOOD_GEO = new THREE.SphereGeometry(.43, 10, 6, 0, Math.PI * 2, 0, Math.PI * .55); const t = new THREE.ConeGeometry(.17, .42, 8); t.translate(0, .55, .04); HOOD_GEO = mergeTwo(HOOD_GEO, t); }
+    b = new THREE.InstancedMesh(HOOD_GEO, new THREE.MeshStandardMaterial({ color: hex, roughness: .9 }), FAR_MAX); b.count = 0; b.frustumCulled = false; b.castShadow = true; scene.add(b); far.set(hex + 'h', b);
+  }
+  return b;
+}
+const mergeTwo = (a, b) => { const g = new THREE.BufferGeometry(), A = a.toNonIndexed(), B = b.toNonIndexed(); for (const k of ['position', 'normal']) { const x = A.attributes[k].array, y = B.attributes[k].array, z = new Float32Array(x.length + y.length); z.set(x); z.set(y, x.length); g.setAttribute(k, new THREE.BufferAttribute(z, 3)); } return g; };
+let FAR_ON = true; try { FAR_ON = new URLSearchParams(location.search).get('far') !== '0'; } catch (e) { /* on */ } // (?far=0: the old figures far off, for comparison)
 export function drawFar(u, a) {
   if (!FAR_ON) return false;
   if (u.dead || u.hidden || u.mounted || (u.kind !== 'foot' && u.kind !== 'arch')) return false;
@@ -182,6 +215,7 @@ export function drawFar(u, a) {
   _p.set(u.x, (u.y || 0) + (a.lift || 0) - (a.sink || 0) + .998 * sc + bob, u.z);
   _e.set(moving ? .12 : 0, u.face + (a.yaw || 0), 0, 'YXZ'); _q.setFromEuler(_e); _s.setScalar(sc);
   b.setMatrixAt(b.count++, _m.compose(_p, _q, _s)); farDrawn = true;
+  if (u.kind === 'arch') { const hb = farHoodBatch(TEAMS[colorOf(u.ti)].hex); if (hb.count < FAR_MAX) hb.setMatrixAt(hb.count++, _m2.multiplyMatrices(_m, HOOD_AT)); }
   return true;
 }
 const EV_T = .42; // (how long an evade's body move lasts on screen)
