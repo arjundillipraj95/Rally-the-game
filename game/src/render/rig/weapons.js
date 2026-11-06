@@ -33,6 +33,13 @@ const ring = (r, y0, y1, mat, segs = 16) => lathe([[0, y0], [r, y0], [r, y1], [0
 
 export function makeWeapon(kind) {
   const M = mats(), g = new THREE.Group(); // (built along +y, turned to +z at the end)
+  if (kind === 'bow') { // a short self bow: a wooden arc with its string, held upright, the bulge pointing forward (+z)
+    const th = Math.PI * .84, arc = new THREE.TorusGeometry(.5, .022, 6, 22, th); arc.rotateZ(-th / 2);
+    const bow = new THREE.Mesh(arc, M.wood); bow.rotation.y = -Math.PI / 2; g.add(bow);
+    const str = new THREE.Mesh(new THREE.BoxGeometry(.008, .98 * Math.sin(th / 2), .008), M.cord);
+    str.position.set(0, 0, .5 * Math.cos(th / 2)); g.add(str);
+    return g;
+  }
   if (kind === 'sword' || kind === 'gladius') {
     g.add(ball(.048, -.115, M.gold), ball(.014, -.165, M.gold));
     g.add(ring(.032, -.08, -.06, M.gold));

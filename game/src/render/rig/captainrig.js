@@ -150,6 +150,7 @@ export function rigCaptain(srcGeo, { gear = true, show = false, body = 'captain'
     // Which way both point is set per pose (see aimGear): the wrist turns to match.
     const sh = new THREE.Group(); sh.position.set(-.1, 0, .12); bones.hand_L.add(sh);
     if (pack && pack.shield) { const p = packPiece(pack.shield, FIT.shield, team); p.position.z = FIT.shield.grip; sh.add(p); }
+    else if (pack && pack.noShield) { /* (the archer's left hand is empty: it holds the bow) */ }
     else {
     sh.add(new THREE.Mesh(new THREE.BoxGeometry(.5, .7, .06), new THREE.MeshStandardMaterial({ color: teamCol, roughness: .6 })));
     const boss = new THREE.Mesh(new THREE.SphereGeometry(.07, 12, 8), gold); boss.position.z = .04; sh.add(boss);
