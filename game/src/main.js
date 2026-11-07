@@ -36,6 +36,7 @@ import { cam, followCamera, orbitCamera, camTarget, CAM_PITCH, introCam } from '
 import { initAudio, sfx, buzz, gateS, startCrowd, stopCrowd, audioTick, audioStats, setMuted, musicCue, setMusic, musicEnabled } from './ui/audio.js';
 import { portal, portalInit, onPortal } from './portal.js';
 import { showMsg, allyNames, setNamer, claimed, nameOf, glory } from './ui/messages.js';
+import { renderPointsV2, tlTick } from './ui/timeline.js';
 import { buildHud, showHud, updateHud, banner, fmt } from './ui/hud.js';
 import { bindInput, readMove, trayOpen, upOpen, releaseAll, inp } from './ui/input.js';
 import { startTutorial, stopTutorial, tutorialTick, bindTutorial } from './ui/tutorial.js';
@@ -230,7 +231,7 @@ bus.on('end', ({ w, why }) => {
     }
     renderCaptains($('endCaps'), rep); renderAwards($('endAw'), rep); };
   report(); if (isClient()) setTimeout(() => { if (G.state === 'end') report(); }, 1200);
-  const pts = () => { if (!G.c2) return; $('endPts').innerHTML = renderPoints(w); };
+  const pts = () => { if (!G.c2) return; renderPointsV2($('endPts'), w); };
   $('ptsTab').hidden = !G.c2; pts(); if (isClient()) setTimeout(() => { if (G.state === 'end') pts(); }, 1200);
   endTab(G.c2 ? 'pts' : 'you');
   showRank(G.awarded ? null : awardMatch({ result, kills: G.kills, diff: G.diff })); G.awarded = true;
@@ -264,12 +265,6 @@ $('shareBtn').addEventListener('click', async () => {
   try { if (navigator.share) { await navigator.share({ text, url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
   window.open('https://wa.me/?text=' + encodeURIComponent(text + ' ' + url), '_blank', 'noopener');
 });
-// under a side's row: the captains it cut down, and who got each (a captain's own blade +2, his men +1)
-function capsLine(a) {
-  const P = CROWN2.points, got = Object.entries(claimed).filter(([k]) => +k.split(':')[0] === a).map(([k, c]) => { const v = +k.split(':')[1];
-    return `${esc(nameOf(v))} <small>(${c.v >= P.killCaptain ? esc(c.by === G.myTi ? 'you' : nameOf(c.by)) : esc(c.by === G.myTi ? 'your men' : nameOf(c.by) + "'s men")} +${c.v})</small>`; });
-  return got.length ? `<tr class="caps"><td colspan="7">Captains cut down: ${got.join(', ')}</td></tr>` : '';
-}
 // The admin numbers (only while signed in to the online service; never the warm-up): every phone sends its
 // health (frame rate, link, errors); the phone that ran the battle (solo, or the host) sends its summary.
 const perfS = { n: 0, fps: 0, slow: 0, errs: 0 };
@@ -285,19 +280,6 @@ function sendReports(w, why) {
     len: G.T, endk: why, win: w < 0 ? '' : cols(w), sides, players: act.map(i => [idOf(i), colorOf(i), G.teams[i].human ? 1 : 0]),
     chestT: glory.chest ? glory.chest.T : 0, chestBy: glory.chest ? cols(glory.chest.a) : '', crownT: glory.crown ? glory.crown.T : 0, crownBy: glory.crown ? cols(glory.crown.a) : '',
     capDeaths: (G.deaths && G.deaths.cap) || {}, menDeaths: (G.deaths && G.deaths.men) || {}, clearT: (G.c2 && G.c2.clearT) || 0, diff: typeof G.diff === 'number' ? G.diff : 0 });
-}
-// Results screen, the mountain: each side's points and where they came from, the winner first.
-function renderPoints(w) {
-  const P = CROWN2.points, mine = G.ALLY[colorOf(G.myTi)];
-  const sides = [...new Set(G.teams.map((t, i) => t.active ? G.ALLY[colorOf(i)] : -1).filter(a => a >= 0))];
-  const rows = sides.map(a => ({ a, b: c2Breakdown(a), css: TEAMS[G.ALLY.indexOf(a)].css })).sort((x, y) => y.b.total - x.b.total);
-  const cell = (n, each) => n ? `${n * each}<small>${each > 1 ? ` (${n}×${each})` : ''}</small>` : '<span class="z">·</span>';
-  const pt = n => n ? String(n) : '<span class="z">·</span>';
-  return `<h2 class="ptitle">${w < 0 ? 'A draw on points' : `${esc(allyNames(w))} ${allyNames(w).includes('&') ? 'win' : 'wins'} on points`}</h2>
-    <table class="ctab pts"><thead><tr><th class="nm">Side</th><th>Castles &amp; keeps</th><th>Villages</th><th>War chest</th><th>Crown</th><th>Captains</th><th>Total</th></tr></thead><tbody>${rows.map(({ a, b, css }) => `
-      <tr class="${a === mine ? 'me' : ''}${a === w ? ' won' : ''}"><td class="nm"><i style="background:${css}"></i>${esc(allyNames(a))}${a === mine ? ' <em>You</em>' : ''}</td>
-      <td>${cell(b.castles, P.castle)}</td><td>${cell(b.villages, P.village)}</td><td>${pt(b.chest)}</td><td>${pt(b.crown)}</td><td>${pt(b.caps)}</td><td><b class="rt">${b.total}</b></td></tr>${capsLine(a)}`).join('')}</tbody></table>
-    <small class="hint">Castles and villages count if held at the end · chest ${P.chest} · Crown ${P.crown} · a captain ${P.killCaptain} by a captain, ${P.killArmy} by his army</small>`;
 }
 // The note under the result, from how the battle went for you (the first that fits, else the usual quip).
 function tallyQuip({ capK, menK, falls, lost, result }) {
@@ -1003,7 +985,7 @@ window.__fb = {
   volley(pt) { actions.volley(pt); }, order(o, pt) { actions.order(o, pt); }, rally() { actions.rally(); },
   attack() { actions.attack(); }, duel() { actions.duel(); }, jump() { actions.jump(); }, weapon(w) { actions.weapon(w); }, upgrade(id) { actions.upgrade(id); },
   fort(c, lv) { G.teams[c].up.fort = lv; applyFort(c); },
-  setOrder, rideRelease, findPath, gatePos, orderVolley, mkUnit, challenge, canChallenge, G, W, c2Points, die, cam, scene, renderer, audio: () => audioStats(),
+  tlTick, setOrder, rideRelease, findPath, gatePos, orderVolley, mkUnit, challenge, canChallenge, G, W, c2Points, die, cam, scene, renderer, audio: () => audioStats(),
 };
 
 function onResize() { resize(); resizeOverlay(); }

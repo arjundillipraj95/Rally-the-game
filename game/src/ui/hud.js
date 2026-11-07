@@ -5,6 +5,7 @@ import { G, isFfa, colorOf, rules, matchTime, SLOT_NAME, isOut, capOf, isC2 } fr
 import { colorOut, colorScore, colorHuman, squadOf, canRecruit, horseMax, upgradeCost, javMax, execTarget, castleHere, villageHere } from '../core/sim.js';
 import { session, isClient } from '../net/session.js';
 import { claimed, nameOf, glory, allyNames } from './messages.js';
+import { tlTick } from './timeline.js';
 
 const $ = id => document.getElementById(id);
 export const fmt = s => { s = Math.max(0, Math.floor(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
@@ -66,6 +67,7 @@ const ORDER_ICONS = {
 };
 // lastSnapAt: when a client last heard from the host
 export function updateHud(lastSnapAt) {
+  tlTick(); // (the results' timeline: every phone keeps its own record)
   TEAMS.forEach((t, i) => {
     const row = $('tp' + i); if (!row) return;
     const gone = isOut(i); row.hidden = gone; const pp = $('pip' + i); if (pp) pp.hidden = gone; if (gone) return; // (a castle out of this battle)
