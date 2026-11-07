@@ -35,7 +35,7 @@ import { drawOverlay, clearOverlay, resizeOverlay } from './render/overlay.js';
 import { cam, followCamera, orbitCamera, camTarget, CAM_PITCH, introCam } from './render/camera.js';
 import { initAudio, sfx, buzz, gateS, startCrowd, stopCrowd, audioTick, audioStats, setMuted, musicCue, setMusic, musicEnabled } from './ui/audio.js';
 import { portal, portalInit, onPortal } from './portal.js';
-import { showMsg, allyNames, setNamer } from './ui/messages.js';
+import { showMsg, allyNames, setNamer, claimed, nameOf } from './ui/messages.js';
 import { buildHud, showHud, updateHud, banner, fmt } from './ui/hud.js';
 import { bindInput, readMove, trayOpen, upOpen, releaseAll, inp } from './ui/input.js';
 import { startTutorial, stopTutorial, tutorialTick, bindTutorial } from './ui/tutorial.js';
@@ -263,6 +263,12 @@ $('shareBtn').addEventListener('click', async () => {
   try { if (navigator.share) { await navigator.share({ text, url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
   window.open('https://wa.me/?text=' + encodeURIComponent(text + ' ' + url), '_blank', 'noopener');
 });
+// under a side's row: the captains it cut down, and who got each (a captain's own blade +2, his men +1)
+function capsLine(a) {
+  const P = CROWN2.points, got = Object.entries(claimed).filter(([k]) => +k.split(':')[0] === a).map(([k, c]) => { const v = +k.split(':')[1];
+    return `${esc(nameOf(v))} <small>(${c.v >= P.killCaptain ? esc(c.by === G.myTi ? 'you' : nameOf(c.by)) : esc(c.by === G.myTi ? 'your men' : nameOf(c.by) + "'s men")} +${c.v})</small>`; });
+  return got.length ? `<tr class="caps"><td colspan="7">Captains cut down: ${got.join(', ')}</td></tr>` : '';
+}
 // Results screen, the mountain: each side's points and where they came from, the winner first.
 function renderPoints(w) {
   const P = CROWN2.points, mine = G.ALLY[colorOf(G.myTi)];
@@ -273,7 +279,7 @@ function renderPoints(w) {
   return `<h2 class="ptitle">${w < 0 ? 'A draw on points' : `${esc(allyNames(w))} ${allyNames(w).includes('&') ? 'win' : 'wins'} on points`}</h2>
     <table class="ctab pts"><thead><tr><th class="nm">Side</th><th>Castles &amp; keeps</th><th>Villages</th><th>War chest</th><th>Crown</th><th>Captains</th><th>Total</th></tr></thead><tbody>${rows.map(({ a, b, css }) => `
       <tr class="${a === mine ? 'me' : ''}${a === w ? ' won' : ''}"><td class="nm"><i style="background:${css}"></i>${esc(allyNames(a))}${a === mine ? ' <em>You</em>' : ''}</td>
-      <td>${cell(b.castles, P.castle)}</td><td>${cell(b.villages, P.village)}</td><td>${pt(b.chest)}</td><td>${pt(b.crown)}</td><td>${pt(b.caps)}</td><td><b class="rt">${b.total}</b></td></tr>`).join('')}</tbody></table>
+      <td>${cell(b.castles, P.castle)}</td><td>${cell(b.villages, P.village)}</td><td>${pt(b.chest)}</td><td>${pt(b.crown)}</td><td>${pt(b.caps)}</td><td><b class="rt">${b.total}</b></td></tr>${capsLine(a)}`).join('')}</tbody></table>
     <small class="hint">Castles and villages count if held at the end · chest ${P.chest} · Crown ${P.crown} · a captain ${P.killCaptain} by a captain, ${P.killArmy} by his army</small>`;
 }
 // The note under the result, from how the battle went for you (the first that fits, else the usual quip).
@@ -402,11 +408,13 @@ function viewForMatch() {
   requestAnimationFrame(() => requestAnimationFrame(hideVeil));
   watchdog.reset();
   startCrowd(G.map.id);
+  if (isClient() && !devNoIntro()) clientIntro = true; // (a joined phone plays the opening as well, once its captain is known)
 }
 // The opening of a computer battle: the camera rises over the whole field, comes in to your captain while
 // the count runs 3, 2, 1, and the men are let go on "RUN FOR YOUR LIFE, YOU FOOLS!". The sim waits for it.
 const INTRO = { fly: 2.2, from: 4.6, go: 7.0, count: [[4.6, '3'], [5.4, '2'], [6.2, '1'], [7.0, 'RUN FOR YOUR LIFE, YOU FOOLS!']] };
-let intro = null;
+let intro = null, noIntro = false, clientIntro = false;
+const devNoIntro = () => import.meta.env.DEV && window.__testSheet !== undefined && !window.__keepIntro;
 function introText(txt, big) {
   const el = $('introT'); el.textContent = txt; el.classList.toggle('go', !!big); el.hidden = false;
   el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
@@ -438,7 +446,7 @@ function beginMatch(humans, active) {
   viewForMatch();
   sfx.horn();
   startTutorial();
-  if (!session.NET && !(import.meta.env.DEV && window.__testSheet !== undefined && !window.__keepIntro)) { G.state = 'intro'; startIntro(G.player); } // (dev tests skip the opening unless they ask for it)
+  if (!noIntro && !devNoIntro()) { G.state = 'intro'; startIntro(G.player); } // (the opening: every real battle, solo or hosted; never the warm-up; dev tests skip it unless they ask)
 }
 setNetHooks({ onMatchStart: viewForMatch, onAbort: msg => netLeave(msg), onLobby: () => showLobby() });
 bindLobby({ startMatch: beginMatch, seedDemo, teams: () => soloAl.slice(), resetSolo: () => resetSolo() });
@@ -752,7 +760,7 @@ $('segFmt').addEventListener('click', e => { const b = e.target.closest('button'
 function warmupStart() {
   const keep = { mode: G.mode, time: G.time, target: G.target, squadCap: G.squadCap };
   G.mode = 'dm'; G.time = 15; G.target = null; G.squadCap = 0; // (captains only: no men to start with, and nothing to recruit into)
-  soloStart({ al: [0, 1, 2, 3], duo: [0, 0, 0, 0], map: MAPS.colosseum });
+  noIntro = true; try { soloStart({ al: [0, 1, 2, 3], duo: [0, 0, 0, 0], map: MAPS.colosseum }); } finally { noIntro = false; } // (the warm-up: straight in, no opening)
   Object.assign(G, keep, { mode: 'dm', squadCap: 0 }); G.warmup = keep;
   document.body.appendChild($('searchBox')); $('searchBox').classList.add('warm');
   toast('Warm-up: nothing counts here. Your battle starts when it\'s found');
@@ -927,9 +935,12 @@ function loop(now) {
   try {
     if (isClient() && (G.state === 'play' || G.state === 'end')) {
       let live = true; try { live = clientTick(dt); } catch (e) { fault('net', e); }
+      if (clientIntro && G.player && G.state === 'play') { clientIntro = false; startIntro(G.player); }
+      if (intro) introTick(dt);
       if (live && (G.state === 'play' || G.state === 'end')) drawMatch(dt); else demo(dt);
     } else if (G.state === 'intro') {
       if (intro) introTick(dt); // (the opening: the sim waits, the camera tells the story)
+      if (isHost() && performance.now() - (session.NET.lastSend || 0) > 400) netHostSend(true); // (hosting: the joined phones still hear from us while everyone waits)
       if (!intro) G.state = 'play';
       drawMatch(dt);
     } else if (G.state === 'play') {

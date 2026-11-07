@@ -54,10 +54,12 @@ export function botName(ti) { const n = BOT_NAMES.length, sd = (G.seed | 0) >>> 
 export const isC2 = () => G.mode === 'crown' && !!G.map && G.map.id === 'mount';
 export const capOf = ti => {
   if (G.mode !== 'crown') return G.squadCap;
-  if (isC2()) { // the mountain: 5, and every place this captain took (and his side still holds) adds to it
-    const a = G.ALLY[colorOf(ti)]; let n = CROWN2.base;
-    for (const h of G.holds || []) if (h.owner === a && h.by === ti) n += h.kind === 'castle' ? CROWN2.perCastle : h.kind === 'village' ? CROWN2.perVillage : 0;
-    return n;
+  if (isC2()) { // the mountain: 5 each, and every place the side holds adds to it, shared out between the side's captains
+    // (whoever took it: an ally's castle gives you room too; a side's whole army is the same however it splits)
+    const a = G.ALLY[colorOf(ti)]; let pool = 0;
+    for (const h of G.holds || []) if (h.owner === a) pool += h.kind === 'castle' ? CROWN2.perCastle : h.kind === 'village' ? CROWN2.perVillage : 0;
+    const n = Math.max(1, G.teams.filter((t, i) => t && t.active && G.ALLY[colorOf(i)] === a).length);
+    return CROWN2.base + Math.ceil(pool / n);
   }
   const a = G.ALLY[colorOf(ti)], hs = G.holds || [];
   return CROWN.base + hs.reduce((n, h) => n + (h.owner === a ? (h.kind === 'castle' ? CROWN.perCastle : h.kind === 'village' ? CROWN.perVillage : 0) : 0), 0);

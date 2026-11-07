@@ -8,6 +8,7 @@ import { groundY, terrainMeshY, mountHomeA, W } from '../core/world.js';
 import { stoneTex, woodTex } from './look.js';
 import { nightLook } from './scene.js';
 import { spark } from './effects.js';
+import { c2Garrison } from '../core/sim.js';
 
 let M = null;
 const lam = (color, map, extra = {}) => new THREE.MeshLambertMaterial(Object.assign({ color, map: map || null }, extra));
@@ -63,7 +64,8 @@ export function buildMount(world, L) {
   for (let c = 0; c < 4; c++) {
     const a = mountHomeA(c), g = new THREE.Group(), len = cw * 2 + 3;
     const deck = new THREE.Mesh(new THREE.BoxGeometry(len, .4, hw * 2 + .3), stone); g.add(deck);
-    for (const s of [-1, 1]) { const rail = new THREE.Mesh(new THREE.BoxGeometry(len, .6, .35), stone); rail.position.set(0, .45, s * (hw + .15)); g.add(rail); }
+    for (const s of [-1, 1]) { const rail = new THREE.Mesh(new THREE.BoxGeometry(len + 3.2, 1.1, .35), stone); rail.position.set(0, .7, s * (hw + .3)); g.add(rail);
+      for (let k = -3; k <= 3; k++) { const post = new THREE.Mesh(new THREE.BoxGeometry(.5, 1.5, .5), stone); post.position.set(k * (len + 3.2) / 6, .75, s * (hw + .3)); g.add(post); } } // (railed, end to end and into the walls)
     const under = new THREE.Mesh(new THREE.BoxGeometry(len * .8, 2.6, hw * 2), stone); under.position.y = -1.6; g.add(under);
     g.position.set(Math.cos(a) * ch, CROWN2.h.top + .05, Math.sin(a) * ch); g.rotation.y = -a; grp.add(shadowy(g));
   }
@@ -109,14 +111,18 @@ export function buildMount(world, L) {
     const lid = new THREE.Mesh(new THREE.CylinderGeometry(.55, .55, 1.6, 12, 1, false, 0, Math.PI), wood); lid.rotation.z = Math.PI / 2; lid.position.y = 1; g.add(lid);
     for (const x of [-.6, .6]) { const band = new THREE.Mesh(new THREE.BoxGeometry(.12, 1.62, 1.16), new THREE.MeshPhongMaterial({ color: 0xffcf3a, emissive: 0x4a3400 })); band.position.set(x, .78, 0); g.add(band); }
     g.visible = false; grp.add(shadowy(g)); M.chest = g; }
-  // guards (grey steel) and bandits (brown, red hoods) as figures that drop as their group is cut down
+  // guards (grey steel) and bandits (brown, red hoods): a squad each, 3 footmen in front and 2 archers (bows)
+  // behind, dropping one by one as they're cut down
   const guardMat = lam(0x8d939a), banditMat = lam(0x6b5236), hood = lam(0xa8332b), spear = lam(0x5a4632);
+  const bowGeo = new THREE.TorusGeometry(.55, .045, 4, 12, Math.PI);
   for (const b of (G.c2 && G.c2.breaks) || []) {
     if (b.kind !== 'guard' && b.kind !== 'camp') continue;
-    const men = [];
-    for (let k = 0; k < b.men; k++) {
-      const f = b.kind === 'guard' ? figure(guardMat, guardMat, spear) : figure(banditMat, hood, spear), a = k / b.men * Math.PI * 2 + .4, rr = b.kind === 'guard' ? 1.3 : 1.6;
-      const x = b.x + Math.cos(a) * rr, z = b.z + Math.sin(a) * rr; f.position.set(x, groundY(x, z), z); f.rotation.y = Math.atan2(Math.cos(a), Math.sin(a)); grp.add(f); men.push(f);
+    const men = [], nf = b.foot ?? b.men, na = b.arch ?? 0;
+    for (let k = 0; k < nf + na; k++) {
+      const archer = k >= nf, body = b.kind === 'guard' ? guardMat : banditMat, f = figure(body, b.kind === 'guard' ? guardMat : hood, spear);
+      if (archer) { f.children[2].visible = false; const bow = new THREE.Mesh(bowGeo, spear); bow.position.set(.42, 1.25, .15); bow.rotation.z = -Math.PI / 2; f.add(bow); }
+      const a = archer ? (k - nf) / Math.max(1, na) * Math.PI * 2 + 1.2 : k / nf * Math.PI * 2 + .4, rr = archer ? 2.5 : 1.3;
+      const x = b.x + Math.cos(a) * rr, z = b.z + Math.sin(a) * rr; f.position.set(x, groundY(x, z), z); f.rotation.y = Math.atan2(Math.cos(a), Math.sin(a)); grp.add(f); men.push({ f, archer, i: archer ? k - nf : k });
     }
     if (b.kind === 'camp') { const fire = new THREE.Mesh(new THREE.ConeGeometry(.45, .9, 6), new THREE.MeshBasicMaterial({ color: 0xff8a2a })); fire.position.set(b.x, groundY(b.x, b.z) + .45, b.z); grp.add(fire); M.camps.push({ b, fire }); }
     M.guards.push({ b, men });
@@ -127,8 +133,8 @@ export function updateMount(dt) {
   if (!M || !G.c2) return;
   M.t += dt; const K = G.c2, T = G.T;
   for (const { b, men } of M.guards) {
-    const alive = b.hp <= 0 ? 0 : Math.ceil(b.hp / b.max * b.men), swing = b.swingT && T - b.swingT < .35;
-    men.forEach((f, k) => { f.visible = k < alive; if (f.visible) f.children[2].rotation.x = swing && k === 0 ? -.9 : Math.sin(M.t * 2 + k) * .08; });
+    const [nf, na] = c2Garrison(b), swing = b.swingT && T - b.swingT < .35;
+    men.forEach(({ f, archer, i }) => { f.visible = i < (archer ? na : nf); if (f.visible && !archer) f.children[2].rotation.x = swing ? -.9 : Math.sin(M.t * 2 + i) * .08; });
   }
   for (const { b, fire } of M.camps) { fire.visible = b.hp > 0; fire.scale.y = .8 + Math.sin(M.t * 9 + b.x) * .2; }
   for (const p of M.pals) p.inst.visible = !!p.h.fort;

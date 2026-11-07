@@ -39,7 +39,7 @@ export const CROWN = {
   casing: 22, overtime: 60, carrierSlow: .85, plazaR: 15, wallR: 17.5, gateW: 4.4, gateHp: 1000, // (the plaza's wall at 9:00, and its four gates) // (seconds of men in the plaza to break the Crown's casing)
   size: 1.6, // (the Crown's field is this many times the standard size, so places sit further apart and there's room to hold ground)
   castles: 6, villages: 6, mines: 4, lateJoin: 120, // (a friend, or the next searcher, can still take over a computer captain in its first two minutes)
-  tower: { build: 4, hp: 260, max: 2, reach: 2.2 },
+  tower: { build: 4, hp: 260, max: 2, reach: 2.2, volley: 3, every: 4.6, range: 22, arrow: 12, jitter: .45 }, // (a watchtower, once built, looses 3 arrows at the nearest enemy every 4.6 s, twice an archer's reload: from above, so a plain shield doesn't stop them (a shield wall does); a lone soldier lasts about three volleys)
   cwallR: 13.6, cgateW: 6.4, cgateSmall: 2.6, cgateHp: 700, cgateSmallHp: 450, fortCost: [100, 170, 250], fortMult: [1, 2, 3, 4], fortTowers: [0, 1, 4, 4], fortTowerEvery: [0, 1.8, 1.8, 1.2], fortMend: 2, // (Fortify a castle you stand in, three levels: gates tougher by fortMult (x base HP), towers from level 1 (fortTowers of the four), shooting every fortTowerEvery s; a broken gate mends only with your men inside, fortMend times as fast) cgateMend: 60, // (castle curtain walls: radius, gate width and toughness, seconds a broken gate takes to mend) // (watchtowers: seconds to build, toughness, how many a side may have)
 };
 // The new Crown (the mountain), behind the ?crown2=1 switch until it replaces the old one. A terraced
@@ -57,10 +57,13 @@ export const CROWN2 = {
   income: 6, gold: { castle: 2, village: 1 }, startGold: 150,
   bonus: { castle: 200, village: 100 }, steal: { castle: .1, village: .05 },
   take: { village: 7, villageFort: 11, castle: [10, 14, 18] }, villageFort: 80, // (seconds to take: a village; a castle at level 1, 2, 3)
-  guards: { castle: 3, hp: 60, dmg: 7, cd: 1.3, reach: 2.6 }, // (a neutral castle's garrison: men's worth of hit points, and how hard they hit back)
-  camp: { men: 3, hp: 50, dmg: 6, cd: 1.4, reach: 2.4, gold: 50, back: 90 },
+  // the neutral garrisons: a castle's guards and a jungle camp's bandits are a regular squad, 3 footmen and 2
+  // archers, with their hit points and blows (the footmen go down first); archers shoot anyone close, and farther once roused
+  guards: { foot: 3, arch: 2, reach: 1.7, near: 9, roused: 18, rouseT: 10 },
+  camp: { foot: 3, arch: 2, reach: 1.7, near: 9, roused: 18, rouseT: 10, gold: 50, back: 90 },
   points: { castle: 3, village: 2, chest: 4, crown: 7, killCaptain: 2, killArmy: 1 }, // (an enemy captain is worth 2 to the captain who cuts him down, 1 if your men get there first; once only)
-  chest: 300, chestWarn: 20, chestShut: 420, chestHp: 400, // (the war chest lands at 5:00 in the arena, armies let in; broken open, or at 7:00, the gates shut)
+  chest: 300, chestWarn: 20, chestShut: 420, chestHp: 32, // (the chest: 32 blows, 40% of the glacier's 80; any blow counts one, a soldier's or a captain's)
+  // (the war chest lands at 5:00 in the arena, armies let in; broken open, or at 7:00, the gates shut)
   dusk: 450, night: 480, crack: 570, glacierHits: 80, // (dusk at 7:30; at 8:00 the arena opens to captains and the glacier can be hit; it breaks after so many captain blows)
   bridgeHw: 2.2, chasmBridgeHw: 2.1, arenaGateW: 5.2,
 };

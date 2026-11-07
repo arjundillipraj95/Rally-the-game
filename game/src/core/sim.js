@@ -1106,7 +1106,7 @@ function arrowHit(a, b) {
   if (b.mounted && Math.random() < .6) { horseDamage(b, dmg); return; }
   let blocked = false;
   if (frontal && !b.mounted && !b.carrying && loc !== 'head') {
-    if (b.kind === 'foot' && Math.random() < .7) blocked = true;
+    if (b.kind === 'foot' && !a.plunge && Math.random() < .7) blocked = true; // (a plain shield; arrows plunging from a tower come in over it)
     if (b.leader && (b.human ? b.blocking : Math.random() < .35)) blocked = true;
   }
   if (blocked) { spark(b.x, b.y + 1.3, b.z, '#e8d9b0', 4); sound('thud', b.x, b.z); b.blockT = Math.max(b.blockT, .2); return; }
@@ -1115,7 +1115,7 @@ function arrowHit(a, b) {
   push(b, 0, 0, .12);
   if (b.isMe) { fx('shake', .25); fx('buzz', 20); }
   const sh = a.shooter;
-  if (b.hp <= 0) die(b, sh && !sh.dead && !sh.tower ? sh : { ti: a.ti, human: false, leader: false }, Math.atan2(b.x - a.x0, b.z - a.z0));
+  if (b.hp <= 0) die(b, a.neutral ? null : sh && !sh.dead && !sh.tower ? sh : { ti: a.ti, human: false, leader: false }, Math.atan2(b.x - a.x0, b.z - a.z0));
 }
 export function die(u, killer, ang, launch = 0) {
   if (u.dead) return;
@@ -1507,6 +1507,10 @@ function updateFlag(dt) {
 function towersTick(dt) {
   for (let i = G.wtowers.length - 1; i >= 0; i--) {
     const w = G.wtowers[i]; if (w.build < 1) w.build = Math.min(1, w.build + dt / CROWN.tower.build);
+    // built: a volley at the nearest enemy in bow range (enough to see off a lone soldier, not an army)
+    if (w.build >= 1 && w.hp > 0 && G.role !== 'client') { w.shootCd = (w.shootCd ?? rnd(.5, 2)) - dt;
+      if (w.shootCd <= 0) { const T0 = CROWN.tower, [e] = nearestFoe({ x: w.x, z: w.z, ti: w.ti }, T0.range); w.shootCd = e ? T0.every : .5;
+        if (e) for (let k = 0; k < T0.volley; k++) { shoot({ x: w.x + rnd(-.3, .3), z: w.z + rnd(-.3, .3), y: groundY(w.x, w.z), vx: 0, vz: 0, ti: w.ti, tower: true, arrow: T0.arrow, jitter: T0.jitter }, e, 5.5); G.arrows[G.arrows.length - 1].plunge = true; } } }
     if (w.hp <= 0) { G.wtowers.splice(i, 1); say('towerDown', w.ti, w.by ?? -1); fx('fxmsg', { k: 'fxgate', u: { x: w.x, y: groundY(w.x, w.z), z: w.z }, ti: -1 }); fx('netFlush'); }
   }
 }
@@ -1606,22 +1610,28 @@ export function c2Begin() {
   const L = G.layout, K = G.c2 = { kills: {}, chestPts: {}, crownPts: {}, breaks: [], phase: 'shut', said: {}, chest: 0 };
   for (const h of G.holds) if (h.kind === 'castle') {
     if (G.cgates[h.id]) G.cgates[h.id] = freshGates(1); // (neutral: level 2)
-    const cw = L.cwalls.find(c => c.hid === h.id), g = cw ? cw.gate : 0, hp = CROWN2.guards.castle * CROWN2.guards.hp;
-    K.breaks.push({ brk: true, kind: 'guard', hid: h.id, x: h.x + Math.cos(g) * 4.5, z: h.z + Math.sin(g) * 4.5, r: 2.4, hp, max: hp, cd: 1, men: CROWN2.guards.castle });
+    const cw = L.cwalls.find(c => c.hid === h.id), g = cw ? cw.gate : 0, Q = CROWN2.guards, hp = Q.foot * STATS.foot.hp + Q.arch * STATS.arch.hp;
+    K.breaks.push({ brk: true, kind: 'guard', hid: h.id, x: h.x + Math.cos(g) * 4.5, z: h.z + Math.sin(g) * 4.5, r: 2.4, hp, max: hp, cd: 1, shootCd: [rnd(.5, 2), rnd(.5, 2)], men: Q.foot + Q.arch, foot: Q.foot, arch: Q.arch });
   }
-  for (const c of L.camps) { const hp = CROWN2.camp.men * CROWN2.camp.hp; K.breaks.push({ brk: true, kind: 'camp', id: c.id, x: c.x, z: c.z, r: 2.6, hp, max: hp, cd: 1, back: 0, men: CROWN2.camp.men }); }
+  for (const c of L.camps) { const Q = CROWN2.camp, hp = Q.foot * STATS.foot.hp + Q.arch * STATS.arch.hp; K.breaks.push({ brk: true, kind: 'camp', id: c.id, x: c.x, z: c.z, r: 2.6, hp, max: hp, cd: 1, shootCd: [rnd(.5, 2), rnd(.5, 2)], back: 0, men: Q.foot + Q.arch, foot: Q.foot, arch: Q.arch }); }
   K.breaks.push({ brk: true, kind: 'glacier', x: 0, z: 0, r: 2.6, hp: CROWN2.glacierHits, max: CROWN2.glacierHits });
   applyCastleGates();
   G.plazaWall.up = true; G.plazaWall.broken = 0;
 }
 const c2CanHit = (u, b) => b.kind === 'glacier' ? u.leader && G.c2.phase === 'night' : b.kind === 'chest' ? G.c2.chest === 1 : true;
+// how many of a garrison still stand: [footmen, archers] (the footmen in front go down first)
+export function c2Garrison(b) {
+  if (b.hp <= 0) return [0, 0];
+  const ah = (b.arch || 0) * STATS.arch.hp, f = Math.max(0, Math.min(b.foot || 0, Math.ceil((b.hp - ah) / STATS.foot.hp)));
+  return [f, f > 0 ? b.arch || 0 : Math.min(b.arch || 0, Math.ceil(b.hp / STATS.arch.hp))];
+}
 export function c2BreakInReach(u) {
   for (const b of G.c2.breaks) { if (b.hp <= 0 || !c2CanHit(u, b)) continue; if (Math.hypot(b.x - u.x, b.z - u.z) < u.r + u.reach + b.r) return b; }
   return null;
 }
 function c2Hit(u, b) {
   if (b.hp <= 0 || !c2CanHit(u, b)) return;
-  b.hp -= b.kind === 'glacier' ? 1 : u.dmg * (u.leader ? 1.5 : 1) * aiDmg(u.ti); b.by = u.ti; b.hitT = G.T;
+  b.hp -= b.kind === 'glacier' || b.kind === 'chest' ? 1 : u.dmg * (u.leader ? 1.5 : 1) * aiDmg(u.ti); // (the glacier and the chest count blows) b.by = u.ti; b.hitT = G.T;
   sound('wall', b.x, b.z); spark(b.x, groundY(b.x, b.z) + 1.4, b.z, b.kind === 'glacier' ? '#bfe6f5' : b.kind === 'chest' ? '#ffcf3a' : '#b33a2a', 4);
   if (b.hp > 0) return;
   b.hp = 0; const a = allianceOf(u.ti), K = G.c2;
@@ -1658,6 +1668,8 @@ function c2Tick(dt) {
     const d = Math.hypot(u.x, u.z); if (d >= ar + .4) continue;
     const k = (ar + 1.4) / (d || 1); u.x = d ? u.x * k : ar + 1.4; u.z = d ? u.z * k : 0; u.path = null;
   }
+  // over the edge into the chasm: gone, there and then
+  { const H = CROWN2.h; for (const u of G.units) if (!u.dead && !(u.jy > .3) && Math.hypot(u.x, u.z) < G.layout.chasm.r + G.layout.chasm.w + 1 && groundY(u.x, u.z) < H.top - 2.5) { if (u.isMe) fx('shake', .4); die(u, null, 0); } }
   // the glacier is solid: you stand at its face and hack, not inside it
   { const gl = K.breaks.find(b => b.kind === 'glacier'); if (gl && gl.hp > 0) for (const u of G.units) {
     if (u.dead) continue; const d = Math.hypot(u.x - gl.x, u.z - gl.z), m = gl.r - .2 + u.r; if (d >= m) continue;
@@ -1675,17 +1687,33 @@ function c2Tick(dt) {
     if (u.shieldT > T && u.shieldHp != null) u.hp = Math.max(u.hp, Math.min(u.max, u.shieldHp));
     u.shieldHp = u.shieldT > T ? u.hp : null;
   }
-  // the guards and the bandits fight back; the camps fill again in time
+  // the guards and the bandits fight back like any squad (3 footmen, 2 archers); the camps fill again in time
   for (const b of K.breaks) {
     if (b.kind === 'camp' && b.hp <= 0 && b.back && T >= b.back) { b.hp = b.max; b.back = 0; }
     if ((b.kind !== 'guard' && b.kind !== 'camp') || b.hp <= 0) continue;
-    const st = b.kind === 'guard' ? C.guards : C.camp; b.cd -= dt; if (b.cd > 0) continue;
-    let best = null, bd = b.r + st.reach;
-    for (const u of G.units) { if (u.dead) continue; const d = Math.hypot(u.x - b.x, u.z - b.z); if (d < bd) { bd = d; best = u; } }
-    if (!best) { b.cd = .3; continue; }
-    b.cd = st.cd * rnd(.85, 1.15); const men = Math.max(1, Math.ceil(b.hp / b.max * b.men));
-    best.hp -= st.dmg * men; best.lastHit = T; best.stun = Math.max(best.stun || 0, .15); b.swingT = T;
-    sound('hit', best.x, best.z); if (best.hp <= 0) die(best, null, Math.atan2(best.x - b.x, best.z - b.z));
+    const st = b.kind === 'guard' ? C.guards : C.camp, [nf, na] = c2Garrison(b), near = [];
+    for (const u of G.units) { if (u.dead || u.inSafe) continue; const d = Math.hypot(u.x - b.x, u.z - b.z); if (d < st.roused + 2) near.push([d, u]); }
+    near.sort((p, q) => p[0] - q[0]);
+    // the footmen: each swings at one of the nearest in reach (spread over them), a footman's blow
+    b.cd -= dt;
+    if (b.cd <= 0) { const inReach = near.filter(([d]) => d < b.r + st.reach + .6);
+      if (!inReach.length) b.cd = .3;
+      else { b.cd = STATS.foot.cd * rnd(.85, 1.15); b.swingT = T;
+        for (let k = 0; k < nf; k++) { const v = inReach[k % inReach.length][1]; if (v.dead) continue;
+          let dmg = STATS.foot.dmg * rnd(.8, 1.2) * DIFF[G.diff].dmg; if (v.leader && v.armour > 0) dmg = soak(v, dmg, false);
+          if (v.human && v.blocking) { dmg *= .25; spark(v.x, v.y + 1.3, v.z, '#e8d9b0', 3); }
+          v.hp -= dmg; v.lastHit = T; v.stun = Math.max(v.stun || 0, .15); sound('hit', v.x, v.z);
+          if (v.isMe) fx('shake', .15);
+          if (v.hp <= 0) die(v, null, Math.atan2(v.x - b.x, v.z - b.z)); } } }
+    // the archers: real arrows at whoever's close (farther once someone's hit them)
+    const range = T - (b.hitT ?? -99) < st.rouseT ? st.roused : st.near;
+    for (let k = 0; k < na; k++) { b.shootCd[k] -= dt; if (b.shootCd[k] > 0) continue;
+      const tg = near.find(([d, u]) => d < range && !u.dead); if (!tg) { b.shootCd[k] = .4; continue; }
+      b.shootCd[k] = STATS.arch.shoot * rnd(.85, 1.2);
+      const a = b.kind === 'guard' ? (G.layout.cwalls.find(c => c.hid === b.hid) || b) : b, oa = k * 2.4 + 1;
+      const sx = a === b ? b.x + Math.cos(oa) * 1.6 : a.x + Math.cos(oa) * (a.r - 1.6), sz = a === b ? b.z + Math.sin(oa) * 1.6 : a.z + Math.sin(oa) * (a.r - 1.6);
+      shoot({ x: sx, z: sz, y: groundY(sx, sz), vx: 0, vz: 0, ti: -1, tower: true, arrow: STATS.arch.arrow, jitter: STATS.arch.jitter }, tg[1], a === b ? 1.6 : 4.5);
+      G.arrows[G.arrows.length - 1].neutral = true; }
   }
   if (T >= C.crack) once('c2crack');
   if (T >= matchTime()) c2End('time');
@@ -2739,6 +2767,9 @@ export function arrowsTick(dt, authoritative) {
     const t = Math.min(1, a.t);
     const x = a.x0 + (a.x1 - a.x0) * t, z = a.z0 + (a.z1 - a.z0) * t, y = a.y0 + (a.y1 - a.y0) * t + a.peak * 4 * t * (1 - t);
     a.px = a.x; a.py = a.y; a.pz = a.z; a.x = x; a.y = y; a.z = z;
+    // night on the summit: the arena's walls stop every arrow and javelin, in or out (the Crown is the captains' fight)
+    if (G.c2 && G.c2.phase === 'night' && G.layout.arena) { const ar = G.layout.arena.r;
+      if ((Math.hypot(a.x0, a.z0) < ar) !== (Math.hypot(x, z) < ar)) { a.stuck = true; a.life = 2; sound('thud', x, z); spark(x, y, z, '#cfc6b2', 4); continue; } }
     if (y < 15 && a.t > .12) { // trees, walls, buildings and ridges stop arrows
       for (const tr of nearBlockers(x, z)) {
         if (tr.off || y > tr.h + groundY(tr.x, tr.z) || (tr.gate && !gateShut(tr))) continue;
@@ -2749,7 +2780,7 @@ export function arrowsTick(dt, authoritative) {
     if (a.t >= 1) {
       if (authoritative) {
         let best = null, bd = 1.0;
-        for (const o of G.units) { if (o.dead || !isEnemyTi(o.ti, a.ti) || (o.duelId && !(a.shooter && a.shooter.duelId === o.duelId))) continue; const d = Math.hypot(o.x - a.x1, o.z - a.z1) - (o.mounted ? .5 : 0); if (d < bd) { bd = d; best = o; } }
+        for (const o of G.units) { if (o.dead || !(a.neutral || isEnemyTi(o.ti, a.ti)) || (o.duelId && !(a.shooter && a.shooter.duelId === o.duelId))) continue; const d = Math.hypot(o.x - a.x1, o.z - a.z1) - (o.mounted ? .5 : 0); if (d < bd) { bd = d; best = o; } }
         if (a.volley) { const s = G.teams[a.ti]; if (s && G.units.some(o => !o.dead && isEnemyTi(o.ti, a.ti) && Math.hypot(o.x - a.x1, o.z - a.z1) < 6)) { if (!(s.vLandT > G.T - .5) && s.human && s.leader && !s.leader.dead) fx('fxmsg', { k: 'fxvland', u: s.leader }); s.vLandT = G.T; } } // (a volley's come down among them)
         if (best) { arrowHit(a, best); a.done = true; } else { a.stuck = true; a.life = 3; }
       } else { a.stuck = true; a.life = 2.5; }

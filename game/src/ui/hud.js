@@ -4,12 +4,40 @@ import { CROWN, TEAMS, MODES, STATS, DM_TICKETS, CAPS_TO_WIN, CTRL, AL_LETTER, O
 import { G, isFfa, colorOf, rules, matchTime, SLOT_NAME, isOut, capOf, isC2 } from '../core/state.js';
 import { colorOut, colorScore, colorHuman, squadOf, canRecruit, horseMax, upgradeCost, javMax, execTarget, castleHere, villageHere } from '../core/sim.js';
 import { session, isClient } from '../net/session.js';
+import { claimed, nameOf, glory, allyNames } from './messages.js';
 
 const $ = id => document.getElementById(id);
 export const fmt = s => { s = Math.max(0, Math.floor(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 
+// the mountain: tap the Points panel for where every point stands: each castle and keep, each village (and who
+// holds it), the war chest and the Crown (who took them, when), and the enemy captains your side has cut down
+let capSig = '';
+$('points').addEventListener('click', () => { if (!isC2()) return; const el = $('capList'); el.hidden = !el.hidden; capSig = ''; $('points').classList.toggle('open', !el.hidden); });
+function capList() {
+  const el = $('capList'); if (el.hidden || !G.c2) return;
+  const K = G.c2, C = CROWN2, P = C.points, own = G.ALLY[colorOf(G.myTi)], T = G.T;
+  const dots = a => a == null || a < 0 ? '<i class="nd"></i>' : TEAMS.map((t, i) => G.ALLY[i] === a && G.teams.some((s, j) => s && s.active && colorOf(j) === i) ? `<i style="background:${t.css}"></i>` : '').join('');
+  const side = a => a === own ? 'Your side' : allyNames(a);
+  const short = n => String(n).replace(/^Castle /, '').replace(/^the /, '').replace(/[<>&]/g, '');
+  const place = h => `<div class="pl${h.owner === own ? ' me' : ''}">${dots(h.owner)}<span>${short(h.name)}</span></div>`;
+  const cas = G.holds.filter(h => h.kind === 'castle'), vil = G.holds.filter(h => h.kind === 'village');
+  const ch = K.breaks.find(b => b.kind === 'chest'), gl = K.breaks.find(b => b.kind === 'glacier');
+  const chestTxt = glory.chest ? `${dots(glory.chest.a)} ${side(glory.chest.a)} · ${fmt(glory.chest.T)}` : K.chest === 1 && ch ? `In the arena · ${Math.ceil(ch.hp)}/${ch.max}` : K.chest >= 2 ? 'Taken' : `Lands at ${fmt(C.chest)}`;
+  const crownTxt = glory.crown ? `${dots(glory.crown.a)} ${side(glory.crown.a)} · ${fmt(glory.crown.T)}` : T >= C.night && gl ? `Glacier ${Math.ceil(gl.hp)}/${gl.max}` : `Wakes at ${fmt(C.night)}`;
+  const foes = G.teams.map((t, i) => i).filter(i => G.teams[i] && G.teams[i].active && G.ALLY[colorOf(i)] !== own);
+  const caps = foes.map(i => { const c = claimed[own + ':' + i], k = (K.kills[own] || {})[i];
+    const who = c ? (c.by === G.myTi ? (c.v >= P.killCaptain ? 'you' : 'your men') : (c.v >= P.killCaptain ? nameOf(c.by) : `${nameOf(c.by)}'s men`)) : '';
+    return `<div class="cl"><i style="background:${TEAMS[colorOf(i)].css}"></i><b>${nameOf(i).replace(/[<>&]/g, '')}</b>${c || k ? `<span class="ok">✓ ${who ? who + ' ' : ''}+${c ? c.v : k}</span>` : `<span class="open">+${P.killCaptain} open</span>`}</div>`; }).join('');
+  const html = `<div><h4>Castles &amp; keeps <em>${P.castle} each</em></h4><div class="pls">${cas.map(place).join('')}</div>
+    <h4>Villages <em>${P.village} each</em></h4><div class="pls">${vil.map(place).join('')}</div></div>
+    <div><h4>War chest <em>${P.chest}</em></h4><div class="gl">${chestTxt}</div>
+    <h4>The Crown <em>${P.crown}</em></h4><div class="gl">${crownTxt}</div>
+    <h4>Enemy captains <em>${P.killCaptain} / ${P.killArmy}</em></h4>${caps}</div>`;
+  if (html === capSig) return; capSig = html; el.innerHTML = html;
+}
 export function buildHud() {
-  $('ptsTitle').textContent = isC2() ? 'Points' : MODES[G.mode].title;
+  $('ptsTitle').innerHTML = isC2() ? 'Points <small class="tapme">tap for details</small>' : MODES[G.mode].title;
+  $('points').classList.toggle('tappable', isC2()); $('capList').hidden = true; capSig = '';
   $('tpRows').innerHTML = TEAMS.map((t, i) => `<div class="tp${i === colorOf(G.myTi) ? ' me' : ''}" id="tp${i}"><span class="al">${isFfa() ? '' : AL_LETTER[G.ALLY[i]]}</span><div class="bar"><i style="background:${t.css}"></i></div><b>0</b></div>`).join('');
   $('pips').innerHTML = TEAMS.map((t, i) => `<span class="pip" id="pip${i}" style="background:${t.css}">${t.name[0]}</span>`).join('');
   $('clockMax').textContent = fmt(matchTime());
@@ -62,10 +90,14 @@ export function updateHud(lastSnapAt) {
   const sq = squadOf(G.myTi), cap = capOf(G.myTi); $('squadN').textContent = G.mode === 'crown' ? `${sq.length}/${cap}` : sq.length;
   if (isC2()) { // the mountain's phase, under the clock
     const T = G.T, C = CROWN2, K = G.c2, ph = !K ? '' : T < C.chest ? `War chest in ${fmt(C.chest - T)}` : K.phase === 'open' ? 'Arena open · break the chest' : T < C.night ? `The Crown wakes in ${fmt(C.night - T)}` : 'Night · captains to the glacier';
-    // the glacier's health, big and in the middle for everyone once night falls (or once anyone's chipped it)
-    { const gl = K && K.breaks.find(b => b.kind === 'glacier'), on = !!gl && gl.hp > 0 && (T >= C.night || gl.hp < gl.max), box = $('glacier');
+    capList();
+    // the war chest's and the glacier's health, big and in the middle for everyone: the chest while it's in the
+    // arena, the glacier once night falls (or once anyone's chipped it)
+    { const ch = K && K.chest === 1 && K.breaks.find(b => b.kind === 'chest' && b.hp > 0), gl = K && K.breaks.find(b => b.kind === 'glacier'),
+        b = ch || (gl && gl.hp > 0 && (T >= C.night || gl.hp < gl.max) ? gl : null), box = $('glacier'), on = !!b;
       if (box && box.hidden === on) box.hidden = !on;
-      if (box && on) { const n = `${Math.ceil(gl.hp)} / ${gl.max}`; $('glacierBar').style.transform = `scaleX(${gl.hp / gl.max})`; if ($('glacierN').textContent !== n) { $('glacierN').textContent = n; box.classList.remove('hit'); void box.offsetWidth; box.classList.add('hit'); } box.classList.toggle('crack', T >= C.crack); } }
+      if (box && on) { box.classList.toggle('chest', !!ch); const lbl = ch ? 'The War Chest' : 'The Glacier'; if (box.firstChild.textContent !== lbl) box.firstChild.textContent = lbl;
+        const n = `${Math.ceil(b.hp)} / ${b.max}`; $('glacierBar').style.transform = `scaleX(${b.hp / b.max})`; if ($('glacierN').textContent !== n) { $('glacierN').textContent = n; box.classList.remove('hit'); void box.offsetWidth; box.classList.add('hit'); } box.classList.toggle('crack', !ch && T >= C.crack); } }
     const el = $('phaseTag'); if (el && el.textContent !== ph) { el.textContent = ph; el.classList.toggle('hot', K && (K.phase === 'open' || K.phase === 'night')); }
   } else if (G.mode === 'crown') { // the phase, under the clock
     const T = G.T, ph = T < CROWN.breakout ? `Break-out in ${Math.ceil(CROWN.breakout - T)}` : T < CROWN.rise ? 'Claim a castle' : T < CROWN.siege ? `Castles safe · siege in ${fmt(CROWN.siege - T)}` : T < CROWN.crown ? (G.lms ? `Siege · the ring in ${fmt(CROWN.crown - T)}` : `Siege · the Crown in ${fmt(CROWN.crown - T)}`) : G.lms ? `No coming back · ${G.units.filter(u => u.leader && !u.dead).length} captains left` : T < matchTime() ? 'The Crown!' : 'Overtime!';

@@ -7,7 +7,7 @@ const b1 = await chromium.launch(opts), b2 = await chromium.launch(opts);
 const pages = [];
 for (const [b, nick] of [[b1, 'Arjun'], [b2, 'Ravi']]) {
   const ctx = await b.newContext({ viewport: { width: 844, height: 390 } });
-  await ctx.addInitScript(nick => { window.__PEER_OPTS = { host: '127.0.0.1', port: 9000, path: '/', secure: false, config: { iceServers: [] } }; localStorage.setItem('rally-tutorial-done', '1'); localStorage.setItem('rally-quality', 'low'); localStorage.setItem('fb-nick', nick); }, nick);
+  await ctx.addInitScript(nick => { window.__testSheet = null; window.__PEER_OPTS = { host: '127.0.0.1', port: 9000, path: '/', secure: false, config: { iceServers: [] } }; localStorage.setItem('rally-tutorial-done', '1'); localStorage.setItem('rally-quality', 'low'); localStorage.setItem('fb-nick', nick); }, nick);
   const p = await ctx.newPage(); p.on('pageerror', e => console.log(nick, 'ERR', e.message)); pages.push(p);
   await p.goto('http://127.0.0.1:8766/?online=http://127.0.0.1:8787&crown2=1');
 }
@@ -22,7 +22,7 @@ await A.click('#friendsDone'); await B.click('#friendsDone'); await sleep(500);
 // Arjun starts a Solo battle alone; once it's running, Ravi joins it from his friends list
 await A.click('#segFmt button[data-v="0"]'); await A.click('#playBtn');
 console.log('waiting for Arjun\'s battle to start (60 s)...');
-await A.waitForFunction(() => window.__fb && window.__fb.G.state === 'play', null, { timeout: 120000 });
+await A.waitForFunction(() => window.__fb && window.__fb.G.state === 'play' && window.__fb.G.role === 'host', null, { timeout: 120000 });
 await sleep(3000);
 await B.click('#friendsBtn'); await sleep(800); await B.waitForSelector('[data-join]'); await B.click('[data-join]');
 await B.waitForFunction(() => window.__fb && window.__fb.G.state === 'play', null, { timeout: 60000 }); await sleep(3000);

@@ -506,6 +506,9 @@ function mountPlaces(L, box, trees) {
   // the chasm round the summit: impassable but for a bridge in line with each keep
   { const ch = K.chasm * R, cw = K.chasmW * R, skip = a => [0, 1, 2, 3].some(c => Math.abs(angDiff(a, mountHomeA(c))) * ch < CROWN2.chasmBridgeHw + 1.9);
     for (const d of [ch - cw * .5, ch + cw * .5]) ringWall(L, 0, 0, d, 1.6, 0, skip, { chasm: true });
+    // each bridge railed both sides, end to end and into the walls: nobody shoved off the side
+    for (let c = 0; c < 4; c++) { const a = mountHomeA(c), ux = Math.cos(a), uz = Math.sin(a), off = CROWN2.chasmBridgeHw + .35;
+      for (let d = ch - cw - 1.6; d <= ch + cw + 1.6; d += .6) for (const s of [-1, 1]) L.obstacles.push({ x: ux * d - uz * s * off, z: uz * d + ux * s * off, r: .4, keep: true, rail: true }); }
     L.chasm = { r: ch, w: cw }; }
   // the arena wall: stone all round, a gate facing each keep (opened and shut by the battle's phases)
   { const W0 = K.arena * R, gates = [0, 1, 2, 3].map(mountHomeA), half = CROWN2.arenaGateW / 2 / W0, pw = { r: W0, gates, obs: [], blk: [] }, n = Math.ceil(Math.PI * 2 * W0 / 1.1);
