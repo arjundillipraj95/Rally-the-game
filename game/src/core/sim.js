@@ -1054,7 +1054,7 @@ function braceTick(p, dt) {
     if (d > reach || Math.abs(angDiff(p.face, Math.atan2(dx, dz))) > .7) continue;
     p.braceCd = HOLD_ATK.braceCd; p.swing = .38; p.swingKind = 3;
     if (o.mounted) {
-      horseDamage(o, 60); if (o.mounted) dismount(o, true); gainRally(p, RALLY.unhorse); hit(p, o, 1.6, { unparryable: true, kb: 1.5 });
+      o.charge = 0; horseDamage(o, 60); if (!o.mounted) gainRally(p, RALLY.unhorse); hit(p, o, 1.6, { unparryable: true, kb: 1.5 }); // (stops him; off only if the horse falls)
       fx('fxmsg', { k: 'fximpale', u: o }); if (p.isMe) { fx('hitstop', .12); fx('shake', .45); }
     } else hit(p, o, 1.45, { kb: 1.6, stun: .5 });
     break;
@@ -2648,14 +2648,17 @@ export function update(dt, input) {
 
   for (const r of G.units) {
     if (r.dead || !r.mounted) continue;
+    if (r.spearCd > 0) r.spearCd -= dt; // (a rider just stopped on spears isn't skewered again on the rebound)
     const sp = Math.hypot(r.vx, r.vz);
     const nearR = []; eachNear(r.x, r.z, 4, o => nearR.push(o));
     for (const o of nearR) {
       if (o.dead || !isEnemy(o, r) || o.mounted || o.execT > 0 || o.duelId) continue;
       const dx = o.x - r.x, dz = o.z - r.z; if (Math.abs(dx) > 4 || Math.abs(dz) > 4) continue;
       const d = Math.hypot(dx, dz);
-      if (o.kind === 'foot' && o.tier >= 1 && d < o.r + r.r + 1.6 && braced(o) && sp > 4 && Math.abs(angDiff(o.face, Math.atan2(r.x - o.x, r.z - o.z))) < 1.0) {
-        horseDamage(r, 55); if (r.mounted) dismount(r, true);
+      if (!(r.spearCd > 0) && o.kind === 'foot' && o.tier >= 1 && d < o.r + r.r + 1.6 && braced(o) && sp > 4 && Math.abs(angDiff(o.face, Math.atan2(r.x - o.x, r.z - o.z))) < 1.0) {
+        // the spear stops the charge and hurts the horse; the rider stays up and fights on (unless the horse goes down)
+        r.charge = 0; r.spearCd = 1; horseDamage(r, 55);
+        if (r.mounted) push(r, -Math.sin(r.face) * 6, -Math.cos(r.face) * 6, .5);
         spark(o.x, o.y + 1.5, o.z, '#fff3b0', 8); sound('clang', o.x, o.z);
         fx('float', { x: o.x, y: o.y + 2.8, z: o.z, text: 'Spear wall!', color: TEAMS[colorOf(o.ti)].css });
         break;
