@@ -12,7 +12,7 @@ import { cam } from '../render/camera.js';
 export const allyNames = a => TEAMS.filter((_, i) => G.ALLY[i] === a).map(t => t.name).join(' & ');
 
 export function msgText(k, a) {
-  const myTi = G.myTi, nm = i => TEAMS[colorOf(i)].name, css = i => TEAMS[colorOf(i)].css, mine = i => i === myTi, ally = i => !isEnemyTi(i, myTi);
+  const myTi = G.myTi, nm = i => namer(i) || TEAMS[colorOf(i)].name, css = i => TEAMS[colorOf(i)].css, mine = i => i === myTi, ally = i => !isEnemyTi(i, myTi);
   switch (k) {
     case 'start': if (G.map && G.map.id === 'mount') return ['The Crown', 'Take your castles, push the lanes, climb the mountain. The Crown wakes at 8:00'];
       if (G.mode === 'crown') return ['The Crown', 'The trumpet sounds in 15 seconds. Pick a castle and run for it!'];
@@ -136,6 +136,7 @@ export function c2Tier(k, a) {
   return 0;
 }
 export const c2On = () => G.mode === 'crown' && G.map && G.map.id === 'mount';
+let namer = () => null; export const setNamer = f => { namer = f; }; // (captains by name: players' nicknames, computer captains' names)
 export function showMsg(k, a) {
   bus.emit('shownMsg', { k, a });
   const myTi = G.myTi;

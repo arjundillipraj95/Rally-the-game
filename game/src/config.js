@@ -255,6 +255,10 @@ export const CHARGE = { dur: 2.2, cd: 12, spd: 1.45, dmg: 32, kb: 15 };
 // (the 3rd hit cleaves), the spear trades speed for reach and pierces a second man, javelins are
 // a limited, regenerating ranged burst. Attacking in mid-air is a leap slam that hits a whole arc.
 export const WEAPONS = ['sword', 'spear', 'jav'];
+// Computer captains' names (the same on every phone in a battle: picked from the battle's seed)
+export const BOT_NAMES = ['Monk', 'Big Ron', 'Sir Bumble', 'Gus', 'Old Tom', 'Wobbly Pete', 'Brother Ham', 'Mad Meg', 'Lord Puddle', 'Turnip', 'Bertram', 'Fat Olaf', 'Nell', 'Sir Clank', 'Mungo', 'Dame Prue',
+  'Bodger', 'Hamish', 'Little John', 'Grim Gary', 'Sir Soggy', 'Ma Kettle', 'Baldric', 'Dunstan', 'Hilda', 'Captain Crumb', 'Waldo', 'Sir Snore', 'Rufus', 'Gertie', 'Tubby', 'Osric',
+  'Mildred', 'Sir Mud', 'Barnaby', 'Edwin the Late', 'Wilf', 'Lady Grudge', 'Norbert', 'Ivo'];
 export const WEAPON_NAMES = { sword: 'Sword', spear: 'Spear', jav: 'Javelins' };
 // the three weapon classes: primary (the sword family, the fast combo), secondary (the spear family, reach and
 // the skewer), ranged (javelins, thrown and recovered over time). Shown on the weapon picker.

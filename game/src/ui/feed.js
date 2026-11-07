@@ -157,7 +157,7 @@ function c2Feed(k, a) {
   if (tier !== 2) return;
   const html = feedLine(k, a); if (!html) return;
   if (said[html] && now - said[html] < 30000) return; said[html] = now;
-  if (t2 && now - t2.t < 5000) { if (t2.k === k && t2.li.isConnected) { t2.n++; t2.li.innerHTML = `${t2.html} <i>×${t2.n}</i>`; } return; }
+  if (t2 && now - t2.t < 5000) { if (t2.k === k && t2.li.isConnected) { t2.n++; t2.li.innerHTML = html === t2.html ? `${html} <i>×${t2.n}</i>` : `${html} <i>+${t2.n - 1} more</i>`; t2.html = html; } return; }
   const li = document.createElement('div'); li.className = 'fl'; li.innerHTML = html;
   el.prepend(li); while (el.children.length > MAX) el.lastChild.remove();
   setTimeout(() => { li.classList.add('old'); setTimeout(() => li.remove(), 600); }, LIFE);

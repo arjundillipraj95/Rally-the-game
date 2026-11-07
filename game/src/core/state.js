@@ -1,6 +1,6 @@
 // The whole game state lives in one plain object. Rules read and write it;
 // the renderer and UI only read it. Nothing here depends on three.js or the DOM.
-import { MAPS, TIMES, PACE, TARGETS, CROWN, CROWN2 } from '../config.js';
+import { MAPS, TIMES, PACE, TARGETS, CROWN, CROWN2, BOT_NAMES } from '../config.js';
 
 export const G = {
   role: 'solo',          // 'solo' | 'host' | 'client'
@@ -48,6 +48,9 @@ export const castlesIn = () => [0, 1, 2, 3].filter(c => !isOut(c));
 // no castle of this colour on the map: out of the battle, or the Crown (where nobody has a home castle)
 export const noCastle = c => isOut(c) || G.mode === 'crown';
 // an army's size limit: the usual squad cap, or in the Crown its base plus what its side holds
+// a computer captain's name: a step through the list from a point set by the battle's seed (the step
+// shares no factor with the list's length, so twelve captains never share a name)
+export function botName(ti) { const n = BOT_NAMES.length, sd = (G.seed | 0) >>> 0, step = [7, 11, 13, 17, 19][(sd >>> 3) % 5]; return BOT_NAMES[(sd % n + ti * step) % n]; }
 export const isC2 = () => G.mode === 'crown' && !!G.map && G.map.id === 'mount';
 export const capOf = ti => {
   if (G.mode !== 'crown') return G.squadCap;
