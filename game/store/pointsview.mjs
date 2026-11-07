@@ -26,6 +26,15 @@ await page.screenshot({ path: S + 'pointsview_' + w + '.png' });
 console.log('ledgers vs totals:', await page.evaluate(() => { const { G, ledger, c2Breakdown } = window.__fb; const out = {};
   for (let i = 0; i < G.teams.length; i++) { const t = G.teams[i]; if (!t || !t.active) continue; const a = G.ALLY[i % 4]; out[a] = out[a] || { sum: 0, total: window.__fb.c2Points(a) }; out[a].sum += ledger(i).net; }
   return JSON.stringify(out); }));
-await page.locator('.ps-row').nth(1).click(); await page.waitForTimeout(300);
-await page.screenshot({ path: S + 'pointsview_focus_' + w + '.png' });
+// the levels: the top side's team, its first captain, one of his ledger lines; then back up by the breadcrumb
+const tag = process.env.FFA ? 'ffa' : 'al';
+await page.locator('.ps-row').first().click(); await page.waitForTimeout(250);
+await page.screenshot({ path: S + `lv2_${tag}_${w}.png` });
+await page.locator('.cap-row').first().click(); await page.waitForTimeout(250);
+const n = await page.locator('.lg[data-ev]').count(); if (n) await page.locator('.lg[data-ev]').nth(Math.min(4, n - 1)).click(); await page.waitForTimeout(250);
+console.log('captain view:', await page.evaluate(() => document.querySelector('.pv-crumb').innerText + ' | ' + document.querySelector('.tl-at').innerText));
+await page.screenshot({ path: S + `lv3_${tag}_${w}.png` });
+await page.locator('.pv-crumb a[data-go="1"]').click(); await page.waitForTimeout(250);
+await page.locator('[data-go="me"]').click(); await page.waitForTimeout(250);
+console.log('you view:', await page.evaluate(() => document.querySelector('.pv-crumb').innerText));
 await browser.close();
