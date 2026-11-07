@@ -14,7 +14,7 @@ for (const [b, nick] of [[b1, 'Arjun'], [b2, 'Ravi']]) {
 const [A, B] = pages, sleep = ms => new Promise(r => setTimeout(r, ms));
 const ev = (p, f) => p.evaluate(f);
 await A.waitForFunction(() => document.getElementById('friendsSub').textContent !== 'Connecting…', null, { timeout: 20000 }); await sleep(1500);
-const codeB = await B.evaluate(async () => { const { ON } = await import('/src/net/online.js'); for (let k = 0; k < 60 && !(ON.me && ON.me.id); k++) await new Promise(r => setTimeout(r, 500)); return ON.me && ON.me.id; });
+const codeB = await B.evaluate(async () => { const ON = window.__on.ON; for (let k = 0; k < 60 && !(ON.me && ON.me.id); k++) await new Promise(r => setTimeout(r, 500)); return ON.me && ON.me.id; });
 console.log('B code', codeB);
 await A.click('#friendsBtn'); await A.fill('#fAddCode', codeB); await A.click('#fAddBtn'); await sleep(800);
 await B.click('#friendsBtn'); await B.waitForSelector('[data-acc]'); await B.click('[data-acc]'); await sleep(800);
