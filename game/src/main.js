@@ -543,10 +543,14 @@ const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 function renderSearch() {
   const L = ON.lobby, box = $('searchBox');
   box.hidden = !L; $('playBtn').hidden = !!L;
-  if (!L) { if (G.warmup) warmupStop(true); return; }
+  if (!L) { renderSearch.seen = null; if (G.warmup) warmupStop(true); return; }
   if (!G.warmup && G.state === 'title') warmupStart();
   const cap = [1, 2, 3][L.fmt], filled = L.sides.flat().length, total = cap * 4, me = ON.me && ON.me.id;
-  $('searchT').textContent = `Lobby · ${['Solo', 'Duo', 'Trio'][L.fmt]} · ${filled}/${total}`;
+  $('searchT').textContent = filled === total ? 'Full: starting now' : `Finding players · ${['Solo', 'Duo', 'Trio'][L.fmt]} · ${filled}/${total}`;
+  // a small flash as someone takes a seat (the seat list stays out of the way while you warm up)
+  const ids = L.sides.flat().filter(x => x && x.id !== me), seen = renderSearch.seen || new Set();
+  for (const x of ids) if (!seen.has(x.id) && renderSearch.seen) toast(`${x.nick} joined Army ${'ABCD'[L.sides.findIndex(sd => sd.includes(x))]}`);
+  renderSearch.seen = new Set(ids.map(x => x.id));
   // the lobby: four armies, a seat per captain of each; players by name (yours marked), open seats waiting
   $('searchSides').innerHTML = L.sides.map((sd, c) => `<div class="lobSide" style="--c:${TEAMS[c].css}"><h4>Army ${'ABCD'[c]}</h4>` +
     Array.from({ length: cap }, (_, k) => { const x = sd[k]; return x ? `<p class="lobSlot${x.id === me ? ' me' : ''}"><b>${esc(x.nick)}</b>${x.id === me ? '<em>you</em>' : ''}</p>` : `<p class="lobSlot open">Open seat</p>`; }).join('') + '</div>').join('');

@@ -11,6 +11,8 @@ for (const [w, h] of [[872, 325], [390, 844]]) {
     const m = { room: 'R', fmt: 1, sides, endsIn: 40000, me: 'me' }; O.ON.lobby = m; O.bus.emit('online', { k: 'lobby', m });
   });
   await frames(page, 30);
+  await page.evaluate(() => { const O = window.__on, m = O.ON.lobby; m.sides[1].push({ id: 'e', nick: 'Kiran' }); O.bus.emit('online', { k: 'lobby', m }); });
+  await frames(page, 4);
   await page.screenshot({ path: OUT + `lobby_${w}.png`, timeout: 150000 });
   await page.close();
 }

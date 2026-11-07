@@ -585,3 +585,11 @@
 .introT.go{font-size:min(9vw,56px);color:var(--gold);}
 .introT.pop{animation:introPop .5s ease-out;}
 @keyframes introPop{0%{transform:translate(-50%,-50%) scale(1.7);opacity:0}35%{opacity:1}100%{transform:translate(-50%,-50%) scale(1);opacity:1}}
+
+/* the lobby while you warm up: a small pill at the top, the arena gets the whole screen; the battle starts on its own */
+.search.warm{width:auto;max-width:94vw;flex-direction:row;align-items:center;gap:10px;padding:4px 6px 4px 14px;border-radius:999px;background:rgba(14,13,12,.78);}
+.search.warm .ssides,.search.warm .searchNote{display:none;}
+.search.warm .srow{gap:10px;align-items:center;}
+.search.warm .srow b{font:800 13px var(--body);font-style:normal;color:#fff;white-space:nowrap;}
+.search.warm .srow span{font-size:13px;color:var(--gold);}
+.search.warm #searchCancel{font:800 12px var(--body);padding:4px 10px;border-radius:999px;}
