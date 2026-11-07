@@ -62,7 +62,7 @@ export const CROWN2 = {
   guards: { foot: 3, arch: 2, reach: 1.7, near: 9, roused: 18, rouseT: 10 },
   camp: { foot: 3, arch: 2, reach: 1.7, near: 9, roused: 18, rouseT: 10, gold: 50, back: 90 },
   points: { castle: 3, village: 2, chest: 4, crown: 7, killCaptain: 2, killArmy: 1 }, // (an enemy captain is worth 2 to the captain who cuts him down, 1 if your men get there first; once only)
-  chest: 300, chestWarn: 20, chestShut: 420, chestHp: 32, // (the chest: 32 blows, 40% of the glacier's 80; any blow counts one, a soldier's or a captain's)
+  chest: 300, chestWarn: 20, chestShut: 420, chestHp: 250, // (the chest: 250 blows, any blow counts one, a soldier's or a captain's: whole armies swing at it, so it holds about 30 s under a full crowd)
   // (the war chest lands at 5:00 in the arena, armies let in; broken open, or at 7:00, the gates shut)
   dusk: 450, night: 480, crack: 570, glacierHits: 80, // (dusk at 7:30; at 8:00 the arena opens to captains and the glacier can be hit; it breaks after so many captain blows)
   bridgeHw: 2.2, chasmBridgeHw: 2.1, arenaGateW: 5.2,
