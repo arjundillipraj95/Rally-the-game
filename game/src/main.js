@@ -9,7 +9,7 @@ import '@fontsource/barlow-semi-condensed/latin-800-italic.css';
 import './style.css';
 import { TEAMS, MODES, MAPS, PRESETS, RANKS, CRESTS, QUIPS, TIPS, AL_LETTER, TARGETS, DUEL } from './config.js';
 import { G, bus, colorOf, rules, matchTime, modeDesc, activeFrom, targetFor, SLOT_NAME, isEnemyTi } from './core/state.js';
-import { rideRelease, orderVolley, challenge, canChallenge, startMatch, mkUnit, newTeams, update, fallStep, endMatch, auraRange, endStep, setOrder, applyFort } from './core/sim.js';
+import { rideRelease, orderVolley, challenge, canChallenge, startMatch, mkUnit, newTeams, update, fallStep, endMatch, auraRange, endStep, setOrder, applyFort, c2Points } from './core/sim.js';
 import { makeLayout, gatePos, groundY, W } from './core/world.js';
 import { buildNav, findPath } from './core/nav.js';
 import { renderer, scene, camera, resize, applyPixelRatio, applyShadowQuality, followSun } from './render/scene.js';
@@ -67,6 +67,7 @@ document.addEventListener('touchend', e => { const n = Date.now(); if (n - lastT
 
 const params = new URLSearchParams(location.search);
 if (params.get('stress') === '1') G.fullSquads = true; // every team starts with a full squad of 20
+const crown2 = params.get('crown2') === '1'; // the new Crown on the mountain, until it replaces the old one
 // the home page's team setup, as in the multiplayer lobby: each colour's team, and its Duo/Trio
 let soloAl = (() => { try { const v = JSON.parse(localStorage.getItem('rally-solo-al')); if (Array.isArray(v) && v.length === 4 && v.every(x => x >= 0 && x < 4)) return v.map(Number); } catch (e) {} return [0, 1, 1, 0]; })();
 const saveSoloAl = () => { try { localStorage.setItem('rally-solo-al', JSON.stringify(soloAl)); } catch (e) {} };
@@ -367,6 +368,8 @@ function endText(w, why) {
   const names = allyNames(w), one = names.indexOf('&') < 0;
   if (why === 'castles') return `${names} tore down every enemy castle.`;
   if (why === 'crown') return `${names} ${one ? 'holds' : 'hold'} the Crown at the final trumpet.`;
+  if (why === 'crown2') return `The glacier broke and the battle ended: ${names} ${one ? 'wins' : 'win'} on points.`;
+  if (why === 'points2') return `Time is up: ${names} ${one ? 'wins' : 'win'} on points.`;
   if (why === 'lms') return `${names} ${one ? 'is' : 'are'} the last standing.`;
   if (why === 'places') return `Nobody held the Crown: ${names} held the most of the land.`;
   if (why === 'tickets') return `${names} ${one ? 'is' : 'are'} the last side with tickets.`;
@@ -666,7 +669,8 @@ function resetSolo() { G.role = 'solo'; G.myTi = prefs.color; G.ALLY = soloAl.sl
 function soloStart(o = {}) {
   initAudio(); session.NET = null; resetSolo();
   if (o.al) G.ALLY = o.al.slice();
-  G.map = o.map || (G.mode === 'crown' ? MAPS.valley : soloMap); clearMeadow(); G.lms = !!o.lms; // (the Crown has its own land)
+  G.map = o.map || (G.mode === 'crown' ? (crown2 ? MAPS.mount : MAPS.valley) : soloMap); clearMeadow(); G.lms = !!o.lms && !crown2; // (the Crown has its own land)
+  if (G.map.id === 'mount') G.time = 10; // (the mountain's phases are set to the minute)
   G.seed = (Math.random() * 1e9) | 0;
   G.looks = assignLooks({ [G.myTi]: prefs.look }, G.seed);
   const active = activeFrom(o.duo || soloDuo);
@@ -950,7 +954,7 @@ window.__fb = {
   volley(pt) { actions.volley(pt); }, order(o, pt) { actions.order(o, pt); }, rally() { actions.rally(); },
   attack() { actions.attack(); }, duel() { actions.duel(); }, jump() { actions.jump(); }, weapon(w) { actions.weapon(w); }, upgrade(id) { actions.upgrade(id); },
   fort(c, lv) { G.teams[c].up.fort = lv; applyFort(c); },
-  setOrder, rideRelease, findPath, gatePos, orderVolley, mkUnit, challenge, canChallenge, G, cam, scene, renderer, audio: () => audioStats(),
+  setOrder, rideRelease, findPath, gatePos, orderVolley, mkUnit, challenge, canChallenge, G, W, c2Points, cam, scene, renderer, audio: () => audioStats(),
 };
 
 function onResize() { resize(); resizeOverlay(); }

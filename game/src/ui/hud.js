@@ -1,7 +1,7 @@
 // Scoreboard, clock, health, gold, squad count and button labels.
-import { STAMINA } from '../config.js';
+import { STAMINA, CROWN2 } from '../config.js';
 import { CROWN, TEAMS, MODES, STATS, DM_TICKETS, CAPS_TO_WIN, CTRL, AL_LETTER, ORDER_NAMES, UPGRADES, WEAPON_NAMES, WEAPON_CLASS, STREAK, LAST } from '../config.js';
-import { G, isFfa, colorOf, rules, matchTime, SLOT_NAME, isOut, capOf } from '../core/state.js';
+import { G, isFfa, colorOf, rules, matchTime, SLOT_NAME, isOut, capOf, isC2 } from '../core/state.js';
 import { colorOut, colorScore, colorHuman, squadOf, canRecruit, horseMax, upgradeCost, javMax, execTarget, castleHere } from '../core/sim.js';
 import { session, isClient } from '../net/session.js';
 
@@ -41,8 +41,8 @@ export function updateHud(lastSnapAt) {
   TEAMS.forEach((t, i) => {
     const row = $('tp' + i); if (!row) return;
     const gone = isOut(i); row.hidden = gone; const pp = $('pip' + i); if (pp) pp.hidden = gone; if (gone) return; // (a castle out of this battle)
-    const v = colorScore(i), max = G.mode === 'conquest' ? 100 : G.mode === 'dm' ? rules().tickets : G.mode === 'ctrl' ? rules().win : G.mode === 'crown' ? 8 : rules().caps;
-    row.querySelector('i').style.transform = `scaleX(${Math.max(0, v) / max})`;
+    const v = colorScore(i), max = G.mode === 'conquest' ? 100 : G.mode === 'dm' ? rules().tickets : G.mode === 'ctrl' ? rules().win : isC2() ? 30 : G.mode === 'crown' ? 8 : rules().caps;
+    row.querySelector('i').style.transform = `scaleX(${Math.min(1, Math.max(0, v) / max)})`;
     row.querySelector('b').textContent = G.mode === 'ctf' ? `${v}/${rules().caps}` : Math.max(0, Math.ceil(v));
     const out = colorOut(i); row.classList.toggle('out', out);
     row.classList.toggle('last', G.mode === 'conquest' && !out && G.teams[i].alive && G.teams[i].points < LAST.at); // (breached: the last stand)
@@ -60,7 +60,10 @@ export function updateHud(lastSnapAt) {
   }
   const gold = Math.floor(me.gold); $('gold').textContent = gold;
   const sq = squadOf(G.myTi), cap = capOf(G.myTi); $('squadN').textContent = G.mode === 'crown' ? `${sq.length}/${cap}` : sq.length;
-  if (G.mode === 'crown') { // the phase, under the clock
+  if (isC2()) { // the mountain's phase, under the clock
+    const T = G.T, C = CROWN2, K = G.c2, ph = !K ? '' : T < C.chest ? `War chest in ${fmt(C.chest - T)}` : K.phase === 'open' ? 'Arena open · break the chest' : T < C.night ? `The Crown wakes in ${fmt(C.night - T)}` : 'Night · captains to the glacier';
+    const el = $('phaseTag'); if (el && el.textContent !== ph) { el.textContent = ph; el.classList.toggle('hot', K && (K.phase === 'open' || K.phase === 'night')); }
+  } else if (G.mode === 'crown') { // the phase, under the clock
     const T = G.T, ph = T < CROWN.breakout ? `Break-out in ${Math.ceil(CROWN.breakout - T)}` : T < CROWN.rise ? 'Claim a castle' : T < CROWN.siege ? `Castles safe · siege in ${fmt(CROWN.siege - T)}` : T < CROWN.crown ? (G.lms ? `Siege · the ring in ${fmt(CROWN.crown - T)}` : `Siege · the Crown in ${fmt(CROWN.crown - T)}`) : G.lms ? `No coming back · ${G.units.filter(u => u.leader && !u.dead).length} captains left` : T < matchTime() ? 'The Crown!' : 'Overtime!';
     const el = $('phaseTag'); if (el && el.textContent !== ph) { el.textContent = ph; el.classList.toggle('hot', T >= CROWN.crown || T < CROWN.breakout); }
   } else if ($('phaseTag').textContent) $('phaseTag').textContent = '';
@@ -82,7 +85,7 @@ export function updateHud(lastSnapAt) {
     const own = id === 'fort' ? G.teams[colorOf(G.myTi)] : me, l = cw ? (cst && cst.lv) | 0 : own && own.up ? own.up[id] : 0, cost = upgradeCost(G.myTi, id); // (Fortify: the castle's)
     const locked = (id === 'foot2' && !(me.up && me.up.foot1)) || (id === 'arch2' && !(me.up && me.up.arch1));
     b.querySelector('.lv').dataset.pips = id === 'arm' || id === 'tower' ? '' : '●'.repeat(l) + '○'.repeat(Math.max(0, max - l));
-    if (id === 'fort' && G.mode === 'crown') b.querySelector('span').textContent = !cw ? 'Stand in a castle you hold' : cst && cst.broken ? 'Mend the broken gates now' : l >= 2 ? 'Iron gates and archer towers' : l === 1 ? 'Archers on its four towers' : 'Iron-banded gates, quicker to mend';
+    if (id === 'fort' && G.mode === 'crown') b.querySelector('span').textContent = !cw && isC2() ? 'Stand in a castle or village you hold' : !cw ? 'Stand in a castle you hold' : cst && cst.broken ? 'Mend the broken gates now' : l >= 2 ? 'Iron gates and archer towers' : l === 1 ? 'Archers on its four towers' : 'Iron-banded gates, quicker to mend';
     else if (id === 'fort') b.querySelector('span').textContent = l >= max ? (cost != null ? 'Mend the broken gate' : 'Palisade, gates and towers built') : l === 1 ? 'Gates and gate towers' : 'Palisade, then gates & towers';
     b.querySelector('em').textContent = cost == null ? (id === 'fort' && G.mode === 'crown' && !cw ? '—' : id === 'tower' ? 'Two up' : id === 'arm' ? (G.player && !G.player.dead ? 'Whole' : '—') : 'Maxed') : locked ? (id === 'foot2' ? 'Needs Arms first' : 'Needs Training first') : cost + 'g';
     b.dataset.state = cost == null ? 'max' : locked ? 'locked' : gold < cost ? 'poor' : 'ok';

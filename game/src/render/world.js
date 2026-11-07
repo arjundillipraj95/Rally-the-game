@@ -16,6 +16,7 @@ import { buildValley, updateValley, clearValley, valleyGround, fieldAt } from '.
 import { buildFrost, updateFrost, clearFrost, frostGround, onPond } from './frost.js';
 import { buildDesert, updateDesert, clearDesert, desertGround } from './desert.js';
 import { buildForum, forumGround } from './forum.js';
+import { buildMount, updateMount, mountGround } from './mountain.js';
 
 let world = null;
 export let castleObjs = [];
@@ -70,6 +71,7 @@ export function buildWorldView(L) {
     if (M.id === 'frost' && r < RR + 5) frostGround(c, x, z);
     if (M.id === 'desert' && r < RR + 5) desertGround(c, x, z);
     if (M.id === 'forum') forumGround(c, x, z);
+    if (M.id === 'mount' && r < RR + 4) mountGround(c, x, z);
     if (M.id === 'wooden' && (Math.abs(x) < 2.6 || Math.abs(z) < 2.6) && r > 8 && r < 80) c.lerp(mud, .45);
     cols.push(c.r, c.g, c.b);
   }
@@ -157,6 +159,7 @@ export function buildWorldView(L) {
   buildHolds(world, L); buildPalisades(world, L);
   buildFeatures(L, world);
   if (M.id === 'valley') buildValley(world, L);
+  buildMount(world, L);
   if (M.id === 'frost') buildFrost(world);
   if (M.id === 'desert') buildDesert(world, L);
   if (M.id === 'forum') buildForum(world, L);
@@ -295,7 +298,7 @@ export function updateWorldView(dt, fxHook) {
   updateValley(dt, grassU.time.value);
   updateFrost(dt, grassU.time.value);
   updateDesert(dt, grassU.time.value);
-  updateControlPoints(); updateHolds(); updatePalisades();
+  updateControlPoints(); updateHolds(); updatePalisades(); updateMount(dt);
   TEAMS.forEach((t, i) => {
     const s = G.teams[i], co = castleObjs[i]; if (!co || !s) return;
     const want = G.mode !== 'conquest' ? 1 : s.alive ? 1 - (1 - s.points / 100) * .12 : .28;
@@ -354,7 +357,7 @@ function buildCrownRiver(world, V) {
     grp.position.set(b.x, y, b.z); grp.rotation.y = -b.a; world.add(shadowy(grp));
   }
   const stoneM = lam(0x9a9b94, stoneTex());
-  for (const f of V.fords) for (let k = 0; k < 26; k++) {
+  if (!V.ring) for (const f of V.fords) for (let k = 0; k < 26; k++) { // (the mountain's river is wadeable all along: no stepping stones)
     const a = k * 2.4, rr = Math.sqrt((k + .5) / 26) * f.r * .9, x = f.x + Math.cos(a) * rr, z = f.z + Math.sin(a) * rr;
     const st = new THREE.Mesh(new THREE.DodecahedronGeometry(.35 + (k % 3) * .12), stoneM); st.position.set(x, groundY(x, z) + .05, z); world.add(shadowy(st));
   }

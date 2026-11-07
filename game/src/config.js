@@ -42,6 +42,28 @@ export const CROWN = {
   tower: { build: 4, hp: 260, max: 2, reach: 2.2 },
   cwallR: 13.6, cgateW: 6.4, cgateSmall: 2.6, cgateHp: 700, cgateSmallHp: 450, fortCost: [100, 170, 250], fortMult: [1, 2, 3, 4], fortTowers: [0, 1, 4, 4], fortTowerEvery: [0, 1.8, 1.8, 1.2], fortMend: 2, // (Fortify a castle you stand in, three levels: gates tougher by fortMult (x base HP), towers from level 1 (fortTowers of the four), shooting every fortTowerEvery s; a broken gate mends only with your men inside, fortMend times as fast) cgateMend: 60, // (castle curtain walls: radius, gate width and toughness, seconds a broken gate takes to mend) // (watchtowers: seconds to build, toughness, how many a side may have)
 };
+// The new Crown (the mountain), behind the ?crown2=1 switch until it replaces the old one. A terraced
+// round mountain, the same for every side: four homes on the rim, two lanes each (home, castle, open
+// field, castle, home), the jungle ring above with four villages and eight bandit camps, the meltwater
+// river (wade it anywhere, slowly; eight narrow bridges), four keeps on the top ring and, behind a
+// chasm, the arena where the Crown sits frozen in a glacier. Radii are fractions of the field's radius.
+export const CROWN2 = {
+  R: 150, scale: [.7, .85, 1], // (field radius for a trio; a duo's is .85 of it, a solo's .7)
+  r: { home: .92, lane: .835, ridge: .705, village: .59, camp: .575, river: .443, riverW: .022, keep: .32, top: .42, chasm: .19, chasmW: .028, arena: .165 },
+  h: { lane: 0, jungle: 3.4, top: 6.8, chasm: -9 }, // (ground heights of the tiers)
+  castleA: [Math.PI / 6, Math.PI / 3], fieldA: Math.PI / 4, campA: [.4, 1.17], // (angles from a home, toward the next one clockwise)
+  safeR: 15, safe: { dmg: 45, heal: 18, shield: 3, boost: 1.3, boostT: 4 }, // (home: enemies inside burn, yours heal; after you step out you're untouchable shield s and quicker for boostT s)
+  base: 5, perCastle: 5, perVillage: 3, startSquad: ['foot', 'foot', 'foot', 'arch', 'arch'],
+  income: 6, gold: { castle: 2, village: 1 }, startGold: 150,
+  bonus: { castle: 200, village: 100 }, steal: { castle: .1, village: .05 },
+  take: { village: 7, villageFort: 11, castle: [10, 14, 18] }, villageFort: 80, // (seconds to take: a village; a castle at level 1, 2, 3)
+  guards: { castle: 3, hp: 60, dmg: 7, cd: 1.3, reach: 2.6 }, // (a neutral castle's garrison: men's worth of hit points, and how hard they hit back)
+  camp: { men: 3, hp: 50, dmg: 6, cd: 1.4, reach: 2.4, gold: 50, back: 90 },
+  points: { castle: 3, village: 2, chest: 4, crown: 7, kill: 1 },
+  chest: 300, chestWarn: 20, chestShut: 420, chestHp: 400, // (the war chest lands at 5:00 in the arena, armies let in; broken open, or at 7:00, the gates shut)
+  dusk: 450, night: 480, crack: 570, glacierHits: 80, // (dusk at 7:30; at 8:00 the arena opens to captains and the glacier can be hit; it breaks after so many captain blows)
+  bridgeHw: 2.2, chasmBridgeHw: 2.1, arenaGateW: 5.2,
+};
 // Match length, in minutes: Quick, Standard (the default) or Long. A shorter battle runs hotter: more
 // gold, and computer armies march out with smaller squads (gather).
 export const TIMES = [[5, 'Quick'], [10, 'Standard'], [15, 'Long']];
@@ -66,6 +88,7 @@ export const MAPS = {
   dunes:  { id: 'dunes',  name: 'Dune Field',  desc: 'Open sand and scattered fences. Straight fights.', sky: 0xdcd6c6, fog: [70, 190], g1: 0xc9a978, g2: 0xb8956a, g3: 0xa88a62, hill: 0x6e6258, rock: 0x8d8174 },
   river:  { id: 'river',  name: 'River Ford',  desc: 'A river splits the field. Two bridges and a shallow ford that slows everyone crossing it.', sky: 0xcfdde0, fog: [70, 190], g1: 0x7f9a4c, g2: 0x6c8a42, g3: 0x5d6f40, hill: 0x5b6a55, rock: 0x8a8d86 },
   forest: { id: 'forest', name: 'Pine Forest', desc: 'Dense pine clusters. Trees stop arrows and hide ambushes.', sky: 0xb9c8b0, fog: [34, 120], g1: 0x55733a, g2: 0x62803f, g3: 0x44582f, hill: 0x3e4c34, rock: 0x7a7c70 },
+  mount:  { id: 'mount', name: 'The Mountain', hidden: true, desc: 'The new Crown: a terraced mountain with the Crown frozen at its summit.', sky: 0xcfdde0, fog: [90, 320], g1: 0x8aad50, g2: 0x76983f, g3: 0x5d6f40, hill: 0x5b6a55, rock: 0x8f8f86 },
   frost:  { id: 'frost',  name: 'Frost Hill',  desc: 'A snowy hill in the middle, walled off by pine forests and crags, with frozen ponds in two of the passes: on the ice you slide. Fighting downhill deals +20% damage and archers on top shoot 30% farther.', sky: 0xe4ecf2, fog: [60, 170], g1: 0xeef3f6, g2: 0xd7e0e8, g3: 0xb8c4ce, hill: 0x9aa6b2, rock: 0x8e969c },
 };
 
@@ -75,7 +98,7 @@ export const KINDS = ['captain', 'foot', 'arch'];
 // last stands are the beats that move the plan, so they keep their voice.
 export const CALM = {
   quiet: new Set(['fortUp', 'towerUp', 'towerDown', 'rout', 'armourOn', 'duelNo', 'duelDraw', 'duelBroken', 'gateRepaired', 'bounty', 'bountyClaimed', 'flagTaken', 'pointCaptured', 'tickets0']),
-  herald: new Set(['start', 'first', 'castleDown', 'chestSoon', 'chestTaken', 'crownGo', 'crownSiege', 'crownRise', 'crownTaken', 'crownDropped', 'overtime', 'lastStand', 'lmsRing', 'champions', 'last']),
+  herald: new Set(['c2chestSoon', 'c2chestUp', 'c2nightSoon', 'c2night', 'c2crack', 'start', 'first', 'castleDown', 'chestSoon', 'chestTaken', 'crownGo', 'crownSiege', 'crownRise', 'crownTaken', 'crownDropped', 'overtime', 'lastStand', 'lmsRing', 'champions', 'last']),
   heraldGap: 20000, // (in the Crown the herald speaks at most this often)
   bubbles: 1, bubbleGap: 5, // (speech bubbles: one at a time, and a longer pause between)
 };

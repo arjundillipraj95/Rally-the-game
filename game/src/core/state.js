@@ -1,6 +1,6 @@
 // The whole game state lives in one plain object. Rules read and write it;
 // the renderer and UI only read it. Nothing here depends on three.js or the DOM.
-import { MAPS, TIMES, PACE, TARGETS, CROWN } from '../config.js';
+import { MAPS, TIMES, PACE, TARGETS, CROWN, CROWN2 } from '../config.js';
 
 export const G = {
   role: 'solo',          // 'solo' | 'host' | 'client'
@@ -48,8 +48,14 @@ export const castlesIn = () => [0, 1, 2, 3].filter(c => !isOut(c));
 // no castle of this colour on the map: out of the battle, or the Crown (where nobody has a home castle)
 export const noCastle = c => isOut(c) || G.mode === 'crown';
 // an army's size limit: the usual squad cap, or in the Crown its base plus what its side holds
+export const isC2 = () => G.mode === 'crown' && !!G.map && G.map.id === 'mount';
 export const capOf = ti => {
   if (G.mode !== 'crown') return G.squadCap;
+  if (isC2()) { // the mountain: 5, and every place this captain took (and his side still holds) adds to it
+    const a = G.ALLY[colorOf(ti)]; let n = CROWN2.base;
+    for (const h of G.holds || []) if (h.owner === a && h.by === ti) n += h.kind === 'castle' ? CROWN2.perCastle : h.kind === 'village' ? CROWN2.perVillage : 0;
+    return n;
+  }
   const a = G.ALLY[colorOf(ti)], hs = G.holds || [];
   return CROWN.base + hs.reduce((n, h) => n + (h.owner === a ? (h.kind === 'castle' ? CROWN.perCastle : h.kind === 'village' ? CROWN.perVillage : 0) : 0), 0);
 };
