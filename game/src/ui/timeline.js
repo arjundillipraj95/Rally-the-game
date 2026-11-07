@@ -38,7 +38,7 @@ export function renderPointsV2(el, w) {
   tlTick();
   const mine = G.ALLY[colorOf(G.myTi)], sides = sidesNow(), fin = Object.fromEntries(sides.map(a => [a, c2Breakdown(a)]));
   const order = [...sides].sort((x, y) => fin[y].total - fin[x].total), top = Math.max(1, ...sides.map(a => fin[a].total));
-  const name = a => a === mine ? 'Your side' : esc(allyNames(a));
+  const name = a => esc(allyNames(a)) + (a === mine ? ' <em class="you">You</em>' : '');
   // 1. the scoreline: each side's total, split by source
   const score = order.map(a => { const p = parts(fin[a]);
     return `<div class="ps-row${a === mine ? ' me' : ''}${a === w ? ' won' : ''}"><span class="ps-nm">${dots(a)}${name(a)}</span>
@@ -56,7 +56,11 @@ export function renderPointsV2(el, w) {
   if (glory.crown) g += mark(glory.crown.T, 'Crown', '#9fdcf5');
   for (const a of order.slice().reverse()) { const pts = S.filter(s => s.by[a]).map(s => `${X(s.T).toFixed(1)},${Y(s.by[a].total).toFixed(1)}`).join(' ');
     g += `<polyline points="${pts}" fill="none" stroke="${lineCol(a)}" stroke-width="${a === mine ? 3.4 : 2.2}" stroke-linejoin="round" stroke-linecap="round" opacity="${a === mine ? 1 : .85}"/>`;
-    const last = S[S.length - 1].by[a]; if (last) g += `<text x="${W - R + 4}" y="${Y(last.total) + 4}" class="tl-end" style="fill:${lineCol(a)}">${last.total}</text>`; }
+  }
+  { const ends = order.filter(a => S[S.length - 1].by[a]).map(a => ({ a, v: S[S.length - 1].by[a].total, y: Y(S[S.length - 1].by[a].total) + 4 })).sort((p, q) => p.y - q.y);
+    for (let i = 1; i < ends.length; i++) ends[i].y = Math.max(ends[i].y, ends[i - 1].y + 12); // (close finishes: the numbers step apart)
+    const over = ends.length ? Math.max(0, ends[ends.length - 1].y - (H - B + 4)) : 0;
+    for (const e of ends) g += `<text x="${W - R + 4}" y="${e.y - over}" class="tl-end" style="fill:${lineCol(e.a)}">${e.v}</text>`; }
   g += `<line class="tl-cur" x1="0" x2="0" y1="${Tp}" y2="${H - B}" visibility="hidden"/>`;
   const momentsTxt = [glory.chest ? `War chest to ${glory.chest.a === mine ? 'your side' : esc(allyNames(glory.chest.a))} at ${mmss(glory.chest.T)}` : '', glory.crown ? `Crown to ${glory.crown.a === mine ? 'your side' : esc(allyNames(glory.crown.a))} at ${mmss(glory.crown.T)}` : ''].filter(Boolean).join(' · ');
   // 3. your places: everywhere your side held, when it was taken, and whether it stayed yours

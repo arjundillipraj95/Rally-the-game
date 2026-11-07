@@ -699,3 +699,6 @@ body:has(#glacier:not([hidden])) #phaseTag{top:96px;}
 .cc-more summary{cursor:pointer;font:800 11px var(--body);letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.55);}
 .cc-side{margin-top:6px;} .cc-side > span{display:block;margin-bottom:3px;font-weight:800;}
 @media (max-width:520px){ .etabs{overflow-x:auto;scrollbar-width:none;} .etabs button{flex:0 0 auto;} }
+.ps-nm em.you,.pv em.you{font:800 9.5px var(--body);font-style:normal;letter-spacing:.06em;text-transform:uppercase;padding:1px 6px;border-radius:999px;background:var(--gold);color:#141312;margin-left:4px;vertical-align:1px;}
+/* a phone on its side: tighter, so the chart shows without scrolling */
+@media (max-height:500px){ #endPts{padding:8px 12px;} .pv .ptitle{font-size:22px;margin-bottom:4px;} .ps{gap:2px;} .ps-row{font-size:12px;padding:0 4px;} .ps-row b{font-size:16px;} .ps-bar{height:9px;} .ps-leg{margin-top:3px;font-size:10px;} .pv h4{margin:6px 0 3px;} .tl-at{min-height:0;} }
