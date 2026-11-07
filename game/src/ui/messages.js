@@ -5,7 +5,7 @@ import { G, isEnemyTi, colorOf, bus, rules } from '../core/state.js';
 import { allianceCaps, horseCooldown } from '../core/sim.js';
 import { groundY } from '../core/world.js';
 import { banner } from './hud.js';
-import { sfx, buzz } from './audio.js';
+import { sfx, buzz, musicCue } from './audio.js';
 import { floatText } from '../render/effects.js';
 import { cam } from '../render/camera.js';
 
@@ -115,6 +115,27 @@ export function msgText(k, a) {
   return null;
 }
 
+
+// ---------- the mountain's announcements: three tiers ----------
+// 1, the herald and the big banner: only what moves the whole match (the chest, night, the Crown).
+// 2, your side's feed: what happens to your side (a place taken or lost, your castle's gate, an ally
+// down), merged and spaced. Everything between the other sides stays quiet. Highlights wait for the
+// results screen. Your own personal moments (gold, a new man, your horse) keep their small cues.
+const TIER1 = new Set(['start', 'c2chestSoon', 'c2chestUp', 'chestTaken', 'c2nightSoon', 'c2night', 'c2crack', 'crownTaken']);
+const PERSONAL = new Set(['gold', 'holdMen', 'respawn', 'horseDown', 'horseBack', 'armourOn', 'villageFort', 'castleFort', 'gateRepaired', 'duelOn', 'duelWon', 'duelNo', 'duelDraw', 'duelBroken', 'execReady']);
+const lastOwner = {};
+export function c2Tier(k, a) {
+  const myTi = G.myTi, mine = G.ALLY[colorOf(myTi)];
+  if (k === 'start') for (const id in lastOwner) delete lastOwner[id]; // (a new battle: nobody owns anything yet)
+  if (TIER1.has(k)) return 1;
+  if (k === 'holdTaken') { const was = lastOwner[a[2]]; lastOwner[a[2]] = a[0]; return a[0] === mine || was === mine ? 2 : 0; }
+  if (k === 'capDown') return G.ALLY[colorOf(a[0])] === mine || a[1] === myTi ? 2 : 0;
+  if (k === 'castleGate') { const h = G.holds && G.holds[a[2]]; return h && h.owner === mine ? 2 : 0; }
+  if (k === 'towerDown' || k === 'towerUp') return G.ALLY[colorOf(a[0])] === mine ? 2 : 0;
+  if (PERSONAL.has(k)) return a[0] === myTi ? 3 : 0;
+  return 0;
+}
+export const c2On = () => G.mode === 'crown' && G.map && G.map.id === 'mount';
 export function showMsg(k, a) {
   bus.emit('shownMsg', { k, a });
   const myTi = G.myTi;
@@ -123,9 +144,11 @@ export function showMsg(k, a) {
   if (k === 'chestUp') sfx.horn();
   if (k === 'lastStand') { sfx.crumble(); sfx.horn(); if (colorOf(a[0]) === colorOf(myTi)) { buzz([120, 60, 120]); cam.shake = .5; } }
   if (k === 'chestTaken') { sfx.capture(); if (a[0] === G.ALLY[colorOf(myTi)]) { sfx.coin(); sfx.cheer(); buzz([60, 40, 60]); } }
+  if (k === 'c2night') musicCue('night');
   if (k === 'holdTaken') { sfx.capture(); if (a[0] === G.ALLY[colorOf(myTi)]) { sfx.cheer(); buzz([50, 30, 50]); } }
   const m = msgText(k, a); if (!m) return;
-  if (G.mode === 'crown' && CALM.quiet.has(k)) return; // (the Crown: small things don't take the banner)
+  if (c2On()) { const t = c2Tier(k, a); if (t !== 1 && t !== 3) return; } // (the mountain: only the match's beats, and your own, take the banner)
+  else if (G.mode === 'crown' && CALM.quiet.has(k)) return; // (the Crown: small things don't take the banner)
   banner(m[0], m[1], m[2]);
   if (k === 'horseDown' && a[0] === myTi) { buzz(120); cam.shake = .5; }
   if (k === 'capture') { sfx.capture(); sfx.cheer(); if (!isEnemyTi(a[0], myTi)) buzz([60, 40, 60]); }

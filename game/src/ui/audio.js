@@ -202,7 +202,7 @@ function beat(t) {
 function musicTick(dt, heat, enemiesNear) {
   if (!ac || !M.drone) return;
   M.calmT -= dt; M.clashCueT -= dt;
-  const hot = heat > .22, want = hot ? 2 : enemiesNear >= 3 ? 1 : 0;
+  const hot = heat > .22, want = hot ? 2 : enemiesNear >= 3 || (G.c2 && G.T >= 480) ? 1 : 0; // (the mountain's night: the drums never quite stop)
   if (want === 2) M.calmT = 6;
   M.want = want === 2 || M.calmT > 0 ? 2 : want; // (the clash music holds on a few seconds after the fighting thins)
   if (M.want === 2 && M.level < 2 && M.clashCueT <= 0) { musicCue('clash'); M.clashCueT = 25; }
@@ -219,6 +219,7 @@ export function musicCue(kind) {
     case 'slain': mdrum(t, 1, .85); mdrum(t + .3, .7); for (const f of [N.D4, N.Fs4, N.A4]) mhorn(f, t + .3, 1.6, .05); break;
     case 'capdown': mdrum(t, .8, .9); mhorn(N.D4, t + .1, .9, .05); mhorn(N.A4, t + .1, .9, .04); break;
     case 'fell': mdrum(t, .8, .75); mhorn(N.D3, t + .1, .6, .06); mhorn(N.A2, t + .7, 1.4, .06); break;
+    case 'night': mdrum(t, 1, .7); mdrum(t + .5, .8, .7); mhorn(N.D3, t + .2, 1.6, .07); mhorn(N.A3, t + 1.1, 2.2, .06); break; // (the mountain: the Crown awakens)
     case 'rally': for (let k = 0; k < 7; k++) mdrum(t + k * .07, .3 + k * .07, 1 + k * .05); break;
   }
 }

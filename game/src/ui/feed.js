@@ -3,6 +3,7 @@
 // so you can read the battle at a glance. Built from the same announcements on every phone.
 import { TEAMS, SHOUTS, CALM } from '../config.js';
 import { G, bus, colorOf, isEnemyTi, matchTime } from '../core/state.js';
+import { c2Tier, c2On } from './messages.js';
 
 let el = null, nickFor = () => null;
 const MAX = 4, LIFE = 7000;
@@ -135,6 +136,7 @@ bus.on('shownMsg', ({ k, a }) => {
   if (!el) return;
   if (k === 'start') { setTimeout(() => heraldFor('start', []), 1200); return; }
   if (G.state !== 'play') return;
+  if (c2On()) return c2Feed(k, a || []);
   setTimeout(() => heraldFor(k, a || []), 900);
   if (G.mode === 'crown' && CALM.quiet.has(k)) return; // (the Crown's feed: the moves that matter)
   const html = feedLine(k, a || []); if (!html) return;
@@ -143,3 +145,21 @@ bus.on('shownMsg', ({ k, a }) => {
   while (el.children.length > MAX) el.lastChild.remove();
   setTimeout(() => { li.classList.add('old'); setTimeout(() => li.remove(), 600); }, LIFE);
 });
+
+// the mountain: the herald only for the match's beats; the feed only for your side's news, a line
+// at most every 5 s (the same news within that merges into the last line, anything else waits out),
+// and nothing that's said repeats within 30 s
+let t2 = null; const said = {};
+const c2HeraldLines = { c2chestSoon: () => pickOne(HERALD.chestSoon), chestTaken: () => pickOne(HERALD.chest), c2night: () => 'Night falls. The Crown awakens. Captains, up the mountain!', c2crack: () => 'The glacier is cracking. Thirty seconds, gentlemen.', crownTaken: a => `${who(a[0])} broke the glacier and took the Crown!` };
+function c2Feed(k, a) {
+  const tier = c2Tier(k, a), now = performance.now();
+  if (tier === 1) { const f = c2HeraldLines[k]; if (f) setTimeout(() => herald(f(a)), 900); return; }
+  if (tier !== 2) return;
+  const html = feedLine(k, a); if (!html) return;
+  if (said[html] && now - said[html] < 30000) return; said[html] = now;
+  if (t2 && now - t2.t < 5000) { if (t2.k === k && t2.li.isConnected) { t2.n++; t2.li.innerHTML = `${t2.html} <i>×${t2.n}</i>`; } return; }
+  const li = document.createElement('div'); li.className = 'fl'; li.innerHTML = html;
+  el.prepend(li); while (el.children.length > MAX) el.lastChild.remove();
+  setTimeout(() => { li.classList.add('old'); setTimeout(() => li.remove(), 600); }, LIFE);
+  t2 = { k, t: now, li, html, n: 1 };
+}

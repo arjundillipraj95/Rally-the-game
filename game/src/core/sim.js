@@ -2095,7 +2095,21 @@ function planLeader(u, s) {
     else s.plan = { kind: 'banner' };
   }
 }
-function planGoal(u, s) {
+// The mountain: a trip between tiers goes by the nearest ramp, bridge or chasm bridge, so each leg of
+// it is short enough for the pathfinder (a straight search from the rim to the summit gives up).
+function c2Route(u, g) {
+  if (!g || !G.c2) return g;
+  const R = W.R, K = CROWN2.r, rw = K.riverW * R, cw = K.chasmW * R;
+  const tier = r => r > K.ridge * R ? 0 : r > K.river * R - rw ? 1 : r > K.arena * R ? 2 : 3;
+  const ru = Math.hypot(u.x, u.z), rg = Math.hypot(g.x, g.z), tu = tier(ru), tg = tier(rg); if (tu === tg) return g;
+  const inward = tg > tu, b = inward ? tu : tu - 1; // (the boundary to cross next)
+  const step = b === 2 ? Math.PI / 2 : Math.PI / 4, au = Math.atan2(u.z, u.x), ag = Math.atan2(g.z, g.x);
+  let best = 0, bc = 1e9; for (let k = 0; k < Math.round(Math.PI * 2 / step); k++) { const a = -Math.PI / 2 + k * step, c = Math.abs(angDiff(au, a)) * ru + Math.abs(angDiff(a, ag)) * rg * .5; if (c < bc) { bc = c; best = a; } }
+  const sides = [[K.ridge * R + 6, K.ridge * R - 6], [K.river * R + rw + 3, K.river * R - rw - 6], [K.chasm * R + cw + 2, K.arena * R - 2]][b], d = inward ? sides[1] : sides[0];
+  return { x: Math.cos(best) * d, z: Math.sin(best) * d, stop: 1.5 };
+}
+function planGoal(u, s) { return G.c2 ? c2Route(u, planGoal0(u, s)) : planGoal0(u, s); }
+function planGoal0(u, s) {
   const p = s.plan; if (!p) return null;
   const t = TEAMS[colorOf(u.ti)];
   switch (p.kind) {

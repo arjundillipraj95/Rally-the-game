@@ -1,0 +1,12 @@
+import { chromium } from 'playwright';
+import { open, frames } from './stage.mjs';
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const page = await open(browser, 640, 360, { q: '?crown2=1' });
+await page.evaluate(() => { window.__noRender = true; });
+await page.click('#segMode button[data-v="crown"]');
+await page.evaluate(() => { for (let k = 0; k < 2; k++) for (let c = 0; c < 4; c++) document.querySelectorAll('.duotog')[c].click(); });
+await page.click('#goBtn'); await frames(page, 2);
+await page.evaluate(() => window.__fb.step(30 * 500));
+console.log(JSON.stringify(await page.evaluate(() => { const { G, findPath } = window.__fb; return { al: G.ALLY.join(''), myTi: G.myTi, caps: [1, 5, 9].map(i => { const L = G.teams[i].leader; return { i, L: [Math.round(L.x), Math.round(L.z)], dead: L.dead, plan: JSON.stringify(G.teams[i].plan), goalPath: L.path ? L.path.length : null, stun: L.stun, spd: L.spd, inSafe: L.inSafe, vx: L.vx, mounted: L.mounted, summon: !!L.summon, duel: L.duelId }; }) }; return [0, 1, 2, 3].map(c => { const h = G.layout.homes[c], L = G.teams[c + 4].leader;
+  return { c, home: [Math.round(h.x), Math.round(h.z)], L: [Math.round(L.x), Math.round(L.z)], plan: JSON.stringify(G.teams[c + 4].plan), path: (findPath(L.x, L.z, h.x * .7, h.z * .7) || []).length, straight: (findPath(h.x * .95, h.z * .95, h.x * .8, h.z * .8) || []).length }; }); })));
+await browser.close();

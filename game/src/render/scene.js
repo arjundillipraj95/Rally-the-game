@@ -94,8 +94,21 @@ export function followSun(x, z, t) {
   sun.position.set(cx, 0, cz).addScaledVector(sunDir, 150);
 }
 
+// The mountain's dusk and night (k: 0 day, .5 sunset, 1 night): sky, haze, sun and fill light ease
+// from the map's own colours to orange, then to a cold moonlit blue. The fill stays bright enough
+// that armies and their colours read clearly: it's a look, not a handicap.
+let BASE = null; const DUSK = { zenith: 0x4a5a8a, horizon: 0xe8945a, sun: 0xffa060, sky: 0xd8b49a }, NIGHT = { zenith: 0x0a1430, horizon: 0x2c3c62, sun: 0xa8c0ff, sky: 0x8fa3d0, gnd: 0x3a3a46 };
+const ca = new THREE.Color(), cb = new THREE.Color();
+const mix3 = (day, dusk, night, k) => k < .5 ? ca.set(day).lerp(cb.set(dusk), k * 2) : ca.set(dusk).lerp(cb.set(night), (k - .5) * 2);
+export function nightLook(k) {
+  if (!BASE) return; k = Math.max(0, Math.min(1, k)); if (BASE.k === k) return; BASE.k = k;
+  skyU.zenith.value.copy(mix3(BASE.zenith, DUSK.zenith, NIGHT.zenith, k)); skyU.horizon.value.copy(mix3(BASE.horizon, DUSK.horizon, NIGHT.horizon, k));
+  skyU.sunCol.value.copy(mix3(BASE.sun, DUSK.sun, NIGHT.sun, k)); scene.fog.color.copy(mix3(BASE.horizon, DUSK.horizon, NIGHT.horizon, k));
+  sun.color.copy(mix3(BASE.sun, DUSK.sun, NIGHT.sun, k)); sun.intensity = BASE.sunI * (1 - .5 * k);
+  hemi.color.copy(mix3(BASE.sky, DUSK.sky, NIGHT.sky, k)); hemi.groundColor.copy(ca.set(BASE.gnd).lerp(cb.set(NIGHT.gnd), k)); hemi.intensity = BASE.hemiI * (1 + .1 * k); // (moonlight: the fill stays up so armies read)
+}
 export function setLook(map) {
-  const L = lookFor(map.id);
+  const L = lookFor(map.id); BASE = { ...L, k: 0 };
   skyU.zenith.value.set(L.zenith); skyU.horizon.value.set(L.horizon); skyU.sunCol.value.set(L.sun);
   sunDir.set(...L.sunDir).normalize(); skyU.sunDir.value.copy(sunDir);
   scene.fog.color.set(L.horizon);

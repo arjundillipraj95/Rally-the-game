@@ -6,6 +6,7 @@ import { TEAMS, CROWN2 } from '../config.js';
 import { G } from '../core/state.js';
 import { groundY, terrainMeshY, mountHomeA, W } from '../core/world.js';
 import { stoneTex, woodTex } from './look.js';
+import { nightLook } from './scene.js';
 
 let M = null;
 const lam = (color, map, extra = {}) => new THREE.MeshLambertMaterial(Object.assign({ color, map: map || null }, extra));
@@ -51,7 +52,7 @@ export function buildMount(world, L) {
     const t = TEAMS[h.c], y = terrainMeshY(h.x, h.z);
     const ring = new THREE.Mesh(new THREE.RingGeometry(h.r - .6, h.r, 64), new THREE.MeshBasicMaterial({ color: t.hex, transparent: true, opacity: .45, side: THREE.DoubleSide, depthWrite: false }));
     ring.rotation.x = -Math.PI / 2; ring.position.set(h.x, y + .12, h.z); grp.add(ring);
-    const px = h.x + Math.cos(h.a) * 7, pz = h.z + Math.sin(h.a) * 7, py = terrainMeshY(px, pz); // (behind the town, out of the captain's way)
+    const px = h.x + Math.cos(h.a) * 3, pz = h.z + Math.sin(h.a) * 3, py = terrainMeshY(px, pz); // (behind the town, out of the captain's way)
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(.12, .14, 9, 8), woodDark); pole.position.set(px, py + 4.5, pz); grp.add(shadowy(pole));
     const flag = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 2), new THREE.MeshLambertMaterial({ color: t.hex, side: THREE.DoubleSide })); flag.position.set(px + 1.6, py + 7.8, pz); grp.add(flag);
     M.homes.push({ ring, flag, h });
@@ -82,6 +83,19 @@ export function buildMount(world, L) {
     for (let k = 0; k < n; k++) { const a = k / n * Math.PI * 2, x = h.x + Math.cos(a) * (h.r + .6), z = h.z + Math.sin(a) * (h.r + .6); m4.makeTranslation(x, terrainMeshY(x, z) + 1.1, z); inst.setMatrixAt(k, m4); }
     inst.visible = false; grp.add(shadowy(inst)); M.pals.push({ h, inst });
   }
+  // torches for the night: a warm glow (a sprite, not a light: cheap on phones) by every castle and keep
+  // gate, at both ends of every bridge over the river and the chasm, and round the arena
+  { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, 'rgba(255,230,160,1)'); gr.addColorStop(.25, 'rgba(255,150,50,.75)'); gr.addColorStop(1, 'rgba(255,90,20,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
+    const mat = new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0 });
+    const spots = [];
+    for (const cw of L.cwalls) for (const ga of cw.gates.slice(0, 2)) for (const s2 of [-1, 1]) { const a = ga + s2 * .32; spots.push([cw.x + Math.cos(a) * (cw.r + .3), cw.z + Math.sin(a) * (cw.r + .3)]); }
+    for (const b of L.river.bridges) for (const s2 of [-1, 1]) spots.push([b.x + Math.cos(b.a) * s2 * (b.len + 1.2) - Math.sin(b.a) * (b.hw + .4), b.z + Math.sin(b.a) * s2 * (b.len + 1.2) + Math.cos(b.a) * (b.hw + .4)]);
+    for (let k = 0; k < 4; k++) { const a = mountHomeA(k); for (const d of [ch - cw - 1, ch + cw + 1]) for (const s2 of [-1, 1]) spots.push([Math.cos(a) * d - Math.sin(a) * s2 * (hw + .5), Math.sin(a) * d + Math.cos(a) * s2 * (hw + .5)]); }
+    for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2 + .2, d = L.arena.r + .9; spots.push([Math.cos(a) * d, Math.sin(a) * d]); }
+    M.torches = spots.map(([x2, z2], i) => { const sp = new THREE.Sprite(mat); sp.position.set(x2, groundY(x2, z2) + 3, z2); sp.scale.setScalar(2.4); sp.userData.ph = i * 1.7; grp.add(sp);
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(.07, .09, 2.6, 5), woodDark); post.position.set(x2, groundY(x2, z2) + 1.3, z2); grp.add(post); return sp; });
+    M.torchMat = mat; }
   // the war chest (hidden until it lands)
   { const g = new THREE.Group(), box = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1, 1.1), wood); box.position.y = .5; g.add(box);
     const lid = new THREE.Mesh(new THREE.CylinderGeometry(.55, .55, 1.6, 12, 1, false, 0, Math.PI), wood); lid.rotation.z = Math.PI / 2; lid.position.y = 1; g.add(lid);
@@ -110,6 +124,10 @@ export function updateMount(dt) {
   }
   for (const { b, fire } of M.camps) { fire.visible = b.hp > 0; fire.scale.y = .8 + Math.sin(M.t * 9 + b.x) * .2; }
   for (const p of M.pals) p.inst.visible = !!p.h.fort;
+  // dusk from 7:30, night at 8:00: the sky darkens, the torches come up and flicker
+  const nk = T < CROWN2.dusk ? 0 : T < CROWN2.night ? (T - CROWN2.dusk) / (CROWN2.night - CROWN2.dusk) * .5 : Math.min(1, .5 + (T - CROWN2.night) / 8 * .5);
+  nightLook(nk);
+  if (M.torchMat) { M.torchMat.opacity = Math.min(1, Math.max(0, (nk - .2) * 2)); if (M.torchMat.opacity > 0) for (const t of M.torches) t.scale.setScalar(2.2 + Math.sin(M.t * 11 + t.userData.ph) * .25 + Math.sin(M.t * 7.3 + t.userData.ph * 2) * .15); }
   for (const { flag } of M.homes) flag.rotation.y = Math.sin(M.t * 1.6) * .25;
   // the glacier: whole, cracking as captains hack at it, gone once broken (the Crown rises and spins)
   const gl = K.breaks.find(b => b.kind === 'glacier'), g = M.glacier;
