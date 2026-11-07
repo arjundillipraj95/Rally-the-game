@@ -8,7 +8,9 @@ const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromi
 const page = await open(browser, w, h, { q: '?crown2=1' });
 page.on('pageerror', e => console.log('ERR', e.message));
 if (process.env.FFA) { await page.evaluate(() => localStorage.setItem('rally-solo-al', '[0,1,2,3]')); await page.reload(); await page.waitForFunction(() => window.__fb && window.__fb.G); } // (four sides, each on its own)
-await page.click('#segMode button[data-v="crown"]'); await page.click('#goBtn'); await frames(page, 2);
+await page.click('#segMode button[data-v="crown"]');
+const fmt = +(process.env.FMT || 0); if (fmt) await page.evaluate(f => { for (let k = 0; k < f; k++) for (let c = 0; c < 4; c++) document.querySelectorAll('.duotog')[c].click(); }, fmt); // (each colour: Duo, then Trio)
+await page.click('#goBtn'); await frames(page, 2);
 await page.evaluate(() => { window.__noRender = true; });
 for (let k = 0; k < 64 && (await page.evaluate(() => window.__fb.G.state)) !== 'end'; k++) {
   await page.evaluate(() => { const G = window.__fb.G; if (G.T > 585 && G.myTi !== 1 && !window.__keepMe) G.myTi = 1; for (let i = 0; i < 10; i++) { window.__fb.step(30); window.__fb.tlTick(); } });
