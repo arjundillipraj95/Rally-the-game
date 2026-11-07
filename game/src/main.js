@@ -35,7 +35,7 @@ import { drawOverlay, clearOverlay, resizeOverlay } from './render/overlay.js';
 import { cam, followCamera, orbitCamera, camTarget, CAM_PITCH, introCam } from './render/camera.js';
 import { initAudio, sfx, buzz, gateS, startCrowd, stopCrowd, audioTick, audioStats, setMuted, musicCue, setMusic, musicEnabled } from './ui/audio.js';
 import { portal, portalInit, onPortal } from './portal.js';
-import { showMsg, allyNames, setNamer, claimed, nameOf } from './ui/messages.js';
+import { showMsg, allyNames, setNamer, claimed, nameOf, glory } from './ui/messages.js';
 import { buildHud, showHud, updateHud, banner, fmt } from './ui/hud.js';
 import { bindInput, readMove, trayOpen, upOpen, releaseAll, inp } from './ui/input.js';
 import { startTutorial, stopTutorial, tutorialTick, bindTutorial } from './ui/tutorial.js';
@@ -219,6 +219,7 @@ bus.on('end', ({ w, why }) => {
   $('sKills').textContent = capK; $('sArmyK').textContent = menK; $('sTotalK').textContent = capK + menK; $('sFalls').textContent = falls; $('sLost').textContent = lost;
   $('endQuip').textContent = tallyQuip({ capK, menK, falls, lost, result }) || $('endQuip').textContent;
   showMoments((G.teams[G.myTi] && G.teams[G.myTi].hl) || {}); showSideMoments();
+  try { sendReports(w, why); } catch (e) { console.error(e); }
   // the battle report (on a joined phone the tally arrives with the host's last snapshot: built again when it lands)
   const report = () => { const rep = buildReport(w, nickFor); lastRep = { rep, title };
     const m = myLine(rep); $('myRate').hidden = !m; if (m) { $('myRateN').textContent = m.me.rating.toFixed(1); $('myRateT').textContent = `${m.text}${m.me.mvp ? ' · MVP' : ''}`; }
@@ -268,6 +269,22 @@ function capsLine(a) {
   const P = CROWN2.points, got = Object.entries(claimed).filter(([k]) => +k.split(':')[0] === a).map(([k, c]) => { const v = +k.split(':')[1];
     return `${esc(nameOf(v))} <small>(${c.v >= P.killCaptain ? esc(c.by === G.myTi ? 'you' : nameOf(c.by)) : esc(c.by === G.myTi ? 'your men' : nameOf(c.by) + "'s men")} +${c.v})</small>`; });
   return got.length ? `<tr class="caps"><td colspan="7">Captains cut down: ${got.join(', ')}</td></tr>` : '';
+}
+// The admin numbers (only while signed in to the online service; never the warm-up): every phone sends its
+// health (frame rate, link, errors); the phone that ran the battle (solo, or the host) sends its summary.
+const perfS = { n: 0, fps: 0, slow: 0, errs: 0 };
+function sendReports(w, why) {
+  if (G.warmup || !ON.me || G.reported === G.seed) return; G.reported = G.seed;
+  const ua = navigator.userAgent, dev = (ua.match(/iPhone|iPad|Android [\d]+|Windows|Mac OS X|CrOS|Linux/) || ['?'])[0];
+  online.perf({ client: isClient(), mobile: /Android|iPhone|iPad|Mobile/i.test(ua), relay: !!ON.relayed, fps: perfS.n ? perfS.fps / perfS.n : 0, slow: perfS.n ? perfS.slow / perfS.n * 100 : 0, errs: perfS.errs, dev });
+  if (isClient()) return;
+  const act = G.teams.map((t, i) => i).filter(i => G.teams[i] && G.teams[i].active), cols = a => [0, 1, 2, 3].filter(c => G.ALLY[c] === a && act.some(i => colorOf(i) === c)).join('');
+  const sides = [...new Set(act.map(i => G.ALLY[colorOf(i)]))].map(a => { const b = G.c2 ? c2Breakdown(a) : null; return b ? { c: cols(a), pts: b.total, cas: b.castles, vil: b.villages, chest: b.chest, crown: b.crown, caps: b.caps } : { c: cols(a), pts: 0 }; });
+  const seats = (ON.start && ON.start.seats) || {}, idOf = i => i === G.myTi ? ON.me.id : (Object.keys(seats).find(k => seats[k] === i) || '');
+  online.report({ fmt: Math.max(0, ...(G.duo || [0]).map(n => n | 0)), mode: G.mode, map: G.map.id, humans: act.filter(i => G.teams[i].human).length, bots: act.filter(i => !G.teams[i].human).length,
+    len: G.T, endk: why, win: w < 0 ? '' : cols(w), sides, players: act.map(i => [idOf(i), colorOf(i), G.teams[i].human ? 1 : 0]),
+    chestT: glory.chest ? glory.chest.T : 0, chestBy: glory.chest ? cols(glory.chest.a) : '', crownT: glory.crown ? glory.crown.T : 0, crownBy: glory.crown ? cols(glory.crown.a) : '',
+    capDeaths: (G.deaths && G.deaths.cap) || {}, menDeaths: (G.deaths && G.deaths.men) || {}, clearT: (G.c2 && G.c2.clearT) || 0, diff: typeof G.diff === 'number' ? G.diff : 0 });
 }
 // Results screen, the mountain: each side's points and where they came from, the winner first.
 function renderPoints(w) {
@@ -407,7 +424,7 @@ function viewForMatch() {
   portal.gameplayStart();
   requestAnimationFrame(() => requestAnimationFrame(hideVeil));
   watchdog.reset();
-  startCrowd(G.map.id);
+  startCrowd(G.map.id); Object.assign(perfS, { n: 0, fps: 0, slow: 0, errs: 0 });
   if (isClient() && !devNoIntro()) clientIntro = true; // (a joined phone plays the opening as well, once its captain is known)
 }
 // The opening of a computer battle: the camera rises over the whole field, comes in to your captain while
@@ -886,7 +903,7 @@ const watchdog = {
 // as a small line on screen, so a player's screenshot says exactly what went wrong.
 let faultSeed = null;
 function fault(where, e) {
-  console.error(e);
+  console.error(e); perfS.errs++;
   if (faultSeed === G.seed) return; faultSeed = G.seed; // (once per match)
   const el = document.createElement('div'); el.className = 'faultNote';
   const at = String((e && e.stack) || '').split('\n').find(l => /\.js/.test(l)) || '';
@@ -932,6 +949,7 @@ function loop(now) {
   const raw = (now - last) / 1000; let dt = Math.min(.05, raw); last = now;
   if (hitstop > 0) { hitstop -= raw; dt *= .06; }
   if (raw > 0) fpsAvg += (1 / raw - fpsAvg) * .05;
+  if (raw > 0 && raw < 1 && G.state === 'play' && !G.warmup) { perfS.n++; perfS.fps += 1 / raw; if (raw > 1 / 30) perfS.slow++; } // (the health report: this phone's frame rate over the battle)
   try {
     if (isClient() && (G.state === 'play' || G.state === 'end')) {
       let live = true; try { live = clientTick(dt); } catch (e) { fault('net', e); }

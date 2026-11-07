@@ -5,6 +5,9 @@
 //
 // Protocol: a WebSocket to /ws; JSON messages {t: type, ...}. See the handlers below.
 
+import { initStats, noteSeen, noteQuit as statQuit, noteMatch, notePerf, prune, adminData, isAdmin } from './stats.js';
+import { adminPage } from './admin.js';
+
 const FMT_CAP = [1, 2, 3]; // captains per side: Solo, Duo, Trio
 const LOBBY_WAIT = 60e3, LATE_JOIN = 60e3, QUEUE_JOIN = 110e3, PARTY_MAX = 3; // (searchers drop into a battle in its first 110 s: the game takes late captains for 120) // (a friend can join a running battle in its first minute)
 const CODE = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -18,6 +21,11 @@ export default {
     if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
     if (url.pathname === '/health') return new Response(JSON.stringify({ ok: true, at: Date.now() }), { headers: { ...cors, 'content-type': 'application/json' } });
     if (url.pathname === '/ws') { const hub = env.HUB.get(env.HUB.idFromName('hub')); return hub.fetch(req); }
+    if (url.pathname === '/admin' || url.pathname === '/admin/data') { // (the admin page and its numbers: only with the key)
+      if (!(await isAdmin(url.searchParams.get('key')))) return new Response('Not found', { status: 404 });
+      if (url.pathname === '/admin') return new Response(adminPage(), { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
+      const hub = env.HUB.get(env.HUB.idFromName('hub')); return hub.fetch(req);
+    }
     return new Response('Rally online', { headers: cors });
   },
 };
@@ -31,8 +39,11 @@ export class Hub {
     this.timer = null;
     this.quits = new Map(); // account -> when they left battles early (the last hour)
     this.topics = new Map(); // relay topic -> sessions listening (the game's fallback link, see m_sub)
+    this.sql = state.storage.sql; initStats(this.sql); // (the numbers for the admin page: see stats.js)
   }
   async fetch(req) {
+    const u = new URL(req.url);
+    if (u.pathname === '/admin/data') { prune(this.sql); return new Response(JSON.stringify(await adminData(this.sql, this)), { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } }); } // (the worker checked the key)
     if (req.headers.get('Upgrade') !== 'websocket') return new Response('expected a websocket', { status: 426 });
     const [client, server] = Object.values(new WebSocketPair());
     server.accept();
@@ -58,10 +69,10 @@ export class Hub {
     const h = this['m_' + m.t]; if (h) return h.call(this, s, m);
   }
   async hello(s, m) {
-    let a = await this.acct(m.id), id = m.id;
+    let a = await this.acct(m.id), id = m.id; let fresh = false;
     if (!a || a.key !== m.key) { // a new guest: a short code friends can type, and a secret key kept on the phone
       do { id = rid(6); } while (await this.acct(id));
-      a = { key: rid(24, 'abcdefghijklmnopqrstuvwxyz0123456789'), nick: cleanNick(m.nick), friends: [], reqIn: [], crowns: [0, 0, 0], created: Date.now() };
+      a = { key: rid(24, 'abcdefghijklmnopqrstuvwxyz0123456789'), nick: cleanNick(m.nick), friends: [], reqIn: [], crowns: [0, 0, 0], created: Date.now() }; fresh = true;
       await this.save(id, a);
     }
     if (m.nick) a.nick = cleanNick(m.nick);
@@ -69,6 +80,7 @@ export class Hub {
     const old = this.live.get(id); if (old && old !== s) { this.send(old, { t: 'kicked', msg: 'Signed in somewhere else' }); try { old.ws.close(); } catch (e) {} }
     Object.assign(s, { id, nick: a.nick, look: String(m.look || '').slice(0, 12), where: 'home', party: null, room: null, queued: null });
     this.live.set(id, s);
+    try { noteSeen(this.sql, id, fresh); } catch (e) {}
     this.send(s, { t: 'me', id, key: a.key, nick: a.nick, crowns: a.crowns });
     await this.sendFriends(s); this.notifyFriends(id);
   }
@@ -245,8 +257,11 @@ export class Hub {
     const now = Date.now(), q = (this.quits.get(id) || []).filter(t => now - t < 3600e3); this.quits.set(id, q);
     return q.length < 2 ? 0 : q[q.length - 1] + (q.length - 1) * 60e3 - now;
   }
-  noteQuit(s) { const room = s.room && this.rooms.get(s.room); if (!room || !room.started) return; const q = this.quits.get(s.id) || []; q.push(Date.now()); this.quits.set(s.id, q); }
+  noteQuit(s) { const room = s.room && this.rooms.get(s.room); if (!room || !room.started) return; const q = this.quits.get(s.id) || []; q.push(Date.now()); this.quits.set(s.id, q); try { statQuit(this.sql, s.id); } catch (e) {} }
   async m_quit(s) { this.noteQuit(s); return this.m_battleOver(s); }
+  // the numbers: a battle's summary from the phone that ran it, and every phone's health
+  async m_report(s, m) { try { noteMatch(this.sql, s.id, m); prune(this.sql); } catch (e) {} }
+  async m_perf(s, m) { try { notePerf(this.sql, s.id, m); } catch (e) {} }
   async m_battleOver(s) { s.room = null; s.queued = null; s.where = s.party ? 'party' : 'home'; this.notifyFriends(s.id); this.partyUpdate(s.party); }
   // host handover: the host leaves mid-battle, the next player takes over (their phone rebuilds the battle from its last snapshot)
   handover(room, goneId) {

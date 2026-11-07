@@ -504,8 +504,10 @@ function mountPlaces(L, box, trees) {
     for (let k = 0; k < 48; k++) { const [x, z] = P(k / 48 * Math.PI * 2, K.river * R); fords.push({ x, z, r: 9, a: k / 48 * Math.PI * 2 }); }
     L.river = { pts, w, bridges, fords, ring: true }; }
   // the chasm round the summit: impassable but for a bridge in line with each keep
-  { const ch = K.chasm * R, cw = K.chasmW * R, skip = a => [0, 1, 2, 3].some(c => Math.abs(angDiff(a, mountHomeA(c))) * ch < CROWN2.chasmBridgeHw + 1.9);
-    for (const d of [ch - cw * .5, ch + cw * .5]) ringWall(L, 0, 0, d, 1.6, 0, skip, { chasm: true });
+  { const ch = K.chasm * R, cw = K.chasmW * R;
+    // the inner wall down in the pit; the outer one right on the lip, so nobody waiting for a bridge stands on the slope (each
+    // leaves just the bridge's width, rails and all)
+    for (const [d, gap] of [[ch - cw * .5, CROWN2.chasmBridgeHw + 1.9], [ch + cw + .5, CROWN2.chasmBridgeHw + .9]]) ringWall(L, 0, 0, d, 1.6, 0, a => [0, 1, 2, 3].some(c => Math.abs(angDiff(a, mountHomeA(c))) * d < gap), { chasm: true });
     // each bridge railed both sides, end to end and into the walls: nobody shoved off the side
     for (let c = 0; c < 4; c++) { const a = mountHomeA(c), ux = Math.cos(a), uz = Math.sin(a), off = CROWN2.chasmBridgeHw + .35;
       for (let d = ch - cw - 1.6; d <= ch + cw + 1.6; d += .6) for (const s of [-1, 1]) L.obstacles.push({ x: ux * d - uz * s * off, z: uz * d + ux * s * off, r: .4, keep: true, rail: true }); }

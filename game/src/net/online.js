@@ -48,5 +48,6 @@ export const online = {
   invite: id => send({ t: 'invite', id }), acceptInvite: from => send({ t: 'accept', from }), join: id => send({ t: 'join', id }), leaveParty: () => send({ t: 'partyLeave' }),
   queue: fmt => send({ t: 'queue', fmt }), cancel: () => send({ t: 'cancel' }), battleOver: () => send({ t: 'battleOver' }), quit: () => send({ t: 'quit' }), crowns: c => send({ t: 'crowns', crowns: c }),
   relay: (to, d) => send({ t: 'relay', to, d }),
+  report: d => send({ t: 'report', ...d }), perf: d => send({ t: 'perf', ...d }), // (the admin numbers: a battle's summary, a phone's health)
 };
 export const isLeader = () => !ON.party || ON.party.leader === (ON.me && ON.me.id);

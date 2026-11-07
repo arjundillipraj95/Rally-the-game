@@ -121,7 +121,7 @@ export function startMatch(humans, active = activeFrom([0, 0, 0, 0])) {
   G.holds = makeHolds(G.layout);
   G.duels = []; G.duelN = 0; G.chestDone = false;
   G.crown = G.mode === 'crown' ? { said: {}, casing: 0, ot: false } : null;
-  G.wtowers = []; G.wtN = 0;
+  G.wtowers = []; G.wtN = 0; G.deaths = null;
   G.cgates = {}; for (const cw of (G.layout.cwalls || [])) G.cgates[cw.hid] = freshGates(); applyCastleGates();
   G.plazaWall = G.crown ? { up: false, hp: [0, 1, 2, 3].map(() => CROWN.gateHp), broken: 0 } : null;
   G.c2 = null; if (isC2()) c2Begin(); applyPlazaWall();
@@ -1115,9 +1115,11 @@ function arrowHit(a, b) {
   push(b, 0, 0, .12);
   if (b.isMe) { fx('shake', .25); fx('buzz', 20); }
   const sh = a.shooter;
+  if (b.hp <= 0 && (a.neutral || a.plunge)) b.cause = a.neutral ? 'garrison' : 'tower';
   if (b.hp <= 0) die(b, a.neutral ? null : sh && !sh.dead && !sh.tower ? sh : { ti: a.ti, human: false, leader: false }, Math.atan2(b.x - a.x0, b.z - a.z0));
 }
 export function die(u, killer, ang, launch = 0) {
+  if (G.c2 && !u.dead) { const D = G.deaths || (G.deaths = { cap: {}, men: {} }), why = u.cause || (killer ? (killer.leader ? 'captain' : killer.kind === 'arch' ? 'archer' : killer.kind === 'foot' ? 'footman' : 'arrows') : 'other'), b = u.leader ? D.cap : D.men; b[why] = (b[why] || 0) + 1; u.cause = null; } // (the admin numbers: how they fell)
   if (u.dead) return;
   if (G.c2 && u.shieldT > G.T) { u.hp = Math.max(1, u.hp); return; } // (the mountain: at home, or just out of it, nobody dies)
   if (G.c2 && u.leader && killer && isEnemyTi(killer.ti, u.ti)) { const k = G.c2.kills, a = allianceOf(killer.ti); if (!(k[a] = k[a] || {})[u.ti]) { const v = killer.leader ? CROWN2.points.killCaptain : CROWN2.points.killArmy; k[a][u.ti] = v; say('c2capPoint', killer.ti, u.ti, v); fx('netFlush'); } }
@@ -1666,10 +1668,13 @@ function c2Tick(dt) {
   if (K.phase === 'shut' || K.phase === 'night') for (const u of G.units) {
     if (u.dead || (K.phase === 'night' && u.leader)) continue;
     const d = Math.hypot(u.x, u.z); if (d >= ar + .4) continue;
+    if (G.layout.chasm) { // (the mountain: out over the nearest bridge, onto the far side of the chasm, not into it)
+      const a0 = Math.atan2(u.z, u.x); let best = mountHomeA(0); for (let c = 1; c < 4; c++) if (Math.abs(angDiff(a0, mountHomeA(c))) < Math.abs(angDiff(a0, best))) best = mountHomeA(c);
+      const r = G.layout.chasm.r + G.layout.chasm.w + 2.5, side = rnd(-1.2, 1.2); u.x = Math.cos(best) * r - Math.sin(best) * side; u.z = Math.sin(best) * r + Math.cos(best) * side; u.path = null; continue; }
     const k = (ar + 1.4) / (d || 1); u.x = d ? u.x * k : ar + 1.4; u.z = d ? u.z * k : 0; u.path = null;
   }
   // over the edge into the chasm: gone, there and then
-  { const H = CROWN2.h; for (const u of G.units) if (!u.dead && !(u.jy > .3) && Math.hypot(u.x, u.z) < G.layout.chasm.r + G.layout.chasm.w + 1 && groundY(u.x, u.z) < H.top - 2.5) { if (u.isMe) fx('shake', .4); die(u, null, 0); } }
+  { const H = CROWN2.h; for (const u of G.units) if (!u.dead && !(u.jy > .3) && Math.hypot(u.x, u.z) < G.layout.chasm.r + G.layout.chasm.w + 1 && groundY(u.x, u.z) < H.top - 4) { if (u.isMe) fx('shake', .4); u.cause = 'chasm'; die(u, null, 0); } }
   // the glacier is solid: you stand at its face and hack, not inside it
   { const gl = K.breaks.find(b => b.kind === 'glacier'); if (gl && gl.hp > 0) for (const u of G.units) {
     if (u.dead) continue; const d = Math.hypot(u.x - gl.x, u.z - gl.z), m = gl.r - .2 + u.r; if (d >= m) continue;
@@ -1681,7 +1686,7 @@ function c2Tick(dt) {
     for (const h of G.layout.homes) {
       const dx = u.x - h.x, dz = u.z - h.z; if (dx * dx + dz * dz > h.r * h.r) continue;
       if (h.c === c) u.inSafe = true;
-      else { u.hp -= C.safe.dmg * dt; u.lastHit = T; if (u.hp <= 0) die(u, null, Math.atan2(dx, dz)); }
+      else { u.hp -= C.safe.dmg * dt; u.lastHit = T; if (u.hp <= 0) { u.cause = 'enemy home'; die(u, null, Math.atan2(dx, dz)); } }
     }
     if (u.inSafe) { u.hp = Math.min(u.max, u.hp + C.safe.heal * dt); u.shieldT = T + C.safe.shield; u.boostT = T + C.safe.boostT; }
     if (u.shieldT > T && u.shieldHp != null) u.hp = Math.max(u.hp, Math.min(u.max, u.shieldHp));
@@ -1704,7 +1709,7 @@ function c2Tick(dt) {
           if (v.human && v.blocking) { dmg *= .25; spark(v.x, v.y + 1.3, v.z, '#e8d9b0', 3); }
           v.hp -= dmg; v.lastHit = T; v.stun = Math.max(v.stun || 0, .15); sound('hit', v.x, v.z);
           if (v.isMe) fx('shake', .15);
-          if (v.hp <= 0) die(v, null, Math.atan2(v.x - b.x, v.z - b.z)); } } }
+          if (v.hp <= 0) { v.cause = 'garrison'; die(v, null, Math.atan2(v.x - b.x, v.z - b.z)); } } } }
     // the archers: real arrows at whoever's close (farther once someone's hit them)
     const range = T - (b.hitT ?? -99) < st.rouseT ? st.roused : st.near;
     for (let k = 0; k < na; k++) { b.shootCd[k] -= dt; if (b.shootCd[k] > 0) continue;
@@ -1715,6 +1720,7 @@ function c2Tick(dt) {
       shoot({ x: sx, z: sz, y: groundY(sx, sz), vx: 0, vz: 0, ti: -1, tower: true, arrow: STATS.arch.arrow, jitter: STATS.arch.jitter }, tg[1], a === b ? 1.6 : 4.5);
       G.arrows[G.arrows.length - 1].neutral = true; }
   }
+  if (!K.clearT && !K.breaks.some(b => b.kind === 'guard' && b.hp > 0)) K.clearT = T; // (every castle's garrison down)
   if (T >= C.crack) once('c2crack');
   if (T >= matchTime()) c2End('time');
 }

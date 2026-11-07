@@ -203,7 +203,7 @@ export async function makeP2PRoom(code, host, onStage = () => {}) {
     let relaying = false;
     async function fallback(why) {
       if (settled || relaying || host) return;
-      relaying = true; clearTimeout(to); onStage('relay');
+      relaying = true; clearTimeout(to); onStage('relay'); ON.relayed = true; // (for the health report)
       try { peer.destroy(); } catch (e) {}
       const rid = 'r-' + Math.random().toString(36).slice(2, 12);
       if (myId) peers.delete(myId); myId = rid; peers.set(myId, mine);
