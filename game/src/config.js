@@ -25,7 +25,7 @@ export const MODES = {
   dm:       { name: 'Deathmatch', time: 480, title: 'Tickets', desc: 'Each team has {tickets} tickets. A lost soldier costs 1, a lost captain 5. The leading captain carries a bounty worth double gold.' },
   ctf:      { name: 'Capture the Fort', time: 600, title: 'Captures', desc: 'A banner waits in the fort at the centre. Carry it home on foot to score. Allies pool captures; first side to {caps} wins.' },
   ctrl:     { name: 'Control', time: 600, title: 'Control Score', desc: 'Five points are scattered across the map. Whoever has the most soldiers on a point owns it, and every point you hold adds to your score each second. Allies pool their score; first alliance to {win} wins.' },
-  crown:    { name: 'The Crown', time: 600, title: 'Places held', desc: 'Everyone starts in the plaza. Claim a castle, take villages and mines: each one grows your army. From 4:00 castles can be stormed. At 9:00 the Crown appears in the plaza: whoever carries it at 10:00 wins.' },
+  crown:    { name: 'The Crown', time: 600, title: 'Places held', desc: 'Four armies, one mountain, ten minutes. Take castles, keeps and villages to grow your army; break the war chest at 5:00; at 8:00 the captains climb for the Crown, frozen in the glacier. Most points at the end wins.' },
 };
 // The Crown: the online mode's ten minutes, in phases. Times in seconds.
 export const CROWN = {
@@ -42,7 +42,7 @@ export const CROWN = {
   tower: { build: 4, hp: 260, max: 2, reach: 2.2, volley: 3, every: 4.6, range: 22, arrow: 12, jitter: .45 }, // (a watchtower, once built, looses 3 arrows at the nearest enemy every 4.6 s, twice an archer's reload: from above, so a plain shield doesn't stop them (a shield wall does); a lone soldier lasts about three volleys)
   cwallR: 13.6, cgateW: 6.4, cgateSmall: 2.6, cgateHp: 700, cgateSmallHp: 450, fortCost: [100, 170, 250], fortMult: [1, 2, 3, 4], fortTowers: [0, 1, 4, 4], fortTowerEvery: [0, 1.8, 1.8, 1.2], fortMend: 2, // (Fortify a castle you stand in, three levels: gates tougher by fortMult (x base HP), towers from level 1 (fortTowers of the four), shooting every fortTowerEvery s; a broken gate mends only with your men inside, fortMend times as fast) cgateMend: 60, // (castle curtain walls: radius, gate width and toughness, seconds a broken gate takes to mend) // (watchtowers: seconds to build, toughness, how many a side may have)
 };
-// The new Crown (the mountain), behind the ?crown2=1 switch until it replaces the old one. A terraced
+// The Crown (the mountain). A terraced
 // round mountain, the same for every side: four homes on the rim, two lanes each (home, castle, open
 // field, castle, home), the jungle ring above with four villages and eight bandit camps, the meltwater
 // river (wade it anywhere, slowly; eight narrow bridges), four keeps on the top ring and, behind a

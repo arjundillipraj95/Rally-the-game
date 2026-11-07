@@ -68,7 +68,7 @@ document.addEventListener('touchend', e => { const n = Date.now(); if (n - lastT
 
 const params = new URLSearchParams(location.search);
 if (params.get('stress') === '1') G.fullSquads = true; // every team starts with a full squad of 20
-const crown2 = params.get('crown2') === '1'; // the new Crown on the mountain, until it replaces the old one
+const crown2 = true; // the Crown is the mountain now (the old valley Crown is retired; ?crown2=1 links still work)
 // the home page's team setup, as in the multiplayer lobby: each colour's team, and its Duo/Trio
 let soloAl = (() => { try { const v = JSON.parse(localStorage.getItem('rally-solo-al')); if (Array.isArray(v) && v.length === 4 && v.every(x => x >= 0 && x < 4)) return v.map(Number); } catch (e) {} return [0, 1, 1, 0]; })();
 const saveSoloAl = () => { try { localStorage.setItem('rally-solo-al', JSON.stringify(soloAl)); } catch (e) {} };
