@@ -7,7 +7,7 @@ const page = await open(browser, 640, 360, { q: process.env.Q ?? '?crown2=1' });
 const fmt = +(process.env.FMT || 0);
 await page.evaluate(() => { window.__noRender = true; });
 await page.click('#segMode button[data-v="crown"]');
-if (fmt) await page.evaluate(f => { const b = document.querySelector(`#segFmt button[data-v="${f}"]`) || null; if (b) b.click(); }, fmt);
+if (fmt) await page.evaluate(f => { for (let k = 0; k < f; k++) for (let c = 0; c < 4; c++) document.querySelectorAll('.duotog')[c].click(); }, fmt); // (each colour: Duo, then Trio)
 await page.click('#goBtn');
 await frames(page, 2);
 const snap = () => page.evaluate(() => { const { G } = window.__fb; const K = G.c2;
