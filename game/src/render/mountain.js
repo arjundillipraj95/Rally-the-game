@@ -51,8 +51,9 @@ export function buildMount(world, L) {
     const t = TEAMS[h.c], y = terrainMeshY(h.x, h.z);
     const ring = new THREE.Mesh(new THREE.RingGeometry(h.r - .6, h.r, 64), new THREE.MeshBasicMaterial({ color: t.hex, transparent: true, opacity: .45, side: THREE.DoubleSide, depthWrite: false }));
     ring.rotation.x = -Math.PI / 2; ring.position.set(h.x, y + .12, h.z); grp.add(ring);
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(.12, .14, 9, 8), woodDark); pole.position.set(h.x, y + 4.5, h.z); grp.add(shadowy(pole));
-    const flag = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 2), new THREE.MeshLambertMaterial({ color: t.hex, side: THREE.DoubleSide })); flag.position.set(h.x + 1.6, y + 7.8, h.z); grp.add(flag);
+    const px = h.x + Math.cos(h.a) * 7, pz = h.z + Math.sin(h.a) * 7, py = terrainMeshY(px, pz); // (behind the town, out of the captain's way)
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(.12, .14, 9, 8), woodDark); pole.position.set(px, py + 4.5, pz); grp.add(shadowy(pole));
+    const flag = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 2), new THREE.MeshLambertMaterial({ color: t.hex, side: THREE.DoubleSide })); flag.position.set(px + 1.6, py + 7.8, pz); grp.add(flag);
     M.homes.push({ ring, flag, h });
   }
   // bridges over the chasm, one in line with each keep
@@ -65,15 +66,22 @@ export function buildMount(world, L) {
     g.position.set(Math.cos(a) * ch, CROWN2.h.top + .05, Math.sin(a) * ch); g.rotation.y = -a; grp.add(shadowy(g));
   }
   // the summit: the glacier with the Crown frozen in it
-  { const ice = new THREE.Mesh(new THREE.IcosahedronGeometry(2.6, 1), new THREE.MeshPhongMaterial({ color: 0xbfe6f5, specular: 0xffffff, shininess: 120, transparent: true, opacity: .72, flatShading: true }));
-    ice.scale.set(1, 1.25, 1); ice.position.set(0, groundY(0, 0) + 2.6, 0); grp.add(ice);
+  { const ice = new THREE.Mesh(new THREE.IcosahedronGeometry(3.4, 1), new THREE.MeshPhongMaterial({ color: 0xbfe6f5, specular: 0xffffff, shininess: 120, transparent: true, opacity: .5, flatShading: true, depthWrite: false }));
+    ice.scale.set(1, 1.25, 1); ice.position.set(0, groundY(0, 0) + 3.4, 0); grp.add(ice);
     const gold = new THREE.MeshPhongMaterial({ color: 0xffcf3a, shininess: 90, specular: 0xfff2b0, emissive: 0x6a4a00 });
     const crown = new THREE.Group(), band = new THREE.Mesh(new THREE.CylinderGeometry(.62, .55, .42, 20, 1, true), gold); band.material.side = THREE.DoubleSide; crown.add(band);
     for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2, sp = new THREE.Mesh(new THREE.ConeGeometry(.13, .42, 6), gold); sp.position.set(Math.cos(a) * .6, .4, Math.sin(a) * .6); crown.add(sp); }
-    crown.scale.setScalar(1.5); crown.position.set(0, groundY(0, 0) + 2.7, 0); grp.add(crown);
+    crown.scale.setScalar(2.2); crown.position.set(0, groundY(0, 0) + 3.4, 0); grp.add(crown);
     const beam = new THREE.Mesh(new THREE.CylinderGeometry(.8, 1.6, 60, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0xcff0ff, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
     beam.position.set(0, groundY(0, 0) + 30, 0); grp.add(beam);
     M.glacier = { ice, crown, beam }; }
+  // village palisades: a ring of stakes, up once bought
+  M.pals = [];
+  for (const h of G.holds || []) if (h.kind === 'village') {
+    const n = 34, inst = new THREE.InstancedMesh(new THREE.CylinderGeometry(.18, .22, 2.4, 6), wood, n), m4 = new THREE.Matrix4();
+    for (let k = 0; k < n; k++) { const a = k / n * Math.PI * 2, x = h.x + Math.cos(a) * (h.r + .6), z = h.z + Math.sin(a) * (h.r + .6); m4.makeTranslation(x, terrainMeshY(x, z) + 1.1, z); inst.setMatrixAt(k, m4); }
+    inst.visible = false; grp.add(shadowy(inst)); M.pals.push({ h, inst });
+  }
   // the war chest (hidden until it lands)
   { const g = new THREE.Group(), box = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1, 1.1), wood); box.position.y = .5; g.add(box);
     const lid = new THREE.Mesh(new THREE.CylinderGeometry(.55, .55, 1.6, 12, 1, false, 0, Math.PI), wood); lid.rotation.z = Math.PI / 2; lid.position.y = 1; g.add(lid);
@@ -101,13 +109,14 @@ export function updateMount(dt) {
     men.forEach((f, k) => { f.visible = k < alive; if (f.visible) f.children[2].rotation.x = swing && k === 0 ? -.9 : Math.sin(M.t * 2 + k) * .08; });
   }
   for (const { b, fire } of M.camps) { fire.visible = b.hp > 0; fire.scale.y = .8 + Math.sin(M.t * 9 + b.x) * .2; }
+  for (const p of M.pals) p.inst.visible = !!p.h.fort;
   for (const { flag } of M.homes) flag.rotation.y = Math.sin(M.t * 1.6) * .25;
   // the glacier: whole, cracking as captains hack at it, gone once broken (the Crown rises and spins)
   const gl = K.breaks.find(b => b.kind === 'glacier'), g = M.glacier;
   if (gl && g) {
-    const k = gl.hp / gl.max; g.ice.visible = gl.hp > 0; g.ice.scale.set(.55 + .45 * k, (.55 + .45 * k) * 1.25, .55 + .45 * k);
+    const k = gl.hp / gl.max; g.ice.visible = gl.hp > 0; g.ice.scale.set(.6 + .4 * k, (.6 + .4 * k) * 1.25, .6 + .4 * k);
     if (gl.hitT && T - gl.hitT < .15) g.ice.rotation.y += .05;
-    g.crown.rotation.y += dt * (gl.hp > 0 ? .3 : 2.4); g.crown.position.y = groundY(0, 0) + (gl.hp > 0 ? 2.7 : 3.4 + Math.sin(M.t * 2) * .3);
+    g.crown.rotation.y += dt * (gl.hp > 0 ? .3 : 2.4); g.crown.position.y = groundY(0, 0) + (gl.hp > 0 ? 3.4 : 4.2 + Math.sin(M.t * 2) * .3);
     const night = T >= CROWN2.night ? 1 : T >= CROWN2.dusk ? (T - CROWN2.dusk) / (CROWN2.night - CROWN2.dusk) * .5 : 0;
     g.beam.material.opacity = night * (.22 + (T >= CROWN2.crack ? Math.sin(M.t * 8) * .1 : 0));
   }

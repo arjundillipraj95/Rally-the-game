@@ -2,14 +2,14 @@
 import { STAMINA, CROWN2 } from '../config.js';
 import { CROWN, TEAMS, MODES, STATS, DM_TICKETS, CAPS_TO_WIN, CTRL, AL_LETTER, ORDER_NAMES, UPGRADES, WEAPON_NAMES, WEAPON_CLASS, STREAK, LAST } from '../config.js';
 import { G, isFfa, colorOf, rules, matchTime, SLOT_NAME, isOut, capOf, isC2 } from '../core/state.js';
-import { colorOut, colorScore, colorHuman, squadOf, canRecruit, horseMax, upgradeCost, javMax, execTarget, castleHere } from '../core/sim.js';
+import { colorOut, colorScore, colorHuman, squadOf, canRecruit, horseMax, upgradeCost, javMax, execTarget, castleHere, villageHere } from '../core/sim.js';
 import { session, isClient } from '../net/session.js';
 
 const $ = id => document.getElementById(id);
 export const fmt = s => { s = Math.max(0, Math.floor(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 
 export function buildHud() {
-  $('ptsTitle').textContent = MODES[G.mode].title;
+  $('ptsTitle').textContent = isC2() ? 'Points' : MODES[G.mode].title;
   $('tpRows').innerHTML = TEAMS.map((t, i) => `<div class="tp${i === colorOf(G.myTi) ? ' me' : ''}" id="tp${i}"><span class="al">${isFfa() ? '' : AL_LETTER[G.ALLY[i]]}</span><div class="bar"><i style="background:${t.css}"></i></div><b>0</b></div>`).join('');
   $('pips').innerHTML = TEAMS.map((t, i) => `<span class="pip" id="pip${i}" style="background:${t.css}">${t.name[0]}</span>`).join('');
   $('clockMax').textContent = fmt(matchTime());
@@ -81,11 +81,12 @@ export function updateHud(lastSnapAt) {
   document.querySelectorAll('#upTray button').forEach(b => {
     const id = b.dataset.up, def = UPGRADES.find(u => u.id === id), max = def ? def.cost.length : 0;
     if (id === 'tower') { const hide = G.mode !== 'crown'; if (b.hidden !== hide) b.hidden = hide; if (hide) return; } // (the Crown's watchtowers)
+    const vh = id === 'fort' && isC2() && !castleHere(G.myTi) ? villageHere(G.myTi) : null;
     const cw = id === 'fort' && G.mode === 'crown' ? castleHere(G.myTi) : null, cst = cw && G.cgates && G.cgates[cw.hid]; // (the Crown: Fortify is the castle you stand in)
     const own = id === 'fort' ? G.teams[colorOf(G.myTi)] : me, l = cw ? (cst && cst.lv) | 0 : own && own.up ? own.up[id] : 0, cost = upgradeCost(G.myTi, id); // (Fortify: the castle's)
     const locked = (id === 'foot2' && !(me.up && me.up.foot1)) || (id === 'arch2' && !(me.up && me.up.arch1));
     b.querySelector('.lv').dataset.pips = id === 'arm' || id === 'tower' ? '' : '●'.repeat(l) + '○'.repeat(Math.max(0, max - l));
-    if (id === 'fort' && G.mode === 'crown') b.querySelector('span').textContent = !cw && isC2() ? 'Stand in a castle or village you hold' : !cw ? 'Stand in a castle you hold' : cst && cst.broken ? 'Mend the broken gates now' : l >= 2 ? 'Iron gates and archer towers' : l === 1 ? 'Archers on its four towers' : 'Iron-banded gates, quicker to mend';
+    if (id === 'fort' && G.mode === 'crown') b.querySelector('span').textContent = vh ? (vh.fort ? 'Palisade up: 11 s to take' : 'Palisade round this village') : !cw && isC2() ? 'Stand in a castle or village you hold' : !cw ? 'Stand in a castle you hold' : cst && cst.broken ? 'Mend the broken gates now' : l >= 2 ? 'Iron gates and archer towers' : l === 1 ? 'Archers on its four towers' : 'Iron-banded gates, quicker to mend';
     else if (id === 'fort') b.querySelector('span').textContent = l >= max ? (cost != null ? 'Mend the broken gate' : 'Palisade, gates and towers built') : l === 1 ? 'Gates and gate towers' : 'Palisade, then gates & towers';
     b.querySelector('em').textContent = cost == null ? (id === 'fort' && G.mode === 'crown' && !cw ? '—' : id === 'tower' ? 'Two up' : id === 'arm' ? (G.player && !G.player.dead ? 'Whole' : '—') : 'Maxed') : locked ? (id === 'foot2' ? 'Needs Arms first' : 'Needs Training first') : cost + 'g';
     b.dataset.state = cost == null ? 'max' : locked ? 'locked' : gold < cost ? 'poor' : 'ok';

@@ -3,7 +3,7 @@
 import { chromium } from 'playwright';
 import { open, frames } from './stage.mjs';
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
-const page = await open(browser, 640, 360, { q: '?crown2=1' });
+const page = await open(browser, 640, 360, { q: process.env.Q ?? '?crown2=1' });
 const fmt = +(process.env.FMT || 0);
 await page.evaluate(() => { window.__noRender = true; });
 await page.click('#segMode button[data-v="crown"]');
