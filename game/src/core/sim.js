@@ -1115,7 +1115,7 @@ function arrowHit(a, b) {
 export function die(u, killer, ang, launch = 0) {
   if (u.dead) return;
   if (G.c2 && u.shieldT > G.T) { u.hp = Math.max(1, u.hp); return; } // (the mountain: at home, or just out of it, nobody dies)
-  if (G.c2 && u.leader && killer && isEnemyTi(killer.ti, u.ti)) { const k = G.c2.kills, a = allianceOf(killer.ti); (k[a] = k[a] || {})[u.ti] = 1; }
+  if (G.c2 && u.leader && killer && isEnemyTi(killer.ti, u.ti)) { const k = G.c2.kills, a = allianceOf(killer.ti); if (!(k[a] = k[a] || {})[u.ti]) { k[a][u.ti] = 1; say('c2capPoint', killer.ti, u.ti); fx('netFlush'); } }
   u.dead = true; u.deadT = 0;
   if (launch) { // off they go: high, far, spinning (see the ragdoll in render/soldiers.js)
     const f = rnd(8.5, 12); u.vx += Math.sin(ang) * f; u.vz += Math.cos(ang) * f; u.vy = rnd(9, 12); u.launch = true;

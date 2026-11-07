@@ -105,6 +105,7 @@ export function msgText(k, a) {
     case 'crownDropped': return mine(a[0]) ? ['You dropped the Crown!', 'Get it back', '#e0352b'] : [`${nm(a[0])} dropped the Crown!`, 'It\'s on the ground: grab it', css(a[0])];
     case 'overtime': return ['Overtime!', a[0] ? 'Enemies are too close to the Crown: it goes on' : 'Nobody has the Crown: grab it!', '#ffcf3a'];
     case 'villageFort': return mine(a[0]) ? ['Palisade up!', `${(G.holds[a[1]] || {}).name || 'The village'} now takes 11 seconds to take`, css(a[0])] : null;
+    case 'c2capPoint': return mine(a[0]) ? ['Captain point claimed!', `You cut down ${nm(a[1])} for the first time: +1`, '#ffcf3a'] : null;
     case 'c2chestSoon': return ['A war chest is coming!', `It lands in the arena in ${a[0]} seconds. The gates open for everyone`, '#ffcf3a'];
     case 'c2chestUp': return ['The war chest has landed!', 'The arena is open: break the chest for +4 points and gold', '#ffcf3a'];
     case 'c2nightSoon': return ['Night is coming', 'At 8:00 the arena opens to captains', '#bfe6f5'];
@@ -130,6 +131,7 @@ export function c2Tier(k, a) {
   if (TIER1.has(k)) return 1;
   if (k === 'holdTaken') { const was = lastOwner[a[2]]; lastOwner[a[2]] = a[0]; return a[0] === mine || was === mine ? 2 : 0; }
   if (k === 'capDown') return G.ALLY[colorOf(a[0])] === mine || a[1] === myTi ? 2 : 0;
+  if (k === 'c2capPoint') return a[0] === myTi ? 3 : G.ALLY[colorOf(a[0])] === mine ? 2 : 0;
   if (k === 'castleGate') { const h = G.holds && G.holds[a[2]]; return h && h.owner === mine ? 2 : 0; }
   if (k === 'towerDown' || k === 'towerUp') return G.ALLY[colorOf(a[0])] === mine ? 2 : 0;
   if (PERSONAL.has(k)) return a[0] === myTi ? 3 : 0;
