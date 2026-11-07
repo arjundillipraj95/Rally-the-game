@@ -23,4 +23,9 @@ if (box) await page.mouse.click(box.x + box.width * .62, box.y + box.height / 2)
 await page.waitForTimeout(300);
 console.log(await page.evaluate(() => document.querySelector('.tl-at').innerText));
 await page.screenshot({ path: S + 'pointsview_' + w + '.png' });
+console.log('ledgers vs totals:', await page.evaluate(() => { const { G, ledger, c2Breakdown } = window.__fb; const out = {};
+  for (let i = 0; i < G.teams.length; i++) { const t = G.teams[i]; if (!t || !t.active) continue; const a = G.ALLY[i % 4]; out[a] = out[a] || { sum: 0, total: window.__fb.c2Points(a) }; out[a].sum += ledger(i).net; }
+  return JSON.stringify(out); }));
+await page.locator('.ps-row').nth(1).click(); await page.waitForTimeout(300);
+await page.screenshot({ path: S + 'pointsview_focus_' + w + '.png' });
 await browser.close();

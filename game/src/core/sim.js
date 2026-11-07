@@ -1639,12 +1639,12 @@ function c2Hit(u, b) {
   b.hp = 0; const a = allianceOf(u.ti), K = G.c2;
   if (b.kind === 'camp') { G.teams[u.ti].gold += CROWN2.camp.gold; b.back = G.T + CROWN2.camp.back; hl(u.ti, 'hold'); }
   else if (b.kind === 'guard') { hl(u.ti, 'hold'); }
-  else if (b.kind === 'chest') { c2ChestTo(a); }
+  else if (b.kind === 'chest') { c2ChestTo(a, u.ti); }
   else if (b.kind === 'glacier') { K.crownPts[a] = CROWN2.points.crown; hl(u.ti, 'crown'); say('crownTaken', u.ti); fx('netFlush'); c2End('crown'); }
 }
-function c2ChestTo(a) {
+function c2ChestTo(a, ti = -1) { // (ti: the captain whose blow broke it, if anyone's)
   const K = G.c2; K.chest = 2; const b = K.breaks.find(x => x.kind === 'chest'); if (b) b.hp = 0;
-  if (a != null) { K.chestPts[a] = CROWN2.points.chest; for (const i of sideArmies(a)) { hl(i, 'chest'); const s = G.teams[i]; s.gold += CHEST.gold; s.rally = 100; s.morale = Math.min(100, s.morale + 15); } say('chestTaken', a, CHEST.gold); }
+  if (a != null) { K.chestPts[a] = CROWN2.points.chest; for (const i of sideArmies(a)) { hl(i, 'chest'); const s = G.teams[i]; s.gold += CHEST.gold; s.rally = 100; s.morale = Math.min(100, s.morale + 15); } say('chestTaken', a, CHEST.gold, ti); }
   fx('netFlush');
 }
 // the arena's gates: shut, open to everyone (the war chest), shut again, then open to captains only

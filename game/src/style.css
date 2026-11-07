@@ -702,3 +702,26 @@ body:has(#glacier:not([hidden])) #phaseTag{top:96px;}
 .ps-nm em.you,.pv em.you{font:800 9.5px var(--body);font-style:normal;letter-spacing:.06em;text-transform:uppercase;padding:1px 6px;border-radius:999px;background:var(--gold);color:#141312;margin-left:4px;vertical-align:1px;}
 /* a phone on its side: tighter, so the chart shows without scrolling */
 @media (max-height:500px){ #endPts{padding:8px 12px;} .pv .ptitle{font-size:22px;margin-bottom:4px;} .ps{gap:2px;} .ps-row{font-size:12px;padding:0 4px;} .ps-row b{font-size:16px;} .ps-bar{height:9px;} .ps-leg{margin-top:3px;font-size:10px;} .pv h4{margin:6px 0 3px;} .tl-at{min-height:0;} }
+/* the Points tab: following a side, and each captain's ledger */
+.ps-row{cursor:pointer;} .ps-row.off{opacity:.45;} .ps-row.on{background:rgba(255,255,255,.1);box-shadow:inset 3px 0 0 #fff;}
+.pv-all{color:var(--gold);cursor:pointer;text-decoration:underline;}
+.lc{margin:0 0 5px;border-radius:9px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);}
+.lc.me{border-color:rgba(255,207,58,.35);}
+.lc summary{display:grid;grid-template-columns:10px auto 1fr auto;gap:7px;align-items:center;padding:6px 9px;cursor:pointer;list-style:none;font:700 12.5px var(--body);}
+.lc summary::-webkit-details-marker{display:none;}
+.lc summary i{width:9px;height:9px;border-radius:50%;} .lc summary b{font-weight:800;}
+.lc-n{font-size:11px;color:rgba(255,255,255,.5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lc summary em{font:400 18px var(--display);font-style:italic;color:var(--gold);}
+.lg{display:grid;grid-template-columns:36px 1fr auto;gap:6px;align-items:center;padding:3px 10px;font:600 12px var(--body);border-top:1px solid rgba(255,255,255,.05);}
+.lg-t{font-size:11px;color:rgba(255,255,255,.45);font-variant-numeric:tabular-nums;}
+.lg b{font:400 15px var(--display);font-style:italic;}
+.lg.take b,.lg.kill b,.lg.chest b,.lg.crown b{color:#8fe08a;} .lg.lose b{color:#ff7a6e;} .lg.gave{opacity:.65;} .lg.gave b{color:rgba(255,255,255,.55);font-size:13px;}
+.lg.crown span:nth-child(2),.lg.chest span:nth-child(2){color:var(--gold);font-weight:800;}
+.lg.none{color:rgba(255,255,255,.45);}
+.pp-list.compact{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));}
+.pp-list.compact .pp{grid-template-columns:44px 1fr 24px;}
+.lc summary{grid-template-columns:10px 1fr auto;grid-template-rows:auto auto;row-gap:0;text-transform:none;}
+.lc summary .lc-n{grid-column:2 / 3;grid-row:2;}
+.lc summary em{grid-column:3;grid-row:1 / 3;}
+.lc summary i{grid-row:1;}
+.lg.gave b{font:700 11px var(--body);font-style:normal;}
