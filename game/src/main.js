@@ -7,9 +7,9 @@ import '@fontsource/barlow-semi-condensed/latin-600.css';
 import '@fontsource/barlow-semi-condensed/latin-800.css';
 import '@fontsource/barlow-semi-condensed/latin-800-italic.css';
 import './style.css';
-import { TEAMS, MODES, MAPS, PRESETS, RANKS, CRESTS, QUIPS, TIPS, AL_LETTER, TARGETS, DUEL } from './config.js';
+import { TEAMS, MODES, MAPS, PRESETS, RANKS, CRESTS, QUIPS, TIPS, AL_LETTER, TARGETS, DUEL, CROWN2 } from './config.js';
 import { G, bus, colorOf, rules, matchTime, modeDesc, activeFrom, targetFor, SLOT_NAME, isEnemyTi, botName } from './core/state.js';
-import { rideRelease, orderVolley, challenge, canChallenge, startMatch, mkUnit, newTeams, update, fallStep, endMatch, auraRange, endStep, setOrder, applyFort, c2Points, die } from './core/sim.js';
+import { rideRelease, orderVolley, challenge, canChallenge, startMatch, mkUnit, newTeams, update, fallStep, endMatch, auraRange, endStep, setOrder, applyFort, c2Points, c2Breakdown, die } from './core/sim.js';
 import { makeLayout, gatePos, groundY, W } from './core/world.js';
 import { buildNav, findPath } from './core/nav.js';
 import { renderer, scene, camera, resize, applyPixelRatio, applyShadowQuality, followSun } from './render/scene.js';
@@ -229,7 +229,9 @@ bus.on('end', ({ w, why }) => {
     }
     renderCaptains($('endCaps'), rep); renderAwards($('endAw'), rep); };
   report(); if (isClient()) setTimeout(() => { if (G.state === 'end') report(); }, 1200);
-  endTab('you');
+  const pts = () => { if (!G.c2) return; $('endPts').innerHTML = renderPoints(w); };
+  $('ptsTab').hidden = !G.c2; pts(); if (isClient()) setTimeout(() => { if (G.state === 'end') pts(); }, 1200);
+  endTab(G.c2 ? 'pts' : 'you');
   showRank(G.awarded ? null : awardMatch({ result, kills: G.kills, diff: G.diff })); G.awarded = true;
   // missions and the season (on a joined phone, once the host's tally has landed)
   $('endSeason').hidden = true;
@@ -248,7 +250,7 @@ bus.on('end', ({ w, why }) => {
 let lastRep = null;
 function endTab(t) {
   document.querySelectorAll('.etabs [data-t]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.t === t)));
-  $('endYou').hidden = t !== 'you'; $('endCaps').hidden = t !== 'caps'; $('endAw').hidden = t !== 'aw';
+  $('endYou').hidden = t !== 'you'; $('endPts').hidden = t !== 'pts'; $('endCaps').hidden = t !== 'caps'; $('endAw').hidden = t !== 'aw';
 }
 document.querySelectorAll('.etabs [data-t]').forEach(b => b.addEventListener('click', () => endTab(b.dataset.t)));
 $('shareBtn').addEventListener('click', async () => {
@@ -261,6 +263,19 @@ $('shareBtn').addEventListener('click', async () => {
   try { if (navigator.share) { await navigator.share({ text, url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
   window.open('https://wa.me/?text=' + encodeURIComponent(text + ' ' + url), '_blank', 'noopener');
 });
+// Results screen, the mountain: each side's points and where they came from, the winner first.
+function renderPoints(w) {
+  const P = CROWN2.points, mine = G.ALLY[colorOf(G.myTi)];
+  const sides = [...new Set(G.teams.map((t, i) => t.active ? G.ALLY[colorOf(i)] : -1).filter(a => a >= 0))];
+  const rows = sides.map(a => ({ a, b: c2Breakdown(a), css: TEAMS[G.ALLY.indexOf(a)].css })).sort((x, y) => y.b.total - x.b.total);
+  const cell = (n, each) => n ? `${n * each}<small>${each > 1 ? ` (${n}×${each})` : ''}</small>` : '<span class="z">·</span>';
+  const pt = n => n ? String(n) : '<span class="z">·</span>';
+  return `<h2 class="ptitle">${w < 0 ? 'A draw on points' : `${esc(allyNames(w))} ${allyNames(w).includes('&') ? 'win' : 'wins'} on points`}</h2>
+    <table class="ctab pts"><thead><tr><th class="nm">Side</th><th>Castles &amp; keeps</th><th>Villages</th><th>War chest</th><th>Crown</th><th>Captains</th><th>Total</th></tr></thead><tbody>${rows.map(({ a, b, css }) => `
+      <tr class="${a === mine ? 'me' : ''}${a === w ? ' won' : ''}"><td class="nm"><i style="background:${css}"></i>${esc(allyNames(a))}${a === mine ? ' <em>You</em>' : ''}</td>
+      <td>${cell(b.castles, P.castle)}</td><td>${cell(b.villages, P.village)}</td><td>${pt(b.chest)}</td><td>${pt(b.crown)}</td><td>${pt(b.caps)}</td><td><b class="rt">${b.total}</b></td></tr>`).join('')}</tbody></table>
+    <small class="hint">Castles and villages count if held at the end · chest ${P.chest} · Crown ${P.crown} · a captain ${P.killCaptain} by a captain, ${P.killArmy} by his army</small>`;
+}
 // The note under the result, from how the battle went for you (the first that fits, else the usual quip).
 function tallyQuip({ capK, menK, falls, lost, result }) {
   const tot = capK + menK, pick = a => a[(Math.random() * a.length) | 0];

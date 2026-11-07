@@ -593,3 +593,36 @@
 .search.warm .srow b{font:800 13px var(--body);font-style:normal;color:#fff;white-space:nowrap;}
 .search.warm .srow span{font-size:13px;color:var(--gold);}
 .search.warm #searchCancel{font:800 12px var(--body);padding:4px 10px;border-radius:999px;}
+/* results, the mountain: each side's points */
+.ptitle{margin:0 0 10px;font:400 30px var(--display);font-style:italic;color:var(--gold);letter-spacing:.02em;}
+.ctab.pts td small{font-size:11px;color:rgba(255,255,255,.5);}
+.ctab.pts .z{color:rgba(255,255,255,.25);}
+.ctab.pts tr.me td.nm{color:var(--gold);}
+.ctab.pts tr.won td{background:rgba(255,207,58,.08);}
+/* your health rides over your captain's head now (the overlay draws it): the old bar off the middle of the screen */
+#hp{display:none!important;}
+/* the glacier's health: a big bar in the middle, under the phase, for everyone */
+#glacier{position:absolute;left:50%;top:46px;transform:translateX(-50%);width:min(46vw,380px);display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;padding:6px 12px;background:rgba(14,22,30,.72);border:2px solid rgba(191,230,245,.6);border-radius:10px;pointer-events:none;}
+#glacier[hidden]{display:none;}
+#glacier span{font:400 18px var(--display);font-style:italic;letter-spacing:.03em;color:#bfe6f5;white-space:nowrap;}
+#glacier .bar{height:12px;border-radius:6px;background:rgba(255,255,255,.12);overflow:hidden;}
+#glacier .bar i{display:block;height:100%;background:linear-gradient(90deg,#7fc8ea,#e8f8ff);transform-origin:left;transition:transform .15s;}
+#glacier b{font:800 14px var(--body);color:#fff;font-variant-numeric:tabular-nums;white-space:nowrap;}
+#glacier.hit{animation:glHit .25s;}
+@keyframes glHit{0%{border-color:#fff;box-shadow:0 0 18px rgba(191,230,245,.9);}100%{border-color:rgba(191,230,245,.6);box-shadow:none;}}
+#glacier.crack .bar i{background:linear-gradient(90deg,#e0703a,#ffd2a8);}
+@media (max-height:430px){ #glacier{top:40px;padding:4px 10px;} #glacier span{font-size:15px;} #glacier .bar{height:9px;} }
+/* the glacier's health: a big bar in the middle, under the phase, for everyone */
+#glacier{position:absolute;left:50%;top:46px;transform:translateX(-50%);width:min(46vw,380px);display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;padding:6px 12px;background:rgba(14,22,30,.72);border:2px solid rgba(191,230,245,.6);border-radius:10px;pointer-events:none;}
+#glacier[hidden]{display:none;}
+#glacier span{font:400 18px var(--display);font-style:italic;letter-spacing:.03em;color:#bfe6f5;white-space:nowrap;}
+#glacier .bar{height:12px;border-radius:6px;background:rgba(255,255,255,.12);overflow:hidden;}
+#glacier .bar i{display:block;height:100%;background:linear-gradient(90deg,#7fc8ea,#e8f8ff);transform-origin:left;transition:transform .15s;}
+#glacier b{font:800 14px var(--body);color:#fff;font-variant-numeric:tabular-nums;white-space:nowrap;}
+#glacier.hit{animation:glHit .25s;}
+@keyframes glHit{0%{border-color:#fff;box-shadow:0 0 18px rgba(191,230,245,.9);}100%{border-color:rgba(191,230,245,.6);box-shadow:none;}}
+#glacier.crack .bar i{background:linear-gradient(90deg,#e0703a,#ffd2a8);}
+@media (max-height:430px){ #glacier{top:40px;padding:4px 10px;} #glacier span{font-size:15px;} #glacier .bar{height:9px;} }
+/* with the glacier's bar up under the clock, the phase tag drops below it */
+body:has(#glacier:not([hidden])) #phaseTag{top:96px;}
+@media (max-height:430px){ body:has(#glacier:not([hidden])) #phaseTag{top:78px;} }

@@ -1593,6 +1593,14 @@ export function c2Points(a) {
   for (const h of G.holds || []) if (h.owner === a) p += CROWN2.points[c2Kind(h)];
   return p + (K.chestPts[a] || 0) + (K.crownPts[a] || 0) + Object.values(K.kills[a] || {}).reduce((n, v) => n + v, 0);
 }
+// where a side's points came from (the results screen): places held at the end, the chest, the Crown, captains cut down
+export function c2Breakdown(a) {
+  const K = G.c2, P = CROWN2.points, o = { castles: 0, villages: 0, chest: 0, crown: 0, caps: 0, total: 0 }; if (!K) return o;
+  for (const h of G.holds || []) if (h.owner === a) { if (c2Kind(h) === 'castle') o.castles++; else o.villages++; }
+  o.chest = K.chestPts[a] || 0; o.crown = K.crownPts[a] || 0; o.caps = Object.values(K.kills[a] || {}).reduce((n, v) => n + v, 0);
+  o.total = o.castles * P.castle + o.villages * P.village + o.chest + o.crown + o.caps;
+  return o;
+}
 // the things on the mountain you break: a neutral castle's guards, a bandit camp, the war chest, the glacier
 export function c2Begin() {
   const L = G.layout, K = G.c2 = { kills: {}, chestPts: {}, crownPts: {}, breaks: [], phase: 'shut', said: {}, chest: 0 };
@@ -1650,6 +1658,10 @@ function c2Tick(dt) {
     const d = Math.hypot(u.x, u.z); if (d >= ar + .4) continue;
     const k = (ar + 1.4) / (d || 1); u.x = d ? u.x * k : ar + 1.4; u.z = d ? u.z * k : 0; u.path = null;
   }
+  // the glacier is solid: you stand at its face and hack, not inside it
+  { const gl = K.breaks.find(b => b.kind === 'glacier'); if (gl && gl.hp > 0) for (const u of G.units) {
+    if (u.dead) continue; const d = Math.hypot(u.x - gl.x, u.z - gl.z), m = gl.r - .2 + u.r; if (d >= m) continue;
+    const k = m / (d || 1); u.x = d ? gl.x + (u.x - gl.x) * k : gl.x + m; u.z = d ? gl.z + (u.z - gl.z) * k : gl.z; } }
   // home: enemies burn, yours heal and can't be killed, and leave at a run
   for (const u of G.units) {
     if (u.dead) continue;
@@ -1867,7 +1879,9 @@ function captainAttack0(p) {
   const best = softAim(p, spear ? (skewer ? SK.aim : CC.spear.aim) : S.aim);
   if (p.isMe && G.capStats) { G.capStats.press++; if (!best) G.capStats.noTarget++; }
   let target = best;
-  if (!best) { const w = wallInReach(p, 1.5); if (w) { target = { wall: w }; p.face = Math.atan2(w.x - p.x, w.z - p.z); } } // (an enemy palisade: hack at it)
+  // on the summit: facing the glacier (or the chest) with it in reach, you hit that, whoever's about
+  if (G.c2 && p.human) { const w = c2BreakInReach(p); if (w && (w.kind === 'glacier' || w.kind === 'chest') && Math.abs(angDiff(Math.atan2(w.x - p.x, w.z - p.z), p.face)) < 1.1) { target = { tower: w }; p.face = Math.atan2(w.x - p.x, w.z - p.z); } }
+  if (!target) { const w = wallInReach(p, 1.5); if (w) { target = { wall: w }; p.face = Math.atan2(w.x - p.x, w.z - p.z); } } // (an enemy palisade: hack at it)
   if (!best && !target && ((G.wtowers && G.wtowers.length) || G.c2)) { const w = towerInReach(p); if (w) { target = { tower: w }; p.face = Math.atan2(w.x - p.x, w.z - p.z); } } // (an enemy watchtower)
   if (!best && !target) {
     const [ci, cd] = nearestEnemyCastle(p);
@@ -1875,7 +1889,7 @@ function captainAttack0(p) {
   }
   if (!startSwing(p, target)) return;
   p.pending.t = .12;
-  if (best) {
+  if (best && target === best) {
     const ang = Math.atan2(best.x - p.x, best.z - p.z), d = Math.hypot(best.x - p.x, best.z - p.z);
     p.face = ang;
     // step into a target at the edge of reach, so a press always connects

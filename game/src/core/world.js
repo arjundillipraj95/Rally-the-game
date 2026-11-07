@@ -443,11 +443,11 @@ const KEEP_NAMES2 = ['the Eagle Keep', 'the Stag Keep', 'the Bear Keep', 'the Wo
 const VILLAGE_NAMES2 = ['Millbrook', 'Applecross', 'Honeydale', 'Bramblewick'];
 // a castle on the mountain: the crown castles' keep, towers and curtain wall (gates at the angles given,
 // the first the wide one), in the same shape the Crown's castle code already knows
-function mountCastle(L, h, gates, R0) {
+function mountCastle(L, h, gates, R0, wide = [0]) {
   const { x, z } = h;
   L.towers.push({ x, z, r: 2.6, h: h.keepTower ? 11 : 8, kind: 'keep' }); L.obstacles.push({ x, z, r: 2.9, keep: true }); L.blockers.push({ x, z, r: 2.9, h: 9 });
   for (let t = 0; t < 4; t++) { const b = (h.towerA0 || 0) + t * Math.PI / 2, tx = x + Math.cos(b) * (R0 - 1.6), tz = z + Math.sin(b) * (R0 - 1.6); L.towers.push({ x: tx, z: tz, r: 1, h: 5, kind: 'keep', small: true }); L.obstacles.push({ x: tx, z: tz, r: 1.2, keep: true }); }
-  const halfs = [CROWN.cgateW, CROWN.cgateSmall, CROWN.cgateSmall].map(w => w / 2 / R0), n = Math.ceil(Math.PI * 2 * R0 / 1.1);
+  const halfs = gates.map((_, k) => (wide.includes(k) ? CROWN.cgateW : CROWN.cgateSmall) / 2 / R0), n = Math.ceil(Math.PI * 2 * R0 / 1.1);
   const cw = { hid: L.holds.indexOf(h), x, z, r: R0, gate: gates[0], gates, obs: [], blk: [] };
   for (let i = 0; i < n; i++) {
     const a = i / n * Math.PI * 2, wx = x + Math.cos(a) * R0, wz = z + Math.sin(a) * R0, gi = gates.findIndex((ga, k) => Math.abs(angDiff(a, ga)) < halfs[k]), isGate = gi >= 0;
@@ -467,7 +467,7 @@ function mountPlaces(L, box, trees) {
   L.roads.push(ring(K.lane * R), ring(K.keep * R));
   for (let c = 0; c < 4; c++) {
     const a = mountHomeA(c);
-    L.roads.push([P(a, K.home * R - 4), P(a, K.keep * R)]);
+    L.roads.push([P(a, K.home * R - 4), P(a, K.arena * R)]);
     L.roads.push([P(a + Math.PI / 4, K.lane * R), P(a + Math.PI / 4, K.top * R - 2)]);
   }
   for (let c = 0; c < 4; c++) {
@@ -483,7 +483,8 @@ function mountPlaces(L, box, trees) {
     }
     // the keep, straight up from home on the top ring
     { const [x, z] = P(a, K.keep * R), h = { x, z, kind: 'castle', keep: true, keepTower: true, name: KEEP_NAMES2[c], r: 7.5, px: x + Math.cos(a) * 3.5, pz: z + Math.sin(a) * 3.5, towerA0: a + Math.PI / 4 };
-      L.holds.push(h); mountCastle(L, h, [a, a + Q, a - Q], keepR); }
+      // (a wide gate at the back too, straight at the summit: hold the keep and it's one run, keep, bridge, arena gate, glacier)
+      L.holds.push(h); mountCastle(L, h, [a, a + Q, a - Q, a + Math.PI], keepR, [0, 3]); }
     // the jungle village on the diagonal, above the open field
     { const va = a + Math.PI / 4, [x, z] = P(va, K.village * R), ux = Math.cos(va), uz = Math.sin(va);
       L.holds.push({ x, z, kind: 'village', name: VILLAGE_NAMES2[c], r: 9, px: x + ux * 6, pz: z + uz * 6 });

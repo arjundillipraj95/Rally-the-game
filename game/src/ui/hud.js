@@ -56,17 +56,22 @@ export function updateHud(lastSnapAt) {
     $('hpBar').style.transform = `scaleX(${Math.max(0, p.hp) / p.max})`;
     { const st = p.st ?? STAMINA.max; $('stBar').style.transform = `scaleX(${Math.max(0, st) / STAMINA.max})`; $('stBar').parentNode.classList.toggle('low', st < STAMINA.low); } // (stamina)
     $('horseBarWrap').hidden = !p.mounted;
-    $('horseBar').style.transform = `scaleX(${Math.min(1, Math.max(0, p.horseHp) / horseMax(G.myTi))})`;
+    p.horseK = Math.min(1, Math.max(0, p.horseHp) / horseMax(G.myTi)); $('horseBar').style.transform = `scaleX(${p.horseK})`; // (the overlay draws it over your head)
   }
   const gold = Math.floor(me.gold); $('gold').textContent = gold;
   const sq = squadOf(G.myTi), cap = capOf(G.myTi); $('squadN').textContent = G.mode === 'crown' ? `${sq.length}/${cap}` : sq.length;
   if (isC2()) { // the mountain's phase, under the clock
     const T = G.T, C = CROWN2, K = G.c2, ph = !K ? '' : T < C.chest ? `War chest in ${fmt(C.chest - T)}` : K.phase === 'open' ? 'Arena open · break the chest' : T < C.night ? `The Crown wakes in ${fmt(C.night - T)}` : 'Night · captains to the glacier';
+    // the glacier's health, big and in the middle for everyone once night falls (or once anyone's chipped it)
+    { const gl = K && K.breaks.find(b => b.kind === 'glacier'), on = !!gl && gl.hp > 0 && (T >= C.night || gl.hp < gl.max), box = $('glacier');
+      if (box && box.hidden === on) box.hidden = !on;
+      if (box && on) { const n = `${Math.ceil(gl.hp)} / ${gl.max}`; $('glacierBar').style.transform = `scaleX(${gl.hp / gl.max})`; if ($('glacierN').textContent !== n) { $('glacierN').textContent = n; box.classList.remove('hit'); void box.offsetWidth; box.classList.add('hit'); } box.classList.toggle('crack', T >= C.crack); } }
     const el = $('phaseTag'); if (el && el.textContent !== ph) { el.textContent = ph; el.classList.toggle('hot', K && (K.phase === 'open' || K.phase === 'night')); }
   } else if (G.mode === 'crown') { // the phase, under the clock
     const T = G.T, ph = T < CROWN.breakout ? `Break-out in ${Math.ceil(CROWN.breakout - T)}` : T < CROWN.rise ? 'Claim a castle' : T < CROWN.siege ? `Castles safe · siege in ${fmt(CROWN.siege - T)}` : T < CROWN.crown ? (G.lms ? `Siege · the ring in ${fmt(CROWN.crown - T)}` : `Siege · the Crown in ${fmt(CROWN.crown - T)}`) : G.lms ? `No coming back · ${G.units.filter(u => u.leader && !u.dead).length} captains left` : T < matchTime() ? 'The Crown!' : 'Overtime!';
     const el = $('phaseTag'); if (el && el.textContent !== ph) { el.textContent = ph; el.classList.toggle('hot', T >= CROWN.crown || T < CROWN.breakout); }
   } else if ($('phaseTag').textContent) $('phaseTag').textContent = '';
+  if (!isC2() && $('glacier') && !$('glacier').hidden) $('glacier').hidden = true;
   const c = k => sq.filter(u => u.kind === k).length; $('squadMix').textContent = `F${c('foot')} A${c('arch')}`;
   { // your army's morale, and the rally horn on the order button
     const T = G.teams[G.myTi], m = Math.max(0, Math.min(100, (T && T.morale) ?? 100)), mb = $('moraleBar');

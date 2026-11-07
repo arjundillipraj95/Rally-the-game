@@ -7,6 +7,7 @@ import { G } from '../core/state.js';
 import { groundY, terrainMeshY, mountHomeA, W } from '../core/world.js';
 import { stoneTex, woodTex } from './look.js';
 import { nightLook } from './scene.js';
+import { spark } from './effects.js';
 
 let M = null;
 const lam = (color, map, extra = {}) => new THREE.MeshLambertMaterial(Object.assign({ color, map: map || null }, extra));
@@ -67,15 +68,22 @@ export function buildMount(world, L) {
     g.position.set(Math.cos(a) * ch, CROWN2.h.top + .05, Math.sin(a) * ch); g.rotation.y = -a; grp.add(shadowy(g));
   }
   // the summit: the glacier with the Crown frozen in it
-  { const ice = new THREE.Mesh(new THREE.IcosahedronGeometry(3.4, 1), new THREE.MeshPhongMaterial({ color: 0xbfe6f5, specular: 0xffffff, shininess: 120, transparent: true, opacity: .5, flatShading: true, depthWrite: false }));
-    ice.scale.set(1, 1.25, 1); ice.position.set(0, groundY(0, 0) + 3.4, 0); grp.add(ice);
+  { const gy = groundY(0, 0), ice = new THREE.Group(), iceMat = new THREE.MeshPhongMaterial({ color: 0xbfe6f5, specular: 0xffffff, shininess: 120, transparent: true, opacity: .62, flatShading: true, depthWrite: false, emissive: 0x000000 });
+    // grown up out of the summit: a tall crystal round the Crown and a ring of shards about it, all standing on
+    // the ground, as wide as the swing reaches (so a blade lands on ice, not on air); the shards break off as it's hacked
+    const shard = (r, h, x, z, tilt, rot) => { const g = new THREE.CylinderGeometry(r * .25, r, h, 5); g.translate(0, h / 2, 0); const m = new THREE.Mesh(g, iceMat);
+      m.position.set(x, 0, z); m.rotation.set(Math.sin(rot) * tilt, rot, Math.cos(rot) * tilt); ice.add(m); return m; };
+    const core = shard(1.5, 6.2, 0, 0, 0, .3), shards = [];
+    for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2 + .2, d = 1.45 + (k % 3) * .25; shards.push(shard(.65 + (k % 2) * .2, 2.4 + ((k * 7) % 5) * .45, Math.cos(a) * d, Math.sin(a) * d, .35, a)); }
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.7, .5, 10), iceMat); base.position.y = .2; ice.add(base);
+    ice.position.set(0, gy - .1, 0); grp.add(ice);
     const gold = new THREE.MeshPhongMaterial({ color: 0xffcf3a, shininess: 90, specular: 0xfff2b0, emissive: 0x6a4a00 });
     const crown = new THREE.Group(), band = new THREE.Mesh(new THREE.CylinderGeometry(.62, .55, .42, 20, 1, true), gold); band.material.side = THREE.DoubleSide; crown.add(band);
     for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2, sp = new THREE.Mesh(new THREE.ConeGeometry(.13, .42, 6), gold); sp.position.set(Math.cos(a) * .6, .4, Math.sin(a) * .6); crown.add(sp); }
-    crown.scale.setScalar(2.2); crown.position.set(0, groundY(0, 0) + 3.4, 0); grp.add(crown);
+    crown.scale.setScalar(1.8); crown.position.set(0, gy + 2.6, 0); grp.add(crown);
     const beam = new THREE.Mesh(new THREE.CylinderGeometry(.8, 1.6, 60, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0xcff0ff, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
-    beam.position.set(0, groundY(0, 0) + 30, 0); grp.add(beam);
-    M.glacier = { ice, crown, beam }; }
+    beam.position.set(0, gy + 30, 0); grp.add(beam);
+    M.glacier = { ice, crown, beam, core, shards, mat: iceMat, lastHp: null, flash: 0 }; }
   // village palisades: a ring of stakes, up once bought
   M.pals = [];
   for (const h of G.holds || []) if (h.kind === 'village') {
@@ -132,9 +140,19 @@ export function updateMount(dt) {
   // the glacier: whole, cracking as captains hack at it, gone once broken (the Crown rises and spins)
   const gl = K.breaks.find(b => b.kind === 'glacier'), g = M.glacier;
   if (gl && g) {
-    const k = gl.hp / gl.max; g.ice.visible = gl.hp > 0; g.ice.scale.set(.6 + .4 * k, (.6 + .4 * k) * 1.25, .6 + .4 * k);
-    if (gl.hitT && T - gl.hitT < .15) g.ice.rotation.y += .05;
-    g.crown.rotation.y += dt * (gl.hp > 0 ? .3 : 2.4); g.crown.position.y = groundY(0, 0) + (gl.hp > 0 ? 3.4 : 4.2 + Math.sin(M.t * 2) * .3);
+    const k = gl.hp / gl.max; g.ice.visible = gl.hp > 0;
+    // every blow that lands: the ice flashes, shivers and throws chips off the face toward whoever struck it
+    if (g.lastHp != null && gl.hp < g.lastHp && gl.hp > 0) { g.flash = .14;
+      let by = G.player && !G.player.dead && Math.hypot(G.player.x, G.player.z) < 6 ? G.player : null;
+      if (!by) { let bd = 7; for (const u of G.units) if (!u.dead && u.leader) { const d = Math.hypot(u.x - gl.x, u.z - gl.z); if (d < bd) { bd = d; by = u; } } }
+      const a = by ? Math.atan2(by.z - gl.z, by.x - gl.x) : Math.random() * 6.28, fx2 = gl.x + Math.cos(a) * 2.1, fz2 = gl.z + Math.sin(a) * 2.1;
+      spark(fx2, groundY(fx2, fz2) + 1.6, fz2, '#e8f8ff', 10); spark(fx2, groundY(fx2, fz2) + 1.2, fz2, '#9fd6ef', 6); }
+    g.lastHp = gl.hp;
+    g.flash = Math.max(0, g.flash - dt); g.mat.emissive.setRGB(g.flash * 3, g.flash * 4, g.flash * 5);
+    g.ice.position.x = g.flash > 0 ? Math.sin(M.t * 90) * .08 : 0;
+    const left = Math.ceil(k * g.shards.length); g.shards.forEach((m, i) => { m.visible = i < left; });
+    g.core.scale.set(.7 + .3 * k, .55 + .45 * k, .7 + .3 * k);
+    g.crown.rotation.y += dt * (gl.hp > 0 ? .3 : 2.4); g.crown.position.y = groundY(0, 0) + (gl.hp > 0 ? 2.6 : 4.2 + Math.sin(M.t * 2) * .3);
     const night = T >= CROWN2.night ? 1 : T >= CROWN2.dusk ? (T - CROWN2.dusk) / (CROWN2.night - CROWN2.dusk) * .5 : 0;
     g.beam.material.opacity = night * (.22 + (T >= CROWN2.crack ? Math.sin(M.t * 8) * .1 : 0));
   }

@@ -88,6 +88,17 @@ export function drawOverlay(opts) {
   ctx.globalAlpha = 1;
   drawPows();
   const player = G.player;
+  // your own captain: health (and armour, stamina, horse) over his head, where your eyes already are
+  if (G.state === 'play' && player && !player.dead) {
+    const [sx, sy, ok] = proj(player.x, player.y + 3.3 + (player.mounted ? 1.2 : 0), player.z);
+    if (ok) { const w = 58, k = Math.max(0, player.hp / player.max), low = k < .3;
+      ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(sx - w / 2 - 1, sy - 1, w + 2, 8);
+      ctx.fillStyle = low ? (Math.sin(G.T * 10) > 0 ? '#ff5a4a' : '#c0302a') : '#b8d43a'; ctx.fillRect(sx - w / 2, sy, w * k, 6);
+      let y = sy + 8; const thin = (v, col) => { ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, y, w, 3); ctx.fillStyle = col; ctx.fillRect(sx - w / 2, y, w * Math.min(1, Math.max(0, v)), 3); y += 4; };
+      const st = player.st ?? STAMINA.max; if (st < STAMINA.max - 1) thin(st / STAMINA.max, st < STAMINA.low ? '#e0703a' : '#f2dc8a');
+      if (player.mounted && player.horseK != null) thin(player.horseK, '#b07a42');
+      if (player.armour > .5) { ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, sy - 5, w, 3); ctx.fillStyle = '#c9d2dc'; ctx.fillRect(sx - w / 2, sy - 5, w * Math.min(1, player.armour / ARMOUR.hp), 3); } }
+  }
   if (G.state === 'play') {
     for (const u of G.units) {
       if (u.dead || u.fog || u === player || (u.hp >= u.max - .5 && !u.leader)) continue;
