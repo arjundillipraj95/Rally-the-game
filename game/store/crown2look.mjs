@@ -11,7 +11,7 @@ await page.goto('http://127.0.0.1:8766/' + (process.env.Q || '?crown2=1'));
 await page.waitForFunction(() => window.__fb && window.__fb.G); await page.evaluate(() => window.__frame(3));
 await page.click('#segMode button[data-v="crown"]'); await page.click('#goBtn');
 const shot = async n => { await page.screenshot({ path: OUT + n, timeout: 400000 }); console.log('shot', n); };
-await page.evaluate(() => window.__frame(260)); await shot('c2_start.png');
+await page.evaluate(() => window.__frame(20)); await shot('c2_start.png');
 await page.evaluate(() => { window.__camAt = [0, 120, 80, 0, 0, 0]; window.__frame(2); }); await shot('c2_over.png');
 await page.evaluate(() => { window.__camAt = [0, 26, 32, 0, 5, 0]; window.__frame(2); }); await shot('c2_summit.png');
 await page.evaluate(() => { const { G } = window.__fb; const h = G.layout.homes[0], c = G.holds[0]; window.__camAt = [c.x * 1.25, 22, c.z * 1.25, c.x, 2, c.z]; window.__frame(2); }); await shot('c2_castle.png');

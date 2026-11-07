@@ -9,7 +9,7 @@ await page.evaluate(() => { window.__noRender = true; });
 await page.click('#segMode button[data-v="crown"]');
 if (fmt) await page.evaluate(f => { const b = document.querySelector(`#segFmt button[data-v="${f}"]`) || null; if (b) b.click(); }, fmt);
 await page.click('#goBtn');
-await frames(page, 260); // (the opening fly-in)
+await frames(page, 2);
 const snap = () => page.evaluate(() => { const { G } = window.__fb; const K = G.c2;
   return { T: +G.T.toFixed(0), state: G.state, map: G.map.id, R: window.__fb.W ? window.__fb.W.R : null, phase: K && K.phase, chest: K && K.chest,
     held: G.holds.map(h => h.owner).join(''), units: G.units.filter(u => !u.dead).length, guards: K && K.breaks.filter(b => b.kind === 'guard' && b.hp > 0).length,

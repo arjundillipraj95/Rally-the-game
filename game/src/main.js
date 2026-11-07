@@ -423,7 +423,7 @@ function beginMatch(humans, active) {
   viewForMatch();
   sfx.horn();
   startTutorial();
-  if (!session.NET) { G.state = 'intro'; startIntro(G.player); }
+  if (!session.NET && !(import.meta.env.DEV && window.__testSheet !== undefined && !window.__keepIntro)) { G.state = 'intro'; startIntro(G.player); } // (dev tests skip the opening unless they ask for it)
 }
 setNetHooks({ onMatchStart: viewForMatch, onAbort: msg => netLeave(msg), onLobby: () => showLobby() });
 bindLobby({ startMatch: beginMatch, seedDemo, teams: () => soloAl.slice(), resetSolo: () => resetSolo() });

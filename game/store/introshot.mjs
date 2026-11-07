@@ -3,6 +3,7 @@ import { chromium } from 'playwright';
 import { open, frames, OUT } from './stage.mjs';
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const page = await open(browser, 240, 300);
+await page.evaluate(() => { window.__keepIntro = true; });
 const errs = []; page.on('pageerror', e => errs.push(e.message));
 await page.click('#segMap button[data-v="valley"]'); await page.click('#goBtn');
 const read = () => page.evaluate(() => ({ state: window.__fb.G.state, txt: document.getElementById('introT').textContent, hidden: document.getElementById('introT').hidden, hud: document.getElementById('hudWrap').style.visibility, T: +window.__fb.G.T.toFixed(2) }));
