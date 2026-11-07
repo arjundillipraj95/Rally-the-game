@@ -4,7 +4,7 @@
 // is folded into one small line of daily totals, kept for good (the archive).
 
 export const KEEP_DAYS = 90;
-const ADMIN_HASH = '0ae1b0f4a49c1f05e2b91270d0da275c73e2b9afcfe486adc9e7ea492fbb8c8a'; // (sha-256 of the admin key; the key itself is not in the code)
+const ADMIN_HASH = '381dc602d5093fac1e2a607205f7353c5b89d0a6d4cf01e66ebefdbdfeeb68c0'; // (sha-256 of the admin key; the key itself is not in the code)
 const day = t => new Date(t).toISOString().slice(0, 10);
 const num = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(+v || 0)));
 const str = (v, n) => String(v == null ? '' : v).replace(/[^\w .:-]/g, '').slice(0, n);
