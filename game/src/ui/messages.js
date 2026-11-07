@@ -1,6 +1,6 @@
 // Turns rule announcements ('castleDown', 'flagTaken'...) into banners, sounds and buzzes,
 // worded for this player. Hosts and clients use the same wording.
-import { TEAMS, MODES, CAPS_TO_WIN, UPGRADES, CALM } from '../config.js';
+import { TEAMS, MODES, CAPS_TO_WIN, UPGRADES, CALM, DUEL } from '../config.js';
 import { G, isEnemyTi, colorOf, bus, rules } from '../core/state.js';
 import { allianceCaps, horseCooldown } from '../core/sim.js';
 import { groundY } from '../core/world.js';
@@ -105,7 +105,8 @@ export function msgText(k, a) {
     case 'crownDropped': return mine(a[0]) ? ['You dropped the Crown!', 'Get it back', '#e0352b'] : [`${nm(a[0])} dropped the Crown!`, 'It\'s on the ground: grab it', css(a[0])];
     case 'overtime': return ['Overtime!', a[0] ? 'Enemies are too close to the Crown: it goes on' : 'Nobody has the Crown: grab it!', '#ffcf3a'];
     case 'villageFort': return mine(a[0]) ? ['Palisade up!', `${(G.holds[a[1]] || {}).name || 'The village'} now takes 11 seconds to take`, css(a[0])] : null;
-    case 'c2capPoint': return mine(a[0]) ? ['Captain point claimed!', `You cut down ${nm(a[1])} for the first time: +1`, '#ffcf3a'] : null;
+    case 'c2capPoint': return mine(a[0]) ? ['Captain point claimed!', `You cut down ${nm(a[1])}: +${a[2] || 1}`, '#ffcf3a'] : null;
+    case 'mineOn': return mine(a[0]) ? ["He's mine!", `${nm(a[1])} won't duel. Your men leave him to you for ${DUEL.mineT} seconds`, css(a[0])] : mine(a[1]) ? [`${nm(a[0])} is coming for you`, "You refused the duel: his men are leaving you to him", css(a[0])] : null;
     case 'c2chestSoon': return ['A war chest is coming!', `It lands in the arena in ${a[0]} seconds. The gates open for everyone`, '#ffcf3a'];
     case 'c2chestUp': return ['The war chest has landed!', 'The arena is open: break the chest for +4 points and gold', '#ffcf3a'];
     case 'c2nightSoon': return ['Night is coming', 'At 8:00 the arena opens to captains', '#bfe6f5'];
@@ -139,7 +140,14 @@ export function c2Tier(k, a) {
 }
 export const c2On = () => G.mode === 'crown' && G.map && G.map.id === 'mount';
 let namer = () => null; export const setNamer = f => { namer = f; }; // (captains by name: players' nicknames, computer captains' names)
+export const claimed = {}; // (enemy captains your side has claimed on the mountain: for the +2 marker on every phone)
+function note(k, a) { // (bookkeeping every phone does from the messages: the host's arrive here too)
+  if (k === 'mineOn' && G.teams && G.teams[a[0]]) G.teams[a[0]].mine = { ti: a[1], id: (G.teams[a[1]] && G.teams[a[1]].leader || {}).id, until: G.T + DUEL.mineT };
+  if (k === 'c2capPoint' && G.ALLY) claimed[G.ALLY[colorOf(a[0])] + ':' + a[1]] = 1;
+  if (k === 'start') for (const x in claimed) delete claimed[x];
+}
 export function showMsg(k, a) {
+  note(k, a || []);
   bus.emit('shownMsg', { k, a });
   const myTi = G.myTi;
   if (k === 'gold') { if (a[0] === myTi) { floatText(a[1], groundY(a[1], a[2]) + 2.6, a[2], `+${a[3]} gold`, '#ffcf3a'); sfx.coin(); } return; }

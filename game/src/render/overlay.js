@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { TEAMS, DUEL, STREAK, RHYTHM, CAPTAIN_COMBAT, ARMOUR, STAMINA, DUEL_DIR } from '../config.js';
 import { bus } from '../core/state.js';
 import { G, isEnemyTi, isFfa, colorOf, isOut, noCastle } from '../core/state.js';
+import { claimed } from '../ui/messages.js';
 import { fogGrid } from './fog.js';
 import { groundY, clamp, W } from '../core/world.js';
 import { camera, view } from './scene.js';
@@ -101,10 +102,13 @@ export function drawOverlay(opts) {
         const nick = opts.nickFor(u.ti);
         if (nick) { ctx.font = '800 12px "Barlow Semi Condensed", sans-serif'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.strokeText(nick, sx, sy - 6); ctx.fillStyle = '#fff'; ctx.fillText(nick, sx, sy - 6);
           // the mountain: an enemy captain your side hasn't cut down yet is worth a point: a gold +1 by his name
-          if (G.c2 && isEnemyTi(u.ti, G.myTi) && !((G.c2.kills[G.ALLY[colorOf(G.myTi)]] || {})[u.ti])) {
+          const myMine = G.teams[G.myTi] && G.teams[G.myTi].mine;
+          if (myMine && myMine.id === u.id && G.T < myMine.until) { ctx.strokeStyle = '#ffcf3a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx, sy - 10, 13 + Math.sin(G.T * 6) * 1.5, 0, Math.PI * 2); ctx.stroke(); } // ("He's mine!": a gold ring round his name)
+          const own = G.ALLY[colorOf(G.myTi)];
+          if (G.c2 && isEnemyTi(u.ti, G.myTi) && !((G.c2.kills[own] || {})[u.ti]) && !claimed[own + ':' + u.ti]) {
             const tw = ctx.measureText(nick).width, bx = sx + tw / 2 + 12, by = sy - 10;
             ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.beginPath(); ctx.arc(bx, by, 8, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#ffcf3a'; ctx.font = '800 10px "Barlow Semi Condensed", sans-serif'; ctx.fillText('+1', bx, by + 3.5); ctx.font = '800 12px "Barlow Semi Condensed", sans-serif';
+            ctx.fillStyle = '#ffcf3a'; ctx.font = '800 10px "Barlow Semi Condensed", sans-serif'; ctx.fillText('+2', bx, by + 3.5); ctx.font = '800 12px "Barlow Semi Condensed", sans-serif';
           } }
       }
       if (G.mode === 'dm' && u.leader && u.ti === G.bounty) {

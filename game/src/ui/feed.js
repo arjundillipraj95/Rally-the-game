@@ -87,7 +87,7 @@ const place = id => esc((G.holds && G.holds[id] && G.holds[id].name) || 'a villa
 
 export function feedLine(k, a) {
   switch (k) {
-    case 'c2capPoint': return `${who(a[0])} claimed a captain point: ${who(a[1])} <i>+1</i>`;
+    case 'c2capPoint': { const cap = G.teams[a[0]] && G.teams[a[0]].leader && (a[2] || 1) > 1; return cap ? `${who(a[0])} cut down ${who(a[1])} <i>+${a[2]}</i>` : `${who(a[0])}'s men got ${who(a[1])} first <i>+${a[2] || 1}</i>`; }
     case 'capDown': return a[1] != null && a[1] >= 0 && a[1] !== a[0] ? `${who(a[1])} cut down ${who(a[0])}` : `${who(a[0])} fell`;
     case 'castleDown': return `${who(a[0])}'s castle fell${a[1] != null && a[1] >= 0 ? ` to ${who(a[1])}` : ''}`;
     case 'holdTaken': return `${side(a[0])} took ${place(a[2])}`;

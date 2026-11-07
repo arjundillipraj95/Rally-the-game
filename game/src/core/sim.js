@@ -373,14 +373,16 @@ function eachNear(x, z, r, fn) {
   const i0 = Math.floor((x - r) / GC) + 64, i1 = Math.floor((x + r) / GC) + 64, j0 = Math.floor((z - r) / GC) + 64, j1 = Math.floor((z + r) / GC) + 64;
   for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { const a = grid.get(i * 256 + j); if (a) for (let k = 0; k < a.length; k++) fn(a[k]); }
 }
+// "He's mine!": a soldier of a captain who has claimed an enemy captain leaves that captain alone
+const spared = (u, o) => { if (u.leader || !o.leader) return false; const m = G.teams[u.ti] && G.teams[u.ti].mine; return !!m && m.id === o.id && G.T < m.until; };
 export function nearestFoe(u, maxD, filter) {
   let best = null, bd = maxD * maxD;
   const ds = G.duels && G.duels.length > 0;
   if (maxD <= 72 && gridOk()) {
-    eachNear(u.x, u.z, maxD, o => { if (o.dead || !isEnemy(o, u) || (filter && !filter(o)) || (ds && !duelFoe(u, o))) return; const dx = o.x - u.x, dz = o.z - u.z, d = dx * dx + dz * dz; if (d < bd) { bd = d; best = o; } });
+    eachNear(u.x, u.z, maxD, o => { if (o.dead || !isEnemy(o, u) || (filter && !filter(o)) || (ds && !duelFoe(u, o)) || spared(u, o)) return; const dx = o.x - u.x, dz = o.z - u.z, d = dx * dx + dz * dz; if (d < bd) { bd = d; best = o; } });
     return [best, Math.sqrt(bd)];
   }
-  for (const o of G.units) { if (o.dead || !isEnemy(o, u) || (filter && !filter(o)) || (ds && !duelFoe(u, o))) continue; const dx = o.x - u.x, dz = o.z - u.z, d = dx * dx + dz * dz; if (d < bd) { bd = d; best = o; } }
+  for (const o of G.units) { if (o.dead || !isEnemy(o, u) || (filter && !filter(o)) || (ds && !duelFoe(u, o)) || spared(u, o)) continue; const dx = o.x - u.x, dz = o.z - u.z, d = dx * dx + dz * dz; if (d < bd) { bd = d; best = o; } }
   return [best, Math.sqrt(bd)];
 }
 export function nearestEnemyCastle(u) {
@@ -634,7 +636,7 @@ const busy = u => u.mounted || u.carrying || u.dueled || u.duelId || u.execReady
 export function canChallenge(p, v) {
   if (!p || !v || p === v || !p.leader || !v.leader || p.dead || v.dead || !isEnemy(p, v) || busy(p) || busy(v)) return false;
   if ((p.duelAskT || 0) > G.T) return false;
-  if (G.crown && (G.T >= CROWN.crown || G.T < CROWN.breakout)) return false; // (no new duels once the Crown is up, nor in the break-out)
+  if (G.crown && !G.c2 && (G.T >= CROWN.crown || G.T < CROWN.breakout)) return false; // (no new duels once the Crown is up, nor in the break-out; the mountain allows them any time)
   if (duels().some(d => d.a === p || d.b === p || d.a === v || d.b === v)) return false;
   return Math.hypot(v.x - p.x, v.z - p.z) <= DUEL.offerR;
 }
@@ -699,6 +701,9 @@ function refuse(d) {
   G.duels = duels().filter(x => x !== d);
   loseHeart(d.b.ti, DUEL.decline);
   say('duelNo', d.b.ti, d.a.ti); fx('fxmsg', { k: 'fxduelno', u: d.b, a: d.a });
+  // no duel, then: "He's mine!" The challenger's men leave that captain to him for a while (they still
+  // fight everyone round him; his own men may still help him)
+  if (!d.a.dead && !d.b.dead) { G.teams[d.a.ti].mine = { ti: d.b.ti, id: d.b.id, until: G.T + DUEL.mineT }; say('mineOn', d.a.ti, d.b.ti); fx('netFlush'); }
 }
 function duelTick(dt) {
   const ds = duels();
@@ -1115,7 +1120,7 @@ function arrowHit(a, b) {
 export function die(u, killer, ang, launch = 0) {
   if (u.dead) return;
   if (G.c2 && u.shieldT > G.T) { u.hp = Math.max(1, u.hp); return; } // (the mountain: at home, or just out of it, nobody dies)
-  if (G.c2 && u.leader && killer && isEnemyTi(killer.ti, u.ti)) { const k = G.c2.kills, a = allianceOf(killer.ti); if (!(k[a] = k[a] || {})[u.ti]) { k[a][u.ti] = 1; say('c2capPoint', killer.ti, u.ti); fx('netFlush'); } }
+  if (G.c2 && u.leader && killer && isEnemyTi(killer.ti, u.ti)) { const k = G.c2.kills, a = allianceOf(killer.ti); if (!(k[a] = k[a] || {})[u.ti]) { const v = killer.leader ? CROWN2.points.killCaptain : CROWN2.points.killArmy; k[a][u.ti] = v; say('c2capPoint', killer.ti, u.ti, v); fx('netFlush'); } }
   u.dead = true; u.deadT = 0;
   if (launch) { // off they go: high, far, spinning (see the ragdoll in render/soldiers.js)
     const f = rnd(8.5, 12); u.vx += Math.sin(ang) * f; u.vz += Math.cos(ang) * f; u.vy = rnd(9, 12); u.launch = true;
@@ -1586,7 +1591,7 @@ function c2Take(h, a, per) {
 export function c2Points(a) {
   const K = G.c2; if (!K) return 0; let p = 0;
   for (const h of G.holds || []) if (h.owner === a) p += CROWN2.points[c2Kind(h)];
-  return p + (K.chestPts[a] || 0) + (K.crownPts[a] || 0) + Object.keys(K.kills[a] || {}).length * CROWN2.points.kill;
+  return p + (K.chestPts[a] || 0) + (K.crownPts[a] || 0) + Object.values(K.kills[a] || {}).reduce((n, v) => n + v, 0);
 }
 // the things on the mountain you break: a neutral castle's guards, a bandit camp, the war chest, the glacier
 export function c2Begin() {

@@ -9,7 +9,7 @@ import '@fontsource/barlow-semi-condensed/latin-800-italic.css';
 import './style.css';
 import { TEAMS, MODES, MAPS, PRESETS, RANKS, CRESTS, QUIPS, TIPS, AL_LETTER, TARGETS, DUEL } from './config.js';
 import { G, bus, colorOf, rules, matchTime, modeDesc, activeFrom, targetFor, SLOT_NAME, isEnemyTi, botName } from './core/state.js';
-import { rideRelease, orderVolley, challenge, canChallenge, startMatch, mkUnit, newTeams, update, fallStep, endMatch, auraRange, endStep, setOrder, applyFort, c2Points } from './core/sim.js';
+import { rideRelease, orderVolley, challenge, canChallenge, startMatch, mkUnit, newTeams, update, fallStep, endMatch, auraRange, endStep, setOrder, applyFort, c2Points, die } from './core/sim.js';
 import { makeLayout, gatePos, groundY, W } from './core/world.js';
 import { buildNav, findPath } from './core/nav.js';
 import { renderer, scene, camera, resize, applyPixelRatio, applyShadowQuality, followSun } from './render/scene.js';
@@ -959,7 +959,7 @@ window.__fb = {
   volley(pt) { actions.volley(pt); }, order(o, pt) { actions.order(o, pt); }, rally() { actions.rally(); },
   attack() { actions.attack(); }, duel() { actions.duel(); }, jump() { actions.jump(); }, weapon(w) { actions.weapon(w); }, upgrade(id) { actions.upgrade(id); },
   fort(c, lv) { G.teams[c].up.fort = lv; applyFort(c); },
-  setOrder, rideRelease, findPath, gatePos, orderVolley, mkUnit, challenge, canChallenge, G, W, c2Points, cam, scene, renderer, audio: () => audioStats(),
+  setOrder, rideRelease, findPath, gatePos, orderVolley, mkUnit, challenge, canChallenge, G, W, c2Points, die, cam, scene, renderer, audio: () => audioStats(),
 };
 
 function onResize() { resize(); resizeOverlay(); }

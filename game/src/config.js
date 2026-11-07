@@ -59,7 +59,7 @@ export const CROWN2 = {
   take: { village: 7, villageFort: 11, castle: [10, 14, 18] }, villageFort: 80, // (seconds to take: a village; a castle at level 1, 2, 3)
   guards: { castle: 3, hp: 60, dmg: 7, cd: 1.3, reach: 2.6 }, // (a neutral castle's garrison: men's worth of hit points, and how hard they hit back)
   camp: { men: 3, hp: 50, dmg: 6, cd: 1.4, reach: 2.4, gold: 50, back: 90 },
-  points: { castle: 3, village: 2, chest: 4, crown: 7, kill: 1 },
+  points: { castle: 3, village: 2, chest: 4, crown: 7, killCaptain: 2, killArmy: 1 }, // (an enemy captain is worth 2 to the captain who cuts him down, 1 if your men get there first; once only)
   chest: 300, chestWarn: 20, chestShut: 420, chestHp: 400, // (the war chest lands at 5:00 in the arena, armies let in; broken open, or at 7:00, the gates shut)
   dusk: 450, night: 480, crack: 570, glacierHits: 80, // (dusk at 7:30; at 8:00 the arena opens to captains and the glacier can be hit; it breaks after so many captain blows)
   bridgeHw: 2.2, chasmBridgeHw: 2.1, arenaGateW: 5.2,
@@ -234,7 +234,8 @@ export const EVADE = { iframe: .2, remote: .12, cd: .45, tired: 1.3, chain: 1.1,
 // An outsider's man or an enemy captain getting into the ring breaks it: his army loses heart (broken)
 // and the duellists' armies get rally (brokenRally). Computer captains accept at accept[difficulty];
 // they challenge a player at aiChallenge[difficulty] per second when in range (aiVsAi between themselves).
-export const DUEL = { offerR: 10, ring: 6, guardR: 25, offerT: 5, time: 60, accept: [.55, .75, .9], aiChallenge: [.02, .045, .08], aiVsAi: .02, decline: 8, winMorale: 30, broken: 20, brokenRally: 25, draw: 10 };
+export const DUEL = { mineT: 15, // (a refused challenge: "He's mine!" for this many seconds)
+  offerR: 10, ring: 6, guardR: 25, offerT: 5, time: 60, accept: [.55, .75, .9], aiChallenge: [.02, .045, .08], aiVsAi: .02, decline: 8, winMorale: 30, broken: 20, brokenRally: 25, draw: 10 };
 // A blow from behind (a captain's): harder, and it staggers. Circle him.
 export const BACKSTAB = { mult: 1.6, stun: .5 };
 // The execution: an enemy captain beaten down (hp at or under hp of his max, or hpStunned while
