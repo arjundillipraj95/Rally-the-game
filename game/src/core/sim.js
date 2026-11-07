@@ -1589,7 +1589,7 @@ export function c2Points(a) {
   return p + (K.chestPts[a] || 0) + (K.crownPts[a] || 0) + Object.keys(K.kills[a] || {}).length * CROWN2.points.kill;
 }
 // the things on the mountain you break: a neutral castle's guards, a bandit camp, the war chest, the glacier
-function c2Begin() {
+export function c2Begin() {
   const L = G.layout, K = G.c2 = { kills: {}, chestPts: {}, crownPts: {}, breaks: [], phase: 'shut', said: {}, chest: 0 };
   for (const h of G.holds) if (h.kind === 'castle') {
     if (G.cgates[h.id]) G.cgates[h.id] = freshGates(1); // (neutral: level 2)

@@ -2,10 +2,12 @@
 // presses and draws the host's snapshots (a compact text string, roughly 1-4KB depending on
 // how many soldiers are alive — more in a full 12-army Trio match — sent
 // about 12 times a second).
+import { CROWN2 } from '../config.js';
 import { SHOUTS, CROWN, HUMAN_CAPTAIN, ARMOUR, RHYTHM, BASH, STREAK, EVADE, TEAMS, MAPS, KINDS, STATS, RECRUITS, FACTIONS, factionFromCode, ORDERS, ORDER_NAMES, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT, HOLD_ATK, PARRY } from '../config.js';
 import { G, bus, colorOf, isEnemyTi, activeFrom, ARMIES, duoStr, duoParse } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn, angDiff } from '../core/world.js';
 import { buildNav, syncGates } from '../core/nav.js';
+import { c2Begin } from '../core/sim.js';
 import { adoptBattle, applyCastleGates, applyPlazaWall, volleyCharge, captainBash, duelAct, duelOffer, duelTarget, initForts, applyFort, fortLvl, captainEvade, evadeKind, makeHolds, execTarget, rallyCry, blockPress, attackHold, attackRelease, rideRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainJump, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
 import { session, isClient, isHost } from './session.js';
 import { makeP2PRoom } from './p2p.js';
@@ -66,14 +68,17 @@ function encodeSnap() {
     return [i, b36(L.id), L.dead ? 1 : 0, Math.round(L.horseHp), Math.ceil(L.horseCd), L.summon ? 1 : 0, k.n, r1(k.lvx || 0), r1(k.lvz || 0), r2(k.lst || 0), Math.round(L.hp), '', L.streak | 0, Math.round(L.armour || 0)].join(','); // (11: unused; 12: the streak)
   }).filter(Boolean).join(';');
   // the map's holdings, and control mode's points: who has each, and how far a capture has got
-  const hd = (G.holds || []).map(h => [h.owner, Math.round(h.prog * 100), h.cap, h.contested ? 1 : 0, h.chest | 0, G.cgates && G.cgates[h.id] ? G.cgates[h.id].broken | 0 : 0, G.cgates && G.cgates[h.id] ? G.cgates[h.id].lv | 0 : 0].join(',')).join(';');
+  const hd = (G.holds || []).map(h => [h.owner, Math.round(h.prog * 100), h.cap, h.contested ? 1 : 0, h.chest | 0, G.cgates && G.cgates[h.id] ? G.cgates[h.id].broken | 0 : 0, G.cgates && G.cgates[h.id] ? G.cgates[h.id].lv | 0 : 0, h.by ?? -1, h.fort | 0].join(',')).join(';');
   const cp = (G.ctrlPoints || []).map(p => [p.owner, Math.round(p.prog * 100), p.capturer ?? -1].join(',')).join(';');
   const fo = (G.forts || []).map(f => f.broken).join(',') + (G.plazaWall ? ',' + (G.plazaWall.up ? 16 : 0) + G.plazaWall.broken : ''); // (Fortify: each castle's broken palisade sections)
   const du = (G.duels || []).map(d => [d.id, b36(d.a.id), b36(d.b.id), d.state === 'on' ? 1 : 0, encX(d.x), encX(d.z), Math.max(0, Math.ceil(d.t))].join(',')).join(';'); // (duels: called out, or on)
   const wt = (G.wtowers || []).map(w => [w.id, encX(w.x), encX(w.z), w.a, Math.max(0, Math.round(w.hp)), Math.round(w.build * 99), w.ti].join(',')).join(';'); // (the Crown's watchtowers)
   // captains: stamina, and in a duel the side his blow is coming from (sideN counts the blows)
   const cx = G.units.filter(u => u.leader && !u.dead).map(u => [b36(u.id), Math.round(u.st ?? 100), (u.swingSide | 0) + 1, u.sideN | 0].join(',')).join(';');
-  return [Math.round(G.T * 10), teams, us.join(';'), ars.join(';'), hs.join(';'), fl, pl, G.bounty, hd, cp, fo, du, wt, cx].join('|');
+  // the mountain: the arena's phase, the war chest, the points that aren't places, and what's left of every guard, camp and the glacier
+  const K = G.c2, c2 = K ? (() => { const ch = K.breaks.find(b => b.kind === 'chest'), one = o => { const k = Object.keys(o).find(a => o[a]); return k == null ? -1 : k; };
+    return [['shut', 'open', 'night'].indexOf(K.phase), K.chest, ch ? Math.round(ch.hp) : 0, one(K.chestPts), one(K.crownPts), [0, 1, 2, 3].map(a => Object.keys(K.kills[a] || {}).length).join('.'), K.breaks.filter(b => b.kind !== 'chest').map(b => Math.max(0, Math.round(b.hp))).join('.')].join(','); })() : '';
+  return [Math.round(G.T * 10), teams, us.join(';'), ars.join(';'), hs.join(';'), fl, pl, G.bounty, hd, cp, fo, du, wt, cx, c2].join('|');
 }
 // a remote player's blow landing (or landing on them) goes out at once rather than waiting for the
 // next regular snapshot, so their hits register as quickly as the network allows
@@ -192,6 +197,7 @@ export function clientStart(hp) {
   G.plazaWall = G.crown ? { up: false, hp: [0, 0, 0, 0], broken: 0 } : null; C.wallSig = null; G.cgates = G.crown ? {} : null; G.wtowers = [];
   G.ctrlPoints = G.mode === 'ctrl' ? makeCtrlPoints(G.layout) : null;
   G.holds = makeHolds(G.layout); G.duels = [];
+  G.c2 = null; if (G.mode === 'crown' && G.map.id === 'mount') { G.cgates = {}; for (const cw of (G.layout.cwalls || [])) G.cgates[cw.hid] = { hp: [1, 1, 1], broken: 0, lv: 1 }; c2Begin(); }
   Object.assign(C, { byId: new Map(), lastN: -1, lastMsgN: (hp.m && hp.m.length) ? hp.m[hp.m.length - 1][0] : 0, meId: null, meInit: false, kickN: 0, localCd: 0, lastSnapAt: performance.now(),
     inp: { rb: 0, bsh: 0, dl: 0, dlId: null, atk: 0, ride: 0, vly: 0, chg: 0, evN: 0, evK: '', par: 0, ahN: 0, ahD: 0, ah: false, rly: 0, foc: null, vat: null, rec: [0, 0, 0], up: UPGRADES.map(() => 0), ord: 'follow', hold: null, face: 0 }, sendAt: 0, sendNow: false, pred: null, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
   G.player = null;
@@ -235,7 +241,7 @@ function clientApply(hp) {
     if (v.length > 9) { s.morale = v[7]; s.rally = v[8]; s.routT = v[9] ? 1 : 0; }
   });
   G.bounty = +secs[7];
-  if (secs[8] && G.holds) secs[8].split(';').forEach((r, i) => { const h = G.holds[i], v = r.split(',').map(Number); if (h) { h.owner = v[0]; h.prog = v[1] / 100; h.cap = v[2]; h.contested = !!v[3]; h.chest = v[4] | 0; if (G.cgates) { if (!G.cgates[i] && G.layout.cwalls && G.layout.cwalls.some(c => c.hid === i)) G.cgates[i] = { hp: [1, 1, 1], broken: 0 }; if (G.cgates[i]) { G.cgates[i].broken = v[5] | 0; G.cgates[i].lv = v[6] | 0; } } } }); if (G.crown) applyCastleGates();
+  if (secs[8] && G.holds) secs[8].split(';').forEach((r, i) => { const h = G.holds[i], v = r.split(',').map(Number); if (h) { h.owner = v[0]; h.prog = v[1] / 100; h.cap = v[2]; h.contested = !!v[3]; h.chest = v[4] | 0; if (v.length > 7) { h.by = v[7] < 0 ? undefined : v[7]; h.fort = v[8] | 0; } if (G.cgates) { if (!G.cgates[i] && G.layout.cwalls && G.layout.cwalls.some(c => c.hid === i)) G.cgates[i] = { hp: [1, 1, 1], broken: 0 }; if (G.cgates[i]) { G.cgates[i].broken = v[5] | 0; G.cgates[i].lv = v[6] | 0; } } } }); if (G.crown) applyCastleGates();
   if (secs[10] != null && G.forts) { // palisades: built (the castle's Fortify level) and broken
     secs[10].split(',').forEach((v, c) => { if (G.forts[c]) G.forts[c].broken = +v || 0; });
     const pv = +secs[10].split(',')[4]; // (the Crown: the plaza's wall, up (16) and its broken gates)
@@ -289,6 +295,15 @@ function clientApply(hp) {
   }
   for (const u of [...C.byId.values()]) if (!seen.has(u.id)) clientKill(u);
   if (secs[12] != null && G.mode === 'crown') G.wtowers = secs[12] ? secs[12].split(';').map(r => { const f = r.split(','); return { id: +f[0], x: decX(f[1]), z: decX(f[2]), a: +f[3], hp: +f[4], build: +f[5] / 99, ti: +f[6] }; }) : [];
+  if (secs[14] && G.c2) { // the mountain
+    const K = G.c2, f = secs[14].split(','), pts = (a, v) => { const o = {}; if (+a >= 0) o[+a] = v; return o; };
+    K.phase = ['shut', 'open', 'night'][+f[0]] || 'shut'; K.chest = +f[1] | 0;
+    if (K.chest >= 1 && !K.breaks.some(b => b.kind === 'chest')) K.breaks.push({ brk: true, kind: 'chest', x: G.layout.arena.r * .5, z: 0, r: 1.6, hp: 1, max: CROWN2.chestHp });
+    const ch = K.breaks.find(b => b.kind === 'chest'); if (ch) ch.hp = K.chest === 1 ? +f[2] : 0;
+    K.chestPts = pts(f[3], CROWN2.points.chest); K.crownPts = pts(f[4], CROWN2.points.crown);
+    (f[5] || '').split('.').forEach((n, a) => { const o = {}; for (let k = 0; k < (+n | 0); k++) o['k' + k] = 1; K.kills[a] = o; });
+    const hp = (f[6] || '').split('.'), bs = K.breaks.filter(b => b.kind !== 'chest'); bs.forEach((b, i) => { if (hp[i] != null && hp[i] !== '') { const v = +hp[i]; if (v < b.hp) b.hitT = G.T; b.hp = v; } });
+  }
   if (secs[13]) for (const r of secs[13].split(';')) { // captains: stamina, and a duel blow's side
     const f = r.split(','), u = C.byId.get(p36(f[0])); if (!u) continue;
     u.st = +f[1]; const n = +f[3] | 0;

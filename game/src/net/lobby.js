@@ -274,7 +274,7 @@ export async function matchHost(code, fmt, myTi, expect, onNote = () => {}) {
   let gr = null; try { gr = await makeP2PRoom(code, true); } catch (e) { busy = false; onNote('Could not open the battle. Try again.'); return false; }
   busy = false;
   const NET = session.NET = { role: 'host', room: gr, name: code, seats: {}, msgs: [], msgN: 0, snapN: 0, inp: {}, match: true,
-    lobby: { mode: 'crown', map: 'valley', diff: G.diff, time: 10, tgt: null, al: [0, 1, 2, 3], duo: [fmt, fmt, fmt, fmt] } };
+    lobby: { mode: 'crown', map: new URLSearchParams(location.search).get('crown2') === '1' ? 'mount' : 'valley', diff: G.diff, time: 10, tgt: null, al: [0, 1, 2, 3], duo: [fmt, fmt, fmt, fmt] } };
   const me = myPeer(gr) || 'me'; NET.me = me; NET.seats[me] = myTi; G.myTi = myTi; G.role = 'host';
   const t0 = performance.now();
   NET.unsub = gr.onPeers(() => { if (G.state === 'lobby') { hostLobbyTick(); check(); } });

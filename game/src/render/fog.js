@@ -9,7 +9,8 @@ import { CROWN } from '../config.js';
 export const FOG = { unit: 20, place: 16, tower: 36 }; // how far each sees, in metres
 const CELL = 4;
 let N = 0, grid = null, half = 0, t = 0;
-export const fogOn = () => G.mode === 'crown' && G.state === 'play' && G.T >= CROWN.breakout;
+const onMount = () => G.map && G.map.id === 'mount';
+export const fogOn = () => G.mode === 'crown' && G.state === 'play' && (onMount() || G.T >= CROWN.breakout);
 export const fogGrid = () => (fogOn() ? { grid, N, CELL, half } : null);
 function mark(x, z, r) {
   const i0 = Math.max(0, Math.floor((x - r + half) / CELL)), i1 = Math.min(N - 1, Math.floor((x + r + half) / CELL));
@@ -27,6 +28,9 @@ export function fogTick(dt) {
   for (const u of G.units) if (!u.dead && G.ALLY[colorOf(u.ti)] === a) mark(u.x, u.z, FOG.unit);
   for (const h of G.holds || []) if (h.owner === a) mark(h.x, h.z, h.r + FOG.place);
   for (const w of G.wtowers || []) if (w.a === a && w.build >= 1) mark(w.x, w.z, FOG.tower);
+  // the mountain: only the jungle hides anyone; everywhere else is in plain sight
+  const J = onMount() && G.layout && G.layout.jungle;
+  if (J) for (let j = 0; j < N; j++) { const cz = j * CELL - half + CELL / 2; for (let i = 0; i < N; i++) { const cx = i * CELL - half + CELL / 2, r = Math.hypot(cx, cz); if (r < J.r0 - 1 || r > J.r1 + 1) grid[j * N + i] = 1; } }
   const carrier = G.flag && G.flag.state === 'carried' ? G.flag.carrier : null;
   for (const u of G.units) u.fog = G.ALLY[colorOf(u.ti)] !== a && u !== carrier && !seenAt(u.x, u.z);
 }

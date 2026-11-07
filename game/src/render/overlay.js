@@ -321,6 +321,11 @@ function drawMini() {
     mctx.fillStyle = (G.mode !== 'conquest' || G.teams[i].alive) ? t.css : '#555'; mctx.fillRect(t.pos[0] * k - 9, t.pos[1] * k - 9, 18, 18);
     if (!isFfa() && !isEnemyTi(i, G.myTi)) { mctx.strokeStyle = '#fff'; mctx.lineWidth = 2; mctx.strokeRect(t.pos[0] * k - 9, t.pos[1] * k - 9, 18, 18); }
   });
+  if (id === 'mount' && G.layout && G.layout.homes) { // the mountain: the river, the arena, and every side's home
+    const L = G.layout; mctx.strokeStyle = 'rgba(63,127,166,.85)'; mctx.lineWidth = Math.max(2, L.river.w * 2 * k); mctx.beginPath(); mctx.arc(0, 0, Math.hypot(L.river.pts[0][0], L.river.pts[0][1]) * k, 0, Math.PI * 2); mctx.stroke();
+    mctx.fillStyle = 'rgba(191,230,245,.55)'; mctx.beginPath(); mctx.arc(0, 0, L.arena.r * k, 0, Math.PI * 2); mctx.fill();
+    for (const h of L.homes) { mctx.fillStyle = TEAMS[h.c].css; mctx.fillRect(h.x * k - 8, h.z * k - 8, 16, 16); if (h.c === colorOf(G.myTi)) { mctx.strokeStyle = '#fff'; mctx.lineWidth = 2; mctx.strokeRect(h.x * k - 8, h.z * k - 8, 16, 16); } }
+  }
   for (const h of G.holds || []) { // the map's holdings: a ring in the holder's colour
     mctx.lineWidth = 3; mctx.strokeStyle = h.contested || (h.cap >= 0 && h.prog > 0) ? '#ffcf3a' : h.owner >= 0 ? sideCss(h.owner) : 'rgba(255,255,255,.75)';
     mctx.beginPath(); mctx.arc(h.x * k, h.z * k, Math.max(6, h.r * k), 0, Math.PI * 2); mctx.stroke();

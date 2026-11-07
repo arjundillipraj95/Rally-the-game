@@ -777,7 +777,7 @@ function playStart() {
   const pick = a => a[(Math.random() * a.length) | 0];
   if (!soloPick) soloPick = { mode: G.mode, time: G.time, target: G.target };
   G.mode = 'crown'; G.time = 10; G.target = null;
-  soloStart({ al: [0, 1, 2, 3], duo: [playFmt, playFmt, playFmt, playFmt], map: MAPS.valley });
+  soloStart({ al: [0, 1, 2, 3], duo: [playFmt, playFmt, playFmt, playFmt], map: crown2 ? MAPS.mount : MAPS.valley });
   lastStart = playStart;
 }
 $('playBtn').addEventListener('pointerdown', showVeil);
