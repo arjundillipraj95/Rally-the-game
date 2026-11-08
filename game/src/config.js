@@ -332,6 +332,8 @@ export const FORT = { gateHp: 480, repair: 60, r: 22, h: 3.4, segs: 12, gateW: 3
 export const AURA = { range: 8, perRange: 3, bonus: .1, perBonus: .05 };
 export const CASTLE_R = 9.5, CASTLE_REACH = 11;
 export const HORSE_HP = 120, HORSE_CD = 20;
-// Ping readout (P0.3): a joiner's round trip to the host, read from the battle messages. A reading every
-// `every` ms; the shown ping is the median of the last `keep` readings. Colours: under `good` green, under `fair` amber, else red.
-export const PING = { every: 2000, keep: 10, good: 120, fair: 250 };
+// Ping readout (P0.3): a joiner's round trip to the host, sent as ping/pong. A reading every `every` ms; the
+// shown ping is the median of the last `keep` readings. `bands` are the upper limits (ms) for the colours, in
+// order: dark green (no data loss), green (acceptable data loss), amber (visible data loss), red, dark red.
+// At or above the last limit the game is not fine (shown as "not fine").
+export const PING = { every: 2000, keep: 10, bands: [60, 100, 150, 200, 300] };
