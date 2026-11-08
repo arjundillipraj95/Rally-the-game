@@ -3,6 +3,14 @@ import { ON } from './online.js';
 // Exposes a small presence-style API: presence(patch), peers(), onPeers(fn), leave().
 import { Peer } from 'peerjs';
 
+// Test-only: with window.__lag = { ms, loss, jitter } set (store/lagtest.mjs), incoming messages arrive late or
+// not at all, like a far-away phone. Players never set it, so for them this passes messages straight through.
+const lagged = f => d => {
+  const L = typeof window !== 'undefined' && window.__lag; if (!L) return f(d);
+  if (L.loss && Math.random() < L.loss) return;
+  setTimeout(() => f(d), (L.ms || 0) + (L.jitter ? Math.random() * L.jitter : 0));
+};
+
 export const P2P_PREFIX = 'fourbanners-v1-';
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export function newCode() { let c = ''; for (let i = 0; i < 4; i++) c += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]; return c; }
@@ -186,7 +194,7 @@ export async function makeP2PRoom(code, host, onStage = () => {}) {
       wireHost(hostConn);
     });
     function wireHost(hc) {
-      hc.on('data', d => {
+      hc.on('data', lagged(d => {
         if (!d || typeof d !== 'object') return;
         seen.set(P2P_PREFIX + code, performance.now());
         if (d.t === 'full') { done(false, { type: 'full' }); return; }
@@ -195,7 +203,7 @@ export async function makeP2PRoom(code, host, onStage = () => {}) {
           for (const [k, v] of Object.entries(d.all)) if (k !== myId && v && typeof v === 'object') { peers.set(k, v); seen.set(k, performance.now()); }
           notify();
         } else if (d.t === 'h' && typeof d.id === 'string' && d.pr && typeof d.pr === 'object') { peers.set(d.id, d.pr); notify(); }
-      });
+      }));
       hc.on('close', () => { if (hc !== hostConn) return; for (const k of [...peers.keys()]) if (k !== myId) peers.delete(k); notify(); });
       hc.on('error', () => {});
     }
@@ -220,12 +228,12 @@ export async function makeP2PRoom(code, host, onStage = () => {}) {
       conns.set(c.peer, c); seen.set(c.peer, performance.now());
       pending.add(c.peer); notify(); setTimeout(() => { if (pending.delete(c.peer)) notify(); }, 30000);
       c.on('open', () => { pending.delete(c.peer); relayRoster(); try { c.send({ t: 'h', id: myId, pr: mine }); } catch (e) {} });
-      c.on('data', d => {
+      c.on('data', lagged(d => {
         if (!d || d.t !== 'p' || !d.pr || typeof d.pr !== 'object') return;
         seen.set(c.peer, performance.now());
         const old = peers.get(c.peer); peers.set(c.peer, d.pr); notify();
         if (!old || old.nick !== d.pr.nick || old.want !== d.pr.want || old.ph !== d.pr.ph || old.role !== d.pr.role || old.lk !== d.pr.lk) relaySoon();
-      });
+      }));
       const gone = () => { pending.delete(c.peer); if (conns.get(c.peer) !== c) return; conns.delete(c.peer); peers.delete(c.peer); notify(); relaySoon(); };
       c.on('close', gone); c.on('error', gone);
     };
