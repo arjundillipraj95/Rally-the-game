@@ -8,6 +8,17 @@ agreed version.
 - **Build plan:** Rally: Build Plan for Roles & Combat: https://claude.ai/artifact/URoG87MpXxNALYLWS83BsM
 - **Screens (approved mock-ups):** Rally: Battle Screen and Lobby: https://claude.ai/artifact/P6Qm1gxVT5yoDz7RHXoFvt
 
+## Setup in a fresh session
+
+- Repo: https://github.com/arjundillipraj95/Rally-the-game. Clone it if it isn't there; `git checkout roles`.
+- Test servers (game :8766, peer :9000, online :8787): `bash game/store/servers.sh`.
+- Tests are headless Playwright scripts in `game/store/` (Chromium at `/opt/pw-browsers/chromium`).
+- Shipping live (Phase 0 tickets and approved fixes only): run `npm run build` in `game/` **as the very last
+  step before committing** (the build writes `index.html` and `assets/` at the repo root; a stale build once
+  shipped a bug), commit, push `roles`, then `git checkout main && git merge --ff-only roles && git push origin main`,
+  and wait for the GitHub Pages deploy (`gh run list -L 1 --branch main`) to show success. `online.json` is
+  rewritten by the build: restore it with `git checkout -- online.json`, never commit that change.
+
 ## Rules (short form; the build plan's "How we work" is the full version)
 
 1. Work on the `roles` branch. Never push to `main`: pushing to `main` publishes the game live.
