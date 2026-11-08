@@ -93,7 +93,9 @@ export function updateHud(lastSnapAt) {
   // the ping, beside the gold (P0.3): only in a battle with other phones; the host shows "host"
   { const pe = $('ping'); if (pe) { const net = session.NET; pe.hidden = !net;
     if (net) { if (!isClient()) { pe.textContent = 'host'; pe.className = 'h'; }
-      else { const m = pingMedian(net); pe.textContent = m == null ? '…' : `${m} ms`; pe.className = m == null ? 'h' : m < PING.good ? 'g' : m < PING.fair ? 'a' : 'r'; } } } }
+      else { const m = pingMedian(net), b = PING.bands, k = m == null ? -1 : b.findIndex(lim => m < lim);
+        pe.textContent = m == null ? '…' : k < 0 ? `${m} ms · not fine` : `${m} ms`;
+        pe.className = m == null ? 'h' : ['dg', 'g', 'a', 'r', 'dr'][k] || 'nf'; } } } }
   const sq = squadOf(G.myTi), cap = capOf(G.myTi); $('squadN').textContent = G.mode === 'crown' ? `${sq.length}/${cap}` : sq.length;
   if (isC2()) { // the mountain's phase, under the clock
     const T = G.T, C = CROWN2, K = G.c2, ph = !K ? '' : T < C.chest ? `War chest in ${fmt(C.chest - T)}` : K.phase === 'open' ? 'Arena open · break the chest' : T < C.night ? `The Crown wakes in ${fmt(C.night - T)}` : 'Night · captains to the glacier';

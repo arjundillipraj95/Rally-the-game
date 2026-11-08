@@ -45,7 +45,7 @@
   #goldTag{position:absolute;right:max(12px, env(safe-area-inset-right,0px));top:110px;padding:4px 14px;font-family:var(--display);font-size:18px;font-style:italic;pointer-events:none;}
   #goldTag b{font-weight:400;color:var(--gold);}
   #ping{margin-left:10px;font:800 12px var(--body);font-style:normal;letter-spacing:.02em;}
-  #ping.g{color:#3ad16b;} #ping.a{color:#f0c419;} #ping.r{color:#ff6b5e;} #ping.h{color:#a99f8e;}
+  #ping.dg{color:#1f8a3a;} #ping.g{color:#3ad16b;} #ping.a{color:#f0c419;} #ping.r{color:#ff6b5e;} #ping.dr{color:#b3261e;} #ping.nf{color:#b3261e;font-weight:900;text-decoration:underline;} #ping.h{color:#a99f8e;}
   #feed{position:absolute;right:max(12px, env(safe-area-inset-right,0px));top:150px;width:min(36vw,260px);display:flex;flex-direction:column;align-items:flex-end;gap:3px;pointer-events:none;}
   #feed .fl{font:600 12.5px/1.25 var(--body);color:#fff;background:rgba(18,16,14,.55);padding:3px 8px;border-radius:4px;text-align:right;text-shadow:0 1px 1px rgba(0,0,0,.6);animation:flin .25s ease-out;transition:opacity .6s;}
   #feed .fl b{font-weight:800;}
