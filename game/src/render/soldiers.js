@@ -4,7 +4,7 @@
 // Factions change the look only: Romans (galea, scutum, gladius), Greeks (bronze Corinthian helmet,
 // round hoplon), barbarians (hair and beards, bare chests, round wooden shields, axes).
 import * as THREE from 'three';
-import { TEAMS, CRESTS, EXEC } from '../config.js';
+import { TEAMS, CRESTS, EXEC, NEUTRAL } from '../config.js';
 import { G, isEnemyTi, isFfa, colorOf, bus } from '../core/state.js';
 import { braced } from '../core/sim.js';
 import { lookOf, slotOf, SLOT_IX } from '../core/look.js';
@@ -168,7 +168,9 @@ const armored = u => u.tier >= 2; // Footman/captain Armor upgrade: extra plate
 // what's in the weapon hand: a player captain shows the weapon they picked; everyone else by tier
 const spearOut = u => u.weapon ? u.weapon !== 'sword' : u.tier >= 1;
 const trained = u => u.tier >= 1, marksman = u => u.tier >= 2; // Archer tiers
-const team = u => C.team[colorOf(u.ti)], dark = u => C.dark[colorOf(u.ti)];
+// (a neutral soldier of the mountain's garrisons and camps, M1: grey steel instead of a team colour)
+const NEUT = col(NEUTRAL.hex), NEUT_DARK = col(NEUTRAL.hex).multiplyScalar(.62);
+const team = u => u.neutral ? NEUT : C.team[colorOf(u.ti)], dark = u => u.neutral ? NEUT_DARK : C.dark[colorOf(u.ti)];
 const PARTS = [
   { bone: 'root', geo: 'shadow', mat: 'shadow', m: e(0, .03, 0, -Math.PI / 2), when: 'blob' },
   { bone: 'root', geo: 'ring', mat: 'ring', m: e(0, .05, 0, -Math.PI / 2), when: 'me' },
@@ -673,7 +675,7 @@ function pose(u, dt) {
   if (a.cheerT > 0 && !u.mounted) { a.cheerT -= dt; a.expr = 'yell'; a.sArmX = near(a.sArmX, -2.7, k12); a.wArmX = near(a.wArmX, -2.9, k12); a.wArmZ = 0; a.lift = Math.max(a.lift, .2 * Math.sin(Math.PI * a.cheerT / .9)); }
   else if (u.rallyT > 0) a.expr = 'yell';
   // the battle's over: winners jump about with their arms in the air, everyone else runs for it
-  if (G.state === 'end' && G.endInfo && G.endInfo.w >= 0 && !u.mounted) {
+  if (G.state === 'end' && G.endInfo && G.endInfo.w >= 0 && !u.mounted && !u.neutral) { // (neutral soldiers neither cheer nor cower)
     const ph = a.idle * 7 + (u.id % 7);
     if (G.ALLY[colorOf(u.ti)] === G.endInfo.w) {
       a.lift = Math.abs(Math.sin(ph)) * .38; a.expr = 'yell';
@@ -748,7 +750,8 @@ function bones(u, a) {
 }
 
 // Poses and draws every soldier in the list.
-export function drawSoldiers(units, dt) {
+// `extra`: more soldiers drawn the same way but not part of the battle (M1: the mountain's neutral garrisons and camps).
+export function drawSoldiers(units, dt, extra = null) {
   for (const b of batches.values()) b.n = 0;
   const blob = !shadowsOn(), outlines = quality.level !== 'low';
   powCd -= dt;
@@ -758,11 +761,11 @@ export function drawSoldiers(units, dt) {
   const tg = camTarget(), cp = camera.position;
   let lx = 0, ly = 0, lz = 0, l2 = 0;
   if (tg && !tg.dead) { lx = tg.x - cp.x; ly = tg.y + 1.3 - cp.y; lz = tg.z - cp.z; l2 = lx * lx + ly * ly + lz * lz; }
-  for (const u of units) {
+  lists: for (const list of extra && extra.length ? [units, extra] : [units]) for (const u of list) {
     if (u.hidden || u.fog) continue; // (fog of war: an enemy your side can't see)
     if (l2 > 0 && u !== tg && !u.dead) {
       const a = stateOf(u);
-      if (!isEnemyTi(u.ti, G.myTi)) {
+      if (!u.neutral && !isEnemyTi(u.ti, G.myTi)) { // (neutral soldiers are never hidden: they're nobody's friends)
         const ux = u.x - cp.x, uy = u.y + 1.1 - cp.y, uz = u.z - cp.z, t = (ux * lx + uy * ly + uz * lz) / l2;
         if (t > 0 && t < .93) {
           const ex = ux - lx * t, ey = uy - ly * t, ez = uz - lz * t;
@@ -771,7 +774,7 @@ export function drawSoldiers(units, dt) {
       }
       if (a.occT > 0) { a.occT -= dt; continue; }
     }
-    if (drawn >= MAX_UNITS) break;
+    if (drawn >= MAX_UNITS) break lists;
     drawn++;
     const a = pose(u, u.slowT > 0 ? dt * .25 : dt); // (a parry's two men move in slow motion)
     bones(u, a);

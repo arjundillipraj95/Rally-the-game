@@ -2,8 +2,8 @@
 // a banner, the safe ring), the bridges over the chasm, the glacier on the summit with the Crown frozen
 // in it, the war chest, a neutral castle's guards and the bandits round their campfires.
 import * as THREE from 'three';
-import { TEAMS, CROWN2 } from '../config.js';
-import { G } from '../core/state.js';
+import { TEAMS, CROWN2, NEUTRAL } from '../config.js';
+import { G, ARMIES } from '../core/state.js';
 import { groundY, terrainMeshY, mountHomeA, W } from '../core/world.js';
 import { stoneTex, woodTex } from './look.js';
 import { nightLook } from './scene.js';
@@ -26,14 +26,13 @@ export function mountGround(c, x, z) {
   return c;
 }
 
-function figure(body, head, trim) {
-  const g = new THREE.Group();
-  const b = new THREE.Mesh(new THREE.CylinderGeometry(.32, .38, 1.2, 8), body); b.position.y = .9; g.add(b);
-  const h = new THREE.Mesh(new THREE.SphereGeometry(.26, 10, 8), head); h.position.y = 1.72; g.add(h);
-  const s = new THREE.Mesh(new THREE.BoxGeometry(.08, 1.9, .08), trim); s.position.set(.42, 1.2, .1); g.add(s);
-  const l1 = new THREE.Mesh(new THREE.CylinderGeometry(.12, .12, .55, 6), body); l1.position.set(-.14, .28, 0); g.add(l1);
-  const l2 = l1.clone(); l2.position.x = .14; g.add(l2);
-  return shadowy(g);
+// A neutral soldier (a castle's guard, a camp's fighter), for the real soldier model (render/soldiers.js draws it
+// with the armies' own parts, in grey steel). Only a plain record of what that drawing reads: it is not in
+// G.units, so the battle never sees it. Its number, place and facing are the garrison's, nothing else changes.
+let figN = 0;
+function figure(kind, x, z, face) {
+  return { id: 70000 + ++figN, ti: ARMIES, neutral: true, kind, tier: 0, leader: false, human: false, x, z, y: groundY(x, z), vx: 0, vz: 0, vy: 0, face,
+    hp: 1, max: 1, swing: 0, swingKind: 0, stun: 0, blockT: 0, blocking: false, aim: false, dead: false, mounted: false, shieldwall: false, jy: 0 };
 }
 
 export function buildMount(world, L) {
@@ -41,7 +40,7 @@ export function buildMount(world, L) {
   const grp = new THREE.Group(); world.add(grp);
   const stone = lam(0x9a9384, stoneTex()), wood = lam(0x7a5a3a, woodTex()), woodDark = lam(0x55402a, woodTex());
   const plaster = lam(0xf0e6d0), thatch = lam(0xb8954a), skin = lam(0xd9a77a);
-  M = { grp, guards: [], camps: [], homes: [], t: 0 };
+  M = { grp, guards: [], camps: [], homes: [], live: [], t: 0 }; // (live: the neutral soldiers standing now, for drawSoldiers)
   // homes: cottages, the colour's banner, a soft ring round the safe ground
   for (const b of L.buildings.filter(b => b.kind === 'cottage')) {
     const g = new THREE.Group(); g.position.set(b.x, terrainMeshY(b.x, b.z) - .1, b.z); g.rotation.y = b.rot;
@@ -111,30 +110,50 @@ export function buildMount(world, L) {
     const lid = new THREE.Mesh(new THREE.CylinderGeometry(.55, .55, 1.6, 12, 1, false, 0, Math.PI), wood); lid.rotation.z = Math.PI / 2; lid.position.y = 1; g.add(lid);
     for (const x of [-.6, .6]) { const band = new THREE.Mesh(new THREE.BoxGeometry(.12, 1.62, 1.16), new THREE.MeshPhongMaterial({ color: 0xffcf3a, emissive: 0x4a3400 })); band.position.set(x, .78, 0); g.add(band); }
     g.visible = false; grp.add(shadowy(g)); M.chest = g; }
-  // guards (grey steel) and bandits (brown, red hoods): a squad each, 3 footmen in front and 2 archers (bows)
-  // behind, dropping one by one as they're cut down
-  const guardMat = lam(0x8d939a), banditMat = lam(0x6b5236), hood = lam(0xa8332b), spear = lam(0x5a4632);
-  const bowGeo = new THREE.TorusGeometry(.55, .045, 4, 12, Math.PI);
+  // guards and bandits alike (M1): a squad each, 3 footmen in front and 2 archers (bows) behind, dropping one by
+  // one as they're cut down. They are drawn by render/soldiers.js with the real soldier model in neutral grey
+  // steel (see `figure`), under one grey banner each; the banner's pole and cloth are shared by all of them.
+  const poleGeo = new THREE.CylinderGeometry(.06, .07, NEUTRAL.h, 6), clothGeo = new THREE.PlaneGeometry(NEUTRAL.w, NEUTRAL.ch);
+  const poleMat = lam(NEUTRAL.pole), clothMat = lam(NEUTRAL.cloth, null, { side: THREE.DoubleSide });
   for (const b of (G.c2 && G.c2.breaks) || []) {
     if (b.kind !== 'guard' && b.kind !== 'camp') continue;
     const men = [], nf = b.foot ?? b.men, na = b.arch ?? 0;
     for (let k = 0; k < nf + na; k++) {
-      const archer = k >= nf, body = b.kind === 'guard' ? guardMat : banditMat, f = figure(body, b.kind === 'guard' ? guardMat : hood, spear);
-      if (archer) { f.children[2].visible = false; const bow = new THREE.Mesh(bowGeo, spear); bow.position.set(.42, 1.25, .15); bow.rotation.z = -Math.PI / 2; f.add(bow); }
+      const archer = k >= nf;
       const a = archer ? (k - nf) / Math.max(1, na) * Math.PI * 2 + 1.2 : k / nf * Math.PI * 2 + .4, rr = archer ? 2.5 : 1.3;
-      const x = b.x + Math.cos(a) * rr, z = b.z + Math.sin(a) * rr; f.position.set(x, groundY(x, z), z); f.rotation.y = Math.atan2(Math.cos(a), Math.sin(a)); grp.add(f); men.push({ f, archer, i: archer ? k - nf : k });
+      const x = b.x + Math.cos(a) * rr, z = b.z + Math.sin(a) * rr; // (facing out from the post)
+      men.push({ u: figure(archer ? 'arch' : 'foot', x, z, Math.atan2(Math.cos(a), Math.sin(a))), archer, i: archer ? k - nf : k });
     }
+    // the banner stands between two footmen, clear of a camp's fire in the middle
+    const ba = .4 + Math.PI / Math.max(1, nf), bx = b.x + Math.cos(ba) * NEUTRAL.off, bz = b.z + Math.sin(ba) * NEUTRAL.off;
+    const banner = new THREE.Group(); banner.position.set(bx, groundY(bx, bz), bz);
+    const pole = new THREE.Mesh(poleGeo, poleMat); pole.position.y = NEUTRAL.h / 2; banner.add(pole);
+    const flap = new THREE.Group(); flap.position.y = NEUTRAL.h - NEUTRAL.ch / 2 - .15; banner.add(flap); // (the cloth swings about the pole)
+    const cloth = new THREE.Mesh(clothGeo, clothMat); cloth.position.x = NEUTRAL.w / 2; flap.add(cloth);
+    grp.add(shadowy(banner));
     if (b.kind === 'camp') { const fire = new THREE.Mesh(new THREE.ConeGeometry(.45, .9, 6), new THREE.MeshBasicMaterial({ color: 0xff8a2a })); fire.position.set(b.x, groundY(b.x, b.z) + .45, b.z); grp.add(fire); M.camps.push({ b, fire }); }
-    M.guards.push({ b, men });
+    M.guards.push({ b, men, banner, flap, seen: 0 });
+    for (const m of men) M.live.push(m.u);
   }
 }
+
+// the neutral soldiers standing now, for drawSoldiers to draw beside the armies (null off the mountain)
+export const neutralFigs = () => (M && G.map.id === 'mount' ? M.live : null);
+if (import.meta.env.DEV) window.__neutralFigs = neutralFigs; // (dev: tests count the neutral soldiers)
 
 export function updateMount(dt) {
   if (!M || !G.c2) return;
   M.t += dt; const K = G.c2, T = G.T;
-  for (const { b, men } of M.guards) {
-    const [nf, na] = c2Garrison(b), swing = b.swingT && T - b.swingT < .35;
-    men.forEach(({ f, archer, i }) => { f.visible = i < (archer ? na : nf); if (f.visible && !archer) f.children[2].rotation.x = swing ? -.9 : Math.sin(M.t * 2 + i) * .08; });
+  M.live.length = 0;
+  for (const g of M.guards) {
+    const { b, men } = g, [nf, na] = c2Garrison(b);
+    const fresh = b.swingT && b.swingT !== g.seen && T - b.swingT < .35; if (fresh) g.seen = b.swingT; // (the garrison struck: its footmen swing)
+    g.banner.visible = nf + na > 0; g.flap.rotation.y = Math.sin(M.t * 1.6 + b.x) * .3;
+    for (const { u, archer, i } of men) {
+      if (i >= (archer ? na : nf)) continue; // (cut down: gone)
+      if (!archer) { if (fresh) u.swing = .38; else if (u.swing > 0) u.swing = Math.max(0, u.swing - dt); }
+      M.live.push(u);
+    }
   }
   for (const { b, fire } of M.camps) { fire.visible = b.hp > 0; fire.scale.y = .8 + Math.sin(M.t * 9 + b.x) * .2; }
   for (const p of M.pals) p.inst.visible = !!p.h.fort;

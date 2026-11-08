@@ -5,7 +5,7 @@
 // Captains only for now: a few skinned meshes are cheap; soldiers (hundreds) need baked instancing.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { TEAMS } from '../config.js';
+import { TEAMS, NEUTRAL } from '../config.js';
 import { G, colorOf } from '../core/state.js';
 import { scene } from './scene.js';
 import { groundY } from '../core/world.js';
@@ -85,14 +85,16 @@ const KIND = ['forehand', 'backhand', 'overhead', 'thrust', 'spin', 'heavy', 'ba
 function weaponOf(u) { if (u.kind === 'arch') return 'bow'; if (u.weapon) return u.weapon === 'spear' ? 'spear' : u.weapon === 'jav' ? 'jav' : 'sword'; return u.tier >= 1 ? 'spear' : 'sword'; }
 // the look chosen for this unit's team (the wardrobe): helmet, armour and shield come from it
 const lookOf = u => (G.looks && G.looks[u.ti]) || null;
-const keyOf = u => { const L = lookOf(u); return [TEAMS[colorOf(u.ti)].hex, u.kind, u.tier | 0, L ? [L[SLOT_IX.helm], L[SLOT_IX.armour], L[SLOT_IX.shield]].join('.') : ''].join('|'); };
+// the colour an army's cloth, shield face and hood are tinted to: its team's, or the neutral grey (M1: the mountain's garrisons and camps)
+const hexOf = u => u.neutral ? NEUTRAL.hex : TEAMS[colorOf(u.ti)].hex;
+const keyOf = u => { const L = lookOf(u); return [hexOf(u), u.kind, u.tier | 0, L ? [L[SLOT_IX.helm], L[SLOT_IX.armour], L[SLOT_IX.shield]].join('.') : ''].join('|'); };
 function make(u) {
-  const weapon = weaponOf(u), team = TEAMS[colorOf(u.ti)].hex, soldier = u.kind !== 'captain', L = lookOf(u);
+  const weapon = weaponOf(u), team = hexOf(u), soldier = u.kind !== 'captain', L = lookOf(u);
   const shieldName = L ? pick('shield', L[SLOT_IX.shield]) : '', shield = SRC.shields[shieldFile(shieldName)];
   const R = soldier ? rigCaptain(SRC.soldier, { body: 'soldier', team, weapon, pack: u.kind === 'arch' ? { noShield: true } : { shield } })
     : rigCaptain(SRC.body, { team, weapon, pack: { shield, helmet: L ? SRC.helmets[helmFile(pick('helm', L[SLOT_IX.helm]))] || null : SRC.helmets.blue_crest } });
   if (!soldier) { const a = SRC.armours[armourFile(L ? pick('armour', L[SLOT_IX.armour]) : '')]; addArmour(R, a.geo, a.mat); }
-  else if (u.kind === 'foot' && u.tier >= 2) { const a = SRC.armours[armourFile(L ? pick('armour', L[SLOT_IX.armour]) : '')]; addArmour(R, a.geo, a.mat); } // (the Armour upgrade: your army's armour over the tunic)
+  else if ((u.kind === 'foot' && u.tier >= 2) || u.neutral) { const a = SRC.armours[armourFile(L ? pick('armour', L[SLOT_IX.armour]) : '')]; addArmour(R, a.geo, a.mat); } // (the Armour upgrade: your army's armour over the tunic; the mountain's neutral soldiers always wear the steel, M1)
   if (u.kind === 'arch') archerGear(R, team, u.tier | 0);
   R.root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
   const sc = soldier ? SCALE * SOLDIER_SCALE : SCALE;
@@ -211,13 +213,13 @@ export function drawFar(u, a) {
   if (on && !SRC) return true; // (still loading: hidden rather than the old figure)
   if (!heroesOn()) return false;
   if (farReset) { for (const b of far.values()) b.count = 0; farReset = false; }
-  const b = farBatch(TEAMS[colorOf(u.ti)].hex); if (b.count >= FAR_MAX) return false;
+  const b = farBatch(hexOf(u)); if (b.count >= FAR_MAX) return false;
   const sc = SCALE * SOLDIER_SCALE, sp = Math.hypot(u.vx || 0, u.vz || 0), moving = sp > .3;
   const bob = moving ? Math.abs(Math.sin(G.T * 9 + (u.id || 0) * 1.7)) * .08 : 0;
   _p.set(u.x, (u.y || 0) + (a.lift || 0) - (a.sink || 0) + .998 * sc + bob, u.z);
   _e.set(moving ? .12 : 0, u.face + (a.yaw || 0), 0, 'YXZ'); _q.setFromEuler(_e); _s.setScalar(sc);
   b.setMatrixAt(b.count++, _m.compose(_p, _q, _s)); farDrawn = true;
-  if (u.kind === 'arch') { const hb = farHoodBatch(TEAMS[colorOf(u.ti)].hex); if (hb.count < FAR_MAX) hb.setMatrixAt(hb.count++, _m2.multiplyMatrices(_m, HOOD_AT)); }
+  if (u.kind === 'arch') { const hb = farHoodBatch(hexOf(u)); if (hb.count < FAR_MAX) hb.setMatrixAt(hb.count++, _m2.multiplyMatrices(_m, HOOD_AT)); }
   return true;
 }
 // a man going down: knocked over (or launched, tumbling, limbs flailing) and lying where he fell. The body

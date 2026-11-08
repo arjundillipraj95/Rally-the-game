@@ -337,3 +337,7 @@ export const HORSE_HP = 120, HORSE_CD = 20;
 // order: dark green (no data loss), green (acceptable data loss), amber (visible data loss), red, dark red.
 // At or above the last limit the game is not fine (shown as "not fine").
 export const PING = { every: 2000, keep: 10, bands: [60, 100, 150, 200, 300] };
+// The mountain's neutral soldiers (M1): castle garrisons and jungle camps are drawn with the real soldier model
+// in grey steel, under a grey banner. `hex` is the grey the model's cloth and shield face are tinted to;
+// the banner is a pole (`h` tall) with a cloth (`w` x `ch`) in `cloth`, drawn `off` from the middle of the post.
+export const NEUTRAL = { hex: 0x8d939a, cloth: 0xa4a9b0, pole: 0x5a4632, h: 4.2, w: 1.5, ch: 1, off: 1 };

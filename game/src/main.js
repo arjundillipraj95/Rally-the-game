@@ -16,6 +16,7 @@ import { renderer, scene, camera, resize, applyPixelRatio, applyShadowQuality, f
 import { quality, saveSetting, stepDown, LEVELS } from './render/quality.js';
 import { buildWorldView, updateWorldView, grassTime } from './render/world.js';
 import { drawSoldiers, drawCalls, clearProps } from './render/soldiers.js';
+import { neutralFigs } from './render/mountain.js';
 import { banterTick, clearBanter } from './render/banter.js';
 import { initFeed, clearFeed, feedTick } from './ui/feed.js';
 import { spawnMeadow, updateMeadow, clearMeadow } from './render/meadow.js';
@@ -906,7 +907,7 @@ function drawMatch(dt) {
 function drawScene(dt) {
   try { audioTick(dt); } catch (e) { fault('sound', e); } // (sound can never freeze the screen)
   banterTick(dt); updateCritters(dt); fogTick(dt);
-  drawSoldiers(G.units, dt);
+  drawSoldiers(G.units, dt, neutralFigs()); // (on the mountain, the neutral garrisons and camps are drawn beside the armies)
   const horses = (isClient() ? clientHorses() : G.horses.map(h => ({ key: h.id, ti: h.ti, x: h.x, z: h.z, face: h.face, spd: h.spd, state: h.state, t: h.t, fall: h.fall }))).filter(h => !fogGrid() || !isEnemyTi(h.ti, G.myTi) || seenAt(h.x, h.z));
   if (drawFreeHorses(horses, dt)) drawHorses([], dt); else drawHorses(horses, dt); // (the new warhorse when the new models are on)
   updateWorldView(dt, castleFx);
