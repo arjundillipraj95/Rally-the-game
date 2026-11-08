@@ -7,7 +7,7 @@ export const KEEP_DAYS = 90;
 const ADMIN_HASH = '381dc602d5093fac1e2a607205f7353c5b89d0a6d4cf01e66ebefdbdfeeb68c0'; // (sha-256 of the admin key; the key itself is not in the code)
 const day = t => new Date(t).toISOString().slice(0, 10);
 const num = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(+v || 0)));
-const str = (v, n) => String(v == null ? '' : v).replace(/[^\w .:-]/g, '').slice(0, n);
+const str = (v, n) => String(v == null ? '' : v).replace(/[^\w .:·-]/g, '').slice(0, n); // (·: the "·" in a phone type, "Android 14 · Chrome")
 
 export async function isAdmin(key) {
   if (!key) return false;
@@ -117,8 +117,12 @@ export async function adminData(sql, hub) {
   const pf = [...sql.exec(`SELECT * FROM perf WHERE day >= ?`, d7)];
   const med = a => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
   const pct = f => pf.length ? Math.round(pf.filter(f).length / pf.length * 100) : null;
-  out.health = { n: pf.length, fps: med(pf.map(r => r.fps)), slowPhones: pct(r => r.fps < 30), relay: pct(r => r.relay), mobile: pct(r => r.mobile),
-    joinedFps: med(pf.filter(r => r.client).map(r => r.fps)), ping: med(pf.filter(r => r.ping).map(r => r.ping)), errs: pf.reduce((x, r) => x + r.errs, 0),
+  // ping and the relay are about joined phones only (the host measures no ping and never relays)
+  const joined = pf.filter(r => r.client), pings = joined.filter(r => r.ping).map(r => r.ping);
+  const q = (a, f) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(s.length * f))]; };
+  const pctOf = (a, f) => a.length ? Math.round(a.filter(f).length / a.length * 100) : null;
+  out.health = { n: pf.length, fps: med(pf.map(r => r.fps)), slowPhones: pct(r => r.fps < 30), mobile: pct(r => r.mobile),
+    joinedFps: med(joined.map(r => r.fps)), ping: q(pings, .5), pingP90: q(pings, .9), pingN: pings.length, relay: pctOf(joined, r => r.relay), errs: pf.reduce((x, r) => x + r.errs, 0),
     devices: Object.entries(pf.reduce((o, r) => (o[r.dev || '?'] = (o[r.dev || '?'] || 0) + 1, o), {})).sort((a, b) => b[1] - a[1]).slice(0, 8) };
   out.recent = ms.slice(0, 20).map(m => ({ t: m.t, fmt: m.fmt, mode: m.mode, map: m.map, humans: m.humans, bots: m.bots, len: m.len, endk: m.endk, win: m.win, sides: m.data.sides, chestBy: m.data.chestBy, crownBy: m.data.crownBy }));
   return out;

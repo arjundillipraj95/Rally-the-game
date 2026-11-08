@@ -19,6 +19,7 @@ import { banner } from '../ui/hud.js';
 import { readMove, inp, moveNow } from '../ui/input.js';
 import { floatText } from '../render/effects.js';
 import { cam, CAM_PITCH } from '../render/camera.js';
+import { pingTick, pingPong } from './ping.js';
 
 export const C = {}; // client-side state
 if (import.meta.env.DEV) window.__netC = C; // dev-only: lets tests watch the client's snapshots
@@ -376,6 +377,8 @@ export function clientTick(dt) {
     if (hp.ph === 'end' && G.state === 'play' && Array.isArray(hp.res)) bus.emit('hostEnd', hp.res);
   }
   if (G.state !== 'play' && G.state !== 'end') return false;
+  if (!NET.pongOn) { NET.room.onPong(n => pingPong(NET, n)); NET.pongOn = true; } // (P0.3: the host's answers)
+  pingTick(NET, performance.now()); // (P0.3: a ping every 2 s)
   C.localCd -= dt; syncGates();
   const me = G.player;
   if (me && !me.dead && G.state === 'play') {

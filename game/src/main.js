@@ -42,6 +42,7 @@ import { bindInput, readMove, trayOpen, upOpen, releaseAll, inp } from './ui/inp
 import { startTutorial, stopTutorial, tutorialTick, bindTutorial } from './ui/tutorial.js';
 import { progress, awardMatch, rankProgress, rankOf, crestUnlocked, setCrest } from './ui/progress.js';
 import { session, isClient, isHost, prefs } from './net/session.js';
+import { pingMedian } from './net/ping.js';
 import { describeTeams } from './core/teams.js';
 import { assignLooks, SLOTS } from './core/look.js';
 import { missions, rollSeason, afterBattle, seasonNow, SEASON, TRACK, tierOf, grantPass, owns, record, resetIn, season, give } from './ui/season.js';
@@ -267,10 +268,17 @@ $('shareBtn').addEventListener('click', async () => {
 // The admin numbers (only while signed in to the online service; never the warm-up): every phone sends its
 // health (frame rate, link, errors); the phone that ran the battle (solo, or the host) sends its summary.
 const perfS = { n: 0, fps: 0, slow: 0, errs: 0 };
+// a short name for the phone and its browser, e.g. "Android 14 · Chrome" (for the admin's Phones panel)
+function phoneType(ua) {
+  const a = ua.match(/Android (\d+)/), i = ua.match(/iPhone|iPad/);
+  const os = a ? `Android ${a[1]}` : i ? i[0] : /Windows/.test(ua) ? 'Windows' : /Mac OS X/.test(ua) ? 'Mac' : /CrOS/.test(ua) ? 'ChromeOS' : /Linux/.test(ua) ? 'Linux' : '?';
+  const br = /Edg[A-Z]?\//.test(ua) ? 'Edge' : /OPR\//.test(ua) ? 'Opera' : /Firefox\//.test(ua) ? 'Firefox' : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : '?';
+  return `${os} · ${br}`;
+}
 function sendReports(w, why) {
   if (G.warmup || !ON.me || G.reported === G.seed) return; G.reported = G.seed;
-  const ua = navigator.userAgent, dev = (ua.match(/iPhone|iPad|Android [\d]+|Windows|Mac OS X|CrOS|Linux/) || ['?'])[0];
-  online.perf({ client: isClient(), mobile: /Android|iPhone|iPad|Mobile/i.test(ua), relay: !!ON.relayed, fps: perfS.n ? perfS.fps / perfS.n : 0, slow: perfS.n ? perfS.slow / perfS.n * 100 : 0, errs: perfS.errs, dev });
+  const ua = navigator.userAgent, dev = phoneType(ua);
+  online.perf({ client: isClient(), mobile: /Android|iPhone|iPad|Mobile/i.test(ua), relay: !!ON.relayed, ping: isClient() ? pingMedian(session.NET) || 0 : 0, fps: perfS.n ? perfS.fps / perfS.n : 0, slow: perfS.n ? perfS.slow / perfS.n * 100 : 0, errs: perfS.errs, dev });
   if (isClient()) return;
   const act = G.teams.map((t, i) => i).filter(i => G.teams[i] && G.teams[i].active), cols = a => [0, 1, 2, 3].filter(c => G.ALLY[c] === a && act.some(i => colorOf(i) === c)).join('');
   const sides = [...new Set(act.map(i => G.ALLY[colorOf(i)]))].map(a => { const b = G.c2 ? c2Breakdown(a) : null; return b ? { c: cols(a), pts: b.total, cas: b.castles, vil: b.villages, chest: b.chest, crown: b.crown, caps: b.caps } : { c: cols(a), pts: 0 }; });

@@ -158,7 +158,7 @@ export async function makeP2PRoom(code, host, onStage = () => {}) {
   return new Promise((resolve, reject) => {
     if (typeof window.RTCPeerConnection !== 'function') { reject({ type: 'no-webrtc' }); return; }
     const peers = new Map(), listeners = [], conns = new Map(), seen = new Map();
-    let mine = {}, myId = null, hostConn = null, settled = false, lastRelay = 0, relayTimer = null;
+    let mine = {}, myId = null, hostConn = null, settled = false, lastRelay = 0, relayTimer = null, pongFn = null;
     const done = (ok, v) => { if (settled) return; settled = true; clearTimeout(to); clearTimeout(slowT); ok ? resolve(v) : reject(v); };
     // a link through a relay on a slow mobile connection can take a while: allow 25 s before giving up
     let stage = 'server';
@@ -198,6 +198,7 @@ export async function makeP2PRoom(code, host, onStage = () => {}) {
         if (!d || typeof d !== 'object') return;
         seen.set(P2P_PREFIX + code, performance.now());
         if (d.t === 'full') { done(false, { type: 'full' }); return; }
+        if (d.t === 'pong') { if (pongFn) pongFn(d.n); return; } // (the host's answer to our ping)
         if (d.t === 'all' && d.all && typeof d.all === 'object') {
           for (const k of [...peers.keys()]) if (k !== myId && !(k in d.all)) peers.delete(k);
           for (const [k, v] of Object.entries(d.all)) if (k !== myId && v && typeof v === 'object') { peers.set(k, v); seen.set(k, performance.now()); }
@@ -229,6 +230,7 @@ export async function makeP2PRoom(code, host, onStage = () => {}) {
       pending.add(c.peer); notify(); setTimeout(() => { if (pending.delete(c.peer)) notify(); }, 30000);
       c.on('open', () => { pending.delete(c.peer); relayRoster(); try { c.send({ t: 'h', id: myId, pr: mine }); } catch (e) {} });
       c.on('data', lagged(d => {
+        if (d && d.t === 'ping') { try { c.send({ t: 'pong', n: d.n }); } catch (e) {} return; } // (answer at once: a joiner's ping)
         if (!d || d.t !== 'p' || !d.pr || typeof d.pr !== 'object') return;
         seen.set(c.peer, performance.now());
         const old = peers.get(c.peer); peers.set(c.peer, d.pr); notify();
@@ -269,6 +271,9 @@ export async function makeP2PRoom(code, host, onStage = () => {}) {
       onPeers: f => { listeners.push(f); setTimeout(() => f({ peers: snap() }), 0); return () => { const i = listeners.indexOf(f); if (i >= 0) listeners.splice(i, 1); }; },
       leave: async () => { left = true; clearInterval(beat); try { peer.destroy(); } catch (e) {} if (relayHost) relayHost.end(); if (hostConn && hostConn.relay && hostConn.end) hostConn.end(); },
       relayed: () => !!relaying, // (a joiner on the relay)
+      // ping (P0.3): a joiner asks the host to answer at once; the answer comes back with the same stamp
+      ping: n => { if (hostConn && hostConn.open) try { hostConn.send({ t: 'ping', n }); } catch (e) {} },
+      onPong: f => { pongFn = f; },
     };
   });
 }

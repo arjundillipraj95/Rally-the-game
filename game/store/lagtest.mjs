@@ -61,10 +61,12 @@ const errs = [], resp = [];
 const pos = p => p.evaluate(() => { const o = {}; for (const u of window.__fb.G.units) if (!u.dead) o[u.id] = [u.x, u.z]; return o; });
 const t0 = Date.now();
 let nextProbe = Date.now() + 1000;
+const shownPing = []; // (P0.3: the ping B's HUD shows, read every loop)
 while (Date.now() - t0 < DUR * 1000) {
   // how far behind is B's picture of the battle? (every unit both phones know)
   const [a, b] = await Promise.all([pos(A), pos(B)]);
   for (const id in a) if (b[id]) { const e = Math.hypot(a[id][0] - b[id][0], a[id][1] - b[id][1]); if (e < 10) errs.push(e); }
+  { const pv = await B.evaluate(() => { const e = document.getElementById('ping'); return e && !e.hidden && /^\d+ ms$/.test(e.textContent) ? parseInt(e.textContent, 10) : null; }); if (pv != null) shownPing.push(pv); }
   // how long from B pressing forward to B's own captain moving?
   if (Date.now() >= nextProbe) {
     const alive = await B.evaluate(() => { const L = window.__fb.G.player; if (!L || L.dead) return false; window.__probe = { x: L.x, z: L.z, t: performance.now() }; return true; });
@@ -86,8 +88,11 @@ const S = await B.evaluate(() => { const S = window.__lagS; S.stop = true; retur
 const q = (a, f) => { const s = [...a].sort((x, y) => x - y); return s.length ? +s[Math.min(s.length - 1, Math.floor(s.length * f))].toFixed(2) : null; };
 const mean = a => a.length ? +(a.reduce((x, y) => x + y, 0) / a.length).toFixed(2) : null;
 const fps = Math.round(S.frames / DUR);
+const shownMed = shownPing.length ? q(shownPing, .5) : null, shownLast = shownPing.length ? shownPing[shownPing.length - 1] : null;
+console.log(`displayed ping on B: ${shownMed} ms (median of ${shownPing.length} HUD reads; last ${shownLast} ms)`);
 const out = {
   setup: { roundTripMs: LAG, loss: LOSS, seconds: DUR, farPhoneFps: fps },
+  displayedPing: { medianMs: shownMed, lastMs: shownLast, reads: shownPing.length },
   response: { probes: resp.length, meanMs: mean(resp), p90Ms: q(resp, .9), maxMs: resp.length ? Math.max(...resp) : null },
   positionError: { samples: errs.length, meanM: mean(errs), p90M: q(errs, .9), maxM: q(errs, 1) },
   smoothness: { frames: S.frames, jumpsOver05m: S.jumps, maxJumpM: S.maxJump },
