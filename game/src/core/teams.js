@@ -1,6 +1,5 @@
-// Team setups and faction choices. Pure data, no engine code.
-import { FACTION_IDS, TEAMS } from '../config.js';
-import { mulberry } from './world.js';
+// Team setups. Pure data, no engine code.
+import { TEAMS } from '../config.js';
 
 // Castles sit on a square: Blue-Yellow and Red-Green are neighbours, Blue-Red and Green-Yellow are opposite.
 const PARTNER = [3, 2, 1, 0], OPPOSITE = [1, 0, 3, 2];
@@ -28,15 +27,3 @@ export function describeTeams(al, me, out = []) {
   return txt[0].toUpperCase() + txt.slice(1) + (rest.length > 1 ? ', each on their own.' : '.');
 }
 
-// Fills in factions for computer teams, spreading them so every faction shows up.
-export function assignFactions(chosen, seed) {
-  const R = mulberry((seed | 0) + 101), out = chosen.slice();
-  const used = new Set(chosen.filter(Boolean));
-  let pool = FACTION_IDS.filter(f => !used.has(f));
-  for (let i = 0; i < 4; i++) {
-    if (out[i]) continue;
-    if (!pool.length) pool = FACTION_IDS.slice();
-    out[i] = pool.splice(Math.floor(R() * pool.length), 1)[0];
-  }
-  return out;
-}

@@ -7,9 +7,9 @@ import '@fontsource/barlow-semi-condensed/latin-600.css';
 import '@fontsource/barlow-semi-condensed/latin-800.css';
 import '@fontsource/barlow-semi-condensed/latin-800-italic.css';
 import './style.css';
-import { TEAMS, MODES, MAPS, PRESETS, RANKS, CRESTS, QUIPS, TIPS, AL_LETTER, TARGETS, DUEL, CROWN2 } from './config.js';
+import { TEAMS, MODES, MAPS, RANKS, CRESTS, QUIPS, TIPS, AL_LETTER, TARGETS, DUEL} from './config.js';
 import { G, bus, colorOf, rules, matchTime, modeDesc, activeFrom, targetFor, SLOT_NAME, isEnemyTi, botName } from './core/state.js';
-import { rideRelease, orderVolley, challenge, canChallenge, startMatch, mkUnit, newTeams, update, fallStep, endMatch, auraRange, endStep, setOrder, applyFort, c2Points, c2Breakdown, die } from './core/sim.js';
+import { rideRelease, orderVolley, challenge, canChallenge, startMatch, mkUnit, newTeams, update, endMatch, auraRange, endStep, setOrder, applyFort, c2Points, c2Breakdown, die } from './core/sim.js';
 import { makeLayout, gatePos, groundY, W } from './core/world.js';
 import { buildNav, findPath } from './core/nav.js';
 import { renderer, scene, camera, resize, applyPixelRatio, applyShadowQuality, followSun } from './render/scene.js';
@@ -35,14 +35,14 @@ import { drawOverlay, clearOverlay, resizeOverlay } from './render/overlay.js';
 import { cam, followCamera, orbitCamera, camTarget, CAM_PITCH, introCam } from './render/camera.js';
 import { initAudio, sfx, buzz, gateS, startCrowd, stopCrowd, audioTick, audioStats, setMuted, musicCue, setMusic, musicEnabled } from './ui/audio.js';
 import { portal, portalInit, onPortal } from './portal.js';
-import { showMsg, allyNames, setNamer, claimed, nameOf, glory } from './ui/messages.js';
+import { showMsg, allyNames, setNamer, glory } from './ui/messages.js';
 import { renderPointsV2, tlTick, ledger } from './ui/timeline.js';
 import { buildHud, showHud, updateHud, banner, fmt } from './ui/hud.js';
 import { bindInput, readMove, trayOpen, upOpen, releaseAll, inp } from './ui/input.js';
 import { startTutorial, stopTutorial, tutorialTick, bindTutorial } from './ui/tutorial.js';
 import { progress, awardMatch, rankProgress, rankOf, crestUnlocked, setCrest } from './ui/progress.js';
 import { session, isClient, isHost, prefs } from './net/session.js';
-import { allyFor, describeTeams } from './core/teams.js';
+import { describeTeams } from './core/teams.js';
 import { assignLooks, SLOTS } from './core/look.js';
 import { missions, rollSeason, afterBattle, seasonNow, SEASON, TRACK, tierOf, grantPass, owns, record, resetIn, season, give } from './ui/season.js';
 import { wardrobe } from './ui/wardrobe.js';
@@ -51,7 +51,7 @@ import { bindLobby, showLobby, hostLobbyTick, clientLobbyTick, netLeave, matchHo
 import { ON, online, startOnline, isLeader } from './net/online.js';
 import { crowns, mergeCrowns, titleOf, award, FMT_NAME, setCrowns } from './ui/crowns.js';
 import { lookCode, lookFrom } from './core/look.js';
-import { CAPS_TO_WIN, PARRY, CAPKILL_SLOW } from './config.js';
+import { PARRY, CAPKILL_SLOW } from './config.js';
 
 const $ = id => document.getElementById(id);
 { const nj = $('nojs'); if (nj) nj.remove(); }
@@ -68,7 +68,6 @@ document.addEventListener('touchend', e => { const n = Date.now(); if (n - lastT
 
 const params = new URLSearchParams(location.search);
 if (params.get('stress') === '1') G.fullSquads = true; // every team starts with a full squad of 20
-const crown2 = true; // the Crown is the mountain now (the old valley Crown is retired; ?crown2=1 links still work)
 // the home page's team setup, as in the multiplayer lobby: each colour's team, and its Duo/Trio
 let soloAl = (() => { try { const v = JSON.parse(localStorage.getItem('rally-solo-al')); if (Array.isArray(v) && v.length === 4 && v.every(x => x >= 0 && x < 4)) return v.map(Number); } catch (e) {} return [0, 1, 1, 0]; })();
 const saveSoloAl = () => { try { localStorage.setItem('rally-solo-al', JSON.stringify(soloAl)); } catch (e) {} };
@@ -390,7 +389,6 @@ function endText(w, why) {
   if (why === 'crown') return `${names} ${one ? 'holds' : 'hold'} the Crown at the final trumpet.`;
   if (why === 'crown2') return `The glacier broke and the battle ended: ${names} ${one ? 'wins' : 'win'} on points.`;
   if (why === 'points2') return `Time is up: ${names} ${one ? 'wins' : 'win'} on points.`;
-  if (why === 'lms') return `${names} ${one ? 'is' : 'are'} the last standing.`;
   if (why === 'places') return `Nobody held the Crown: ${names} held the most of the land.`;
   if (why === 'tickets') return `${names} ${one ? 'is' : 'are'} the last side with tickets.`;
   if (why === 'caps') return `${names} carried the banner home ${rules().caps} times.`;
@@ -655,8 +653,7 @@ function updateQualityNote() {
   $('qualityNote').textContent = quality.stepped ? `Lowered to ${lvl} to keep the game smooth.` : quality.setting === 'auto' ? `Auto picked ${lvl} for this device.` : '';
   $('segQuality').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === quality.setting)));
 }
-let soloLms = false; // (Last Man Standing: the Crown's test variant)
-seg('segMode', v => { soloLms = v === 'lms'; G.mode = soloLms ? 'crown' : v; G.target = prefs.tgt[G.mode] ?? targetFor(G.mode); renderTargets(); updateDesc(); });
+seg('segMode', v => { G.mode = v; G.target = prefs.tgt[G.mode] ?? targetFor(G.mode); renderTargets(); updateDesc(); });
 seg('segMap', v => { soloMap = MAPS[v]; updateDesc(); });
 // Teams, as in the multiplayer lobby: tap a colour to be it, its letter chip cycles its team, its
 // Duo chip adds a computer co-captain (tap again for a third: Trio). Remembered between visits.
@@ -695,7 +692,7 @@ function resetSolo() { G.role = 'solo'; G.myTi = prefs.color; G.ALLY = soloAl.sl
 function soloStart(o = {}) {
   initAudio(); session.NET = null; resetSolo();
   if (o.al) G.ALLY = o.al.slice();
-  G.map = o.map || (G.mode === 'crown' ? (crown2 ? MAPS.mount : MAPS.valley) : soloMap); clearMeadow(); G.lms = !!o.lms && !crown2; // (the Crown has its own land)
+  G.map = G.mode === 'crown' ? MAPS.mount : (o.map || soloMap); clearMeadow(); // (the Crown is always the mountain)
   if (G.map.id === 'mount') G.time = 10; // (the mountain's phases are set to the minute)
   G.seed = (Math.random() * 1e9) | 0;
   G.looks = assignLooks({ [G.myTi]: prefs.look }, G.seed);
@@ -734,7 +731,7 @@ function showVeil() { $('veil').hidden = false; clearTimeout(veilT); veilT = set
 function hideVeil() { clearTimeout(veilT); $('veil').hidden = true; }
 ['goBtn', 'quickBtn', 'startBtn'].forEach(id => { const b = $(id); if (b) b.addEventListener('pointerdown', showVeil); });
 $('againBtn').addEventListener('pointerdown', () => { if (!isHost()) showVeil(); }); // a host's "again" goes to the lobby, not a battle
-$('goBtn').addEventListener('click', () => { const o = () => ({ lms: soloLms && G.mode === 'crown' }); lastStart = () => soloStart(o()); soloStart(o()); });
+$('goBtn').addEventListener('click', () => { lastStart = () => soloStart(); soloStart(); });
 // ("Fight again" after a Battle the computer battle: its own settings, not a Crown's)
 // One tap to a fight: Quick (5 min), a random map and mode; keeps your army, colour, teams and
 // difficulty. The menu shows what was picked, so "Fight again" repeats it.
@@ -803,7 +800,7 @@ function playStart() {
   const pick = a => a[(Math.random() * a.length) | 0];
   if (!soloPick) soloPick = { mode: G.mode, time: G.time, target: G.target };
   G.mode = 'crown'; G.time = 10; G.target = null;
-  soloStart({ al: [0, 1, 2, 3], duo: [playFmt, playFmt, playFmt, playFmt], map: crown2 ? MAPS.mount : MAPS.valley });
+  soloStart({ al: [0, 1, 2, 3], duo: [playFmt, playFmt, playFmt, playFmt], map: MAPS.mount });
   lastStart = playStart;
 }
 $('playBtn').addEventListener('pointerdown', showVeil);

@@ -1,5 +1,5 @@
 // "Play with friends": host or join by code, pick colors and teams, start the battle.
-import { TEAMS, MAPS, PRESETS, AL_LETTER, FACTIONS, TARGETS } from '../config.js';
+import { TEAMS, MAPS, PRESETS, AL_LETTER, TARGETS } from '../config.js';
 import { G, colorOf, slotOf, activeFrom, ARMIES, SLOT_NAME, targetFor, duoStr, duoParse } from '../core/state.js';
 import { makeP2PRoom as rawRoom, newCode, p2pAvailable } from './p2p.js';
 import { progress } from '../ui/progress.js';
@@ -246,7 +246,7 @@ export function hostStart() {
     const NET = session.NET; if (!NET || NET.role !== 'host') return;
     initAudio();
     const L = NET.lobby;
-    G.mode = L.mode; G.map = MAPS[L.map]; G.diff = L.diff; G.time = L.time || 10; G.target = L.tgt ?? targetFor(L.mode); G.ALLY = [...L.al];
+    G.mode = L.mode; G.map = L.mode === 'crown' ? MAPS.mount : MAPS[L.map]; G.diff = L.diff; G.time = L.time || 10; G.target = L.tgt ?? targetFor(L.mode); G.ALLY = [...L.al];
     G.myTi = NET.seats[NET.me] ?? 0; G.lms = false;
     G.seed = (Math.random() * 1e9) | 0;
     NET.msgs = []; NET.msgN = 0; NET.inp = {}; NET.snapN = 0;

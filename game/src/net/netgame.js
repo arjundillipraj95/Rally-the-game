@@ -3,12 +3,12 @@
 // how many soldiers are alive — more in a full 12-army Trio match — sent
 // about 12 times a second).
 import { CROWN2 } from '../config.js';
-import { SHOUTS, CROWN, HUMAN_CAPTAIN, ARMOUR, RHYTHM, BASH, STREAK, EVADE, TEAMS, MAPS, KINDS, STATS, RECRUITS, FACTIONS, factionFromCode, ORDERS, ORDER_NAMES, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT, HOLD_ATK, PARRY } from '../config.js';
+import { SHOUTS, CROWN, HUMAN_CAPTAIN, ARMOUR, RHYTHM, BASH, EVADE, TEAMS, MAPS, KINDS, STATS, RECRUITS, ORDERS, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT, HOLD_ATK, PARRY } from '../config.js';
 import { G, bus, colorOf, isEnemyTi, activeFrom, ARMIES, duoStr, duoParse } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn, angDiff } from '../core/world.js';
 import { buildNav, syncGates } from '../core/nav.js';
 import { c2Begin } from '../core/sim.js';
-import { adoptBattle, applyCastleGates, applyPlazaWall, volleyCharge, captainBash, duelAct, duelOffer, duelTarget, initForts, applyFort, fortLvl, captainEvade, evadeKind, makeHolds, execTarget, rallyCry, blockPress, attackHold, attackRelease, rideRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainJump, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
+import { adoptBattle, applyCastleGates, applyPlazaWall, volleyCharge, captainBash, duelAct, duelOffer, duelTarget, initForts, applyFort, fortLvl, captainEvade, evadeKind, makeHolds, execTarget, rallyCry, blockPress, attackHold, attackRelease, rideRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
 import { session, isClient, isHost } from './session.js';
 import { makeP2PRoom } from './p2p.js';
 import { showMsg } from '../ui/messages.js';
@@ -179,8 +179,8 @@ export function netHostReadInputs() {
 
 // ---------- client ----------
 export function clientStart(hp) {
-  G.role = 'client'; G.lms = false; G.warmup = null;
-  G.mode = hp.mode; G.map = MAPS[hp.map]; G.diff = hp.diff; G.time = [5, 10, 15].includes(+hp.time) ? +hp.time : 10; G.target = hp.tgt == null ? null : +hp.tgt; G.ALLY = hp.al.split('').map(Number); G.seed = hp.seed;
+  G.role = 'client'; G.warmup = null;
+  G.mode = hp.mode; G.map = hp.mode === 'crown' ? MAPS.mount : MAPS[hp.map]; G.diff = hp.diff; G.time = [5, 10, 15].includes(+hp.time) ? +hp.time : 10; G.target = hp.tgt == null ? null : +hp.tgt; G.ALLY = hp.al.split('').map(Number); G.seed = hp.seed;
   G.looks = String(hp.lk || '').split(',').map(lookFrom);
   G.crests = String(hp.cr || '').split('').map(c => Math.min(7, +c || 0));
   G.duo = duoParse(hp.duo);
@@ -544,7 +544,6 @@ function predictAttack(p) {
 }
 
 // ---------- player actions (solo, host and client) ----------
-const orderName = o => ORDER_NAMES[o] || ORDER_NAMES.follow;
 export const actions = {
   shout(n) { // a quick shout (one every two seconds)
     if (G.state !== 'play' || !SHOUTS[n] || performance.now() - (C.shoutAt || 0) < 2000) return; C.shoutAt = performance.now();

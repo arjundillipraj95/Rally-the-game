@@ -20,10 +20,9 @@ TEAMS.forEach(t => { t.pos0 = t.pos.slice(); });
 export const W = { R: 91, S: 1 };
 export function sizeWorld(mapId) {
   if (mapId === 'mount') { const f = Math.max(0, ...[0, 1, 2, 3].map(c => (G.duo && G.duo[c]) | 0)); W.R = Math.round(CROWN2.R * CROWN2.scale[Math.min(2, f)]); W.S = W.R / 91; }
-  else { W.S = G.mode === 'crown' ? CROWN.size : BIG.has(mapId) ? 1.3 : 1; W.R = Math.round(91 * W.S); }
+  else { W.S = BIG.has(mapId) ? 1.3 : 1; W.R = Math.round(91 * W.S); }
   TEAMS.forEach(t => { t.pos[0] = t.pos0[0] * W.S; t.pos[1] = t.pos0[1] * W.S; });
 }
-export const isBig = id => BIG.has(id);
 
 // ---------- where the castles stand (Age of Empires style) ----------
 // Allies start side by side and the sides apart (opposite in 2v2; the lone castle facing the three in
@@ -263,162 +262,6 @@ function ringWall(L, cx, cz, rad, r, h, skip, extra = {}) {
 }
 // A solid box (buildings); also blocks arrows below its height.
 // ---------- the Crown: the places worth holding, laid out afresh every match from the seed ----------
-// Six castles round the field (alternately nearer the middle, richer, and out at the edge, safer), a
-// village in each gap between them, four gold mines on the inner ring, and the plaza at the heart where
-// everyone starts and the Crown appears. Whatever stood on a spot (trees, rocks, hedges) is cleared.
-const CASTLE_NAMES = ['Greywater', 'Highmoor', 'Ravenhold', 'Thornwall', 'Oakhelm', 'Stonebridge', 'Redcliff', 'Wolfden', 'Kingsrest', 'Ashford', 'Briarwatch', 'Mistmere'];
-const VILLAGE_NAMES = ['Millbrook', 'Goosegate', 'Little Puddle', 'Turnip Hollow', 'Mudford', 'Sheepwash', 'Applecross', 'Cabbage End', 'Bramblewick', 'Duckworth', 'Pigsend', 'Honeydale'];
-const MINE_NAMES = ['the Old Mine', 'the Gold Hole', 'Lucky Seam', 'the Deep Pit', 'Glitter Rock', 'the Dwarf Dig'];
-function crownRiver(L, r) {
-  // a line across the field, well clear of the plaza, meandering; the crossings are spread along it
-  const th = r(0, Math.PI * 2), off = r(33, 42) * (r(0, 1) < .5 ? -1 : 1), ux = Math.cos(th), uz = Math.sin(th), nx = -uz, nz = ux;
-  const amp = r(4, 7), f1 = r(1.6, 2.6), ph = r(0, 6.28), E = W.R + 18, pts = [];
-  for (let s = -E; s <= E + .1; s += 5) { const o = off + Math.sin(s / E * Math.PI * f1 + ph) * amp; pts.push([ux * s + nx * o, uz * s + nz * o]); }
-  const w = 4.2, at = t => { const k = Math.min(pts.length - 2, Math.floor(t * (pts.length - 1))); const [ax, az] = pts[k], [bx, bz] = pts[k + 1]; return { x: (ax + bx) / 2, z: (az + bz) / 2, a: Math.atan2(bz - az, bx - ax) + Math.PI / 2 }; };
-  // only the stretch inside the field counts: two bridges and a ford on it, apart
-  const inside = pts.map((p, i) => [i, Math.hypot(p[0], p[1])]).filter(q => q[1] < W.R - 8).map(q => q[0]);
-  const t0 = inside[0] / (pts.length - 1), t1 = inside[inside.length - 1] / (pts.length - 1), span = t1 - t0;
-  const ts = [t0 + span * r(.14, .24), t0 + span * r(.44, .56), t0 + span * r(.76, .86)];
-  const kinds = r(0, 1) < .5 ? ['bridge', 'ford', 'bridge'] : ['ford', 'bridge', 'bridge'];
-  const bridges = [], fords = [];
-  // one great bridge (five men abreast: the main road over) and one narrow one (two men: easy to hold)
-  const big = r(0, 1) < .5 ? 0 : 1;
-  ts.forEach((t, i) => { const p = at(t); if (kinds[i] === 'bridge') { const k = bridges.length; bridges.push({ x: p.x, z: p.z, a: p.a, hw: k === big ? 4.4 : 1.9, len: w + 2.5, big: k === big }); } else fords.push({ x: p.x, z: p.z, r: 6, a: p.a }); });
-  L.river = { pts, w, bridges, fords };
-  return (x, z, pad) => distToLine(pts, x, z) > w + pad; // (clear of the water)
-}
-function crownPlaces(L, R, box, trees) {
-  const r = (a, b) => a + R() * (b - a), dry = crownRiver(L, r),
-    // a spot for a place near angle a, distance d: dry, and clear of the places already put down
-    spot = (a, d, pad, dmin, dmax, rad) => {
-      const okAt = (aa, dd) => { const x = Math.cos(aa) * dd, z = Math.sin(aa) * dd; return dry(x, z, pad) && L.holds.every(h => Math.hypot(h.x - x, h.z - z) > h.r + rad + 5); };
-      if (okAt(a, d)) return [a, d];
-      for (let t = 1; t <= 48; t++) { const aa = a + (t % 2 ? -1 : 1) * Math.ceil(t / 2) * .045, dd = Math.min(dmax, Math.max(dmin, d + r(-1, 1) * (4 + t * .4))); if (okAt(aa, dd)) return [aa, dd]; }
-      for (let t = 0; t < 80; t++) { const aa = r(0, 6.28), dd = r(dmin, dmax); if (okAt(aa, dd)) return [aa, dd]; } // (anywhere at that distance)
-      return [a, d];
-    }, pickN = (arr, n) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = (R() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a.slice(0, n); };
-  const clear = (x, z, rad) => {
-    const far = o => Math.hypot(o.x - x, o.z - z) > rad + (o.r || (o.box ? Math.hypot(o.hw, o.hd) : 0)); // (a long wall: its whole length)
-    for (const k of ['obstacles', 'blockers', 'trees', 'rocks', 'palms', 'stones']) if (L[k]) L[k] = L[k].filter(o => o.castle || far(o));
-    L.buildings = L.buildings.filter(far); if (L.stones2) L.stones2 = L.stones2.filter(far);
-    L.fences = L.fences.filter(f => Math.hypot((f.ax + f.bx) / 2 - x, (f.az + f.bz) / 2 - z) > rad + 2);
-  };
-  L.holds.length = 0;
-  L.holds.push({ x: 0, z: 0, kind: 'plaza', name: 'the Plaza', r: CROWN.plazaR, px: 5.5, pz: 0, centre: true });
-  const phi = r(0, Math.PI * 2), cn = pickN(CASTLE_NAMES, CROWN.castles), vn = pickN(VILLAGE_NAMES, CROWN.villages), mn = pickN(MINE_NAMES, CROWN.mines);
-  for (let k = 0; k < CROWN.castles; k++) {
-    let a = phi + k / CROWN.castles * Math.PI * 2 + r(-.12, .12), rich = k % 2 === 0, d = (rich ? r(46, 54) : r(68, 74)) * W.S;
-    [a, d] = spot(a, d, 15, rich ? 42 : 62, rich ? 58 : 78, 12); // (not in the river)
-    const x = Math.cos(a) * d, z = Math.sin(a) * d; clear(x, z, 18);
-    L.holds.push({ x, z, kind: 'castle', name: `Castle ${cn[k]}`, r: 12, px: x + Math.cos(a) * 4.6, pz: z + Math.sin(a) * 4.6, rich, towerA0: a + Math.PI / 4 }); // (towerA0: where its four towers stand, for Fortify II)
-    L.towers.push({ x, z, r: 3, h: 9, kind: 'keep' }); L.obstacles.push({ x, z, r: 3.3, keep: true }); L.blockers.push({ x, z, r: 3.3, h: 9 });
-    for (let t = 0; t < 4; t++) { const b = a + Math.PI / 4 + t * Math.PI / 2, tx = x + Math.cos(b) * 9.5, tz = z + Math.sin(b) * 9.5; L.towers.push({ x: tx, z: tz, r: 1.1, h: 5, kind: 'keep', small: true }); L.obstacles.push({ x: tx, z: tz, r: 1.3, keep: true }); }
-  }
-  for (let k = 0; k < CROWN.villages; k++) {
-    let a = phi + (k + .5) / CROWN.villages * Math.PI * 2 + r(-.15, .15), d = r(58, 78) * W.S;
-    [a, d] = spot(a, d, 13, 50, 80, 11);
-    const ux = Math.cos(a), uz = Math.sin(a), x = ux * d, z = uz * d;
-    clear(x, z, 16);
-    L.holds.push({ x, z, kind: 'village', name: vn[k], r: 11, px: x + ux * 7.3, pz: z + uz * 7.3 });
-    for (const [dx, dz] of [[-6.6, -8.8], [6.6, -8.8], [-6.6, 8.8], [6.6, 8.8]]) box(L, x + ux * dx - uz * dz, z + uz * dx + ux * dz, 1.9, 1.5, -a + (dz > 0 ? Math.PI : 0) + r(-.15, .15), 3.2, 'cottage').keep = true;
-  }
-  for (let k = 0; k < CROWN.mines; k++) {
-    let a = phi + Math.PI / 4 + k * Math.PI / 2 + r(-.2, .2), d = r(28, 36); // (the mines stay inside the Last Man Standing ring whatever the field's size)
-    [a, d] = spot(a, d, 10, 25, 46, 8);
-    const x = Math.cos(a) * d, z = Math.sin(a) * d;
-    clear(x, z, 15);
-    L.holds.push({ x, z, kind: 'mine', name: mn[k], r: 8, px: x - Math.cos(a) * 3, pz: z - Math.sin(a) * 3 });
-    const back = a; // (a horseshoe of rock round the back, open toward the plaza)
-    for (let j = 0; j < 7; j++) { const b = back - Math.PI * .6 + j / 6 * Math.PI * 1.2, rr = r(5.2, 6.4) /* (a horseshoe of rock round the back, open toward the plaza) */, rx = x + Math.cos(b) * rr, rz = z + Math.sin(b) * rr, rad = r(1.2, 1.9); L.rocks.push({ x: rx, z: rz, r: rad, rx: r(0, 3), ry: r(0, 3), gold: true }); L.obstacles.push({ x: rx, z: rz, r: rad * .9 }); }
-    box(L, x + Math.cos(back) * 3.2, z + Math.sin(back) * 3.2, 1.2, 1, -back, 2.4, 'hut').keep = true;
-  }
-  clear(0, 0, CROWN.wallR + 2); // (the plaza: open ground, nothing to snag on at the start, nothing in the wall's way)
-  // the wall that rises round the plaza at 9:00 (down until then): stone all round, four wooden gates
-  // that hold against everyone until they're hacked down
-  const W0 = CROWN.wallR, gates = [0, 1, 2, 3].map(k => phi + Math.PI / 6 + k * Math.PI / 2), half = CROWN.gateW / 2 / W0;
-  const pw = { r: W0, gates, obs: [], blk: [] };
-  const n = Math.ceil(Math.PI * 2 * W0 / 1.1);
-  for (let i = 0; i < n; i++) {
-    const a = i / n * Math.PI * 2, gi = gates.findIndex(g => Math.abs(angDiff(a, g)) < half);
-    const x = Math.cos(a) * W0, z = Math.sin(a) * W0;
-    const o = gi < 0 ? { x, z, r: .9, pal: true, off: true, c: -1, k: -1, plazaWall: true, segKey: 'pw' } : { x, z, r: .9, pal: true, off: true, c: -1, k: gi, plazaGate: gi, segKey: 'pg' + gi };
-    const b = { x, z, r: .9, h: 3.4, pal: true, off: true, c: -1, k: o.k, plaza: true };
-    L.obstacles.push(o); L.blockers.push(b); pw.obs.push(o); pw.blk.push(b);
-  }
-  L.plazaWall = pw;
-  // nothing standing in the water, the ford or on a bridge (trees, hedges, rocks the valley put there)
-  const V = L.river, wet = o => distToLine(V.pts, o.x, o.z) < V.w + 1.5 + (o.r || (o.box ? Math.hypot(o.hw, o.hd) : 0)) || V.bridges.some(b => Math.hypot(o.x - b.x, o.z - b.z) < b.len + 2);
-  for (const k of ['obstacles', 'blockers', 'trees', 'rocks']) if (L[k]) L[k] = L[k].filter(o => o.castle || o.pal || !wet(o));
-  L.buildings = L.buildings.filter(o => !wet(o));
-  L.fences = L.fences.filter(f => !wet({ x: (f.ax + f.bx) / 2, z: (f.az + f.bz) / 2, r: Math.hypot(f.bx - f.ax, f.bz - f.az) / 2 }));
-  // the pass: a ridge of rock running out from near the middle to the edge with a gap three men wide,
-  // somewhere it doesn't cut through a place or the river
-  const placeOk = (x, z, pad) => L.holds.every(h => Math.hypot(h.x - x, h.z - z) > h.r + pad) && dry(x, z, 4);
-  for (let t = 0; t < 120; t++) {
-    const loose = t > 60, a = r(0, Math.PI * 2), d0 = r(28, 36) + (loose ? 8 : 0), d1 = W.R + 6, gapAt = r(50, 62), gap = 2.2;
-    const P = d => [Math.cos(a) * d, Math.sin(a) * d], arm = (from, to) => { const pts = []; for (let d = from; d <= to + .01; d += 3) pts.push(P(d)); return pts; };
-    const A = arm(d0, gapAt - gap), B = arm(gapAt + gap, d1);
-    if (![...A, ...B].every(([x, z]) => placeOk(x, z, loose ? 5 : 9))) continue;
-    ridge(L, A, 2, 4, 'rock', 4.5, 5); ridge(L, B, 2, 4, 'rock', 4.5, 5);
-    L.pass = { x: P(gapAt)[0], z: P(gapAt)[1], a };
-    break;
-  }
-  // forests: dense stands of trees between the places, cover to hide an army in
-  let made = 0;
-  for (let t = 0; t < 60 && made < 4; t++) {
-    const a = r(0, Math.PI * 2), d = r(40, 78), cx = Math.cos(a) * d, cz = Math.sin(a) * d;
-    if (!placeOk(cx, cz, 12) || (L.pass && Math.hypot(cx - L.pass.x, cz - L.pass.z) < 16)) continue;
-    for (let i = 0; i < 16; i++) { const b = r(0, 6.28), rr = Math.sqrt(R()) * 8, x = cx + Math.cos(b) * rr, z = cz + Math.sin(b) * rr; if (placeOk(x, z, 6)) trees(x, z, r(.95, 1.35)); }
-    (L.forests = L.forests || []).push({ x: cx, z: cz, r: 9 }); made++;
-  }
-  // every place gets a clear lane in: straight to the plaza, or, with the river in between, to the
-  // nearest crossing on its side and on from the far bank. Hedges, walls, rocks and trees in a lane go;
-  // keeps, cottages, the plaza's wall and the river stay. (Seeded like the rest: every phone agrees.)
-  const ext = o => o.r || (o.box ? Math.hypot(o.hw, o.hd) : 0);
-  const lane = (ax, az, bx, bz, w = 1.8) => {
-    const seg = [[ax, az], [bx, bz]], hit = o => !o.keep && !o.pal && !o.castle && distToLine(seg, o.x, o.z) < w + ext(o);
-    L.obstacles = L.obstacles.filter(o => !hit(o)); L.blockers = L.blockers.filter(o => !hit(o) || o.pal);
-    L.trees = L.trees.filter(o => distToLine(seg, o.x, o.z) > w + 1); L.rocks = L.rocks.filter(o => distToLine(seg, o.x, o.z) > w + o.r);
-    L.fences = L.fences.filter(f => distToLine(seg, (f.ax + f.bx) / 2, (f.az + f.bz) / 2) > w + Math.hypot(f.bx - f.ax, f.bz - f.az) / 2 || distToLine(seg, f.ax, f.az) > w + .5 && distToLine(seg, f.bx, f.bz) > w + .5 && distToLine([[f.ax, f.az], [f.bx, f.bz]], (ax + bx) / 2, (az + bz) / 2) > w);
-    if (L.ridges) for (const g of L.ridges) if (g.pts.some(([x, z]) => distToLine(seg, x, z) < w + g.w + 1)) g.pts = g.pts.filter(([x, z]) => distToLine(seg, x, z) >= w + g.w + 1);
-  };
-  const wetBetween = (ax, az, bx, bz) => { for (let t = 0; t <= 1.001; t += .02) if (distToLine(V.pts, ax + (bx - ax) * t, az + (bz - az) * t) < V.w + .5) return true; return false; };
-  const crossings = [...V.bridges.map(b => ({ x: b.x, z: b.z, a: b.a, len: b.len + 2 })), ...V.fords.map(f => ({ x: f.x, z: f.z, a: f.a, len: V.w + 3 }))];
-  for (const h of L.holds) {
-    if (h.kind === 'plaza') continue;
-    const d = Math.hypot(h.x, h.z) || 1, ex = CROWN.wallR + 3, px = h.x / d * ex, pz = h.z / d * ex; // (to just outside the plaza's wall, on its side)
-    if (!wetBetween(h.x, h.z, px, pz)) { lane(h.x, h.z, px, pz); h.laneA = Math.atan2(pz - h.z, px - h.x); continue; }
-    let best = null, bd = 1e9;
-    for (const c of crossings) for (const sgn of [1, -1]) { const nx = c.x + Math.cos(c.a) * c.len * sgn, nz = c.z + Math.sin(c.a) * c.len * sgn; if (wetBetween(h.x, h.z, nx, nz)) continue; const dd = Math.hypot(nx - h.x, nz - h.z); if (dd < bd) { bd = dd; best = { nx, nz, fx: c.x - Math.cos(c.a) * c.len * sgn, fz: c.z - Math.sin(c.a) * c.len * sgn }; } }
-    if (!best) continue;
-    lane(h.x, h.z, best.nx, best.nz); h.laneA = Math.atan2(best.nz - h.z, best.nx - h.x); const fd = Math.hypot(best.fx, best.fz) || 1; lane(best.fx, best.fz, best.fx / fd * ex, best.fz / fd * ex);
-  }
-  // the castles' curtain walls: stone round the yard (the capture ring), one wooden gate facing its lane.
-  // The gate opens for the side that holds the castle and stands shut against everyone else, who must
-  // hack it down to get in; an empty castle's gate stands open.
-  L.cwalls = [];
-  for (const h of L.holds) {
-    if (h.kind !== 'castle') continue;
-    // the main gate (3-4 men wide) facing its way in, and two small side gates round the wall (one man at a time)
-    const R0 = CROWN.cwallR, g = h.laneA ?? Math.atan2(-h.z, -h.x), gates = [g, g + Math.PI * 2 / 3, g - Math.PI * 2 / 3], halfs = [CROWN.cgateW, CROWN.cgateSmall, CROWN.cgateSmall].map(w => w / 2 / R0), n = Math.ceil(Math.PI * 2 * R0 / 1.1);
-    const cw = { hid: L.holds.indexOf(h), x: h.x, z: h.z, r: R0, gate: g, gates, obs: [], blk: [] };
-    for (const ga of gates) { const gx = h.x + Math.cos(ga) * R0, gz = h.z + Math.sin(ga) * R0; // (nothing blocking a gateway, inside or out; the keep and its towers stay)
-      L.obstacles = L.obstacles.filter(o => o.keep || o.castle || o.pal || Math.hypot(o.x - gx, o.z - gz) > 4 + (o.r || (o.box ? Math.hypot(o.hw, o.hd) : 0)));
-      L.trees = L.trees.filter(t => Math.hypot(t.x - gx, t.z - gz) > 5); L.rocks = L.rocks.filter(t => Math.hypot(t.x - gx, t.z - gz) > 5); }
-    for (let i = 0; i < n; i++) {
-      const a = i / n * Math.PI * 2, x = h.x + Math.cos(a) * R0, z = h.z + Math.sin(a) * R0, gi = gates.findIndex((ga, k) => Math.abs(angDiff(a, ga)) < halfs[k]), isGate = gi >= 0;
-      const o = isGate ? { x, z, r: .9, pal: true, c: -1, k: -1, cgate: cw.hid, gi, segKey: 'cg' + cw.hid + ':' + gi } : { x, z, r: .9, keep: true, cwall: true };
-      const b = { x, z, r: .9, h: 2.8, cgate: isGate ? cw.hid : undefined, gi };
-      L.obstacles.push(o); L.blockers.push(b); cw.obs.push(o); cw.blk.push(b);
-    }
-    // whatever stands where the wall runs goes
-    L.trees = L.trees.filter(t => Math.abs(Math.hypot(t.x - h.x, t.z - h.z) - R0) > 2); L.rocks = L.rocks.filter(t => Math.abs(Math.hypot(t.x - h.x, t.z - h.z) - R0) > 2.2);
-    L.obstacles = L.obstacles.filter(o => o.cwall || o.cgate != null || o.keep || o.pal || o.castle || Math.abs(Math.hypot(o.x - h.x, o.z - h.z) - R0) > 1.6 + (o.r || (o.box ? Math.hypot(o.hw, o.hd) : 0)));
-    L.fences = L.fences.filter(f => Math.abs(Math.hypot((f.ax + f.bx) / 2 - h.x, (f.az + f.bz) / 2 - h.z) - R0) > 3);
-    L.cwalls.push(cw);
-  }
-}
-
 // ---------- the new Crown: the mountain ----------
 // Terraces round the summit: the lanes (lowest), the jungle a step up behind the ridge, the top ring
 // above the river, the arena on the summit behind its chasm. Every quarter the same, turned.
@@ -550,7 +393,6 @@ function ridge(L, pts, w, h, kind, H = 5, flank = 7) {
 // polar point at angle a (radians, 0 = +x axis) and distance d
 const P = (a, d) => [Math.cos(a) * d, Math.sin(a) * d];
 export function inPoly(pts, x, z) { let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [xi, zi] = pts[i], [xj, zj] = pts[j]; if ((zi > z) !== (zj > z) && x < (xj - xi) * (z - zi) / (zj - zi) + xi) c = !c; } return c; }
-const rot4 = ([x, z], k) => k === 0 ? [x, z] : k === 1 ? [-z, x] : k === 2 ? [-x, -z] : [z, -x]; // (a quarter turn, k times: the big maps are fair under it)
 // A solid block of rock (a mesa): its outline walls you in, its inside is solid (L.solids, for the
 // walking grid and for keeping scenery out), and it stops arrows below its height.
 function solid(L, pts, h, kind) {
@@ -903,7 +745,7 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
   }
 
   // the prize in the middle (desert has its oasis; capture-the-fort and control have their own middles)
-  if (G.mode === 'crown' && mapId === 'mount') mountPlaces(L, box, trees); else if (G.mode === 'crown') crownPlaces(L, R, box, trees);
+  if (G.mode === 'crown') mountPlaces(L, box, trees);
   const C = G.mode === 'crown' ? null : CENTRES[mapId];
   if (C && !withFort && !withCtrl) L.holds.unshift({ x: 0, z: 0, kind: C[0], name: C[1], r: HOLDS[C[0]].r, px: 4.8, pz: 0, centre: true });
   for (const h of L.holds) { if (!h.name) h.name = h.kind === 'oasis' ? 'the Oasis' : 'a village'; if (!h.x && !h.z) h.centre = true; }

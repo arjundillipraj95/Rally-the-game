@@ -1,7 +1,7 @@
 // Builds the 3D scenery for a map layout: ground, hills, fences, trees, river, castles, centre fort, tall grass.
 import * as THREE from 'three';
 import { TEAMS, CASTLE_R, CTRL } from '../config.js';
-import { G, isOut, noCastle } from '../core/state.js';
+import { G, noCastle } from '../core/state.js';
 import { groundY, terrainMeshY, mulberry, W, distToLine } from '../core/world.js';
 import { buildRidges } from './ridges.js';
 import { buildHolds, updateHolds } from './holds.js';

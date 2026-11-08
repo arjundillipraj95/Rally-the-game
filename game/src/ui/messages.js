@@ -1,6 +1,6 @@
 // Turns rule announcements ('castleDown', 'flagTaken'...) into banners, sounds and buzzes,
 // worded for this player. Hosts and clients use the same wording.
-import { TEAMS, MODES, CAPS_TO_WIN, UPGRADES, CALM, DUEL } from '../config.js';
+import { TEAMS, MODES, UPGRADES, CALM, DUEL } from '../config.js';
 import { G, isEnemyTi, colorOf, bus, rules } from '../core/state.js';
 import { allianceCaps, horseCooldown } from '../core/sim.js';
 import { groundY } from '../core/world.js';
@@ -81,13 +81,6 @@ export function msgText(k, a) {
       if (colorOf(a[0]) === colorOf(myTi)) return ['Last stand!', 'Your walls are breached. By the castle your men hit harder and won\'t run. Horn ready!', '#e0352b'];
       return !isEnemyTi(a[0], myTi) ? [`${nm(a[0])}'s castle is breached!`, 'Their last stand: get back and help them hold', css(a[0])] : [`${nm(a[0])}'s castle is breached!`, a[1] === myTi ? 'Your doing. Their last stand: finish it' : 'Their last stand: finish it', css(a[0])];
     // the Crown's phases
-    case 'crownGo': return ['Go!', 'Claim a castle before someone else does', '#ffcf3a'];
-    case 'crownSiegeSoon': return ['The siege starts in 20 seconds', 'Castles can be stormed from 4:00. Man your walls', '#ffcf3a'];
-    case 'crownSiege': return ['Siege!', 'Any castle can be taken now: stand in its yard and hold it', '#e0352b'];
-    case 'crownSoon': return ['The Crown rises in 20 seconds', 'Head for the plaza', '#ffcf3a'];
-    case 'lmsRing': return ['The ring closes!', 'Nobody comes back now. Stay inside the ring; last side standing wins', '#ff6a4a'];
-    case 'champions': return ["The Champions' Duel!", `${nm(a[0])} against ${nm(a[1])}. Winner takes all`, '#ffcf3a'];
-    case 'crownRise': return ['The Crown has risen!', 'Walls round the plaza! Inside: break the casing. Outside: hack a gate down', '#ffcf3a'];
     case 'towerUp': return mine(a[0]) ? ['Watchtower going up', 'It sees far through the fog once it\'s built. Enemies can hack it down', '#ffcf3a'] : null;
     case 'towerDown': return !isEnemyTi(a[0], myTi) ? [mine(a[0]) ? 'Your watchtower is down!' : `${nm(a[0])}'s watchtower is down`, a[1] >= 0 ? `Hacked down by ${nm(a[1])}` : '', '#e0352b'] : a[1] === myTi ? ['Watchtower down!', 'They\'re blind there now', '#ffcf3a'] : null;
     case 'castleFort': { const nmC = (G.holds && G.holds[a[1]] && G.holds[a[1]].name) || 'The castle'; return !isEnemyTi(a[0], myTi) ? [`${nmC} fortified`, a[2] >= 2 ? 'Archers on its towers shoot whoever comes at it' : 'Iron-banded gates: tougher, and they mend faster', '#ffcf3a'] : null; }
@@ -98,12 +91,9 @@ export function msgText(k, a) {
       return a[1] === myTi || !isEnemyTi(a[1], myTi) ? [`${nmC}'s ${which} is down!`, a[3] ? 'Slip in one at a time and hold the yard' : 'Into the yard and hold it', '#ffcf3a'] : null;
     }
     case 'plazaGate': return [a[1] === myTi ? 'You broke a plaza gate!' : `${nm(a[1])} broke a plaza gate!`, 'The way to the Crown is open', css(a[1])];
-    case 'crownFree': return ['The Crown is free!', 'Grab it: whoever carries it at 10:00 wins', '#ffcf3a'];
     case 'crownTaken': if (G.map && G.map.id === 'mount') return mine(a[0]) ? ['You broke the glacier!', 'The Crown is yours: +7 points', '#ffcf3a'] : [`${nm(a[0])} broke the glacier!`, 'The Crown goes to them: +7 points', css(a[0])];
       return mine(a[0]) ? ['You have the Crown!', 'Stay alive until 10:00. Keep enemies away', '#ffcf3a']
       : [`${nm(a[0])} has the Crown!`, ally(a[0]) ? 'Guard them with your life' : 'Cut them down before 10:00', css(a[0])];
-    case 'crownDropped': return mine(a[0]) ? ['You dropped the Crown!', 'Get it back', '#e0352b'] : [`${nm(a[0])} dropped the Crown!`, 'It\'s on the ground: grab it', css(a[0])];
-    case 'overtime': return ['Overtime!', a[0] ? 'Enemies are too close to the Crown: it goes on' : 'Nobody has the Crown: grab it!', '#ffcf3a'];
     case 'villageFort': return mine(a[0]) ? ['Palisade up!', `${(G.holds[a[1]] || {}).name || 'The village'} now takes 11 seconds to take`, css(a[0])] : null;
     case 'c2capPoint': return mine(a[0]) ? ['Captain point claimed!', `You cut down ${nm(a[1])}: +${a[2] || 1}`, '#ffcf3a'] : null;
     case 'mineOn': return mine(a[0]) ? ["He's mine!", `${nm(a[1])} won't duel. Your men leave him to you for ${DUEL.mineT} seconds`, css(a[0])] : mine(a[1]) ? [`${nm(a[0])} is coming for you`, "You refused the duel: his men are leaving you to him", css(a[0])] : null;

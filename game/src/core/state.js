@@ -40,7 +40,6 @@ export const G = {
 export const ARMIES = 12;
 export const colorOf = ti => ti % 4;
 export const slotOf = ti => ti >> 2;
-export const armyOf = (color, slot) => color + 4 * slot;
 // G.duo[color]: how many extra captains a castle fields (0, 1 Duo, 2 Trio), or -1: that castle is out
 // of this battle altogether (a 2- or 3-castle battle): no castle, no army
 export const isOut = c => ((G.duo && G.duo[c]) | 0) < 0;
@@ -54,15 +53,13 @@ export function botName(ti) { const n = BOT_NAMES.length, sd = (G.seed | 0) >>> 
 export const isC2 = () => G.mode === 'crown' && !!G.map && G.map.id === 'mount';
 export const capOf = ti => {
   if (G.mode !== 'crown') return G.squadCap;
-  if (isC2()) { // the mountain: 5 each, and every place the side holds adds to it, shared out between the side's captains
+  { // the mountain (the Crown is always the mountain): 5 each, and every place the side holds adds to it, shared out between the side's captains
     // (whoever took it: an ally's castle gives you room too; a side's whole army is the same however it splits)
     const a = G.ALLY[colorOf(ti)]; let pool = 0;
     for (const h of G.holds || []) if (h.owner === a) pool += h.kind === 'castle' ? CROWN2.perCastle : h.kind === 'village' ? CROWN2.perVillage : 0;
     const n = Math.max(1, G.teams.filter((t, i) => t && t.active && G.ALLY[colorOf(i)] === a).length);
     return CROWN2.base + Math.ceil(pool / n);
   }
-  const a = G.ALLY[colorOf(ti)], hs = G.holds || [];
-  return CROWN.base + hs.reduce((n, h) => n + (h.owner === a ? (h.kind === 'castle' ? CROWN.perCastle : h.kind === 'village' ? CROWN.perVillage : 0) : 0), 0);
 };
 export const activeArmies = () => { const out = castlesIn(); for (let s = 1; s <= 2; s++) for (let c = 0; c < 4; c++) if ((G.duo[c] | 0) >= s) out.push(c + 4 * s); return out; };
 // which armies a match fields, from each color's extra-captain count

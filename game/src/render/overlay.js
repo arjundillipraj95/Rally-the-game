@@ -1,9 +1,9 @@
 // The 2D layer drawn over the 3D view: sparks, floating text, health bars, names,
 // the banner pointer, the joystick and the red tint while you are down. Also the minimap.
 import * as THREE from 'three';
-import { TEAMS, DUEL, STREAK, RHYTHM, CAPTAIN_COMBAT, ARMOUR, STAMINA, DUEL_DIR } from '../config.js';
+import { TEAMS, DUEL, STREAK, RHYTHM, ARMOUR, STAMINA, DUEL_DIR } from '../config.js';
 import { bus } from '../core/state.js';
-import { G, isEnemyTi, isFfa, colorOf, isOut, noCastle } from '../core/state.js';
+import { G, isEnemyTi, isFfa, colorOf, noCastle } from '../core/state.js';
 import { claimed } from '../ui/messages.js';
 import { fogGrid } from './fog.js';
 import { groundY, clamp, W } from '../core/world.js';

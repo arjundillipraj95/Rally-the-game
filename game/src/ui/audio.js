@@ -47,7 +47,6 @@ function loadBank() {
 // Silence everything (the games site's mute setting, or while an ad plays).
 let muted = false;
 export function setMuted(m) { muted = !!m; if (out && ac) out.gain.setTargetAtTime(muted ? 0 : .9, ac.currentTime, .05); }
-export const audioReady = () => !!ac && Object.keys(bufs).length > 0;
 // for automated checks: what loaded, how many sounds are playing right now, the battle's heat
 export const audioStats = () => ({ music: { on: musicOn, level: M.level, want: M.want, drone: !!M.drone, bar: M.bar, beat: M.beat, next: ac && +M.next.toFixed(2), now: ac && +ac.currentTime.toFixed(2) }, state: ac && ac.state, muted, banks: Object.fromEntries(Object.entries(bufs).map(([k, v]) => [k, v.length])), voices, heat: +(amb.heat || 0).toFixed(2), near: amb.near || 0, far: amb.far || 0 });
 export function gateS(n, ms) { const t = performance.now(); if (lastS[n] && t - lastS[n] < ms) return false; lastS[n] = t; return true; }

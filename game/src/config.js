@@ -8,14 +8,6 @@ export const TEAMS = [
   { name: 'Yellow', hex: 0xf0c419, css: '#f0c419', pos: [ 56,  56] },
 ];
 
-// Faction sets a team's look only; every faction plays the same.
-export const FACTIONS = {
-  roman:     { name: 'Romans', code: 'r' },
-  greek:     { name: 'Greeks', code: 'g' },
-  barbarian: { name: 'Barbarians', code: 'b' },
-};
-export const FACTION_IDS = ['roman', 'greek', 'barbarian'];
-export const factionFromCode = c => FACTION_IDS.find(f => FACTIONS[f].code === c) || 'roman';
 
 export const PRESETS = { ffa: [0, 1, 2, 3], '2v2': [0, 1, 1, 0], '2v1v1': [0, 1, 2, 0], '3v1': [0, 1, 0, 0] };
 export const AL_LETTER = ['A', 'B', 'C', 'D'];
@@ -29,18 +21,12 @@ export const MODES = {
 };
 // The Crown: the online mode's ten minutes, in phases. Times in seconds.
 export const CROWN = {
-  lms: { ringEnd: 45, ringTime: 75, ringDmg: 7, overtime: 90 }, // (Last Man Standing, the test variant: the ring closes to 45 m over 75 s, so the plaza and the mines stay inside; outside it hurts)
-  lockout: 75, // (a place just taken can't be taken back for this long: no flipping every few seconds)
-  breakout: 15, rise: 60, siege: 240, chest: 360, crown: 540, // (break-out countdown, claim a castle, castles stormable, war chest, the Crown)
-  base: 10, perCastle: 5, perVillage: 3, // army size: every captain's, plus his side's places
-  startMen: 3, merc: 1.6, // (men he starts with; a recruit with no place held costs this much more and only fills the base 10)
+  breakout: 15, siege: 240, // (the break-out countdown at the start; castles stormable from 4:00)
   castleTake: 2.2, // (a castle takes this much longer to capture than a village)
-  gold: { castle: .8, village: .3, mine: 1.6 }, // per second, to every army on the side
-  casing: 22, overtime: 60, carrierSlow: .85, plazaR: 15, wallR: 17.5, gateW: 4.4, gateHp: 1000, // (the plaza's wall at 9:00, and its four gates) // (seconds of men in the plaza to break the Crown's casing)
-  size: 1.6, // (the Crown's field is this many times the standard size, so places sit further apart and there's room to hold ground)
-  castles: 6, villages: 6, mines: 4, lateJoin: 120, // (a friend, or the next searcher, can still take over a computer captain in its first two minutes)
+  carrierSlow: .85, wallR: 17.5, gateHp: 1000, // (the arena's wall and its four gates)
+  lateJoin: 120, // (a friend, or the next searcher, can still take over a computer captain in its first two minutes)
   tower: { build: 4, hp: 260, max: 2, reach: 2.2, volley: 3, every: 4.6, range: 22, arrow: 12, jitter: .45 }, // (a watchtower, once built, looses 3 arrows at the nearest enemy every 4.6 s, twice an archer's reload: from above, so a plain shield doesn't stop them (a shield wall does); a lone soldier lasts about three volleys)
-  cwallR: 13.6, cgateW: 6.4, cgateSmall: 2.6, cgateHp: 700, cgateSmallHp: 450, fortCost: [100, 170, 250], fortMult: [1, 2, 3, 4], fortTowers: [0, 1, 4, 4], fortTowerEvery: [0, 1.8, 1.8, 1.2], fortMend: 2, // (Fortify a castle you stand in, three levels: gates tougher by fortMult (x base HP), towers from level 1 (fortTowers of the four), shooting every fortTowerEvery s; a broken gate mends only with your men inside, fortMend times as fast) cgateMend: 60, // (castle curtain walls: radius, gate width and toughness, seconds a broken gate takes to mend) // (watchtowers: seconds to build, toughness, how many a side may have)
+  cgateW: 6.4, cgateSmall: 2.6, cgateHp: 700, cgateSmallHp: 450, fortCost: [100, 170, 250], fortMult: [1, 2, 3, 4], fortTowers: [0, 1, 4, 4], fortTowerEvery: [0, 1.8, 1.8, 1.2], fortMend: 2, // (Fortify a castle you stand in, three levels: gates tougher by fortMult (x base HP), towers from level 1 (fortTowers of the four), shooting every fortTowerEvery s; a broken gate mends only with your men inside, fortMend times as fast) cgateMend: 60, // (castle curtain walls: radius, gate width and toughness, seconds a broken gate takes to mend) // (watchtowers: seconds to build, toughness, how many a side may have)
 };
 // The Crown (the mountain). A terraced
 // round mountain, the same for every side: four homes on the rim, two lanes each (home, castle, open
@@ -101,7 +87,7 @@ export const KINDS = ['captain', 'foot', 'arch'];
 // last stands are the beats that move the plan, so they keep their voice.
 export const CALM = {
   quiet: new Set(['fortUp', 'towerUp', 'towerDown', 'rout', 'armourOn', 'duelNo', 'duelDraw', 'duelBroken', 'gateRepaired', 'bounty', 'bountyClaimed', 'flagTaken', 'pointCaptured', 'tickets0']),
-  herald: new Set(['c2chestSoon', 'c2chestUp', 'c2nightSoon', 'c2night', 'c2crack', 'start', 'first', 'castleDown', 'chestSoon', 'chestTaken', 'crownGo', 'crownSiege', 'crownRise', 'crownTaken', 'crownDropped', 'overtime', 'lastStand', 'lmsRing', 'champions', 'last']),
+  herald: new Set(['c2chestSoon', 'c2chestUp', 'c2nightSoon', 'c2night', 'c2crack', 'start', 'first', 'castleDown', 'chestSoon', 'chestTaken', 'crownTaken', 'lastStand', 'last']),
   heraldGap: 20000, // (in the Crown the herald speaks at most this often)
   bubbles: 1, bubbleGap: 5, // (speech bubbles: one at a time, and a longer pause between)
 };
@@ -318,7 +304,6 @@ export const DIFF = [{ name: 'Recruit', dmg: .7, income: 8 }, { name: 'Soldier',
 // Gold per second for a human player, and how often the computer tries to hire.
 export const ECON = { humanIncome: 10, startGold: 60, aiRecruitEvery: [1.5, 3] };
 
-export const SQUAD_CAP = 20;
 export const START_SQUAD = ['foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'arch', 'arch', 'arch'];
 export const FULL_SQUAD = ['foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'foot', 'arch', 'arch', 'arch', 'arch', 'arch', 'arch'];
 export const ORDERS = ['follow', 'hold', 'charge', 'shieldwall'];
@@ -347,5 +332,3 @@ export const FORT = { gateHp: 480, repair: 60, r: 22, h: 3.4, segs: 12, gateW: 3
 export const AURA = { range: 8, perRange: 3, bonus: .1, perBonus: .05 };
 export const CASTLE_R = 9.5, CASTLE_REACH = 11;
 export const HORSE_HP = 120, HORSE_CD = 20;
-export const DM_TICKETS = 250, CAPS_TO_WIN = 3;
-export const WORLD_LIMIT = 88;

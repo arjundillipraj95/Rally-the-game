@@ -14,9 +14,7 @@ export const ADS_ENABLED = !!import.meta.env.DEV && new URLSearchParams(location
 const SDK_URL = 'https://sdk.crazygames.com/crazygames-sdk-v3.js';
 
 let sdk = null, env = 'none', siteMuted = false, hooks = { mute() {}, pause() {} };
-export const portalEnv = () => env;
 export const onPortal = () => env === 'crazygames';
-export const portalActive = () => !!sdk;
 
 // Only reach out for the SDK when we're plausibly on the site (embedded in a frame, or a
 // crazygames domain), or when testing with ?portal=1 on localhost.

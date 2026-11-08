@@ -1,6 +1,6 @@
 // Scoreboard, clock, health, gold, squad count and button labels.
 import { STAMINA, CROWN2 } from '../config.js';
-import { CROWN, TEAMS, MODES, STATS, DM_TICKETS, CAPS_TO_WIN, CTRL, AL_LETTER, ORDER_NAMES, UPGRADES, WEAPON_NAMES, WEAPON_CLASS, STREAK, LAST } from '../config.js';
+import { CROWN, TEAMS, MODES, STATS, AL_LETTER, ORDER_NAMES, UPGRADES, WEAPON_NAMES, WEAPON_CLASS, STREAK, LAST } from '../config.js';
 import { G, isFfa, colorOf, rules, matchTime, SLOT_NAME, isOut, capOf, isC2 } from '../core/state.js';
 import { colorOut, colorScore, colorHuman, squadOf, canRecruit, horseMax, upgradeCost, javMax, execTarget, castleHere, villageHere } from '../core/sim.js';
 import { session, isClient } from '../net/session.js';
@@ -101,9 +101,6 @@ export function updateHud(lastSnapAt) {
       if (box && on) { box.classList.toggle('chest', !!ch); const lbl = ch ? 'The War Chest' : 'The Glacier'; if (box.firstChild.textContent !== lbl) box.firstChild.textContent = lbl;
         const n = `${Math.ceil(b.hp)} / ${b.max}`; $('glacierBar').style.transform = `scaleX(${b.hp / b.max})`; if ($('glacierN').textContent !== n) { $('glacierN').textContent = n; box.classList.remove('hit'); void box.offsetWidth; box.classList.add('hit'); } box.classList.toggle('crack', !ch && T >= C.crack); } }
     const el = $('phaseTag'); if (el && el.textContent !== ph) { el.textContent = ph; el.classList.toggle('hot', K && (K.phase === 'open' || K.phase === 'night')); }
-  } else if (G.mode === 'crown') { // the phase, under the clock
-    const T = G.T, ph = T < CROWN.breakout ? `Break-out in ${Math.ceil(CROWN.breakout - T)}` : T < CROWN.rise ? 'Claim a castle' : T < CROWN.siege ? `Castles safe · siege in ${fmt(CROWN.siege - T)}` : T < CROWN.crown ? (G.lms ? `Siege · the ring in ${fmt(CROWN.crown - T)}` : `Siege · the Crown in ${fmt(CROWN.crown - T)}`) : G.lms ? `No coming back · ${G.units.filter(u => u.leader && !u.dead).length} captains left` : T < matchTime() ? 'The Crown!' : 'Overtime!';
-    const el = $('phaseTag'); if (el && el.textContent !== ph) { el.textContent = ph; el.classList.toggle('hot', T >= CROWN.crown || T < CROWN.breakout); }
   } else if ($('phaseTag').textContent) $('phaseTag').textContent = '';
   if (!isC2() && $('glacier') && !$('glacier').hidden) $('glacier').hidden = true;
   const c = k => sq.filter(u => u.kind === k).length; $('squadMix').textContent = `F${c('foot')} A${c('arch')}`;

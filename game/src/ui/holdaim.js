@@ -7,7 +7,7 @@ import { groundY } from '../core/world.js';
 import { scene } from '../render/scene.js';
 import { screenToGround } from './volleyaim.js';
 import { HOLD_W, javTarget, strikeAt, rideQuality } from '../core/sim.js';
-import { CAPTAIN_COMBAT, HOLD_ATK, RIDE } from '../config.js';
+import { CAPTAIN_COMBAT, HOLD_ATK} from '../config.js';
 
 export const hold = { on: false, moved: false, x: 0, z: 0, face: 0, sx: 0, sy: 0, t0: 0 };
 const FINGER_LIFT = 70, SHOW_AFTER = 220; // (ms: a quick tap never flashes the bar)
@@ -49,7 +49,6 @@ export function holdEnd() {
   const f = hold.focus; hold.focus = null;
   return f && !f.dead ? { x: f.x, z: f.z, id: f.id, focus: true } : { x: hold.x, z: hold.z, face: hold.face };
 }
-export const holdHeldMs = () => hold.on ? performance.now() - hold.t0 : 0;
 export function holdCancel() { hold.on = false; }
 
 function place(m, x, z, face, t) {

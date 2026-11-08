@@ -5,7 +5,6 @@ import * as THREE from 'three';
 import { TEAMS } from '../config.js';
 import { G, colorOf } from '../core/state.js';
 import { terrainMeshY } from '../core/world.js';
-import { lmsRing } from '../core/sim.js';
 import { buildCastleFort, updateCastleFort } from './castlefort.js';
 
 let objs = [];
@@ -78,7 +77,6 @@ function updateCastleWalls() {
 }
 export function buildHolds(world, L) {
   cwalls = null; if (G.mode === 'crown' && L.cwalls && L.cwalls.length) { buildCastleWalls(world, L.cwalls); buildCastleFort(world, L); }
-  ring = null; if (G.mode === 'crown' && G.lms) { ring = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 14, 96, 1, true), new THREE.MeshBasicMaterial({ color: 0xff4a2a, transparent: true, opacity: .22, side: THREE.DoubleSide, depthWrite: false })); ring.visible = false; ring.renderOrder = 2; world.add(ring); }
   crown = null; wall = null; towerWorld = G.mode === 'crown' ? world : null; towerObjs.clear(); if (G.mode === 'crown') { buildCrown(world); if (L.plazaWall) buildWall(world, L.plazaWall); }
   objs = (L.holds || []).map(h => {
     const grp = new THREE.Group(); world.add(grp);
@@ -129,12 +127,9 @@ function updateTowers() {
   }
   for (const [id, o] of towerObjs) if (!seen.has(id)) { towerWorld.remove(o.g); towerObjs.delete(id); }
 }
-// Last Man Standing: the closing ring, a wall of red haze
-let ring = null;
-function updateRing() { if (!ring) return; const R = lmsRing(); ring.visible = R > 0; if (!R) return; ring.scale.set(R, 1, R); ring.position.y = 4; ring.material.opacity = .18 + Math.sin(G.T * 3) * .05; }
 let lastT = 0;
 export function updateHolds() {
-  updateCrown(); updateWall(Math.max(0, Math.min(.1, G.T - lastT))); lastT = G.T; updateTowers(); updateCastleWalls(); updateCastleFort(); updateRing();
+  updateCrown(); updateWall(Math.max(0, Math.min(.1, G.T - lastT))); lastT = G.T; updateTowers(); updateCastleWalls(); updateCastleFort();
   const hs = G.holds; if (!hs) return;
   objs.forEach((o, i) => {
     const h = hs[i]; if (!h) return;
@@ -149,4 +144,3 @@ export function updateHolds() {
     p.needsUpdate = true;
   });
 }
-export function clearHolds() { objs = []; }
