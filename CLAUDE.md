@@ -35,7 +35,14 @@ designer (Opus, its own chat) owns the design doc. Builders: O tickets = Opus, S
 8. Last step of every ticket: update `docs/STATE.md` (a few lines, not a report) and the card's Status.
    New findings about finished projects become tickets or STATE entries, never edits to `docs/history/`.
 
+## Several chats at once
+Other chats may be working on the repo at the same time. Work on a branch named after your ticket,
+or `git pull --rebase origin roles` right before pushing. Never force-push. On a conflict in someone
+else's work, stop and tell Arjun. Start every chat with `git checkout roles && git pull`.
+
 ## Saving tokens
+- Long chats re-send the whole conversation every message: when a piece of work is done, tell Arjun
+  in one line it's a good time for a fresh chat (context lives in this file, STATE.md and the cards).
 - Run long test output through `tail` or `grep`; print summaries, not logs.
 - Don't re-read a file you just wrote or edited. Don't paste whole files or docs into chat.
 - Keep replies to Arjun short: he reads on his phone.
