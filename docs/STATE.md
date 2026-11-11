@@ -22,7 +22,7 @@ Last updated: 2026-11-11.
   ground after a dropped frame. Left over: P0.7b below.
 
 ## Next (owner assigns; builder model in brackets)
-Ticket cards ready in `docs/tickets/`: F10-M2, F7. The owner writes a card before any other ticket starts.
+Ticket cards ready in `docs/tickets/`: F10b (running, Opus), F13 (after F10b and Fable's work), F7. The owner writes a card before any other ticket starts.
 
 | Ticket | What | Model | Waits on |
 |---|---|---|---|
