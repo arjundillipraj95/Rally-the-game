@@ -37,6 +37,7 @@ function heraldFor(k, a) {
   if (G.mode === 'crown' && !CALM.herald.has(k)) return;
   if (k === 'start') return herald(pickOne(HERALD.start));
   if (k === 'capDown') {
+    if (a[1] == null || a[1] < 0) return; // (he fell with nobody's help: a line in the feed, no fanfare)
     if (!firstBlood) { firstBlood = true; return herald(pickOne(HERALD.first)); }
     const by = a[1]; if (by == null || by < 0 || by === a[0]) return;
     capKills[by] = (capKills[by] || 0) + 1;

@@ -7,26 +7,34 @@ import { groundY, inRiver, rnd } from '../core/world.js';
 import { scene } from './scene.js';
 import { quality } from './quality.js';
 
-export let parts = [];
+// (F6) particles are pooled: a spent one goes back on the spare pile and is handed out again, so a fight
+// makes no garbage per hit. `parts` holds the live ones (drawn on the 2D layer, render/overlay.js).
+export const parts = [];
+const spare = [];
+function part(x, y, z, vx, vy, vz, life, c, s) {
+  const p = spare.pop() || {};
+  p.x = x; p.y = y; p.z = z; p.vx = vx; p.vy = vy; p.vz = vz; p.life = life; p.c = c; p.s = s;
+  parts.push(p);
+}
 export let floats = [];
 
 export function spark(x, y, z, c, n) {
   const cap = quality.cfg.particles;
   // a bright, near-instant flash at the point of impact sells the hit before the debris scatters
-  if (parts.length < cap) parts.push({ x, y, z, vx: 0, vy: rnd(.2, .6), vz: 0, life: .22, c: '#fff8e6', s: 9 });
-  for (let i = 0; i < n && parts.length < cap; i++) parts.push({ x, y, z, vx: rnd(-4, 4), vy: rnd(1, 5), vz: rnd(-4, 4), life: rnd(.25, .5), c, s: rnd(2, 4) });
+  if (parts.length < cap) part(x, y, z, 0, rnd(.2, .6), 0, .22, '#fff8e6', 9);
+  for (let i = 0; i < n && parts.length < cap; i++) part(x, y, z, rnd(-4, 4), rnd(1, 5), rnd(-4, 4), rnd(.25, .5), c, rnd(2, 4));
 }
-export function puff(p) { if (parts.length < quality.cfg.particles + 40) parts.push(p); }
+export function puff(p) { if (parts.length < quality.cfg.particles + 40) part(p.x, p.y, p.z, p.vx, p.vy, p.vz, p.life, p.c, p.s); }
 // A weapon's blade tip leaves a brief, near-stationary streak so a fast swing reads as motion,
 // not a snap between poses. Cheap: reuses the same particle pool, just near-zero velocity.
 export function trail(x, y, z, c) {
-  if (parts.length < quality.cfg.particles) parts.push({ x, y, z, vx: rnd(-.2, .2), vy: rnd(-.1, .2), vz: rnd(-.2, .2), life: rnd(.08, .14), c, s: rnd(2.5, 4) });
+  if (parts.length < quality.cfg.particles) part(x, y, z, rnd(-.2, .2), rnd(-.1, .2), rnd(-.2, .2), rnd(.08, .14), c, rnd(2.5, 4));
 }
 // Dust kicked up by hits and falls, tinted to the ground.
 const DUST = { dunes: '#dcc69c', river: '#b7a888', forest: '#a89a7c', frost: '#f4f7fa' };
 export function dust(x, z) {
   const c = DUST[G.map.id] || DUST.dunes, y = groundY(x, z) + .3;
-  for (let i = 0; i < 3; i++) puff({ x: x + rnd(-.4, .4), y, z: z + rnd(-.4, .4), vx: rnd(-1, 1), vy: rnd(.8, 1.6), vz: rnd(-1, 1), life: rnd(.5, .8), c, s: rnd(5.5, 8) });
+  for (let i = 0; i < 3 && parts.length < quality.cfg.particles + 40; i++) part(x + rnd(-.4, .4), y, z + rnd(-.4, .4), rnd(-1, 1), rnd(.8, 1.6), rnd(-1, 1), rnd(.5, .8), c, rnd(5.5, 8));
 }
 export function floatText(x, y, z, text, color) { floats.push({ x, y, z, text, color, t: 0 }); }
 // Comic-book sound words on the big blows near you ("WHACK!", "BONK!"), drawn as a burst on the 2D layer.
@@ -68,22 +76,29 @@ const slashMesh = new THREE.InstancedMesh(slashGeo, slashMat, MAX_SLASH);
 slashMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_SLASH * 3), 3);
 slashMesh.frustumCulled = false; slashMesh.count = 0; slashMesh.renderOrder = 5;
 scene.add(slashMesh);
-let slashes = [];
-if (import.meta.env.DEV) window.__slashN = () => slashes.length;
+// (F6) a fixed ring of strokes, reused: no matrix or colour is made per swing
+const slashes = Array.from({ length: MAX_SLASH }, () => ({ on: false, m: new THREE.Matrix4(), c: new THREE.Color(), t: 0, a: 1 }));
+let slashAt = 0, slashLive = 0;
+if (import.meta.env.DEV) window.__slashN = () => slashLive;
 const SLASH_LIFE = .22, slashC = new THREE.Color(), grow = new THREE.Matrix4();
 // m: where the arc sits (world matrix, arc in its local XZ plane); c: tint
 export function slash(m, c = '#ffffff', strength = 1) {
-  if (slashes.length >= MAX_SLASH) slashes.shift();
-  slashes.push({ m: m.clone(), c: new THREE.Color(c), t: 0, a: strength });
+  const s = slashes[slashAt]; slashAt = (slashAt + 1) % MAX_SLASH; // (the oldest is overwritten when all are in use)
+  if (!s.on) slashLive++;
+  s.on = true; s.m.copy(m); s.c.set(c); s.t = 0; s.a = strength;
 }
 function drawSlashes() {
-  slashes.forEach((s, i) => {
+  let i = 0;
+  if (slashLive) for (const s of slashes) {
+    if (!s.on) continue;
     const k = s.t / SLASH_LIFE, g = 1 + .18 * k;
     slashMesh.setMatrixAt(i, grow.makeScale(g, 1, g).premultiply(s.m));
     slashMesh.setColorAt(i, slashC.copy(s.c));
     slashAlpha.array[i] = s.a * (k < .1 ? k / .1 : 1 - Math.pow((k - .1) / .9, 1.5));
-  });
-  slashMesh.count = slashes.length;
+    i++;
+  }
+  if (!i && !slashMesh.count) return;
+  slashMesh.count = i;
   slashMesh.instanceMatrix.needsUpdate = true; slashMesh.instanceColor.needsUpdate = true; slashAlpha.needsUpdate = true;
 }
 
@@ -134,14 +149,17 @@ const o3 = new THREE.Object3D();
 
 export function effectsTick(dt) {
   wavesTick(dt);
-  for (const p of parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.vy -= (p.s > 5 ? -.5 : 9) * dt; p.life -= dt; }
-  parts = parts.filter(p => p.life > 0 && p.y > -1);
+  { let n = 0; // (the live ones are kept in order at the front; the spent go back on the spare pile)
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i]; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.vy -= (p.s > 5 ? -.5 : 9) * dt; p.life -= dt;
+      if (p.life > 0 && p.y > -1) parts[n++] = p; else spare.push(p);
+    }
+    parts.length = n; }
   for (const f of floats) { f.t += dt; f.y += dt * 1.2; }
   floats = floats.filter(f => f.t < 1.3);
   for (const p of pows) p.t += dt;
   pows = pows.filter(p => p.t < .75);
-  for (const sl of slashes) sl.t += dt;
-  slashes = slashes.filter(sl => sl.t < SLASH_LIFE);
+  if (slashLive) for (const sl of slashes) if (sl.on) { sl.t += dt; if (sl.t >= SLASH_LIFE) { sl.on = false; slashLive--; } }
   for (const d of decals) d.t += dt;
   decals = decals.filter(d => d.t < 30);
 }
@@ -170,7 +188,7 @@ export function drawEffects() {
   arrowMesh.count = n; arrowMesh.instanceMatrix.needsUpdate = true;
 }
 
-export function clearEffects() { parts = []; floats = []; decals = []; pows = []; slashes = []; for (const w of waves) scene.remove(w.m); waves = []; }
+export function clearEffects() { while (parts.length) spare.push(parts.pop()); floats = []; decals = []; pows = []; for (const sl of slashes) sl.on = false; slashLive = 0; for (const w of waves) scene.remove(w.m); waves = []; }
 // a ring rolling out across the ground (the rally horn)
 let waves = [];
 export function shockwave(x, z, r, color) {

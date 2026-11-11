@@ -347,3 +347,28 @@ export const NEUTRAL = { hex: 0x8d939a, cloth: 0xa4a9b0, pole: 0x5a4632, h: 4.2,
 // ahead: how long to carry a unit on its last heading when no newer snapshot has come, in ms; ease: how fast
 // the drawn position closes on the worked-out one (per second).
 export const SMOOTH = { gaps: 2, min: 70, max: 320, ahead: 140, ease: 28 };
+
+// ---------- F6 hit feel and F5 the death sequence: every number for how a fight feels ----------
+// Seconds, metres, metres a second; shake is 0..1 of the camera's shake; buzz is the phone's vibration in ms.
+// stop: both bodies hold their pose this long. world: when the moment is your own, the whole screen holds this
+// long instead. shake and buzz pairs are [seen near you / the other man's, your own].
+export const FEEL = {
+  // two captains' blades meet: both swinging at each other within win seconds, each inside arc radians of facing the other
+  clash: { win: .36, arc: 1.1, push: 6, stun: .22, cd: .45, stop: .08, world: .075, flash: 3, flashT: .16, sparks: 16, reel: 7, shake: [.3, .5], kick: .32, buzz: 45, near: 24 },
+  // a blow taken on a shield. kb: how much of the blow's push the defender still takes (he slides back a little)
+  block: { kb: .55, stop: .045, world: .03, flash: 1.7, flashT: .2, recoil: 8, jolt: 3, shake: [.12, .22], kick: .16, buzz: [18, 25], near: 20 },
+  // a captain cuts a soldier down. kb, up: how he's thrown on a joined phone (the host's rules throw him there); launch: a big hit
+  cut: { stop: .09, world: .1, kb: 14, launch: 11, up: [3, 6], slash: 2.9, stars: 6, star: .5, starT: .7, shake: [.1, .28], kick: .22, buzz: 40, near: 24 },
+  // your own blows, as before F6 (seconds of hold, shake) plus a short buzz when one lands
+  own: { stop: { blocked: .03, heavy: .1, shove: .075, hit: .055 }, shake: { heavy: .22, shove: .16, hit: .1 }, buzz: { hit: 12, heavy: 28, blocked: 0 } },
+  // any blow that lands on anybody: the struck man holds his pose this long, by how hard it was (light, heavy)
+  light: { stop: [.025, .06], near: 22 },
+  // blows you take
+  hurt: { shake: .35, buzz: 35, blockBuzz: 15, arrowShake: .25, arrowBuzz: 20 },
+  // the death sequence. body: how long a fallen man lies before he is taken away (he sinks into the ground over the last
+  // seconds, see render/soldiers.js); fadeOut: black this long before you're back; hold: black after the camera has moved;
+  // fadeIn: back in; watch: with no way back, how long the camera stays on him; blackMax: never black longer than this;
+  // zoom, lift: the camera pulls back and up over a fallen captain; msgs: fight moments kept for joined phones
+  death: { body: 14, fadeOut: .45, hold: .15, fadeIn: .5, watch: 4, blackMax: 3, zoom: 1.18, lift: 1.4 },
+  net: { msgs: 12 },
+};

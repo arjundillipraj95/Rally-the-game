@@ -4,7 +4,7 @@
 // Factions change the look only: Romans (galea, scutum, gladius), Greeks (bronze Corinthian helmet,
 // round hoplon), barbarians (hair and beards, bare chests, round wooden shields, axes).
 import * as THREE from 'three';
-import { TEAMS, CRESTS, EXEC, NEUTRAL } from '../config.js';
+import { TEAMS, CRESTS, EXEC, NEUTRAL, FEEL } from '../config.js';
 import { G, isEnemyTi, isFfa, colorOf, bus } from '../core/state.js';
 import { braced } from '../core/sim.js';
 import { lookOf, slotOf, SLOT_IX } from '../core/look.js';
@@ -430,6 +430,12 @@ export const ringFor = u => {
   return null;
 };
 
+// (F6) a jolt to a man's springs from outside the hit he took: the attacker rocked back off a shield, two captains
+// thrown apart as their blades meet. from: the direction (world angle) it came from; power: about 4 to 9.
+export function reel(u, from, power) {
+  if (!u || u.dead) return; const a = stateOf(u);
+  a.stagV = (a.stagV || 0) - Math.cos(from - u.face) * power; a.stagRV = (a.stagRV || 0) - Math.sin(from - u.face) * power * .8;
+}
 // Ragdoll-style death: the body is knocked over with a spring and a bounce, spins off the hit,
 // and arms and legs flop to loose, random angles.
 function ragdoll(u, a, dt) {
@@ -501,6 +507,7 @@ function pose(u, dt) {
   if (a.hp != null && u.hp < a.hp - .5) {
     const dmg = a.hp - u.hp, sev = Math.min(1, dmg / 18), blocked = u.blockT > 0 || (u.human && u.blocking);
     a.flash = Math.min(1, Math.max(a.flash || 0, sev));
+    if (!(u.fz > 0) && nearCam(u, FEEL.light.near)) u.fz = FEEL.light.stop[0] + (FEEL.light.stop[1] - FEEL.light.stop[0]) * sev; // (F6: every blow that lands has a beat of weight, on every phone)
     if (dmg > u.max * .3 && Math.random() < .35) a.dizzy = 1.4; // a real clout (a third of his health) leaves him seeing stars
     // which way the blow came from: he reels away from it (back from the front, sideways from a flank,
     // pitched forward from behind). The host knows; a joining phone takes the nearest enemy.
@@ -776,9 +783,10 @@ export function drawSoldiers(units, dt, extra = null) {
     }
     if (drawn >= MAX_UNITS) break lists;
     drawn++;
-    const a = pose(u, u.slowT > 0 ? dt * .25 : dt); // (a parry's two men move in slow motion)
+    const held = u.fz > 0; if (held && !u.dead) u.fz -= dt; // (F6 hit-stop: the two men in a big moment hold their pose for a beat; a dead man's is counted down as he falls, core/sim.js)
+    const a = pose(u, held ? 0 : u.slowT > 0 ? dt * .25 : dt); // (a parry's two men move in slow motion)
     bones(u, a);
-    const hero = ((u.kind === 'captain' || nearCam(u, quality.cfg.near || 26)) && drawHero(u, a, dt)) || drawFar(u, a); // (the new 3D captain, and the soldiers, archers and mounts near the camera: only their shadow and ring come from the parts below)
+    const hero = ((u.kind === 'captain' || nearCam(u, quality.cfg.near || 26)) && drawHero(u, a, held ? 0 : dt)) || drawFar(u, a); // (the new 3D captain, and the soldiers, archers and mounts near the camera: only their shadow and ring come from the parts below)
     if (u.mounted && u.charge > 0 && Math.random() < dt * 16) dust(u.x - Math.sin(u.face) * 1.4, u.z - Math.cos(u.face) * 1.4); // a charge kicks up a trail
     // a brief streak off the blade/spear tip while mid-swing, so a fast hit reads as motion
     if (u.swing > 0 && !u.dead && (u.kind === 'foot' || u.kind === 'captain')) {

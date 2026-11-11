@@ -1,6 +1,6 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
-import { STAMINA, DUEL_DIR, CROWN2 } from '../config.js';
+import { STAMINA, DUEL_DIR, CROWN2, FEEL } from '../config.js';
 import { CROWN, ECON, TEAMS, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, CASTLE_R, CASTLE_REACH, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, HOLDS, EVADE, FORT, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT, DUEL, CHEST, STREAK, BASH, LAST, VCHARGE, RHYTHM, PUSH, ARMOUR } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, activeFrom, gateOff, ARMIES, rules, matchTime, noCastle, capOf, isC2 } from './state.js';
 import { deepWater, groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W, groundSlow, onIce, mountHomeA } from './world.js';
@@ -469,7 +469,7 @@ function resolveSwing(u) {
   const exS = pend.side != null ? Object.assign({}, ex, { side: pend.side }) : ex; // (a duel blow carries its side)
   let landed = false;
   const slack = u.human ? .9 : .5; // (a player's blow at a man who has just stepped back still connects)
-  if (tg && !tg.dead && Math.hypot(tg.x - u.x, tg.z - u.z) <= u.r + tg.r + reach + slack) { hit(u, tg, mult, exS); landed = true; }
+  if (tg && !tg.dead && Math.hypot(tg.x - u.x, tg.z - u.z) <= u.r + tg.r + reach + slack) { if (clash(u, tg, pend)) return; hit(u, tg, mult, exS); landed = true; }
   else if (u.isMe && G.capStats && tg && tg.castle === undefined) G.capStats.outOfReach++;
   // sword finisher: the heavy third hit also catches up to two more men beside the target
   if (pend.cleave) {
@@ -491,6 +491,25 @@ function resolveSwing(u) {
       hit(u, o, mult * pend.pierce, ex); if (++pn >= (pend.pierceN || 1)) break;
     }
   }
+}
+// Two captains' blades meet (F6): each on foot and swinging a plain blow at the other, face to face. Neither blow
+// lands: both men are driven back a step and held a moment. Every phone plays it from the 'fxclash' moment.
+function clash(a, b, pend) {
+  const C = FEEL.clash, bp = b.pending;
+  if (!a.leader || !b.leader || a.mounted || b.mounted || !bp || bp.target !== a || bp.t > C.win) return false;
+  if (pend.heavy || pend.bash || pend.streak || bp.heavy || bp.bash || bp.streak || bp.leap || bp.sweep) return false; // (the big blows go through)
+  if (a.ripN > 0 && a.riposteT > G.T) return false; // (so does a riposte)
+  if (b.iframeT > 0 || a.execT > 0 || b.execT > 0 || b.stun > 0) return false;
+  if (G.crown && G.T < CROWN.breakout) return false;
+  if ((a.duelId || b.duelId) && a.duelId !== b.duelId) return false;
+  const ang = Math.atan2(b.x - a.x, b.z - a.z);
+  if (Math.abs(angDiff(a.face, ang)) > C.arc || Math.abs(angDiff(b.face, ang + Math.PI)) > C.arc) return false;
+  b.pending = null; b.windup = 0; b.glint = false;
+  a.cd = Math.max(a.cd, C.cd); b.cd = Math.max(b.cd, C.cd);
+  push(a, -Math.sin(ang) * C.push, -Math.cos(ang) * C.push, C.stun); push(b, Math.sin(ang) * C.push, Math.cos(ang) * C.push, C.stun);
+  fx('fxmsg', { k: 'fxclash', u: b, a });
+  if (a.remote || b.remote) fx('netFlush');
+  return true;
 }
 // Leap slam: an attack from mid-air comes down on everyone in a wide arc in front, can't be
 // blocked, and staggers whoever it hits. The crowd-breaker; the sword combo is the duelling tool.
@@ -573,15 +592,16 @@ function hit(a, b, mult = 1, extra) {
   b.hitAng = Math.atan2(a.x - b.x, a.z - b.z); b.hitT = G.T; // (where the blow came from: he reels away from it)
   const shove = !!(extra && extra.shove);
   if (blocked) {
-    dmg *= b.human ? .12 : shove ? CC.spear.shieldDmg : .25; kb *= shove ? 1 : .4; // (a spear thrust into a shield still drives him back)
+    dmg *= b.human ? .12 : shove ? CC.spear.shieldDmg : .25; kb *= shove ? 1 : FEEL.block.kb; // (a spear thrust into a shield still drives him back)
     // a captain's sword on a raised shield knocks it aside: he's open for a moment, the next blow lands
     if (a.leader && b.guardUp && !shove && !b.human) { b.guardUp = false; b.gT = SHIELD.open; b.stun = Math.max(b.stun, SHIELD.openStun); b.blockT = 0; fx('fxmsg', { k: 'fxopen', u: b, a }); }
     spark(hx, hy, hz, '#fff3b0', 7); sound('clang', hx, hz); b.blockT = Math.max(b.blockT, .2);
-    if (b.isMe) fx('buzz', 15);
+    if (a.leader || b.leader) fx('fxmsg', { k: 'fxblk', u: b, a }); // (F6: a blow on a shield with a captain in it is a moment on every phone)
+    if (b.isMe) fx('buzz', FEEL.hurt.blockBuzz);
   } else {
     spark(hx, hy, hz, TEAMS[colorOf(b.ti)].css, 6); sound('hit', hx, hz);
     if (Math.random() < .4) fx('splat', { x: b.x + rnd(-.4, .4), z: b.z + rnd(-.4, .4), s: rnd(.6, 1.1), ti: b.ti });
-    if (b.isMe) { fx('shake', .35); fx('buzz', 35); }
+    if (b.isMe) { fx('shake', FEEL.hurt.shake); fx('buzz', FEEL.hurt.buzz); }
   }
   if (b.leader && b.armour > 0 && !blocked && dmg > 0) dmg = soak(b, dmg, heavy || broke || back || !!(extra && extra.unblockable));
   b.hp -= dmg;
@@ -596,15 +616,19 @@ function hit(a, b, mult = 1, extra) {
   if (broke) { gainRally(a, RALLY.guardBreak); b.stun = Math.max(b.stun, onGuard ? GUARD.broken : HEAVY.guardBreak); if (onGuard) { b.guardT = 0; b.guardCd = 2; } fx('fxmsg', { k: 'fxbreak', u: b }); }
   if (a.remote || b.remote) fx('netFlush');
   if (a.isMe) { // your own blows: a beat of hit-stop, longer for heavy hits and kills, and a deeper thud
-    const heavy = !blocked && (mult >= 1.35 || b.hp <= 0);
-    fx('hitstop', blocked ? .03 : heavy ? .1 : shove ? .075 : .055);
-    if (!blocked) fx('shake', heavy ? .22 : shove ? .16 : .1);
+    const heavy = !blocked && (mult >= 1.35 || b.hp <= 0), O = FEEL.own, kind = blocked ? 'blocked' : heavy ? 'heavy' : shove ? 'shove' : 'hit';
+    fx('hitstop', O.stop[kind]);
+    if (!blocked) fx('shake', O.shake[kind]);
+    if (O.buzz[kind]) fx('buzz', O.buzz[kind]); // (F6: you feel your own blow land)
     if (heavy) sound('heavy', hx, hz);
   }
   const ang = Math.atan2(b.x - a.x, b.z - a.z);
   push(b, Math.sin(ang) * kb, Math.cos(ang) * kb, blocked ? (shove ? .25 : 0) : broke ? HEAVY.guardBreak : (extra && extra.stun) || .22);
   // heavy blows, slams and captains' finishers launch the body; now and then any captain's kill does
-  if (b.hp <= 0) die(b, a, ang, mult >= 1.35 || (extra && extra.unblockable) || (a.leader && Math.random() < .18) ? 1 : 0);
+  if (b.hp <= 0) {
+    const was = b.dead; die(b, a, ang, mult >= 1.35 || (extra && extra.unblockable) || (a.leader && Math.random() < .18) ? 1 : 0);
+    if (!was && b.dead && a.leader && !b.leader) fx('fxmsg', { k: 'fxcut', u: b, a, heavy: !!b.launch }); // (F6: a captain cuts a soldier down)
+  }
 }
 // ---------- the duel ----------
 // A captain calls out an enemy captain close by; if he takes it up, both armies' men near them form
@@ -1100,12 +1124,16 @@ function arrowHit(a, b) {
   if (b.leader && b.armour > 0) dmg = soak(b, dmg, false);
   b.hp -= dmg; spark(b.x, b.y + 1.3, b.z, TEAMS[colorOf(b.ti)].css, 4); sound('hit', b.x, b.z);
   push(b, 0, 0, .12);
-  if (b.isMe) { fx('shake', .25); fx('buzz', 20); }
+  if (b.isMe) { fx('shake', FEEL.hurt.arrowShake); fx('buzz', FEEL.hurt.arrowBuzz); }
   const sh = a.shooter;
+  if (b.hp <= 0) b.howBy = a.javelin ? 'jav' : 'arrow';
   if (b.hp <= 0 && (a.neutral || a.plunge)) b.cause = a.neutral ? 'garrison' : 'tower';
   if (b.hp <= 0) die(b, a.neutral ? null : sh && !sh.dead && !sh.tower ? sh : { ti: a.ti, human: false, leader: false }, Math.atan2(b.x - a.x0, b.z - a.z0));
 }
 export function die(u, killer, ang, launch = 0) {
+  // (F5) what he fell to, for the card on his own phone: a captain's weapon, a captain's men, or the mountain
+  const how = u.execBy ? 'exec' : u.cause === 'garrison' || u.cause === 'tower' ? u.cause : u.cause === 'enemy home' ? 'home' : u.cause ? 'fall' : u.howBy || (!killer ? 'fall' : killer.leader ? (killer.mounted ? 'horse' : killer.weapon === 'spear' ? 'spear' : 'sword') : killer.kind === 'arch' ? 'arrow' : 'men');
+  u.howBy = null;
   if (G.c2 && !u.dead) { const D = G.deaths || (G.deaths = { cap: {}, men: {} }), why = u.cause || (killer ? (killer.leader ? 'captain' : killer.kind === 'arch' ? 'archer' : killer.kind === 'foot' ? 'footman' : 'arrows') : 'other'), b = u.leader ? D.cap : D.men; b[why] = (b[why] || 0) + 1; u.cause = null; } // (the admin numbers: how they fell)
   if (u.dead) return;
   if (G.c2 && u.shieldT > G.T) { u.hp = Math.max(1, u.hp); return; } // (the mountain: at home, or just out of it, nobody dies)
@@ -1146,10 +1174,10 @@ export function die(u, killer, ang, launch = 0) {
     if (killer.human) say('gold', killer.ti, Math.round(u.x * 10) / 10, Math.round(u.z * 10) / 10, reward);
     if (bounty) say('bountyClaimed', killer.ti);
     if (u.leader) say('capDown', u.ti, killer.ti);
-  }
+  } else if (u.leader) say('capDown', u.ti, -1); // (F5: every captain's fall is a line in the feed)
   if (u.leader) {
     s.leaderDeadT = G.warmup ? (u.human ? 1.5 : 3) : u.human ? 5 : 9; // (the warm-up: straight back up)
-    if (u.human) say('fell', u.ti, canRespawn(u.ti) ? 1 : 0);
+    if (u.human) say('fell', u.ti, canRespawn(u.ti) ? 1 : 0, killer && killer.ti != null && isEnemyTi(killer.ti, u.ti) ? killer.ti : -1, how);
   }
   checkEnd();
 }
@@ -2634,7 +2662,7 @@ export function update(dt, input) {
     if (u.remote) { u.y = groundY(u.x, u.z) + (u.jy || 0); continue; } // moved by their own phone
     integrate(u, u.slowT > 0 ? dt * PARRY.slow : dt, u.z);
   }
-  G.units = G.units.filter(u => !(u.dead && u.deadT > 14));
+  G.units = G.units.filter(u => !(u.dead && u.deadT > FEEL.death.body && !(u.y > groundY(u.x, u.z) + .3))); // (F5: the fallen are taken away once they've lain and sunk, never out of the air)
 
   // castle towers shoot at enemies near their walls
   TEAMS.forEach((t, i) => {
@@ -2675,11 +2703,13 @@ export function endStep(dt) {
   }
 }
 export function fallStep(u, dt) {
+  if (u.fz > 0) { u.fz -= dt; return; } // (F6: cut down, he hangs there for the beat of the blow, then falls)
   u.deadT += dt;
   u.x += u.vx * dt; u.z += u.vz * dt; u.vy -= 18 * dt;
   const gy = groundY(u.x, u.z), ny = u.y + u.vy * dt;
   if (ny <= gy && u.vy < -5) { u.vy = -u.vy * .38; u.y = gy; u.bounces = (u.bounces || 0) + 1; if (u.launch) bus.emit('sfx', { name: 'thump', x: u.x, z: u.z }); }
-  else u.y = Math.max(gy, ny);
+  else if (ny <= gy) { u.y = gy; u.vy = 0; } // (F5: down and at rest. Before, the fall speed kept building on the ground and he hopped 10 cm every half second)
+  else u.y = ny;
   const air = u.y > gy + .05, f = Math.pow(air ? .7 : .03, dt); u.vx *= f; u.vz *= f;
 }
 export function arrowsTick(dt, authoritative) {

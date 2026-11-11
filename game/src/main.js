@@ -34,7 +34,9 @@ import { drawFreeHorses } from './render/heroes.js';
 import { spark, splat, dust, drawAura, floatText, pow, shockwave, castleFx, effectsTick, drawEffects, clearEffects } from './render/effects.js';
 import { drawOverlay, clearOverlay, resizeOverlay } from './render/overlay.js';
 import { cam, followCamera, orbitCamera, camTarget, CAM_PITCH, introCam } from './render/camera.js';
-import { initAudio, sfx, buzz, gateS, startCrowd, stopCrowd, audioTick, audioStats, setMuted, musicCue, setMusic, musicEnabled } from './ui/audio.js';
+import { feelTick, clearFeel, feelStats } from './render/feel.js';
+import { initDeath, deathTick, deathReset, deathState } from './ui/death.js';
+import { initAudio, sfx, buzz, gateS, startCrowd, stopCrowd, audioTick, audioStats, setMuted, musicCue, setMusic, musicEnabled, setVibe, vibeEnabled } from './ui/audio.js';
 import { portal, portalInit, onPortal } from './portal.js';
 import { showMsg, allyNames, setNamer, glory } from './ui/messages.js';
 import { renderPointsV2, tlTick, tlPack, ledger } from './ui/timeline.js';
@@ -85,8 +87,8 @@ bus.on('shake', v => { cam.shake = v; });
 // the Crown: the plaza's walls grind up out of the ground
 bus.on('wallsRise', () => { sfx.crumble(); sfx.horn(); cam.shake = Math.max(cam.shake, .5); buzz([80, 40, 80]); for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2; dust(Math.cos(a) * 17.5, Math.sin(a) * 17.5); } });
 // hit-stop: the world freezes for a few frames when your blow lands, so it reads as weight
-let hitstop = 0;
-bus.on('hitstop', t => { hitstop = Math.max(hitstop, t); });
+let hitstop = 0, hitstopN = 0; // (hitstopN: how many have been asked for, for the tests)
+bus.on('hitstop', t => { hitstop = Math.max(hitstop, t); hitstopN++; });
 bus.on('buzz', ms => buzz(ms));
 // the big moments of a fight: a parry, a guard smashed open, a rider skewered or knocked off his horse.
 // (On the host these come straight from the rules; on a joining player's phone, with the next snapshot.)
@@ -412,7 +414,7 @@ function endText(w, why) {
 function viewForMatch() {
   clearMeadow();
   buildWorldView(G.layout);
-  clearEffects(); clearHorses(); clearProps(); clearBanter(); clearFeed(); clearReport(); spawnCritters(G.seed);
+  clearEffects(); clearFeel(); deathReset(); clearHorses(); clearProps(); clearBanter(); clearFeed(); clearReport(); spawnCritters(G.seed);
   buildHud(); showHud(); trayOpen(false); upOpen(false);
   portal.gameplayStart();
   requestAnimationFrame(() => requestAnimationFrame(hideVeil));
@@ -477,7 +479,7 @@ function seedDemo() {
   G.teams = newTeams([0, 0, 0, 0]);
   G.looks = assignLooks({ [G.myTi]: prefs.look }, 7);
   G.crests = []; G.crests[G.myTi] = progress.crest;
-  buildWorldView(G.layout); clearEffects(); clearHorses(); clearProps();
+  buildWorldView(G.layout); clearEffects(); clearFeel(); deathReset(); clearHorses(); clearProps();
   // out in the meadow in front of his castle, looking back at it (the camera stands between): behind him,
   // the open valley, the flock and the shepherd
   const t = TEAMS[colorOf(G.myTi)];
@@ -717,6 +719,8 @@ const pressSeg = (id, v) => $(id).querySelectorAll('button').forEach(b => b.setA
 seg('segDiff', v => { G.diff = +v; });
 seg('segMusic', v => { setMusic(v === 'on'); pressSeg('segMusic', v); });
 pressSeg('segMusic', musicEnabled() ? 'on' : 'off');
+seg('segVibe', v => { setVibe(v === 'on'); pressSeg('segVibe', v); });
+pressSeg('segVibe', vibeEnabled() ? 'on' : 'off');
 seg('segQuality', v => {
   if (v === quality.setting) return;
   saveSetting(v);
@@ -903,6 +907,7 @@ function fault(where, e) {
   document.body.appendChild(el); setTimeout(() => el.remove(), 30000);
 }
 function drawMatch(dt) {
+  try { deathTick(performance.now()); } catch (e) { fault('death', e); } // (F5: before the camera, so a respawn's move home is cut under black)
   try { drawScene(dt); } catch (e) { fault('draw', e); }
   try { if (!(import.meta.env.DEV && window.__noRender)) renderer.render(scene, camera); } catch (e) { fault('render', e); } // (dev: network tests skip drawing)
   try { drawOverlay({ joy: inp.joy, nickFor }); } catch (e) { fault('overlay', e); }
@@ -915,7 +920,7 @@ function drawScene(dt) {
   const horses = (isClient() ? clientHorses() : G.horses.map(h => ({ key: h.id, ti: h.ti, x: h.x, z: h.z, face: h.face, spd: h.spd, state: h.state, t: h.t, fall: h.fall }))).filter(h => !fogGrid() || !isEnemyTi(h.ti, G.myTi) || seenAt(h.x, h.z));
   if (drawFreeHorses(horses, dt)) drawHorses([], dt); else drawHorses(horses, dt); // (the new warhorse when the new models are on)
   updateWorldView(dt, castleFx);
-  effectsTick(dt);
+  effectsTick(dt); feelTick(dt);
   drawEffects();
   followCamera(dt);
   if (import.meta.env.DEV && window.__camAt) { const c = window.__camAt; camera.position.set(c[0], c[1], c[2]); camera.lookAt(c[3], c[4], c[5]); } // (dev: fixed shots of the scenery)
@@ -924,7 +929,7 @@ function drawScene(dt) {
   drawVolleyAim(grassTime()); drawHoldAim(grassTime()); drawJavAim(); drawRideAim();
   const tg = camTarget(); followSun(tg ? tg.x : 0, tg ? tg.z : 0, grassTime());
 }
-initFeed({ nickFor: ti => nickFor(ti) }); setNamer(nickFor);
+initFeed({ nickFor: ti => nickFor(ti) }); setNamer(nickFor); initDeath({ nickFor: ti => nickFor(ti) });
 bindVoice(); // (team voice, V1: the mic button, once)
 bus.on('voiceMsg', t => { if (G.state === 'play') toast(t); });
 function nickFor(ti) { const n = playerNick(ti); if (n) return n; const t = G.teams && G.teams[ti]; return t && !t.human && t.active !== false ? botName(ti) : null; } // (players by their nickname, computer captains by theirs)
@@ -999,6 +1004,7 @@ window.__fb = {
   volley(pt) { actions.volley(pt); }, order(o, pt) { actions.order(o, pt); }, rally() { actions.rally(); },
   attack() { actions.attack(); }, duel() { actions.duel(); }, jump() { actions.jump(); }, weapon(w) { actions.weapon(w); }, upgrade(id) { actions.upgrade(id); },
   fort(c, lv) { G.teams[c].up.fort = lv; applyFort(c); },
+  feel: feelStats, death: deathState, nick: ti => nickFor(ti), hitstop: () => hitstopN, camera,
   tlTick, tlPack, ledger, voiceState, voiceLevels, setOrder, rideRelease, findPath, gatePos, orderVolley, mkUnit, challenge, canChallenge, G, W, c2Points, die, cam, scene, renderer, audio: () => audioStats(),
 };
 

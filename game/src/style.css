@@ -730,3 +730,23 @@ body:has(#glacier:not([hidden])) #phaseTag{top:96px;}
 .lg-list{max-height:none;} .lg[data-ev]{cursor:pointer;} .lg.hi{background:rgba(255,255,255,.08);border-radius:5px;}
 .tl-at .pos{color:#8fe08a;font-weight:800;} .tl-at .neg{color:#ff7a6e;font-weight:800;}
 .tl-at .dim{color:rgba(255,255,255,.5);font-weight:700;}
+
+/* F5 the death sequence: grey screen, who cut you down, the countdown, and the black the camera moves under */
+#gl{transition:filter .5s ease-out;}
+body.dead:not(.deadLow) #gl{filter:grayscale(.92) brightness(.8);}
+#deathFx{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .45s ease-out;}
+#deathFx.show{opacity:1;}
+#deathFx[hidden]{display:none;}
+#deathFx .dVig{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 36%,rgba(0,0,0,.66) 100%);}
+body.deadLow #deathFx .dVig{background:radial-gradient(ellipse at center,rgba(70,70,76,.42) 0%,rgba(18,18,20,.8) 100%);} /* (Low graphics: a grey veil instead of filtering the picture) */
+/* (the card sits under the clock and the war-chest line, above where he lies: who on the left, the count on the right) */
+#deathFx .dCard{position:absolute;left:50%;top:calc(max(6px,env(safe-area-inset-top)) + 88px);transform:translateX(-50%);max-width:78vw;display:flex;align-items:center;gap:14px;padding:7px 16px 8px;color:#fff;background:rgba(14,13,12,.82);border:2px solid rgba(255,255,255,.2);border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.5);}
+#deathFx .dWho{text-align:left;min-width:0;}
+#deathFx .dBy{font:700 11px var(--body);letter-spacing:.14em;text-transform:uppercase;color:#cfc8b8;white-space:nowrap;}
+#deathFx .dName{font:400 27px var(--display);font-style:italic;line-height:1.1;text-shadow:0 2px 0 #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#deathFx .dName:empty,#deathFx .dHow:empty{display:none;}
+#deathFx .dHow{font:600 12px var(--body);color:#e8e2d4;white-space:nowrap;}
+#deathFx .dCount{padding-left:14px;border-left:1px solid rgba(255,255,255,.18);display:flex;flex-direction:column;align-items:center;font:700 11px var(--body);letter-spacing:.1em;text-transform:uppercase;color:#cfc8b8;white-space:nowrap;}
+#deathFx .dCount b{font:400 36px var(--display);font-style:italic;line-height:1;color:var(--gold);font-variant-numeric:tabular-nums;}
+#deathFx .dCount b[hidden]{display:none;}
+#blackout{position:fixed;inset:0;z-index:45;background:#000;opacity:0;pointer-events:none;}

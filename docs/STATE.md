@@ -25,11 +25,19 @@ Last updated: 2026-11-11 (evening). Older detail: `docs/history/2026-11-log.md`.
   mute silences it, unmute brings it back. `NOLINK=1 r_V1.mjs`: no road between the phones, the phone says so.
   Real fix for relayed phones: a TURN relay that works (V1b). Needs an Opus review before shipping.
 
+- F6+F5 Hit feel and the death sequence (card: `docs/tickets/F6.md`, with the decisions made and the sounds needed).
+  Blades meet (two captains swinging at each other: neither blow lands, both pushed back), a blow on a shield, a
+  captain cutting a soldier down: each with flash, sound, hit-stop, camera kick, vibration, same on joined phones.
+  Death: camera stays on your body, grey screen, card with who and what with, countdown, fade to black, back at home.
+  New Vibration setting. `r_F6.mjs` 49/49 on host and joined phone; Low draw calls 1218 -> 1191, triangles -1%;
+  crown2sim and crown2online pass roles off and on; lag no worse (jumps 167 -> 55, error 1.15 -> 0.90 m).
+  Only seen headless: Arjun judges the feel, the vibration and the four placeholder sounds on his phone.
+  Found, not fixed: the host's own hit-stop slows the rules for everyone for 30-100 ms (was so before F6).
+
 ## Build queue (in order; model = best fit; Fable 5.2 available until 15 Nov)
 | # | Ticket | What | Model | Waits on |
 |---|---|---|---|---|
 | 1 | F7 | No abrupt cuts. Moments listed below; Arjun picks walk or fade | S | Arjun's picks |
-| 2 | F6+F5 | Hit feel (sword clash, block, captain cutting down a soldier, then the rest) and the death sequence (fall, grey, respawn timer, who killed you; men carry on) | **Fable**, else O | card |
 | 3 | F1 | Batched soldiers (P8.1 forward): about 1,200 draw calls down to 150 | **Fable**, else O | card |
 | 4 | F8 | Animation: real clips on one shared skeleton, blending. F8a file prep (H) | **Fable** if files by ~13 Nov, else O | Arjun's Mixamo files |
 | 4b | F15 | Always landscape and full screen: on Android, full screen and locked sideways from the first tap, whatever way the player entered; in portrait mid-battle, a 'turn your phone' screen. iPhone can't be locked by a website: same screen, plus Add to Home Screen. Android: an Install button (the manifest is already there) | S | Arjun's go |

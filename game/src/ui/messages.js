@@ -24,7 +24,7 @@ export function msgText(k, a) {
     case 'bounty': return [`Bounty on ${nm(a[0])}'s captain`, mine(a[0]) ? 'Everyone is coming for you' : 'Double gold for the kill', css(a[0])];
     case 'bountyClaimed': return mine(a[0]) ? ['Bounty claimed!', '+50 gold', '#ffcf3a'] : null;
     case 'capDown': return mine(a[1]) ? [`${nm(a[0])} captain down`, '', css(a[0])] : null;
-    case 'fell': return mine(a[0]) ? ['You fell!', a[1] ? 'Back in the fight in 5 seconds' : 'No way back. Your allies fight on.', '#e0352b'] : null;
+    case 'fell': return null; // (F5: the death card says it now, with who and how: ui/death.js)
     case 'respawn': return mine(a[0]) ? ['Back on your feet', 'Rally your squad'] : null;
     case 'horseDown': return mine(a[0]) ? ['Your horse is down!', `New horse in ${horseCooldown(a[0])} seconds`, '#e0352b'] : null;
     case 'rideNo': return mine(a[0]) ? (a[1] === 'banner' ? ['Not with the banner', 'Carry it home on foot'] : a[1] === 'rest' ? ['Your horse is resting', `Ready in ${a[2]} seconds`] : a[1] === 'duel' ? ['Not in a duel', 'Fight it out on foot'] : ['Too hot to call your horse', 'Get clear of the fight first']) : null;
@@ -121,7 +121,7 @@ export function c2Tier(k, a) {
   if (k === 'start') for (const id in lastOwner) delete lastOwner[id]; // (a new battle: nobody owns anything yet)
   if (TIER1.has(k)) return 1;
   if (k === 'holdTaken') { const was = lastOwner[a[2]]; lastOwner[a[2]] = a[0]; return a[0] === mine || was === mine ? 2 : 0; }
-  if (k === 'capDown') return G.ALLY[colorOf(a[0])] === mine || a[1] === myTi ? 2 : 0;
+  if (k === 'capDown') return a[1] >= 0 || G.ALLY[colorOf(a[0])] === mine ? 2 : 0; // (F5: every captain cut down is a line in the feed, whoever's side; one who fell to the mountain, only your side's)
   if (k === 'c2capPoint') return a[0] === myTi ? 3 : G.ALLY[colorOf(a[0])] === mine ? 2 : 0;
   if (k === 'castleGate') { const h = G.holds && G.holds[a[2]]; return h && h.owner === mine ? 2 : 0; }
   if (k === 'towerDown' || k === 'towerUp') return G.ALLY[colorOf(a[0])] === mine ? 2 : 0;

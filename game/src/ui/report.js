@@ -17,7 +17,7 @@ bus.on('shownMsg', ({ k, a }) => {
   const T = G.T;
   if (k === 'castleDown') timeline.push({ T, k, a: [...a] });
   else if (k === 'holdTaken' || k === 'chestTaken' || k === 'duelWon' || k === 'lastStand' || k === 'gateBroken' || k === 'breach') timeline.push({ T, k, a: [...a] });
-  else if (k === 'capDown' && !firstBlood) { firstBlood = true; timeline.push({ T, k, a: [...a] }); } // (first blood only)
+  else if (k === 'capDown' && !firstBlood && a[1] >= 0) { firstBlood = true; timeline.push({ T, k, a: [...a] }); } // (first blood only)
   // villages change hands all battle: keep the first few, and every big moment
   const small = timeline.filter(e => e.k === 'holdTaken' || e.k === 'breach');
   if (small.length > 12) timeline.splice(timeline.lastIndexOf(small[small.length - 1]), 1);

@@ -19,6 +19,8 @@
   <canvas id="gl"></canvas>
   <div id="touch"></div>
   <canvas id="fx"></canvas>
+  <!-- F5: your captain has fallen: the screen greys, and a card says who did it and when you're back -->
+  <div id="deathFx" hidden><div class="dVig"></div><div class="dCard"><div class="dWho"><div class="dBy" id="dBy">You fell</div><div class="dName" id="dName"></div><div class="dHow" id="dHow"></div></div><div class="dCount"><span id="dWait">Back in</span><b id="dNum">5</b></div></div></div>
 
   <div id="hudWrap" hidden>
     <div class="hud brush" id="points"><h3 id="ptsTitle">Team Points</h3><div id="tpRows"></div><div id="capList" hidden></div></div>
@@ -84,6 +86,7 @@
     </div>
   </div>
 
+  <div id="blackout"></div>
   <!-- shown the moment you tap to start, while the battlefield is built -->
   <div class="veil" id="veil" hidden><div class="spin"></div><b>Mustering the troops…</b></div>
 
@@ -231,6 +234,12 @@
           </div>
           <div class="grp"><label>Music</label>
           <div class="seg" id="segMusic">
+            <button type="button" data-v="on" aria-pressed="true">On</button>
+            <button type="button" data-v="off" aria-pressed="false">Off</button>
+          </div>
+          </div>
+          <div class="grp"><label>Vibration</label>
+          <div class="seg" id="segVibe">
             <button type="button" data-v="on" aria-pressed="true">On</button>
             <button type="button" data-v="off" aria-pressed="false">Off</button>
           </div>

@@ -1,9 +1,14 @@
 // Third-person camera that follows your captain (or an ally's once you fall).
 import { G, isEnemyTi } from '../core/state.js';
+import { FEEL } from '../config.js';
 import { groundY, terrainMeshY, rnd, W } from '../core/world.js';
 import { camera, view } from './scene.js';
 
-export const cam = { yaw: 0, pitch: .42, shake: 0 };
+export const cam = { yaw: 0, pitch: .42, shake: 0, snap: 0, kx: 0, kz: 0 }; // (snap: for this many frames the camera is put straight where it belongs, no glide: a cut under black, F5)
+// (F5) your fallen captain: the camera stays on him until you're back (ui/death.js sets and clears it)
+export const deathCam = { u: null };
+// (F6) a kick: the camera is knocked this far (metres) and eases back by itself
+export function camKick(dx, dz) { if (reduceMotion) return; cam.kx += dx; cam.kz += dz; }
 // the match's opening (main.js): when set, it may move the camera after the follow camera has placed it
 export const introCam = { on: null };
 export const CAM_PITCH = .42; // a little higher than eye level, so the squad behind you doesn't wall off the fight
@@ -12,6 +17,7 @@ const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 export function camTarget() {
   const p = G.player;
   if (p && !p.dead) return p;
+  if (deathCam.u) return deathCam.u;
   const ally = G.teams.map(s => s.leader).find(L => L && !L.dead && !isEnemyTi(L.ti, G.myTi));
   if (ally) return ally;
   return G.units.find(u => !u.dead && u.ti === G.myTi) || G.units.find(u => !u.dead) || null;
@@ -37,6 +43,7 @@ function direct(tgt, dt) {
     if (tgt.duelId) { dir.want = 1.05; dir.wantLift = 1.8; } // (a called duel: up over the heads of the ring, the two of you inside it)
     else if (duel && near <= 6) { dir.want = .86; dir.wantLift = -.6; }
     else { dir.want = 1 + .38 * scale; dir.wantLift = 2.2 * scale; }
+    if (tgt.dead) { dir.want = FEEL.death.zoom; dir.wantLift = FEEL.death.lift; } // (F5: back and up over a fallen captain)
   }
   // an execution: in close and low on the two of them, quickly
   // (and swung round side-on, so the kneeling man isn't hidden behind the executioner; eased back after)
@@ -52,12 +59,15 @@ function direct(tgt, dt) {
 export function followCamera(dt) {
   cam.shake = Math.max(0, cam.shake - dt * 1.6);
   const tgt = camTarget(); if (!tgt) return;
+  if (cam.snap > 0) { dir.zoom = dir.want = 1; dir.lift = dir.wantLift = 0; dir.orbit = 0; dir.t = 0; }
   direct(tgt, dt);
   const px = tgt.x, pz = tgt.z, py = tgt.y;
   const dist = ((view.W < view.H ? 11 : 9.5) + (tgt.mounted ? 3 : 0)) * dir.zoom, h = 2.2 + Math.sin(cam.pitch) * dist + (tgt.mounted ? 1 : 0) + dir.lift;
   const yaw = cam.yaw + dir.orbit; // (dir.orbit: the director's swing round, for an execution)
   const cx = px - Math.sin(yaw) * Math.cos(cam.pitch) * dist, cz = pz - Math.cos(yaw) * Math.cos(cam.pitch) * dist;
-  const k = Math.min(1, dt * 8);
+  const k = cam.snap > 0 ? 1 : Math.min(1, dt * 8);
+  if (cam.snap > 0) { cam.snap--; cam.kx = cam.kz = 0; }
+  if (cam.kx || cam.kz) { camera.position.x += cam.kx; camera.position.z += cam.kz; cam.kx = cam.kz = 0; } // (the follow below eases it back)
   camera.position.x += (cx - camera.position.x) * k; camera.position.z += (cz - camera.position.z) * k; camera.position.y += (py + h - camera.position.y) * k;
   const ground = Math.max(groundY(camera.position.x, camera.position.z), terrainMeshY(camera.position.x, camera.position.z)) + 1; if (camera.position.y < ground) camera.position.y = ground;
   if (cam.shake > 0 && !reduceMotion) { camera.position.x += rnd(-1, 1) * cam.shake * .3; camera.position.y += rnd(-1, 1) * cam.shake * .3; }

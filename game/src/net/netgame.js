@@ -2,7 +2,7 @@
 // presses and draws the host's snapshots (a compact text string, roughly 1-4KB depending on
 // how many soldiers are alive — more in a full 12-army Trio match — sent
 // about 12 times a second).
-import { CROWN2, SMOOTH } from '../config.js';
+import { CROWN2, SMOOTH, FEEL } from '../config.js';
 import { SHOUTS, CROWN, HUMAN_CAPTAIN, ARMOUR, RHYTHM, BASH, EVADE, TEAMS, MAPS, KINDS, STATS, RECRUITS, ORDERS, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT, HOLD_ATK, PARRY } from '../config.js';
 import { G, bus, colorOf, isEnemyTi, activeFrom, ARMIES, duoStr, duoParse } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn, angDiff } from '../core/world.js';
@@ -37,13 +37,13 @@ export function setNetHooks(h) { hooks = Object.assign(hooks, h); }
 // the host keeps the last few announcements in every snapshot
 bus.on('msg', m => {
   const NET = session.NET;
-  if (isHost() && NET.msgs) { NET.msgs.push([++NET.msgN, m.k, ...m.a]); if (NET.msgs.length > 8) NET.msgs.shift(); }
+  if (isHost() && NET.msgs) { NET.msgs.push([++NET.msgN, m.k, ...m.a]); if (NET.msgs.length > FEEL.net.msgs) NET.msgs.shift(); }
 });
 
 // fight moments ride along with the announcements, by unit id, to be shown on every phone
 bus.on('fxmsg', d => {
   const NET = session.NET;
-  if (isHost() && NET.msgs && d.u && !d.fromNet && (d.k !== 'fxopen' || (d.a && d.a.human))) { NET.msgs.push([++NET.msgN, d.k, d.u.id, d.heavy ? 1 : 0, d.a ? d.a.id : -1, d.byAI ? 1 : 0, d.q || '']); if (NET.msgs.length > 8) NET.msgs.shift(); }
+  if (isHost() && NET.msgs && d.u && !d.fromNet && (d.k !== 'fxopen' || (d.a && d.a.human))) { NET.msgs.push([++NET.msgN, d.k, d.u.id, d.heavy ? 1 : 0, d.a ? d.a.id : -1, d.byAI ? 1 : 0, d.q || '']); if (NET.msgs.length > FEEL.net.msgs) NET.msgs.shift(); }
 });
 
 // ---------- host ----------
@@ -225,10 +225,15 @@ function clientKill(u) {
   if (u.dead) return;
   u.dead = true; u.deadT = 0; u.vy = rnd(3, 6); u.fallDir = Math.random() < .5 ? 1 : -1;
   u.vx *= .5; u.vz *= .5;
+  // (F5) he falls away from whoever was on him: the nearest enemy within a few steps (the host's rules know the blow; a
+  // captain's kill arrives as its own moment and sets this exactly, see render/feel.js)
+  let foe = null, fd = 16;
+  for (const o of G.units) { if (o.dead || !isEnemyTi(o.ti, u.ti)) continue; const d = (o.x - u.x) ** 2 + (o.z - u.z) ** 2; if (d < fd) { fd = d; foe = o; } }
+  if (foe) { const a = Math.atan2(u.x - foe.x, u.z - foe.z); u.vx += Math.sin(a) * 6; u.vz += Math.cos(a) * 6; }
   // the host doesn't send how a man died, so a client launches the ones cut down by a big hit
   // (or a charging horse), and now and then one more, to match the feel of the host's battle
   if ((u.bigHitT && performance.now() - u.bigHitT < 500) || Math.random() < .12) {
-    const a = Math.random() * Math.PI * 2, f = rnd(10, 14); u.vx += Math.sin(a) * f; u.vz += Math.cos(a) * f; u.vy = rnd(9, 12); u.launch = true; sfx.scream(u.x, u.z);
+    const a = foe ? Math.atan2(u.x - foe.x, u.z - foe.z) : Math.random() * Math.PI * 2, f = rnd(10, 14); u.vx += Math.sin(a) * f; u.vz += Math.cos(a) * f; u.vy = rnd(9, 12); u.launch = true; sfx.scream(u.x, u.z);
   }
   bus.emit('splat', { x: u.x, z: u.z, s: rnd(1, 1.5), ti: u.ti }); sfx.die(u.x, u.z);
   C.byId.delete(u.id);
@@ -426,7 +431,7 @@ export function clientTick(dt) {
         bus.emit('spark', { x: hx, y: (me.y + t.y) / 2 + 1.2, z: hz, c: shield ? '#fff3b0' : TEAMS[colorOf(t.ti)].css, n: 5 });
         if (shield) sfx.clang(hx, hz); else sfx.hit(hx, hz);
         // (a raised shield shows on every phone, so a clang here is the clang the host rolls too)
-        bus.emit('hitstop', shield ? .03 : spear ? .075 : .055); if (!shield) cam.shake = Math.max(cam.shake, spear ? .16 : .1);
+        { const O = FEEL.own, kind = shield ? 'blocked' : spear ? 'shove' : 'hit'; bus.emit('hitstop', O.stop[kind]); if (!shield) cam.shake = Math.max(cam.shake, O.shake[kind]); if (O.buzz[kind]) buzz(O.buzz[kind]); }
         t.predHitAt = performance.now();
       }
     }
@@ -453,7 +458,7 @@ export function clientTick(dt) {
     if (u.swing > 0) u.swing -= dt;
   }
   if (me && me.swing > 0) me.swing -= dt;
-  G.units = G.units.filter(u => !(u.dead && u.deadT > 12));
+  G.units = G.units.filter(u => !(u.dead && u.deadT > FEEL.death.body && !(u.y > groundY(u.x, u.z) + .3))); // (F5: as on the host: once they've lain and sunk, never out of the air)
   // horses: under riders, on their way, and trotting off
   for (const u of G.units) {
     const key = C.riderKeys.get(u);

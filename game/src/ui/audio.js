@@ -312,6 +312,37 @@ export const sfx = {
     play('clang', x, z, { vol: .32, rate: .82, jit: .1, send: .22 });
     tone(190, .1, .18, 'triangle', 110, 0, pl, .2);
   },
+  // ---- F6 hit feel. Placeholders built from the recordings we have plus synthesis; the real sounds wanted are
+  // listed in docs/tickets/F6.md ----
+  // two swords meeting edge to edge: a bright strike, and the blades ringing after it
+  clash(x, z) {
+    if (!gateS('cs', 90)) return;
+    const pl = at(x, z);
+    play('clang', x, z, { vol: 1, rate: 1.3, jit: .04, send: .35 }); play('clang', x, z, { vol: .6, rate: .95, delay: .02, send: .35 });
+    noise(.05, 5200, 1.2, .3, 'highpass', 0, pl);
+    tone(2140, .5, .07, 'triangle', 2090, 0, pl, .4); tone(3215, .38, .045, 'sine', 3160, 0, pl, .4); tone(160, .14, .3, 'sine', 70, 0, pl, .2);
+  },
+  // a blow stopped dead on a shield: a deep wooden thud under the knock
+  shield(x, z) {
+    if (!gateS('sd', 70)) return;
+    const pl = at(x, z);
+    if (!play('thud', x, z, { vol: .95, rate: .62, jit: .06, send: .25 })) noise(.1, 420, 1.5, .4, 'lowpass', 0, pl);
+    tone(105, .16, .38, 'sine', 55, 0, pl, .2);
+  },
+  // a captain's blade going clean through: a low, wide whoosh and a heavy landing
+  cut(x, z) {
+    if (!gateS('ct', 90)) return;
+    const pl = at(x, z);
+    if (!play('swing', x, z, { vol: .8, rate: .68, jit: .05, send: .2 })) noise(.2, 1100, 1, .2, 'bandpass', 300, pl);
+    play('heavy', x, z, { vol: .7, rate: .9, delay: .03, send: .2 });
+  },
+  // the soldier's comic yelp as he goes: a short squeak up and away
+  yelp(x, z) {
+    if (!gateS('yp', 160)) return;
+    const pl = at(x, z);
+    if (pl.v < .15) return;
+    tone(520, .09, .16, 'triangle', 980, .03, pl, .25); tone(980, .16, .13, 'triangle', 420, .12, pl, .25);
+  },
   // the cartoon layer: a hollow wood-block "bonk" with a quick pitch drop
   bonk(x, z) {
     if (!ac) return; const pl = at(x, z); if (pl.v < .2) return;
@@ -392,4 +423,8 @@ export const sfx = {
   thump(x, z) { if (gateS('tp', 70)) play('fall', x, z, { vol: .7, rate: .85 }); },
   uiClick() { if (gateS('ui', 45)) tone(620, .04, .04, 'triangle', 480); },
 };
-export function buzz(ms) { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) {} }
+// The phone's vibration (Android; iPhones have none for websites). A setting, on unless switched off.
+let vibeOn = true; try { vibeOn = localStorage.getItem('rally-vibe') !== 'off'; } catch (e) {}
+export const vibeEnabled = () => vibeOn;
+export function setVibe(on) { vibeOn = !!on; try { localStorage.setItem('rally-vibe', on ? 'on' : 'off'); } catch (e) {} if (on) buzz(30); }
+export function buzz(ms) { if (!vibeOn) return; try { navigator.vibrate && navigator.vibrate(ms); } catch (e) {} }

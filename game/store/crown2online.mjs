@@ -9,7 +9,7 @@ for (const [b, nick] of [[b1, 'Arjun'], [b2, 'Ravi']]) {
   const ctx = await b.newContext({ viewport: { width: 844, height: 390 } });
   await ctx.addInitScript(nick => { window.__testSheet = null; window.__PEER_OPTS = { host: '127.0.0.1', port: 9000, path: '/', secure: false, config: { iceServers: [] } }; localStorage.setItem('rally-tutorial-done', '1'); localStorage.setItem('rally-quality', 'low'); localStorage.setItem('fb-nick', nick); }, nick);
   const p = await ctx.newPage(); p.on('pageerror', e => console.log(nick, 'ERR', e.message)); pages.push(p);
-  await p.goto('http://127.0.0.1:8766/?online=http://127.0.0.1:8787&crown2=1');
+  await p.goto('http://127.0.0.1:8766/?online=http://127.0.0.1:8787&' + (process.env.Q ?? '?crown2=1').replace(/^\?/, '')); // (Q='?crown2=1&roles=1' for roles on, as crown2sim)
 }
 const [A, B] = pages, sleep = ms => new Promise(r => setTimeout(r, ms));
 const ev = (p, f) => p.evaluate(f);
