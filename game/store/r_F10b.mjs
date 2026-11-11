@@ -15,7 +15,7 @@ async function open(url, q) {
     window.__frame = (n = 1, dt = 1000 / 30) => { for (let i = 0; i < n; i++) { window.__t += dt; const qu = window.__raf; window.__raf = []; qu.forEach(cb => cb(window.__t)); } }; }, q);
   await page.goto(url + '?crown2=1');
   await page.waitForFunction(() => window.__fb && window.__fb.G); await page.evaluate(() => window.__frame(3));
-  await page.click('#segMode button[data-v="crown"]'); await page.click('#goBtn');
+  await page.evaluate(() => document.querySelector('#segMode button[data-v="crown"]').click()); await page.evaluate(() => document.getElementById('goBtn').click());
   await page.evaluate(() => window.__frame(20));
   return page;
 }

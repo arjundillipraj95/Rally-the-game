@@ -38,6 +38,7 @@ import { initAudio, sfx, buzz, gateS, startCrowd, stopCrowd, audioTick, audioSta
 import { portal, portalInit, onPortal } from './portal.js';
 import { showMsg, allyNames, setNamer, glory } from './ui/messages.js';
 import { renderPointsV2, tlTick, tlPack, ledger } from './ui/timeline.js';
+import { voiceBattle, stopVoice, bindVoice, voiceState } from './net/voice.js';
 import { buildHud, showHud, updateHud, banner, fmt } from './ui/hud.js';
 import { bindInput, readMove, trayOpen, upOpen, releaseAll, inp } from './ui/input.js';
 import { startTutorial, stopTutorial, tutorialTick, bindTutorial } from './ui/tutorial.js';
@@ -232,6 +233,7 @@ bus.on('end', ({ w, why }) => {
       const A = G.crownAward; $('myRateT').textContent += ` · ${A.delta >= 0 ? '+' : ''}${A.delta} crowns${A.up ? ` · now ${A.up}!` : ''}`;
     }
     renderCaptains($('endCaps'), rep); renderAwards($('endAw'), rep); };
+  stopVoice(); // (team voice, V1: the mic is off once the battle is over)
   report(); if (isClient()) setTimeout(() => { if (G.state === 'end') report(); }, 1200);
   const pts = () => { if (!G.c2) return; renderPointsV2($('endPts'), w); };
   $('ptsTab').hidden = !G.c2; pts(); if (isClient()) setTimeout(() => { if (G.state === 'end') pts(); }, 1200);
@@ -923,6 +925,7 @@ function drawScene(dt) {
   const tg = camTarget(); followSun(tg ? tg.x : 0, tg ? tg.z : 0, grassTime());
 }
 initFeed({ nickFor: ti => nickFor(ti) }); setNamer(nickFor);
+bindVoice(); // (team voice, V1: the mic button, once)
 function nickFor(ti) { const n = playerNick(ti); if (n) return n; const t = G.teams && G.teams[ti]; return t && !t.human && t.active !== false ? botName(ti) : null; } // (players by their nickname, computer captains by theirs)
 function playerNick(ti) {
   const NET = session.NET; if (!NET) return null;
@@ -936,6 +939,7 @@ let hudT = 0, last = performance.now(), fpsAvg = 60;
 // frozen while a games-site ad plays
 let paused = false;
 function loop(now) {
+  voiceBattle(G); // (team voice, V1: starts once per battle, on every phone)
   if (paused) { last = now; requestAnimationFrame(loop); return; }
   const raw = (now - last) / 1000; let dt = Math.min(.05, raw); last = now;
   if (hitstop > 0) { hitstop -= raw; dt *= .06; }
@@ -994,7 +998,7 @@ window.__fb = {
   volley(pt) { actions.volley(pt); }, order(o, pt) { actions.order(o, pt); }, rally() { actions.rally(); },
   attack() { actions.attack(); }, duel() { actions.duel(); }, jump() { actions.jump(); }, weapon(w) { actions.weapon(w); }, upgrade(id) { actions.upgrade(id); },
   fort(c, lv) { G.teams[c].up.fort = lv; applyFort(c); },
-  tlTick, tlPack, ledger, setOrder, rideRelease, findPath, gatePos, orderVolley, mkUnit, challenge, canChallenge, G, W, c2Points, die, cam, scene, renderer, audio: () => audioStats(),
+  tlTick, tlPack, ledger, voiceState, setOrder, rideRelease, findPath, gatePos, orderVolley, mkUnit, challenge, canChallenge, G, W, c2Points, die, cam, scene, renderer, audio: () => audioStats(),
 };
 
 function onResize() { resize(); resizeOverlay(); }

@@ -178,6 +178,7 @@ export async function makeP2PRoom(code, host, onStage = () => {}) {
     }
     function relaySoon() { if (relayTimer) return; const wait = Math.max(0, 250 - (performance.now() - lastRelay)); relayTimer = setTimeout(relayRoster, wait); }
     const peer = host ? new Peer(P2P_PREFIX + code, opts) : new Peer(opts);
+    const callFns = []; peer.on('call', c => { for (const f of callFns) { try { f(c); } catch (e) { console.error(e); } } }); // (team voice, V1: incoming audio calls)
     const pending = new Set(); // (host: phones that have found us but aren't linked up yet)
     peer.on('open', id => {
       myId = id; peers.set(id, mine);
@@ -274,6 +275,8 @@ export async function makeP2PRoom(code, host, onStage = () => {}) {
       // ping (P0.3): a joiner asks the host to answer at once; the answer comes back with the same stamp
       ping: n => { if (hostConn && hostConn.open) try { hostConn.send({ t: 'ping', n }); } catch (e) {} },
       onPong: f => { pongFn = f; },
+      // team voice (V1): audio calls straight to another phone; only works where the direct link works
+      voice: { me: () => myId, call: (id, stream) => peer.call(id, stream), onCall: f => { callFns.push(f); } },
     };
   });
 }

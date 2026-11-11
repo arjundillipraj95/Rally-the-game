@@ -2,7 +2,7 @@
 
 Current project: **Roles & Combat** (design and build plan in Claude Docs, links in CLAUDE.md).
 Every executor updates this file as the last step of its ticket. Owner: Opus project owner chat.
-Last updated: 2026-11-11.
+Last updated: 2026-11-11 (afternoon).
 
 ## Done (live on main)
 - P0.1 Dead-code cleanup
@@ -11,7 +11,15 @@ Last updated: 2026-11-11.
 - M1 Neutral soldiers look like soldiers (`game/store/r_M1.mjs`)
 
 ## In progress
-- F10b The summit feeling (redo of F10's needle ring): **built on `f10b`, not shipped**. Cliffs past the rim drop into a
+- V1 Team voice: **built on `roles`, not shipped**. Your team talks on an open mic from the start of an online battle,
+  with a mute button beside Shout. Each teammate's phone calls the others directly (lower id calls, one link per pair);
+  nothing crosses teams. Calls need a direct link, so a player on the relay has no voice (the game still plays).
+  `game/store/r_V1.mjs`: both phones' mics live, mute works, no call across teams. NOT YET TESTED: a same-team call
+  (the duo lobby needs a second player in the party; the harness can't yet set that up). First check on a real duo.
+  Review of the border work (F10 and F10b, by the other agent): F10's test passes; F10b's test clicked a hidden button
+  on the baseline page, which I fixed in `store/r_F10b.mjs` (direct click). Its status line said "built on `f10b`",
+  which doesn't exist; it's on `roles`.
+- F10b The summit feeling (redo of F10's needle ring): **built on `roles` (5a923ef), not shipped**. Cliffs past the rim drop into a
   drifting cloud sea; far snowy massifs below eye level, low sun disc, birds under the rim, blown snow at the edge
   (4 draw calls; outer cliff trees dropped). Low, Crown start: calls/tris within noise of 4cafda1. `store/r_F10b.mjs`.
 - P0.7 Smooth everyone else: **built on `roles`, not shipped** (waits for Arjun's "ship"). Joining phones draw other
@@ -20,6 +28,23 @@ Last updated: 2026-11-11.
   too-fast frames 483 -> 229, position error 0.63 -> 0.76 m (the cost of drawing in the past). The plan's
   "no jump over 0.5 m" line is not met as written: the headless phones drop frames, and a unit rightly covers more
   ground after a dropped frame. Left over: P0.7b below.
+
+## Assigned, waiting for Arjun's go (no build yet)
+Model is the cheapest one that can do the ticket without losing the feel. Opus where timing, netcode or animation blending matter.
+| Ticket | What | Model |
+|---|---|---|
+| F4 | Neutrals and camps fight and ambush as real soldiers | O |
+| F5 | Captain death sequence (fall, grey, respawn timer, who killed you; men carry on) | O |
+| F6 | Hit feel: captain sword clash, blocked hit, captain cutting down a soldier, then the rest | O |
+| F9 | Horse charges: full stop only on Hold and facing; standing men slow; moving or flanked men are bowled over | O |
+| F1 | Batched soldiers (P8.1 forward): about 1,219 draw calls down to the budget of 150 | O |
+| F8 | Animation: integrate a rigged pack's clips, one shared skeleton; blending | O |
+| F8a | Animation file prep: convert, rename, check licence | H |
+| F7 | Remove abrupt cuts (war chest and similar): walk or fade every one | S |
+| F2 | Lobby: lanes, ready-up, the 10 s versus screen | S |
+| V2 | All-talk voice (after servers) | O |
+| P0.11 | Region matchmaking | S |
+| Ad slot | Ad while the match is set up (CrazyGames SDK) | S, after CrazyGames' rules are checked |
 
 ## Next (owner assigns; builder model in brackets)
 Ticket cards ready in `docs/tickets/`: F10b (running, Opus), F13 (after F10b and Fable's work), F7. The owner writes a card before any other ticket starts.
