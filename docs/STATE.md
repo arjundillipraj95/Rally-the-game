@@ -19,6 +19,8 @@ Last updated: 2026-11-11.
   ground after a dropped frame. Left over: P0.7b below.
 
 ## Next (owner assigns; builder model in brackets)
+Ticket cards ready in `docs/tickets/`: F10-M2, F7. The owner writes a card before any other ticket starts.
+
 | Ticket | What | Model | Waits on |
 |---|---|---|---|
 | P0.6 | Your captain answers instantly. Re-measured 11 Nov: the far phone's own captain already moves in about 130 ms (it is moved on its own phone); what is late is everyone else and hits. Re-scope to hits and your own soldiers | O | |

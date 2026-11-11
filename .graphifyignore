@@ -1,0 +1,15 @@
+# graphify: map only the source code
+assets/
+models/
+sfx/
+index.html
+online.json
+**/node_modules/
+game/store/
+game/public/
+game/dist/
+game/scripts/
+*.png
+*.glb
+*.json
+docs/

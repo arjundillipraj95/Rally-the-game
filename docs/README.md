@@ -11,8 +11,8 @@ every session). Project state lives in `docs/STATE.md`. Finished projects are in
 ## The prompt for each ticket
 
 ```text
-Do ticket <ID> of the Rally build plan, following CLAUDE.md. Report files changed, test output,
-and anything you were unsure about.
+Do ticket <ID>: read docs/tickets/<ID>.md and follow CLAUDE.md. Report files changed, test
+results (summaries only) and anything you were unsure about.
 ```
 
 Model per ticket: O tickets on Opus, S on Sonnet, H on Haiku.
