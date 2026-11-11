@@ -19,19 +19,19 @@ const sunDir = new THREE.Vector3(.55, .62, .3).normalize();
 // ---------- sky dome: gradient, sun glow and drifting clouds ----------
 const skyU = {
   zenith: { value: new THREE.Color() }, horizon: { value: new THREE.Color() }, sunCol: { value: new THREE.Color() },
-  sunDir: { value: sunDir.clone() }, time: { value: 0 }, clouds: { value: 1 },
+  sunDir: { value: sunDir.clone() }, time: { value: 0 }, clouds: { value: 1 }, grad: { value: .45 },
 };
 const sky = new THREE.Mesh(new THREE.SphereGeometry(400, 32, 16), new THREE.ShaderMaterial({
   uniforms: skyU, side: THREE.BackSide, depthWrite: false, fog: false,
   vertexShader: `varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.); gl_Position.z = gl_Position.w; }`,
   fragmentShader: `
-    uniform vec3 zenith, horizon, sunCol, sunDir; uniform float time, clouds; varying vec3 vDir;
+    uniform vec3 zenith, horizon, sunCol, sunDir; uniform float time, clouds, grad; varying vec3 vDir;
     float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
     float vn(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f); return mix(mix(h2(i),h2(i+vec2(1,0)),f.x), mix(h2(i+vec2(0,1)),h2(i+vec2(1,1)),f.x), f.y); }
     float fbm(vec2 p){ float s=0., a=.5; for(int i=0;i<4;i++){ s+=a*vn(p); p*=2.03; a*=.5; } return s; }
     void main(){
       vec3 d = normalize(vDir); float h = max(d.y, 0.);
-      vec3 col = mix(horizon, zenith, pow(h, .45));
+      vec3 col = mix(horizon, zenith, pow(h, grad));
       float sd = max(dot(d, normalize(sunDir)), 0.);
       col += sunCol * (pow(sd, 900.) * 6. + pow(sd, 12.) * .35);
       if (clouds > .5 && d.y > 0.) {
@@ -107,10 +107,12 @@ export function nightLook(k) {
   sun.color.copy(mix3(BASE.sun, DUSK.sun, NIGHT.sun, k)); sun.intensity = BASE.sunI * (1 - .5 * k);
   hemi.color.copy(mix3(BASE.sky, DUSK.sky, NIGHT.sky, k)); hemi.groundColor.copy(ca.set(BASE.gnd).lerp(cb.set(NIGHT.gnd), k)); hemi.intensity = BASE.hemiI * (1 + .1 * k); // (moonlight: the fill stays up so armies read)
 }
+export const lookK = () => (BASE ? BASE.k : 0); // (0 day, .5 sunset, 1 night)
+export const skySunDir = () => skyU.sunDir.value;
 export function setLook(map) {
   const L = lookFor(map.id); BASE = { ...L, k: 0 };
-  skyU.zenith.value.set(L.zenith); skyU.horizon.value.set(L.horizon); skyU.sunCol.value.set(L.sun);
-  sunDir.set(...L.sunDir).normalize(); skyU.sunDir.value.copy(sunDir);
+  skyU.zenith.value.set(L.zenith); skyU.horizon.value.set(L.horizon); skyU.sunCol.value.set(L.sun); skyU.grad.value = L.skyGrad || .45; // (skyGrad: lower, the blue comes down nearer the horizon)
+  sunDir.set(...L.sunDir).normalize(); skyU.sunDir.value.set(...(L.sunSky || L.sunDir)).normalize(); // (sunSky: where the sun's disc shows, if lower than the light)
   scene.fog.color.set(L.horizon);
   scene.fog.near = L.fog[0] * quality.cfg.fogScale; scene.fog.far = L.fog[1] * quality.cfg.fogScale;
   hemi.color.set(L.sky); hemi.groundColor.set(L.gnd); hemi.intensity = L.hemiI;

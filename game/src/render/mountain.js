@@ -6,7 +6,8 @@ import { TEAMS, CROWN2, NEUTRAL } from '../config.js';
 import { G, ARMIES } from '../core/state.js';
 import { groundY, terrainMeshY, mountHomeA, mulberry, W } from '../core/world.js';
 import { stoneTex, woodTex } from './look.js';
-import { nightLook, scene } from './scene.js';
+import { nightLook, scene, camera, sun, hemi, renderer, lookK, skySunDir } from './scene.js';
+import { camTarget } from './camera.js';
 import { spark } from './effects.js';
 import { c2Garrison } from '../core/sim.js';
 
@@ -15,10 +16,11 @@ const lam = (color, map, extra = {}) => new THREE.MeshLambertMaterial(Object.ass
 const shadowy = o => { o.traverse(m => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } }); return o; };
 
 // the ground's colour by tier, for the world builder's per-vertex pass
-const jungleC = new THREE.Color(0x4f7a32), topC = new THREE.Color(0x9cbf62), rockC = new THREE.Color(0x5c5650), paveC = new THREE.Color(0xc9bfa8), townC = new THREE.Color(0xa8916a);
+const jungleC = new THREE.Color(0x4f7a32), topC = new THREE.Color(0x9cbf62), rockC = new THREE.Color(0x5c5650), paveC = new THREE.Color(0xc9bfa8), townC = new THREE.Color(0xa8916a), cliffC = new THREE.Color(0x857d72);
 export function mountGround(c, x, z) {
   const R = W.R, K = CROWN2.r, r = Math.hypot(x, z);
-  if (r > R + 1) return c.lerp(rockC, Math.min(.9, (r - R - 1) / 12)); // (F10: past the rim the ground is bare cliff, not a green slope)
+  if (r > R - .8 && r <= R + 1) return c.lerp(cliffC, .55); // (the lip: a ragged line of rock where the grass ends)
+  if (r > R + 1) { const b = Math.sin(r * .55 + Math.sin(Math.atan2(z, x) * 9) * 2.2); return c.lerp(b > .3 ? cliffC : rockC, Math.min(.95, (r - R - 1) / 3)); } // (F10b: past the rim, banded cliff rock)
   if (r < K.arena * R + 2.5) return c.lerp(paveC, .85);
   if (r < (K.chasm + K.chasmW) * R + 1) return c.lerp(rockC, .8);
   if (r < K.river * R - K.riverW * R - 2) return c.lerp(topC, .5);
@@ -37,46 +39,115 @@ function figure(kind, x, z, face) {
 }
 
 
-// F10 The mountain's edge: the summit is ringed by rocky peaks and a far range, and the drop below the rim fills
-// with mist. Three draw calls in all (a near ring of peaks, a distant range, a mist band), the same on every phone.
-// A peak is a faceted spire: rings of jittered points up a tapering profile, coloured by height (dark foot, grey
-// rock, snow above the tall ones' shoulders). All peaks go in one geometry.
-const PK_Y = [0, .3, .55, .78, .93], PK_R = [1, .72, .5, .3, .14];
-function peakGeo(list, snow, cols) {
-  const pos = [], col = [], R = mulberry(0x4f10), c = new THREE.Color(), foot = new THREE.Color(cols[0]), rock = new THREE.Color(cols[1]), cap = new THREE.Color(0xf1f4f6);
-  const tri = (a, b, d) => { for (const v of [a, b, d]) { pos.push(v[0], v[1], v[2]); const f = (v[1] - v[4]) / v[5]; c.copy(foot).lerp(rock, Math.min(1, f * 2.2)); if (snow && f > .8) c.lerp(cap, Math.min(1, (f - .8) * 6)); col.push(c.r, c.g, c.b); } };
+// F10b The summit feeling: past the rim the ground breaks into cliffs (core/world.js terrainMeshY) that fall into a
+// sea of clouds below rim level, out to the horizon; a few broad snowy massifs rise out of it, far off and mostly
+// below you; birds circle under the rim and snow blows past when you stand near the edge. Four draw calls in all
+// (clouds, massifs, birds, snow), the same on every phone. Clouds and massifs take the haze, dusk and night colours.
+const CLOUD_Y = -58;
+// a massif: rings of jittered points up a broad, shouldered profile (wider than tall), coloured by height
+// (dark rock, bluish rock, a big snow cap). All of them go in one geometry.
+const MS_Y = [0, .28, .52, .72, .86, .95], MS_R = [1, .8, .58, .38, .2, .08];
+function massifGeo(list) {
+  const pos = [], col = [], R = mulberry(0x4f10b), c = new THREE.Color(), foot = new THREE.Color(0x4c5866), rock = new THREE.Color(0x7c8a9a), cap = new THREE.Color(0xffffff);
+  const tri = (a, b, d) => { for (const v of [a, b, d]) { pos.push(v[0], v[1], v[2]); const f = (v[1] - v[3]) / v[4]; c.copy(foot).lerp(rock, Math.min(1, f * 1.6)); if (f > v[5]) c.lerp(cap, Math.min(1, (f - v[5]) * 7)); col.push(c.r, c.g, c.b); } };
   for (const p of list) {
     const n = p.sides, rings = [];
-    for (let k = 0; k < PK_Y.length; k++) { const ring = []; for (let i = 0; i < n; i++) { const a = (i + (R() - .5) * .5) / n * Math.PI * 2, rr = p.rad * PK_R[k] * (.78 + R() * .4); ring.push([p.x + Math.cos(a) * rr, p.y0 + p.h * PK_Y[k] * (.94 + R() * .12), p.z + Math.sin(a) * rr, 0, p.y0, p.h]); } rings.push(ring); }
-    const tip = [p.x + (R() - .5) * p.rad * .1, p.y0 + p.h, p.z, 0, p.y0, p.h];
+    for (let k = 0; k < MS_Y.length; k++) { const ring = []; for (let i = 0; i < n; i++) { const a = (i + (R() - .5) * .6) / n * Math.PI * 2, rr = p.rad * MS_R[k] * (.72 + R() * .5); ring.push([p.x + Math.cos(a) * rr * p.sx, p.y0 + p.h * MS_Y[k] * (.9 + R() * .2), p.z + Math.sin(a) * rr, p.y0, p.h, p.snow - R() * .12]); } rings.push(ring); }
+    const tip = [p.x + (R() - .5) * p.rad * .15, p.y0 + p.h, p.z, p.y0, p.h, p.snow];
     for (let k = 0; k < rings.length - 1; k++) for (let i = 0; i < n; i++) { const j = (i + 1) % n, a = rings[k][i], b = rings[k][j], d = rings[k + 1][j], e = rings[k + 1][i]; tri(a, d, b); tri(a, e, d); }
     for (let i = 0; i < n; i++) tri(rings[rings.length - 1][i], tip, rings[rings.length - 1][(i + 1) % n]);
   }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.computeVertexNormals();
   return g;
 }
+// far things fog more gently than the battlefield, so the range reads through the haze (a scale on the fog distance)
+const softFog = (m, k) => { m.onBeforeCompile = s => { s.fragmentShader = s.fragmentShader.replace('#include <fog_fragment>', `#ifdef USE_FOG\n float fogFactor = smoothstep( fogNear, fogFar, vFogDepth * ${k.toFixed(2)} );\n gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );\n#endif`); }; return m; };
+const cloudU = { lit: { value: new THREE.Color() }, shade: { value: new THREE.Color() }, sunCol: { value: new THREE.Color() }, haze: { value: new THREE.Color() }, sunXZ: { value: new THREE.Vector2(1, 0) }, t: { value: 0 }, near: { value: 150 }, far: { value: 415 } };
+const CL = { day: [0xffffff, 0x6d86a8], dusk: [0xffd2a8, 0x8a6d84], night: [0x7f90bc, 0x1e2a4c] }; // (lit tops, shaded hollows)
 function buildRim(grp) {
-  const R = W.R, rnd = mulberry(0xf10), near = [], far = [];
-  // the near ring: tall peaks just past the rim (their feet far below it, in the mist), a second, lower row between them
-  const nn = 28;
-  for (let i = 0; i < nn; i++) {
-    const a = (i + rnd() * .5) / nn * Math.PI * 2, d = R * (1.6 + rnd() * .1), tall = i % 4 === 0;
-    near.push({ x: Math.cos(a) * d, z: Math.sin(a) * d, y0: -50, h: tall ? 78 + rnd() * 14 : 58 + rnd() * 14, rad: R * (.105 + rnd() * .04), sides: 8 });
-    const b = a + Math.PI / nn, e = R * (1.78 + rnd() * .1);
-    near.push({ x: Math.cos(b) * e, z: Math.sin(b) * e, y0: -50, h: 56 + rnd() * 20, rad: R * (.11 + rnd() * .04), sides: 7 });
+  const R = W.R, rnd = mulberry(0xf10b), list = [];
+  // massifs: broad, far, mostly below you; each a main summit with a lower shoulder beside it
+  const nm = 7;
+  for (let i = 0; i < nm; i++) {
+    let a = (i + .2 + rnd() * .6) / nm * Math.PI * 2; const d = R + 220 + rnd() * 60, big = i % 3 === 0, h = big ? 94 + rnd() * 8 : 72 + rnd() * 10; // (tops from about 25 below the rim to a little above it)
+    const sa = Math.atan2(.38, .52), off = Math.atan2(Math.sin(a - sa), Math.cos(a - sa)); if (Math.abs(off) < .4) a = sa + Math.sign(off || 1) * .4; // (the low sun's own gap in the range)
+    list.push({ x: Math.cos(a) * d, z: Math.sin(a) * d, y0: -98, h, rad: h * (.8 + rnd() * .25), sx: 1.15 + rnd() * .25, sides: 13, snow: .52 });
+    const b = a + (rnd() < .5 ? -1 : 1) * (.16 + rnd() * .06), e = d + (rnd() - .5) * 50, h2 = h * (.66 + rnd() * .1);
+    list.push({ x: Math.cos(b) * e, z: Math.sin(b) * e, y0: -98, h: h2, rad: h2 * .9, sx: 1.2, sides: 10, snow: .6 });
   }
-  const nf = 36;
-  for (let i = 0; i < nf; i++) { const a = (i + rnd() * .6) / nf * Math.PI * 2, d = R * (2.4 + rnd() * .35); far.push({ x: Math.cos(a) * d, z: Math.sin(a) * d, y0: -40, h: 115 + rnd() * 35, rad: R * (.3 + rnd() * .1), sides: 8 }); }
-  const rock = lam(0xffffff, null, { vertexColors: true, flatShading: true });
-  const nr = new THREE.Mesh(peakGeo(near, true, [0x4a4743, 0x8a847b]), rock), fr = new THREE.Mesh(peakGeo(far, true, [0x6a7a8a, 0x8494a6]), rock);
-  nr.frustumCulled = fr.frustumCulled = false; grp.add(nr, fr);
-  // mist: one open band round the rim, solid at its foot and thinning upward, in the haze's colour (kept in step with dusk and night)
-  const cv = document.createElement('canvas'); cv.width = 1; cv.height = 64; const cx = cv.getContext('2d'), gr = cx.createLinearGradient(0, 0, 0, 64);
-  gr.addColorStop(0, '#000'); gr.addColorStop(.45, '#555'); gr.addColorStop(1, '#fff'); cx.fillStyle = gr; cx.fillRect(0, 0, 1, 64);
-  const tex = new THREE.CanvasTexture(cv);
-  const mist = new THREE.Mesh(new THREE.CylinderGeometry(R * 1.06, R * 1.06, 44, 48, 1, true), new THREE.MeshBasicMaterial({ color: scene.fog.color, alphaMap: tex, transparent: true, opacity: .95, side: THREE.DoubleSide, depthWrite: false, fog: false }));
-  mist.position.y = -16; mist.frustumCulled = false; mist.renderOrder = 2; grp.add(mist);
-  return mist;
+  const ms = new THREE.Mesh(massifGeo(list), softFog(lam(0xffffff, null, { vertexColors: true, flatShading: true }), .55));
+  ms.frustumCulled = false; grp.add(ms);
+  // the cloud sea: one disc under the rim that follows the camera, its noise fixed in the world and drifting slowly
+  const cl = new THREE.Mesh(new THREE.CircleGeometry(620, 48).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({
+    uniforms: cloudU, transparent: true, depthWrite: false, fog: false,
+    vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+    fragmentShader: `
+      uniform vec3 lit, shade, sunCol, haze; uniform vec2 sunXZ; uniform float t, near, far; varying vec3 vW;
+      float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
+      float vn(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f); return mix(mix(h2(i),h2(i+vec2(1,0)),f.x), mix(h2(i+vec2(0,1)),h2(i+vec2(1,1)),f.x), f.y); }
+      float fbm(vec2 p){ float s=0., a=.5; for(int i=0;i<4;i++){ s+=a*vn(p); p=p*2.07+vec2(1.7,9.2); a*=.5; } return s; }
+      void main(){
+        vec2 p = vW.xz * .011 + vec2(t * .008, t * .003);
+        float n = fbm(p + vec2(fbm(p * .35 + 3.1), 0.) * .8), m = fbm(p + sunXZ * .09 + vec2(fbm(p * .35 + 3.1), 0.) * .8);
+        float puff = smoothstep(.34, .62, n), litK = clamp(.5 + (n - m) * 8., 0., 1.);
+        vec3 v = vW - cameraPosition; float dist = length(v);
+        float toward = max(dot(normalize(v.xz), sunXZ), 0.);
+        vec3 col = mix(shade, lit, clamp((n - .3) * 2.6, 0., 1.) * (.22 + .78 * litK));
+        col += sunCol * (.06 + .4 * pow(toward, 5.)) * puff * litK;
+        float f = smoothstep(near, far, dist);
+        col = mix(col, haze, f * f * (3. - 2. * f));
+        gl_FragColor = vec4(col, mix(.6 + .4 * puff, 1., f));
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`,
+  }));
+  cl.position.y = CLOUD_Y; cl.frustumCulled = false; cl.renderOrder = 2; grp.add(cl);
+  // birds: a few dark wings circling below the rim, out ahead of where you stand (one instanced mesh)
+  const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, .35, -1.1, .25, -.2, 0, 0, -.25, 0, 0, .35, 0, 0, -.25, 1.1, .25, -.2], 3)); bg.computeVertexNormals();
+  const birds = new THREE.InstancedMesh(bg, new THREE.MeshBasicMaterial({ color: 0x2e3036, side: THREE.DoubleSide }), 7);
+  birds.frustumCulled = false; grp.add(birds);
+  // blown snow: a box of flakes round the camera, seen only near the rim (one draw of points)
+  const N = 160, sp = new Float32Array(N * 3), sr = mulberry(0x5e0b);
+  for (let i = 0; i < N * 3; i++) sp[i] = sr();
+  const sgeo = new THREE.BufferGeometry(); sgeo.setAttribute('position', new THREE.BufferAttribute(sp, 3));
+  const snowU = { t: { value: 0 }, ctr: { value: new THREE.Vector3() }, wind: { value: new THREE.Vector2(1, 0) }, op: { value: 0 }, col: { value: new THREE.Color() }, px: { value: 1 } };
+  const snow = new THREE.Points(sgeo, new THREE.ShaderMaterial({
+    uniforms: snowU, transparent: true, depthWrite: false, fog: false,
+    vertexShader: `uniform float t, px; uniform vec3 ctr; uniform vec2 wind; varying float vA;
+      void main(){ vec3 b = vec3(44., 16., 44.); vec3 q = position * b + vec3(wind.x, -.12, wind.y) * t * vec3(9., 9., 9.) + vec3(sin(t * 1.3 + position.y * 40.) * 1.5, 0., cos(t * 1.1 + position.x * 40.) * 1.5);
+        q = mod(q - ctr + b * .5, b) - b * .5 + ctr; vec4 mv = viewMatrix * vec4(q, 1.);
+        vA = 1. - smoothstep(14., 24., length(q.xz - ctr.xz)); gl_PointSize = clamp(90. / -mv.z, 1., 5.) * px; gl_Position = projectionMatrix * mv; }`,
+    fragmentShader: `uniform float op; uniform vec3 col; varying float vA; void main(){ vec2 d = gl_PointCoord - .5; float a = smoothstep(.5, .1, length(d)) * op * vA; if (a < .02) discard; gl_FragColor = vec4(col, a); }`,
+  }));
+  snow.frustumCulled = false; snow.renderOrder = 3; grp.add(snow);
+  return { cl, birds, snow, snowU, ba: null, t: 0, m4: new THREE.Matrix4(), q: new THREE.Quaternion(), e: new THREE.Euler(), s3: new THREE.Vector3(), p3: new THREE.Vector3() };
+}
+// each frame: the clouds and snow follow the camera and take the light's colours, the birds wheel ahead of you
+const cA = new THREE.Color(), cB = new THREE.Color();
+const mix3 = (pal, i, k) => k < .5 ? cA.set(pal.day[i]).lerp(cB.set(pal.dusk[i]), k * 2) : cA.set(pal.dusk[i]).lerp(cB.set(pal.night[i]), (k - .5) * 2);
+function updateRim(F, dt) {
+  F.t += dt; const R = W.R, k = lookK(), tg = camTarget();
+  F.cl.position.x = camera.position.x; F.cl.position.z = camera.position.z;
+  cloudU.t.value = F.t; cloudU.haze.value.copy(scene.fog.color); cloudU.sunCol.value.copy(sun.color);
+  cloudU.lit.value.copy(mix3(CL, 0, k)); cloudU.shade.value.copy(mix3(CL, 1, k));
+  const sd = skySunDir(); cloudU.sunXZ.value.set(sd.x, sd.z).normalize();
+  // the birds: two loose flocks circling out past the rim, ahead of the captain (their centre eases round after him)
+  const pa = tg ? Math.atan2(tg.z, tg.x) : 0;
+  if (F.ba == null) F.ba = pa; else { let d = pa - F.ba; d = Math.atan2(Math.sin(d), Math.cos(d)); F.ba += d * Math.min(1, dt * .6); }
+  for (let i = 0; i < 7; i++) {
+    const fl = i < 4 ? 0 : 1, ca = F.ba + (fl ? .2 : -.16), cr = R + (fl ? 70 : 52), cx = Math.cos(ca) * cr, cz = Math.sin(ca) * cr;
+    const w = F.t * (fl ? .32 : -.27) + i * 1.7, rr = (fl ? 12 : 9) + (i % 3) * 3, y = (fl ? -18 : -12) + Math.sin(F.t * .5 + i) * 1.5 + (i % 2) * 2;
+    F.p3.set(cx + Math.cos(w) * rr, y, cz + Math.sin(w) * rr);
+    F.e.set(0, -w + (fl ? 0 : Math.PI), (fl ? .25 : -.25)); F.q.setFromEuler(F.e);
+    const flap = .35 + .65 * Math.abs(Math.sin(F.t * 5 + i * 2.1)); F.s3.set(1.8, flap * 1.8, 1.8);
+    F.m4.compose(F.p3, F.q, F.s3); F.birds.setMatrixAt(i, F.m4);
+  }
+  F.birds.instanceMatrix.needsUpdate = true;
+  // the snow: only near the edge, blowing outward over it
+  const tr = tg ? Math.hypot(tg.x, tg.z) : 0, U = F.snow.material.uniforms;
+  U.t.value = F.t; U.op.value = .85 * Math.min(1, Math.max(0, (tr - (R - 34)) / 22));
+  if (tg) { U.ctr.value.set(tg.x, tg.y + 5, tg.z); U.wind.value.set(tg.x / (tr || 1), tg.z / (tr || 1)); }
+  U.col.value.copy(hemi.color).lerp(cA.set(0xffffff), .6 - .3 * k); U.px.value = renderer.getPixelRatio();
 }
 
 export function buildMount(world, L) {
@@ -84,7 +155,7 @@ export function buildMount(world, L) {
   const grp = new THREE.Group(); world.add(grp);
   const stone = lam(0x9a9384, stoneTex()), wood = lam(0x7a5a3a, woodTex()), woodDark = lam(0x55402a, woodTex());
   const plaster = lam(0xf0e6d0), thatch = lam(0xb8954a), skin = lam(0xd9a77a);
-  M = { grp, guards: [], camps: [], homes: [], live: [], t: 0, mist: buildRim(grp) }; // (live: the neutral soldiers standing now, for drawSoldiers)
+  M = { grp, guards: [], camps: [], homes: [], live: [], t: 0, rim: buildRim(grp) }; // (live: the neutral soldiers standing now, for drawSoldiers)
   // homes: cottages, the colour's banner, a soft ring round the safe ground
   for (const b of L.buildings.filter(b => b.kind === 'cottage')) {
     const g = new THREE.Group(); g.position.set(b.x, terrainMeshY(b.x, b.z) - .1, b.z); g.rotation.y = b.rot;
@@ -186,7 +257,7 @@ export const neutralFigs = () => (M && G.map.id === 'mount' ? M.live : null);
 if (import.meta.env.DEV) window.__neutralFigs = neutralFigs; // (dev: tests count the neutral soldiers)
 
 export function updateMount(dt) {
-  if (M && M.mist) M.mist.material.color.copy(scene.fog.color);
+  if (M && M.rim) updateRim(M.rim, dt);
   if (!M || !G.c2) return;
   M.t += dt; const K = G.c2, T = G.T;
   M.live.length = 0;

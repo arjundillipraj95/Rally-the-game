@@ -229,12 +229,17 @@ function groundBase(x, z) {
   return 0;
 }
 // Height of the rendered ground mesh (adds the riverbed and the dunes outside the arena).
+// past the mountain's rim the ground breaks off into a steep, craggy drop (into the cloud sea, render/mountain.js)
+function mountCliff(x, z, d, n) {
+  const crag = Math.sin(x * .23 + z * .11) * Math.cos(z * .19 - x * .08), ledge = Math.max(0, Math.sin(Math.hypot(x, z) * .9 + crag * 2)) * 1.6;
+  return -d * (d < 2.5 ? .9 : 1.75) + (d < 2.5 ? 0 : 1.6) + crag * Math.min(5, d * .25) + ledge * Math.min(1, d / 6) + Math.max(0, n) * 2;
+}
 export function terrainMeshY(x, z) {
   const r = Math.hypot(x, z);
   const n = Math.sin(x * .07) * Math.cos(z * .05) + Math.sin(x * .023 + z * .031) * 1.4;
   let y = G.map.id === 'river' ? 0 : groundY(x, z);
   if (G.map.id === 'river') { const az = Math.abs(z); if (az < 7 && Math.hypot(x, z) >= 7.5) y = az < 5 ? -.95 : -.95 * (7 - az) / 2; }
-  const e = W.R + 1; if (r > e) y += G.map.id === 'mount' ? -(r - e) * .7 + Math.max(0, n) * 2 : (r - e) * .25 + Math.max(0, n) * ((r - e) * .18);
+  const e = W.R + 1; if (r > e) y += G.map.id === 'mount' ? mountCliff(x, z, r - e, n) : (r - e) * .25 + Math.max(0, n) * ((r - e) * .18);
   return y;
 }
 
@@ -372,7 +377,7 @@ function mountPlaces(L, box, trees) {
   // out on the rim: a few trees and rocks behind the lanes, clear of the homes, castles and the lane road
   const rim = []; for (let i = 0; i < 18; i++) rim.push([r(.05, Q - .05), r(K.lane * R + 6, R - 3), r(1, 1.5)]);
   for (let c = 0; c < 4; c++) for (const [da, d, sz] of rim) { const [x, z] = P(mountHomeA(c) + da, d); if (!busy(x, z) && L.homes.every(h => Math.hypot(h.x - x, h.z - z) > 20)) trees(x, z, sz); }
-  for (let i = 0; i < 60; i++) { const a = r(0, 6.28), d = r(R + 6, R + 40); L.trees.push({ x: Math.cos(a) * d, z: Math.sin(a) * d, s: r(1, 1.6) }); }
+  for (let i = 0; i < 60; i++) { r(0, 6.28); r(R + 6, R + 40); r(1, 1.6); } // (F10b: no trees down the cliff any more; the draws are kept so the rest of the layout stays put)
 }
 function box(L, x, z, hw, hd, rot, h, kind) {
   const b = { box: true, x, z, hw, hd, rot }; L.obstacles.push(b);
