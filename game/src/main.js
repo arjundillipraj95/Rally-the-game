@@ -37,7 +37,7 @@ import { cam, followCamera, orbitCamera, camTarget, CAM_PITCH, introCam } from '
 import { initAudio, sfx, buzz, gateS, startCrowd, stopCrowd, audioTick, audioStats, setMuted, musicCue, setMusic, musicEnabled } from './ui/audio.js';
 import { portal, portalInit, onPortal } from './portal.js';
 import { showMsg, allyNames, setNamer, glory } from './ui/messages.js';
-import { renderPointsV2, tlTick, ledger } from './ui/timeline.js';
+import { renderPointsV2, tlTick, tlPack, ledger } from './ui/timeline.js';
 import { buildHud, showHud, updateHud, banner, fmt } from './ui/hud.js';
 import { bindInput, readMove, trayOpen, upOpen, releaseAll, inp } from './ui/input.js';
 import { startTutorial, stopTutorial, tutorialTick, bindTutorial } from './ui/tutorial.js';
@@ -205,6 +205,7 @@ bus.on('hint', text => { const p = G.player; if (p && gateS('mhint', 2500)) floa
 bus.on('respawnMe', L => { cam.yaw = L.face; });
 bus.on('hud', () => { if (G.state === 'play') updateHud(C.lastSnapAt); });
 bus.on('hostEnd', res => endMatch(res[0], res[1]));
+let storyPts = null; bus.on('story', () => { if (G.state === 'end' && storyPts) storyPts(); });
 bus.on('end', ({ w, why }) => {
   releaseAll(); trayOpen(false); upOpen(false); stopTutorial();
   portal.gameplayStop();
@@ -234,6 +235,7 @@ bus.on('end', ({ w, why }) => {
   report(); if (isClient()) setTimeout(() => { if (G.state === 'end') report(); }, 1200);
   const pts = () => { if (!G.c2) return; renderPointsV2($('endPts'), w); };
   $('ptsTab').hidden = !G.c2; pts(); if (isClient()) setTimeout(() => { if (G.state === 'end') pts(); }, 1200);
+  storyPts = pts; // (the host's record of the battle lands a moment later: the Points tab is drawn again from it)
   endTab(G.c2 ? 'pts' : 'you');
   showRank(G.awarded ? null : awardMatch({ result, kills: G.kills, diff: G.diff })); G.awarded = true;
   // missions and the season (on a joined phone, once the host's tally has landed)
@@ -927,7 +929,8 @@ function playerNick(ti) {
   const peers = NET.room.peers();
   const seats = NET.role === 'host' ? NET.seats : ((peers.find(p => p.peer === NET.hostPeer) || {}).presence || {}).seats || {};
   const peer = Object.keys(seats).find(k => seats[k] === ti); if (!peer) return null;
-  const p = peers.find(x => x.peer === peer); return p && p.presence && p.presence.nick ? String(p.presence.nick).slice(0, 16) : null;
+  const p = peers.find(x => x.peer === peer) || (peer === 'me' && NET.role === 'client' ? peers.find(x => x.peer === NET.hostPeer) : null); // (an older host's own seat, kept under a stand-in name)
+  return p && p.presence && p.presence.nick ? String(p.presence.nick).slice(0, 16) : null;
 }
 let hudT = 0, last = performance.now(), fpsAvg = 60;
 // frozen while a games-site ad plays
@@ -991,7 +994,7 @@ window.__fb = {
   volley(pt) { actions.volley(pt); }, order(o, pt) { actions.order(o, pt); }, rally() { actions.rally(); },
   attack() { actions.attack(); }, duel() { actions.duel(); }, jump() { actions.jump(); }, weapon(w) { actions.weapon(w); }, upgrade(id) { actions.upgrade(id); },
   fort(c, lv) { G.teams[c].up.fort = lv; applyFort(c); },
-  tlTick, ledger, setOrder, rideRelease, findPath, gatePos, orderVolley, mkUnit, challenge, canChallenge, G, W, c2Points, die, cam, scene, renderer, audio: () => audioStats(),
+  tlTick, tlPack, ledger, setOrder, rideRelease, findPath, gatePos, orderVolley, mkUnit, challenge, canChallenge, G, W, c2Points, die, cam, scene, renderer, audio: () => audioStats(),
 };
 
 function onResize() { resize(); resizeOverlay(); }

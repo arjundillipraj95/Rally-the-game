@@ -12,6 +12,7 @@ import { adoptBattle, applyCastleGates, applyPlazaWall, volleyCharge, captainBas
 import { session, isClient, isHost } from './session.js';
 import { makeP2PRoom } from './p2p.js';
 import { showMsg } from '../ui/messages.js';
+import { tlPack, tlAdopt } from '../ui/timeline.js';
 import { lookCode, lookFrom } from '../core/look.js';
 import { capOf } from '../core/state.js';
 import { sfx, buzz, gateS } from '../ui/audio.js';
@@ -94,6 +95,7 @@ export function netHostTick() {
 export function netHostSend() {
   const NET = session.NET; if (!NET) return;
   NET.lastSend = performance.now();
+  if (NET.me === 'me') { const id = myPeer(NET.room); if (id) { const t = NET.seats.me; delete NET.seats.me; NET.me = id; if (t !== undefined) NET.seats[id] = t; } } // (a battle that began before this phone knew its own link name: put the name right, or joined phones can't tell the host is a player and show a computer captain's name for him)
   const pres = { role: 'host', ph: G.state === 'end' ? 'end' : 'play', seed: G.seed, mode: G.mode, map: G.map.id, diff: G.diff, time: G.time, tgt: G.target, al: G.ALLY.join(''), duo: duoStr(G.duo), seats: NET.seats, nick: session.myNick || 'Host', lk: (G.looks || []).map(lookCode).join(','), cr: Array.from({ length: ARMIES }, (_, i) => (G.crests && G.crests[i]) | 0).join(''), n: ++NET.snapN, s: encodeSnap(), m: NET.msgs };
   if (G.state === 'end' && G.endInfo) { pres.res = [G.endInfo.w, G.endInfo.why]; pres.kl = G.teams.map(t => t.kills | 0).join(','); pres.st = G.teams.map(t => [t.capK | 0, t.menK | 0, t.falls | 0, t.lost | 0, t.earned | 0, t.spent | 0, t.dist | 0, t.gold | 0, t.recruits | 0].join(',')).join(';'); pres.hl = G.teams.map(t => t.hl ? Object.entries(t.hl).map(([k, v]) => k + ':' + v).join(',') : '').join(';'); }
   pres.ht = Math.round(performance.now()); // (P0.7: the host's clock, so phones can space snapshots as they were sent, not as they arrived)
@@ -105,6 +107,7 @@ export function netHostSend() {
     json = JSON.stringify(pres);
   }
   NET.lastSize = json.length;
+  if (G.state === 'end' && G.c2 && performance.now() - (NET.storyAt || 0) > 1000) { NET.storyAt = performance.now(); try { pres.story = tlPack(); } catch (e) {} } // (the results' record, once a second: every phone shows the host's)
   NET.room.presence(pres).catch(() => {});
 }
 const IDLE_MS = 30e3; // (a player who does nothing this long is played by the computer until they're back)
@@ -387,6 +390,7 @@ export function clientTick(dt) {
     if (hp.ph === 'end' && typeof hp.st === 'string') hp.st.split(';').forEach((row, i) => { const s = G.teams[i], v = row.split(',').map(Number); if (s && v.length >= 4) { s.capK = v[0] | 0; s.menK = v[1] | 0; s.falls = v[2] | 0; s.lost = v[3] | 0; s.earned = v[4] | 0; s.spent = v[5] | 0; s.dist = v[6] | 0; s.endGold = v[7] | 0; s.recruits = v[8] | 0; } }); // (the tally)
     if (hp.ph === 'end' && typeof hp.hl === 'string') hp.hl.split(';').forEach((row, i) => { const s = G.teams[i]; if (!s) return; const h = {}; for (const kv of row.split(',')) { const [k, v] = kv.split(':'); if (k && /^[a-z]+$/.test(k)) h[k] = +v || 0; } s.hl = h; }); // (everyone's moments: yours, and your side's)
     if (hp.ph === 'end' && G.state === 'play' && Array.isArray(hp.res)) bus.emit('hostEnd', hp.res);
+    if (hp.ph === 'end' && hp.story && C.storyN !== hp.n) { C.storyN = hp.n; const sig = G.seed + ':' + JSON.stringify(hp.story).length; if (sig !== C.storySig && tlAdopt(hp.story)) { C.storySig = sig; bus.emit('story'); } }
   }
   if (G.state !== 'play' && G.state !== 'end') return false;
   if (!NET.pongOn) { NET.room.onPong(n => pingPong(NET, n)); NET.pongOn = true; } // (P0.3: the host's answers)

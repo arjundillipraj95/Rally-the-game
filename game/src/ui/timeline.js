@@ -9,11 +9,12 @@ import { claimed, nameOf, glory, allyNames } from './messages.js';
 
 const TL = { seed: null, samples: [], places: new Map(), lastT: -99, final: false };
 const sidesNow = () => [...new Set(G.teams.map((t, i) => t && t.active ? G.ALLY[colorOf(i)] : -1).filter(a => a >= 0))];
-function reset() { Object.assign(TL, { seed: G.seed, samples: [], places: new Map(), lastT: -99, final: false }); }
+function reset() { Object.assign(TL, { seed: G.seed, samples: [], places: new Map(), lastT: -99, final: false, host: false }); }
 function sample() { const s = { T: G.T, by: {} }; for (const a of sidesNow()) s.by[a] = c2Breakdown(a); TL.samples.push(s); TL.lastT = G.T; }
 export function tlTick() {
   if (!G.c2 || !G.holds || (G.state !== 'play' && G.state !== 'end')) return;
   if (TL.seed !== G.seed) reset();
+  if (TL.host) return; // (the host's record has arrived: it is the record now)
   for (const h of G.holds) { // (who held what, and from when)
     let p = TL.places.get(h.id); if (!p) TL.places.set(h.id, p = { h, hist: [] });
     const last = p.hist[p.hist.length - 1];
@@ -22,6 +23,33 @@ export function tlTick() {
   }
   if (G.state === 'play' && G.T - TL.lastT >= 10) sample();
   if (G.state === 'end' && !TL.final) { TL.final = true; sample(); }
+}
+
+// ---------- one record for every phone ----------
+// Each phone keeps its own record as it goes, but a joined phone can miss a moment (a lost snapshot, a late join),
+// and then two friends on one side would see two different results. So at the end the host's record is sent to
+// every phone, which shows it in place of its own. Packed small: whole seconds, numbers only.
+const R = Math.round;
+export function tlPack() {
+  tlTick();
+  return { s: TL.samples.map(x => [R(x.T), Object.entries(x.by).map(([a, b]) => [+a, b.castles, b.villages, b.chest, b.crown, b.caps, b.total])]),
+    p: [...TL.places.values()].map(({ h, hist }) => [h.id, hist.map(x => [R(x.T), x.owner, x.by ?? -1])]),
+    c: Object.entries(claimed).map(([k, c]) => [k, c.by, c.v, R(c.T ?? 600)]),
+    g: [glory.chest ? [glory.chest.a, R(glory.chest.T), glory.chest.ti ?? -1] : 0, glory.crown ? [glory.crown.a, R(glory.crown.T), glory.crown.ti ?? -1] : 0] };
+}
+export function tlAdopt(o) {
+  if (!o || !Array.isArray(o.s) || !Array.isArray(o.p) || !G.holds) return false;
+  const num = v => (typeof v === 'number' && isFinite(v) ? v : 0);
+  const samples = o.s.map(([T, by]) => ({ T: num(T), by: Object.fromEntries((by || []).map(r => [num(r[0]), { castles: num(r[1]), villages: num(r[2]), chest: num(r[3]), crown: num(r[4]), caps: num(r[5]), total: num(r[6]) }])) }));
+  const places = new Map();
+  for (const [id, hist] of o.p) { const h = G.holds.find(x => x.id === id); if (h) places.set(id, { h, hist: (hist || []).map(x => ({ T: num(x[0]), owner: num(x[1]), by: x[2] >= 0 ? num(x[2]) : undefined })) }); }
+  Object.assign(TL, { seed: G.seed, samples, places, lastT: samples.length ? samples[samples.length - 1].T : -99, final: true, host: true });
+  for (const k in claimed) delete claimed[k];
+  for (const [k, by, v, T] of o.c || []) if (/^-?\d+:-?\d+$/.test(String(k))) claimed[k] = { by: num(by), v: num(v), T: num(T) };
+  const [ch, cr] = o.g || [];
+  glory.chest = Array.isArray(ch) ? { a: num(ch[0]), T: num(ch[1]), ti: num(ch[2]) } : null;
+  glory.crown = Array.isArray(cr) ? { a: num(cr[0]), T: num(cr[1]), ti: num(cr[2]) } : null;
+  return true;
 }
 
 // ---------- drawing ----------

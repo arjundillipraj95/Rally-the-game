@@ -43,7 +43,22 @@ Ready to build (no design question):
 | F1 | Not smooth even on High: 1,219 draw calls and 560k triangles at the start of a Crown battle on Low (budget 150). Bring P8.1 (batched soldiers) forward | O |
 | F3 | Lag India to US: P0.7 (built), P0.7b, P0.4, P0.11, then P0.10 | - |
 
-Need Arjun's answer first (questions sent 11 Nov):
+Built on `roles`, not shipped:
+- F11 Same results and names on every phone. Each phone kept its own record of the battle for the Points tab, so a
+  joined phone that missed a moment showed different captains' points and no Chest or Crown marks. The host's record
+  now goes to every phone at the end (`game/store/r_F11.mjs`). Also: a matchmade host's seat could be kept under a
+  stand-in name, so joined phones showed him under a computer captain's name (seen as "Monk"); put right on both ends.
+  The name fix is from reading the code and the two screenshots, not reproduced in a test.
+
+Arjun's answers, 11 Nov:
+- F2 lobby: lanes left, right, jungle; yes to the versus screen. New: voice chat like Unite (team, and all-talk) = F12.
+- F5 dying: yes to fall, grey screen, respawn timer, who killed you; his men carry on in the current order.
+- F6 hit feel: the three moments agreed (captain sword clash, a blocked hit, a captain cutting down a soldier), then the rest.
+- F9 horses: agreed, the design doc's rule early (full stop only on Hold and facing; standing men slow it; moving or flanked men are bowled over).
+- Order: F10, F7, then F4. Owner plans and builds.
+- His ping was in the 400s where Unite shows him 250: phone-to-phone links take a worse road than a game server's. P0.10 (server test) moves up.
+
+Answered above; kept for the record:
 | Ticket | What | Question |
 |---|---|---|
 | F2 | One lobby for all 8 or 12 players, lanes, ready-up, 10 s versus screen | Lane choices; who can talk to whom; what "ready" does |
