@@ -15,9 +15,12 @@ Last updated: 2026-11-11 (evening). Older detail: `docs/history/2026-11-log.md`.
   trees removed), plus 4 small objects. `store/r_F10b.mjs` compares rendered frames, which vary with random units
   and camera: don't read its totals as a regression. Arjun judges the feel on his phone.
 - V1 Team voice: open mic to your own team in online battles, mute button beside Shout; phones call each other
-  directly (no voice for a player on the relay). Mics and mute tested; a same-team call NOT yet tested.
-  Arjun reported (11 Nov) "not working, a lot of static", but voice isn't on the live game yet: asked where he tested.
-  Needs an Opus review before shipping.
+  directly (no voice for a player on the relay).
+  11 Nov, Arjun's duo test (via raw.githack on `roles`): the mic showed but nobody heard anyone. Cause: teammates
+  were matched by exact seat, and a Duo partner sits in seat 4 of the same colour, so nobody counted as a teammate.
+  Fixed: matched by side. `r_V1.mjs` now proves two phones on one side link and receive each other's sound. The
+  phone now says what voice is doing (on with your team / mic blocked / can't reach a teammate). Static: not yet
+  understood; retest. Needs an Opus review before shipping.
 
 ## Build queue (in order; model = best fit; Fable 5.2 available until 15 Nov)
 | # | Ticket | What | Model | Waits on |

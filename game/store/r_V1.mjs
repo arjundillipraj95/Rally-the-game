@@ -31,10 +31,17 @@ const [va, vb] = [await vs(A), await vs(B)];
 const teamA = await A.evaluate(() => window.__fb.G.myTi), teamB = await B.evaluate(() => window.__fb.G.myTi);
 console.log('teams', teamA, teamB, 'A voice', JSON.stringify(va), 'B voice', JSON.stringify(vb));
 const sameTeam = teamA === teamB;
+// the same side (as a Duo partner or a team-mode ally is): both phones must link a call and receive the other's sound
+const al = async p => p.evaluate(() => { const G = window.__fb.G; G.ALLY[1] = G.ALLY[0]; return G.ALLY.join(''); });
+console.log('sides now', await al(A), await al(B));
+let side = null; for (let i = 0; i < 20 && !(side && side[0].heard && side[1].heard); i++) { await sleep(1000); side = [await vs(A), await vs(B)]; }
+console.log('same side', JSON.stringify(side));
+const sideOk = side[0].calls.length === 1 && side[1].calls.length === 1 && side[0].heard === 1 && side[1].heard === 1;
 // the mute button: off means the track is disabled, not the call dropped
 await A.click('#micBtn'); const muted = await A.evaluate(() => { const t = document.getElementById('micBtn'); return t.classList.contains('off'); });
 await A.click('#micBtn');
 let ok;
 ok = sameTeam ? (va.live && vb.live && va.calls.length + vb.calls.length >= 1) : (va.calls.length === 0 && vb.calls.length === 0);
 console.log(ok && va.live && vb.live && muted ? 'PASS' : 'FAIL', 'mics live on both phones:', va.live, vb.live, sameTeam ? '(same team: call expected)' : '(other teams: no call, correct)', 'mute button shows off:', muted);
-await b1.close(); await b2.close(); process.exit(va.live && vb.live && muted && ok ? 0 : 1);
+await b1.close(); await b2.close(); console.log(sideOk ? 'PASS same side: each phone hears the other' : 'FAIL same side');
+process.exit(va.live && vb.live && muted && ok && sideOk ? 0 : 1);

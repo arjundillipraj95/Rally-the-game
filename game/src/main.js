@@ -926,6 +926,7 @@ function drawScene(dt) {
 }
 initFeed({ nickFor: ti => nickFor(ti) }); setNamer(nickFor);
 bindVoice(); // (team voice, V1: the mic button, once)
+bus.on('voiceMsg', t => { if (G.state === 'play') toast(t); });
 function nickFor(ti) { const n = playerNick(ti); if (n) return n; const t = G.teams && G.teams[ti]; return t && !t.human && t.active !== false ? botName(ti) : null; } // (players by their nickname, computer captains by theirs)
 function playerNick(ti) {
   const NET = session.NET; if (!NET) return null;

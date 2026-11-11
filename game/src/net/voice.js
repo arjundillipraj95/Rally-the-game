@@ -2,28 +2,31 @@
 // Each teammate's phone calls the others directly (the lower id calls, so each pair links once). A phone on the
 // relay can't carry a voice call, so voice is quiet for that player; the game itself still plays.
 import { session } from './session.js';
-import { G } from '../core/state.js';
+import { G, bus, colorOf } from '../core/state.js';
 
 const KEY = 'rally.mic';
 const V = { on: true, stream: null, calls: new Map(), audio: new Map(), timer: null, live: false, starting: false, failed: null, room: null, asked: false };
 try { V.on = localStorage.getItem(KEY) !== 'off'; } catch (e) {}
 
 export const micOn = () => V.on;
-export const voiceState = () => ({ live: V.live, on: V.on, failed: V.failed, calls: [...V.calls.keys()] });
+export const voiceState = () => ({ live: V.live, on: V.on, failed: V.failed, calls: [...V.calls.keys()], heard: [...V.audio.values()].filter(a => a.srcObject && a.srcObject.getAudioTracks().some(t => t.readyState === 'live')).length });
 
-// the phones on my team (their seats come from the host's presence, as the names do)
+// the phones on my side (their seats come from the host's presence, as the names do)
 function teammates() {
   const NET = session.NET; if (!NET || !NET.room || !NET.room.voice) return [];
   const peers = NET.room.peers();
   const seats = NET.role === 'host' ? NET.seats : ((peers.find(p => p.peer === NET.hostPeer) || {}).presence || {}).seats || {};
   const me = NET.room.voice.me();
-  return Object.keys(seats).filter(p => p !== me && seats[p] === G.myTi);
+  // same side, not same seat: a Duo or Trio partner sits in seat 4-11 of the same colour, and in team modes
+  // other colours can be on your side too
+  const side = ti => G.ALLY[colorOf(ti)];
+  return Object.keys(seats).filter(p => p !== me && p !== 'me' && typeof seats[p] === 'number' && side(seats[p]) === side(G.myTi));
 }
 
 function play(p, s) {
   let a = V.audio.get(p);
   if (!a) { a = new Audio(); a.autoplay = true; a.setAttribute('playsinline', ''); V.audio.set(p, a); }
-  a.srcObject = s; a.play().catch(() => {});
+  a.srcObject = s; a.play().catch(() => { const go = () => { a.play().catch(() => {}); removeEventListener('pointerdown', go); }; addEventListener('pointerdown', go); });
 }
 function hang(p) {
   const c = V.calls.get(p); V.calls.delete(p);
@@ -32,9 +35,9 @@ function hang(p) {
 }
 function attach(call, p) {
   V.calls.set(p, call);
-  call.on('stream', s => play(p, s));
+  call.on('stream', s => { play(p, s); bus.emit('voiceMsg', 'Voice on with your team'); });
   call.on('close', () => { if (V.calls.get(p) === call) hang(p); });
-  call.on('error', () => { if (V.calls.get(p) === call) hang(p); });
+  call.on('error', () => { if (V.calls.get(p) === call) { hang(p); bus.emit('voiceMsg', "Voice: can't reach a teammate's phone"); } });
 }
 function link() {
   if (!V.stream) return;
@@ -65,7 +68,7 @@ export async function startVoice() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { V.failed = 'no-mic'; paint(); return; }
   V.starting = true;
   try { V.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false }); }
-  catch (e) { V.failed = e && e.name === 'NotAllowedError' ? 'denied' : 'no-mic'; V.starting = false; paint(); return; }
+  catch (e) { V.failed = e && e.name === 'NotAllowedError' ? 'denied' : 'no-mic'; V.starting = false; paint(); bus.emit('voiceMsg', V.failed === 'denied' ? 'Microphone blocked: allow it for this site' : 'No microphone found'); return; }
   V.starting = false; V.live = true; V.failed = null;
   if (V.room !== room) { V.room = room; room.voice.onCall(onCall); }
   setTrack(); V.timer = setInterval(link, 1000); link(); paint();
