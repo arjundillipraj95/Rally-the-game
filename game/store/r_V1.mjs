@@ -1,11 +1,15 @@
-// V1 check: teammates' phones link an audio call and hear each other; a phone on another team is never called.
+// V1 check, as on two real phones (touch screens): Arjun's phone allows the mic; Ravi's phone refuses it at first
+// (as Android's Chrome can when the ask didn't come from a tap), then he allows it and taps the mic. Both on one
+// side: each must receive the other's sound (measured, not just a call object), muting must silence it at the other
+// end, and unmuting bring it back. A phone on another side is never called.
 import { chromium } from 'playwright';
 const opts = { executablePath: '/opt/pw-browsers/chromium', args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--disable-features=WebRtcHideLocalIpsWithMdns', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] };
-const b1 = await chromium.launch(opts), b2 = await chromium.launch(opts);
-const pages = [];
+const b1 = await chromium.launch(opts), b2 = await chromium.launch({ ...opts, args: opts.args.filter(a => a !== '--use-fake-ui-for-media-stream') }); // (Ravi: no automatic yes to the mic)
+const pages = [], ctxs = [];
 for (const [b, nick] of [[b1, 'Arjun'], [b2, 'Ravi']]) {
-  const ctx = await b.newContext({ viewport: { width: 844, height: 390 } });
+  const ctx = await b.newContext({ viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true }); ctxs.push(ctx);
   await ctx.addInitScript(nick => { window.__testSheet = null; window.__PEER_OPTS = { host: '127.0.0.1', port: 9000, path: '/', secure: false, config: { iceServers: [] } }; localStorage.setItem('rally-tutorial-done', '1'); localStorage.setItem('rally-quality', 'low'); localStorage.setItem('fb-nick', nick); }, nick);
+  if (process.env.NOLINK) await ctx.addInitScript(() => { window.__PEER_OPTS.config = { iceServers: [], iceTransportPolicy: 'relay' }; window.__vm = []; }); // (NOLINK=1: no road between the phones, as between some real networks)
   const p = await ctx.newPage(); p.on('pageerror', e => console.log(nick, 'ERR', e.message)); pages.push(p);
   await p.goto('http://127.0.0.1:8766/?online=http://127.0.0.1:8787&crown2=1');
 }
@@ -26,22 +30,35 @@ await B.click('#friendsBtn'); await sleep(800); await B.waitForSelector('[data-j
 await B.waitForFunction(() => window.__fb && window.__fb.G.state === 'play', null, { timeout: 60000 }); await sleep(3000);
 const T = await A.evaluate(() => Math.round(window.__fb.G.T)); console.log('joined at battle time', T);
 const vs = p => p.evaluate(() => window.__fb.voiceState());
-await sleep(6000);
+const lv = async (p, ms = 3000) => { const e0 = await p.evaluate(() => window.__fb.voiceLevels()); await sleep(ms); const e1 = await p.evaluate(() => window.__fb.voiceLevels()); let d = 0, playing = true; for (const k in e1) { d += e1[k].energy - ((e0[k] || {}).energy || 0); playing = playing && e1[k].playing; } return { d, playing }; }; // (sound energy that arrived in those seconds, and whether it is being played)
+const res = {};
+await sleep(3000);
+// 1) another side: nobody is called
 const [va, vb] = [await vs(A), await vs(B)];
-const teamA = await A.evaluate(() => window.__fb.G.myTi), teamB = await B.evaluate(() => window.__fb.G.myTi);
-console.log('teams', teamA, teamB, 'A voice', JSON.stringify(va), 'B voice', JSON.stringify(vb));
-const sameTeam = teamA === teamB;
-// the same side (as a Duo partner or a team-mode ally is): both phones must link a call and receive the other's sound
-const al = async p => p.evaluate(() => { const G = window.__fb.G; G.ALLY[1] = G.ALLY[0]; return G.ALLY.join(''); });
-console.log('sides now', await al(A), await al(B));
-let side = null; for (let i = 0; i < 20 && !(side && side[0].heard && side[1].heard); i++) { await sleep(1000); side = [await vs(A), await vs(B)]; }
-console.log('same side', JSON.stringify(side));
-const sideOk = side[0].calls.length === 1 && side[1].calls.length === 1 && side[0].heard === 1 && side[1].heard === 1;
-// the mute button: off means the track is disabled, not the call dropped
-await A.click('#micBtn'); const muted = await A.evaluate(() => { const t = document.getElementById('micBtn'); return t.classList.contains('off'); });
-await A.click('#micBtn');
-let ok;
-ok = sameTeam ? (va.live && vb.live && va.calls.length + vb.calls.length >= 1) : (va.calls.length === 0 && vb.calls.length === 0);
-console.log(ok && va.live && vb.live && muted ? 'PASS' : 'FAIL', 'mics live on both phones:', va.live, vb.live, sameTeam ? '(same team: call expected)' : '(other teams: no call, correct)', 'mute button shows off:', muted);
-await b1.close(); await b2.close(); console.log(sideOk ? 'PASS same side: each phone hears the other' : 'FAIL same side');
-process.exit(va.live && vb.live && muted && ok && sideOk ? 0 : 1);
+res.otherSide = va.calls.length === 0 && vb.calls.length === 0;
+// 2) Ravi's mic was refused: the button asks for a tap
+res.refused = vb.failed === 'denied' && await B.evaluate(() => document.getElementById('micBtn').classList.contains('ask'));
+console.log('Arjun', JSON.stringify(va), '| Ravi', JSON.stringify(vb));
+// 3) one side (a Duo partner or a team-mode ally): Ravi allows the mic and taps it
+for (const p of [A, B]) await p.evaluate(() => { const G = window.__fb.G; G.ALLY[1] = G.ALLY[0]; });
+await ctxs[1].grantPermissions(['microphone'], { origin: 'http://127.0.0.1:8766' });
+await B.tap('#micBtn');
+for (let i = 0; i < 12 && !(await vs(B)).live; i++) await sleep(250);
+res.tapLive = (await vs(B)).live;
+if (process.env.NOLINK) {
+  let m = ''; for (let i = 0; i < 30 && !/get through|can't reach/.test(m); i++) { await sleep(1000); m = await A.evaluate(() => [...document.querySelectorAll('.toast,#toast,[class*=toast]')].map(e => e.textContent).join(' | ')); }
+  console.log('NOLINK message on Arjun\'s phone:', JSON.stringify(m.slice(0, 200)), JSON.stringify(await vs(A)));
+  const ok = /get through|can't reach/.test(m); console.log(ok ? 'PASS (no link: the phone says so)' : 'FAIL'); await b1.close(); await b2.close(); process.exit(ok ? 0 : 1);
+}
+let st = null; for (let i = 0; i < 25 && !(st && st[0].heard && st[1].heard); i++) { await sleep(1000); st = [await vs(A), await vs(B)]; }
+console.log('one side', JSON.stringify(st)); 
+const [hA, hB] = [await lv(A), await lv(B)];
+res.hearEachOther = hA.d > 1e-4 && hB.d > 1e-4; res.playing = hA.playing && hB.playing;
+// 4) Arjun mutes: nothing more arrives at Ravi's end; unmute: sound again
+await A.tap('#micBtn'); await sleep(800); const mutedB = await lv(B);
+await A.tap('#micBtn'); await sleep(800); const backB = await lv(B);
+res.muteSilences = mutedB.d < hB.d / 20; res.unmuteBack = backB.d > hB.d / 3;
+console.log('energy in 3 s: Arjun receives', hA.d.toExponential(2), 'Ravi receives', hB.d.toExponential(2), '| Ravi while Arjun muted', mutedB.d.toExponential(2), 'after unmute', backB.d.toExponential(2), '| playing', hA.playing, hB.playing);
+const ok = Object.values(res).every(Boolean);
+console.log(JSON.stringify(res)); console.log(ok ? 'PASS' : 'FAIL');
+await b1.close(); await b2.close(); process.exit(ok ? 0 : 1);

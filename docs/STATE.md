@@ -16,11 +16,14 @@ Last updated: 2026-11-11 (evening). Older detail: `docs/history/2026-11-log.md`.
   and camera: don't read its totals as a regression. Arjun judges the feel on his phone.
 - V1 Team voice: open mic to your own team in online battles, mute button beside Shout; phones call each other
   directly (no voice for a player on the relay).
-  11 Nov, Arjun's duo test (via raw.githack on `roles`): the mic showed but nobody heard anyone. Cause: teammates
-  were matched by exact seat, and a Duo partner sits in seat 4 of the same colour, so nobody counted as a teammate.
-  Fixed: matched by side. `r_V1.mjs` now proves two phones on one side link and receive each other's sound. The
-  phone now says what voice is doing (on with your team / mic blocked / can't reach a teammate). Static: not yet
-  understood; retest. Needs an Opus review before shipping.
+  11 Nov tests on real phones (raw.githack, `roles`): first, teammates matched by seat (fixed: by side). Second,
+  still silent; Android stuck muted. Fixed: a refused mic can be asked again with a tap (Android's Chrome may refuse
+  an ask that isn't from a tap); every step says on screen what happened. Most likely cause of the silence: the two
+  phones' game link had fallen back to the relay ('r-' names), which carries game data, not sound; voice waited
+  forever. It now says so, and gives up on a call that doesn't link in 12 s.
+  `r_V1.mjs` (touch phones; one starts refused, then allows and taps): sound energy arrives both ways, is played,
+  mute silences it, unmute brings it back. `NOLINK=1 r_V1.mjs`: no road between the phones, the phone says so.
+  Real fix for relayed phones: a TURN relay that works (V1b). Needs an Opus review before shipping.
 
 ## Build queue (in order; model = best fit; Fable 5.2 available until 15 Nov)
 | # | Ticket | What | Model | Waits on |
@@ -29,6 +32,7 @@ Last updated: 2026-11-11 (evening). Older detail: `docs/history/2026-11-log.md`.
 | 2 | F6+F5 | Hit feel (sword clash, block, captain cutting down a soldier, then the rest) and the death sequence (fall, grey, respawn timer, who killed you; men carry on) | **Fable**, else O | card |
 | 3 | F1 | Batched soldiers (P8.1 forward): about 1,200 draw calls down to 150 | **Fable**, else O | card |
 | 4 | F8 | Animation: real clips on one shared skeleton, blending. F8a file prep (H) | **Fable** if files by ~13 Nov, else O | Arjun's Mixamo files |
+| 4b | F15 | Always landscape and full screen: on Android, full screen and locked sideways from the first tap, whatever way the player entered; in portrait mid-battle, a 'turn your phone' screen. iPhone can't be locked by a website: same screen, plus Add to Home Screen. Android: an Install button (the manifest is already there) | S | Arjun's go |
 | 5 | F14 | Adapts to any phone: picks its quality from the first seconds of frame rate and keeps adjusting; targets iPhone 13+, Galaxy S23+, and plays on any Android | S | after F1 |
 | 6 | F4 | Neutral garrisons and camps fight as real soldiers and ambush (today one shared health pool, standing still) | O | card |
 | 7 | F9 | Horse charges: full stop only on Hold and facing; standing men slow it; moving or flanked men are bowled over | O | card |
@@ -40,6 +44,7 @@ Last updated: 2026-11-11 (evening). Older detail: `docs/history/2026-11-log.md`.
 | 13 | P0.4 | Best host | S | |
 | 14 | P0.10 | Server-hosting test (Arjun's ping 400s vs Unite's 250); report, Arjun decides | O | |
 | 15 | Ads | Ad while the match is set up (CrazyGames SDK); never delays the start | S | CrazyGames' ad rules checked |
+| 15b | V1b | Voice for phones on the relay: a TURN relay that works. Free route: Metered.ca free tier (20 GB a month, sign-up, no card), its key kept as a secret in the online service, which hands out short-lived credentials (code slot `TURN_KEY_URL` exists). Helps the game link too | S | Arjun's sign-up and go |
 | 16 | V2 | All-talk voice | O | servers |
 | 17 | M3 | Ramparts for archers | O | |
 | 18 | Bug | Misplaced village on the mountain map | H | |

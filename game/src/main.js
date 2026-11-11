@@ -38,7 +38,7 @@ import { initAudio, sfx, buzz, gateS, startCrowd, stopCrowd, audioTick, audioSta
 import { portal, portalInit, onPortal } from './portal.js';
 import { showMsg, allyNames, setNamer, glory } from './ui/messages.js';
 import { renderPointsV2, tlTick, tlPack, ledger } from './ui/timeline.js';
-import { voiceBattle, stopVoice, bindVoice, voiceState } from './net/voice.js';
+import { voiceBattle, stopVoice, bindVoice, voiceState, voiceLevels } from './net/voice.js';
 import { buildHud, showHud, updateHud, banner, fmt } from './ui/hud.js';
 import { bindInput, readMove, trayOpen, upOpen, releaseAll, inp } from './ui/input.js';
 import { startTutorial, stopTutorial, tutorialTick, bindTutorial } from './ui/tutorial.js';
@@ -999,7 +999,7 @@ window.__fb = {
   volley(pt) { actions.volley(pt); }, order(o, pt) { actions.order(o, pt); }, rally() { actions.rally(); },
   attack() { actions.attack(); }, duel() { actions.duel(); }, jump() { actions.jump(); }, weapon(w) { actions.weapon(w); }, upgrade(id) { actions.upgrade(id); },
   fort(c, lv) { G.teams[c].up.fort = lv; applyFort(c); },
-  tlTick, tlPack, ledger, voiceState, setOrder, rideRelease, findPath, gatePos, orderVolley, mkUnit, challenge, canChallenge, G, W, c2Points, die, cam, scene, renderer, audio: () => audioStats(),
+  tlTick, tlPack, ledger, voiceState, voiceLevels, setOrder, rideRelease, findPath, gatePos, orderVolley, mkUnit, challenge, canChallenge, G, W, c2Points, die, cam, scene, renderer, audio: () => audioStats(),
 };
 
 function onResize() { resize(); resizeOverlay(); }
