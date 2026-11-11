@@ -11,6 +11,9 @@ Last updated: 2026-11-11.
 - M1 Neutral soldiers look like soldiers (`game/store/r_M1.mjs`)
 
 ## In progress
+- F10 / M2 The mountain's edge: **built on `f10`, not shipped**. `render/mountain.js` `buildRim()`: a ring of rocky peaks, a distant
+  range and one mist band (3 draw calls, ~13k triangles), plus bare-cliff ground colour past the rim. Low, Crown start
+  (3 runs each): calls 1313 -> 1325, triangles 643k -> 651k (about +1%). `game/store/r_F10.mjs` shoots three edges.
 - P0.7 Smooth everyone else: **built on `roles`, not shipped** (waits for Arjun's "ship"). Joining phones draw other
   units between two host snapshots, a moment in the past, instead of gliding at the newest one; small snapshots go
   out 20 a second (was 12). `game/store/r_P0.7.mjs` at 250 ms and 5% loss: drawn-speed stutter 3.34 -> 2.39 m/s,

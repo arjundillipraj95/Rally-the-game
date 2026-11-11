@@ -4,9 +4,9 @@
 import * as THREE from 'three';
 import { TEAMS, CROWN2, NEUTRAL } from '../config.js';
 import { G, ARMIES } from '../core/state.js';
-import { groundY, terrainMeshY, mountHomeA, W } from '../core/world.js';
+import { groundY, terrainMeshY, mountHomeA, mulberry, W } from '../core/world.js';
 import { stoneTex, woodTex } from './look.js';
-import { nightLook } from './scene.js';
+import { nightLook, scene } from './scene.js';
 import { spark } from './effects.js';
 import { c2Garrison } from '../core/sim.js';
 
@@ -18,6 +18,7 @@ const shadowy = o => { o.traverse(m => { if (m.isMesh) { m.castShadow = true; m.
 const jungleC = new THREE.Color(0x4f7a32), topC = new THREE.Color(0x9cbf62), rockC = new THREE.Color(0x5c5650), paveC = new THREE.Color(0xc9bfa8), townC = new THREE.Color(0xa8916a);
 export function mountGround(c, x, z) {
   const R = W.R, K = CROWN2.r, r = Math.hypot(x, z);
+  if (r > R + 1) return c.lerp(rockC, Math.min(.9, (r - R - 1) / 12)); // (F10: past the rim the ground is bare cliff, not a green slope)
   if (r < K.arena * R + 2.5) return c.lerp(paveC, .85);
   if (r < (K.chasm + K.chasmW) * R + 1) return c.lerp(rockC, .8);
   if (r < K.river * R - K.riverW * R - 2) return c.lerp(topC, .5);
@@ -35,12 +36,55 @@ function figure(kind, x, z, face) {
     hp: 1, max: 1, swing: 0, swingKind: 0, stun: 0, blockT: 0, blocking: false, aim: false, dead: false, mounted: false, shieldwall: false, jy: 0 };
 }
 
+
+// F10 The mountain's edge: the summit is ringed by rocky peaks and a far range, and the drop below the rim fills
+// with mist. Three draw calls in all (a near ring of peaks, a distant range, a mist band), the same on every phone.
+// A peak is a faceted spire: rings of jittered points up a tapering profile, coloured by height (dark foot, grey
+// rock, snow above the tall ones' shoulders). All peaks go in one geometry.
+const PK_Y = [0, .3, .55, .78, .93], PK_R = [1, .72, .5, .3, .14];
+function peakGeo(list, snow, cols) {
+  const pos = [], col = [], R = mulberry(0x4f10), c = new THREE.Color(), foot = new THREE.Color(cols[0]), rock = new THREE.Color(cols[1]), cap = new THREE.Color(0xf1f4f6);
+  const tri = (a, b, d) => { for (const v of [a, b, d]) { pos.push(v[0], v[1], v[2]); const f = (v[1] - v[4]) / v[5]; c.copy(foot).lerp(rock, Math.min(1, f * 2.2)); if (snow && f > .8) c.lerp(cap, Math.min(1, (f - .8) * 6)); col.push(c.r, c.g, c.b); } };
+  for (const p of list) {
+    const n = p.sides, rings = [];
+    for (let k = 0; k < PK_Y.length; k++) { const ring = []; for (let i = 0; i < n; i++) { const a = (i + (R() - .5) * .5) / n * Math.PI * 2, rr = p.rad * PK_R[k] * (.78 + R() * .4); ring.push([p.x + Math.cos(a) * rr, p.y0 + p.h * PK_Y[k] * (.94 + R() * .12), p.z + Math.sin(a) * rr, 0, p.y0, p.h]); } rings.push(ring); }
+    const tip = [p.x + (R() - .5) * p.rad * .1, p.y0 + p.h, p.z, 0, p.y0, p.h];
+    for (let k = 0; k < rings.length - 1; k++) for (let i = 0; i < n; i++) { const j = (i + 1) % n, a = rings[k][i], b = rings[k][j], d = rings[k + 1][j], e = rings[k + 1][i]; tri(a, d, b); tri(a, e, d); }
+    for (let i = 0; i < n; i++) tri(rings[rings.length - 1][i], tip, rings[rings.length - 1][(i + 1) % n]);
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.computeVertexNormals();
+  return g;
+}
+function buildRim(grp) {
+  const R = W.R, rnd = mulberry(0xf10), near = [], far = [];
+  // the near ring: tall peaks just past the rim (their feet far below it, in the mist), a second, lower row between them
+  const nn = 28;
+  for (let i = 0; i < nn; i++) {
+    const a = (i + rnd() * .5) / nn * Math.PI * 2, d = R * (1.6 + rnd() * .1), tall = i % 4 === 0;
+    near.push({ x: Math.cos(a) * d, z: Math.sin(a) * d, y0: -50, h: tall ? 78 + rnd() * 14 : 58 + rnd() * 14, rad: R * (.105 + rnd() * .04), sides: 8 });
+    const b = a + Math.PI / nn, e = R * (1.78 + rnd() * .1);
+    near.push({ x: Math.cos(b) * e, z: Math.sin(b) * e, y0: -50, h: 56 + rnd() * 20, rad: R * (.11 + rnd() * .04), sides: 7 });
+  }
+  const nf = 36;
+  for (let i = 0; i < nf; i++) { const a = (i + rnd() * .6) / nf * Math.PI * 2, d = R * (2.4 + rnd() * .35); far.push({ x: Math.cos(a) * d, z: Math.sin(a) * d, y0: -40, h: 115 + rnd() * 35, rad: R * (.3 + rnd() * .1), sides: 8 }); }
+  const rock = lam(0xffffff, null, { vertexColors: true, flatShading: true });
+  const nr = new THREE.Mesh(peakGeo(near, true, [0x4a4743, 0x8a847b]), rock), fr = new THREE.Mesh(peakGeo(far, true, [0x6a7a8a, 0x8494a6]), rock);
+  nr.frustumCulled = fr.frustumCulled = false; grp.add(nr, fr);
+  // mist: one open band round the rim, solid at its foot and thinning upward, in the haze's colour (kept in step with dusk and night)
+  const cv = document.createElement('canvas'); cv.width = 1; cv.height = 64; const cx = cv.getContext('2d'), gr = cx.createLinearGradient(0, 0, 0, 64);
+  gr.addColorStop(0, '#000'); gr.addColorStop(.45, '#555'); gr.addColorStop(1, '#fff'); cx.fillStyle = gr; cx.fillRect(0, 0, 1, 64);
+  const tex = new THREE.CanvasTexture(cv);
+  const mist = new THREE.Mesh(new THREE.CylinderGeometry(R * 1.06, R * 1.06, 44, 48, 1, true), new THREE.MeshBasicMaterial({ color: scene.fog.color, alphaMap: tex, transparent: true, opacity: .95, side: THREE.DoubleSide, depthWrite: false, fog: false }));
+  mist.position.y = -16; mist.frustumCulled = false; mist.renderOrder = 2; grp.add(mist);
+  return mist;
+}
+
 export function buildMount(world, L) {
   if (G.map.id !== 'mount' || !L.mount) { M = null; return; }
   const grp = new THREE.Group(); world.add(grp);
   const stone = lam(0x9a9384, stoneTex()), wood = lam(0x7a5a3a, woodTex()), woodDark = lam(0x55402a, woodTex());
   const plaster = lam(0xf0e6d0), thatch = lam(0xb8954a), skin = lam(0xd9a77a);
-  M = { grp, guards: [], camps: [], homes: [], live: [], t: 0 }; // (live: the neutral soldiers standing now, for drawSoldiers)
+  M = { grp, guards: [], camps: [], homes: [], live: [], t: 0, mist: buildRim(grp) }; // (live: the neutral soldiers standing now, for drawSoldiers)
   // homes: cottages, the colour's banner, a soft ring round the safe ground
   for (const b of L.buildings.filter(b => b.kind === 'cottage')) {
     const g = new THREE.Group(); g.position.set(b.x, terrainMeshY(b.x, b.z) - .1, b.z); g.rotation.y = b.rot;
@@ -142,6 +186,7 @@ export const neutralFigs = () => (M && G.map.id === 'mount' ? M.live : null);
 if (import.meta.env.DEV) window.__neutralFigs = neutralFigs; // (dev: tests count the neutral soldiers)
 
 export function updateMount(dt) {
+  if (M && M.mist) M.mist.material.color.copy(scene.fog.color);
   if (!M || !G.c2) return;
   M.t += dt; const K = G.c2, T = G.T;
   M.live.length = 0;

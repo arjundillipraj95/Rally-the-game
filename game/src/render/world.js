@@ -71,7 +71,7 @@ export function buildWorldView(L) {
     if (M.id === 'frost' && r < RR + 5) frostGround(c, x, z);
     if (M.id === 'desert' && r < RR + 5) desertGround(c, x, z);
     if (M.id === 'forum') forumGround(c, x, z);
-    if (M.id === 'mount' && r < RR + 4) mountGround(c, x, z);
+    if (M.id === 'mount') mountGround(c, x, z);
     if (M.id === 'wooden' && (Math.abs(x) < 2.6 || Math.abs(z) < 2.6) && r > 8 && r < 80) c.lerp(mud, .45);
     cols.push(c.r, c.g, c.b);
   }
