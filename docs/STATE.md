@@ -2,7 +2,7 @@
 
 Current project: **Roles & Combat** (design and build plan in Claude Docs, links in CLAUDE.md).
 Every executor updates this file as the last step of its ticket. Owner: Opus project owner chat.
-Last updated: 2026-11-08.
+Last updated: 2026-11-11.
 
 ## Done (live on main)
 - P0.1 Dead-code cleanup
@@ -11,12 +11,19 @@ Last updated: 2026-11-08.
 - M1 Neutral soldiers look like soldiers (`game/store/r_M1.mjs`)
 
 ## In progress
-- (none)
+- P0.7 Smooth everyone else: **built on `roles`, not shipped** (waits for Arjun's "ship"). Joining phones draw other
+  units between two host snapshots, a moment in the past, instead of gliding at the newest one; small snapshots go
+  out 20 a second (was 12). `game/store/r_P0.7.mjs` at 250 ms and 5% loss: drawn-speed stutter 3.34 -> 2.39 m/s,
+  too-fast frames 483 -> 229, position error 0.63 -> 0.76 m (the cost of drawing in the past). The plan's
+  "no jump over 0.5 m" line is not met as written: the headless phones drop frames, and a unit rightly covers more
+  ground after a dropped frame. Left over: P0.7b below.
 
 ## Next (owner assigns; builder model in brackets)
 | Ticket | What | Model | Waits on |
 |---|---|---|---|
-| P0.6 | Your captain answers instantly | O | |
+| P0.6 | Your captain answers instantly. Re-measured 11 Nov: the far phone's own captain already moves in about 130 ms (it is moved on its own phone); what is late is everyone else and hits. Re-scope to hits and your own soldiers | O | |
+| P0.7b | Finer positions in snapshots (0.1 m steps make about 2 m/s of speed noise at 20 a second); needs a version check so old and new phones don't mix | S | P0.7 shipped |
+| P0.11 | Matchmake by region first (India with India, US with US); a far host is 250 ms whatever the code does | S | |
 | P0.4 | Best host | S | |
 | M2 | The mountain's edge (rocky peaks, mist, sky) | S | |
 | P0.7 | Smooth everyone else | O | P0.6 |
@@ -25,6 +32,27 @@ Last updated: 2026-11-08.
 | M3 | Ramparts for archers | O | |
 | P0.10 | Server-hosting test (report, Arjun decides) | O | P0.9 |
 | P0.5 | Relay through Cloudflare TURN | S | **Parked**: Cloudflare asks for a card; revisit only if real players fail to connect |
+
+### Friends' playtest, 10 Nov 2026 (F tickets; ship live like Phase 0)
+Ready to build (no design question):
+| Ticket | What | Model |
+|---|---|---|
+| F10 | The map's edge is a slope: same as M2 (peaks, cliffs, mist). Do M2 | S |
+| F7 | No abrupt cuts: after the war chest is taken you are teleported outside. Walk or fade every such moment; list them all first | S |
+| F4 | Neutral garrisons and camps fight like soldiers and ambush. Today each squad is one shared health pool that stands still (`c2` breaks of kind guard/camp), so this is a rebuild as real units | O |
+| F1 | Not smooth even on High: 1,219 draw calls and 560k triangles at the start of a Crown battle on Low (budget 150). Bring P8.1 (batched soldiers) forward | O |
+| F3 | Lag India to US: P0.7 (built), P0.7b, P0.4, P0.11, then P0.10 | - |
+
+Need Arjun's answer first (questions sent 11 Nov):
+| Ticket | What | Question |
+|---|---|---|
+| F2 | One lobby for all 8 or 12 players, lanes, ready-up, 10 s versus screen | Lane choices; who can talk to whom; what "ready" does |
+| F5 | The dying sequence feels random | What should a captain's death show, and what happens to his men |
+| F6 | Hits, blocks and clashes aren't felt | Bring P8.7 forward; which three moments matter most |
+| F8 | Walking looks robotic | Needs real animation clips (free packs); approve the art route |
+| F9 | Soldiers always turn and brace against a horse | Proposal: the design doc's rule early (full brace only on Hold and facing; moving or flanked men are bowled over) |
+
+Budget: 50 dollars, nothing spent. Nothing above needs money.
 
 Phase 0 exit check: Arjun's friend in India plays a match; ping and relay use show on the dashboard.
 Phases 1-9 (roles behind `?roles=1`) start after Phase 0 and Arjun's approval.

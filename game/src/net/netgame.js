@@ -2,7 +2,7 @@
 // presses and draws the host's snapshots (a compact text string, roughly 1-4KB depending on
 // how many soldiers are alive — more in a full 12-army Trio match — sent
 // about 12 times a second).
-import { CROWN2 } from '../config.js';
+import { CROWN2, SMOOTH } from '../config.js';
 import { SHOUTS, CROWN, HUMAN_CAPTAIN, ARMOUR, RHYTHM, BASH, EVADE, TEAMS, MAPS, KINDS, STATS, RECRUITS, ORDERS, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT, HOLD_ATK, PARRY } from '../config.js';
 import { G, bus, colorOf, isEnemyTi, activeFrom, ARMIES, duoStr, duoParse } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn, angDiff } from '../core/world.js';
@@ -86,7 +86,8 @@ function encodeSnap() {
 bus.on('netFlush', () => { if (session.NET) session.NET.flush = true; });
 export function netHostTick() {
   const since = performance.now() - (session.NET.lastSend || 0);
-  if (since < 80 && !(session.NET.flush && since > 25)) return;
+  // (P0.7) small snapshots go out 20 times a second, big ones (a full Trio) stay at 12, so a host's upload stays under about 40 KB/s per phone
+  if (since < ((session.NET.lastSize || 9999) < 2000 ? 48 : 80) && !(session.NET.flush && since > 25)) return;
   session.NET.flush = false;
   netHostSend(false);
 }
@@ -95,6 +96,7 @@ export function netHostSend() {
   NET.lastSend = performance.now();
   const pres = { role: 'host', ph: G.state === 'end' ? 'end' : 'play', seed: G.seed, mode: G.mode, map: G.map.id, diff: G.diff, time: G.time, tgt: G.target, al: G.ALLY.join(''), duo: duoStr(G.duo), seats: NET.seats, nick: session.myNick || 'Host', lk: (G.looks || []).map(lookCode).join(','), cr: Array.from({ length: ARMIES }, (_, i) => (G.crests && G.crests[i]) | 0).join(''), n: ++NET.snapN, s: encodeSnap(), m: NET.msgs };
   if (G.state === 'end' && G.endInfo) { pres.res = [G.endInfo.w, G.endInfo.why]; pres.kl = G.teams.map(t => t.kills | 0).join(','); pres.st = G.teams.map(t => [t.capK | 0, t.menK | 0, t.falls | 0, t.lost | 0, t.earned | 0, t.spent | 0, t.dist | 0, t.gold | 0, t.recruits | 0].join(',')).join(';'); pres.hl = G.teams.map(t => t.hl ? Object.entries(t.hl).map(([k, v]) => k + ':' + v).join(',') : '').join(';'); }
+  pres.ht = Math.round(performance.now()); // (P0.7: the host's clock, so phones can space snapshots as they were sent, not as they arrived)
   let json = JSON.stringify(pres);
   while (json.length > 3900) { // trim arrows first, then messages
     const parts = pres.s.split('|'), a = parts[3].split(';');
@@ -199,7 +201,7 @@ export function clientStart(hp) {
   G.ctrlPoints = G.mode === 'ctrl' ? makeCtrlPoints(G.layout) : null;
   G.holds = makeHolds(G.layout); G.duels = [];
   G.c2 = null; if (G.mode === 'crown' && G.map.id === 'mount') { G.cgates = {}; for (const cw of (G.layout.cwalls || [])) G.cgates[cw.hid] = { hp: [1, 1, 1], broken: 0, lv: 1 }; c2Begin(); }
-  Object.assign(C, { byId: new Map(), lastN: -1, lastMsgN: (hp.m && hp.m.length) ? hp.m[hp.m.length - 1][0] : 0, meId: null, meInit: false, kickN: 0, localCd: 0, lastSnapAt: performance.now(),
+  Object.assign(C, { off: null, back: null, snapHt: null, byId: new Map(), lastN: -1, lastMsgN: (hp.m && hp.m.length) ? hp.m[hp.m.length - 1][0] : 0, meId: null, meInit: false, kickN: 0, localCd: 0, lastSnapAt: performance.now(),
     inp: { rb: 0, bsh: 0, dl: 0, dlId: null, atk: 0, ride: 0, vly: 0, chg: 0, evN: 0, evK: '', par: 0, ahN: 0, ahD: 0, ah: false, rly: 0, foc: null, vat: null, rec: [0, 0, 0], up: UPGRADES.map(() => 0), ord: 'follow', hold: null, face: 0 }, sendAt: 0, sendNow: false, pred: null, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
   G.player = null;
   cam.yaw = Math.atan2(-TEAMS[colorOf(G.myTi)].pos[0], -TEAMS[colorOf(G.myTi)].pos[1]); cam.pitch = CAM_PITCH;
@@ -231,6 +233,15 @@ function clientKill(u) {
 function clientApply(hp) {
   if (hp.n === C.lastN) return;
   C.lastN = hp.n; C.lastSnapAt = performance.now();
+  // (P0.7) the host's clock against ours: the quickest snapshot so far sets the offset, so one that arrives late is
+  // known to be late and is placed where it belongs in time instead of making everyone lurch
+  const ht = typeof hp.ht === 'number' ? hp.ht : null;
+  if (ht != null) {
+    const smp = C.lastSnapAt - ht;
+    if (C.off == null || Math.abs(smp - C.off) > 2000) { C.off = smp; C.late = 0; C.iv = 80; C.lastHt = ht; C.back = null; for (const u of C.byId.values()) u.sq = null; } // (first one, or a new host's clock)
+    else { C.off = Math.min(C.off + .5, smp); C.late += (Math.min(400, smp - C.off) - C.late) * .1; const d = ht - C.lastHt; if (d > 0 && d < 500) C.iv += (d - C.iv) * .1; C.lastHt = ht; }
+  }
+  C.snapHt = ht;
   const secs = (hp.s || '').split('|');
   if (secs.length < 8) return;
   const myTi = G.myTi;
@@ -291,7 +302,8 @@ function clientApply(hp) {
     }
     if (id !== myId) {
       u.tx = x; u.tz = z; u.tface = face;
-      if (Math.hypot(u.x - x, u.z - z) > 8) { u.x = x; u.z = z; }
+      if (Math.hypot(u.x - x, u.z - z) > 8) { u.x = x; u.z = z; u.sq = null; }
+      if (C.snapHt != null) { const q = u.sq || (u.sq = []); q.push({ t: C.snapHt, x, z, f: face }); if (q.length > 8) q.shift(); } else u.sq = null;
     } else if (!C.meInit || C.meId !== id || u.execA || u.execV) { u.x = x; u.z = z; u.face = face; } // (in an execution the host places you)
   }
   for (const u of [...C.byId.values()]) if (!seen.has(u.id)) clientKill(u);
@@ -417,11 +429,21 @@ export function clientTick(dt) {
     if (C.atkBuf > 0 && C.localCd <= 0 && !me.mounted) actions.attack();
   }
   const k = Math.min(1, dt * 15);
-  for (const u of G.units) { // everyone else glides toward the host's positions
+  // (P0.7) everyone else is drawn a moment in the past: two snapshot gaps plus however late snapshots are running
+  let rt = null;
+  if (C.off != null) { const want = clamp(C.iv * SMOOTH.gaps + C.late * 2, SMOOTH.min, SMOOTH.max); C.back = C.back == null ? want : C.back + (want - C.back) * Math.min(1, dt * 2); rt = performance.now() - C.off - C.back; }
+  for (const u of G.units) { // everyone else moves along the host's positions
     if (u.dead) { fallStep(u, dt); continue; }
     if (u === me) continue;
     const ox = u.x, oz = u.z;
-    u.x += (u.tx - u.x) * k; u.z += (u.tz - u.z) * k; u.face = turn(u.face, u.tface, dt * 12);
+    const q = u.sq;
+    if (q && q.length > 1 && rt != null) { // (P0.7) between the two snapshots either side of "a moment ago": steady movement, no stop-and-go
+      let px, pz, pf; const n = q.length, a0 = q[0], b = q[n - 1];
+      if (rt <= a0.t) { px = a0.x; pz = a0.z; pf = a0.f; }
+      else if (rt >= b.t) { const p = q[n - 2], e = Math.min(rt - b.t, SMOOTH.ahead) / Math.max(1, b.t - p.t); px = b.x + (b.x - p.x) * e; pz = b.z + (b.z - p.z) * e; pf = b.f; } // (nothing newer yet: carry on the same way for a moment)
+      else { let i = n - 2; while (i > 0 && q[i].t > rt) i--; const p = q[i], c = q[i + 1], f = (rt - p.t) / Math.max(1, c.t - p.t); px = p.x + (c.x - p.x) * f; pz = p.z + (c.z - p.z) * f; pf = p.f + angDiff(p.f, c.f) * f; }
+      const s = Math.min(1, dt * SMOOTH.ease); u.x += (px - u.x) * s; u.z += (pz - u.z) * s; u.face = turn(u.face, pf, dt * 14);
+    } else { u.x += (u.tx - u.x) * k; u.z += (u.tz - u.z) * k; u.face = turn(u.face, u.tface, dt * 12); }
     u.vx = (u.x - ox) / Math.max(dt, 1e-3); u.vz = (u.z - oz) / Math.max(dt, 1e-3);
     u.jy += ((u.jyT || 0) - u.jy) * Math.min(1, dt * 14); u.y = groundY(u.x, u.z) + u.jy;
     if (u.swing > 0) u.swing -= dt;

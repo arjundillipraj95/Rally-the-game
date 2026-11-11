@@ -341,3 +341,9 @@ export const PING = { every: 2000, keep: 10, bands: [60, 100, 150, 200, 300] };
 // in grey steel, under a grey banner. `hex` is the grey the model's cloth and shield face are tinted to;
 // the banner is a pole (`h` tall) with a cloth (`w` x `ch`) in `cloth`, drawn `off` from the middle of the post.
 export const NEUTRAL = { hex: 0x8d939a, cloth: 0xa4a9b0, pole: 0x5a4632, h: 4.2, w: 1.5, ch: 1, off: 1 };
+
+// (P0.7) How a joining phone draws everyone else: a moment in the past, between two of the host's snapshots.
+// gaps: how many snapshot gaps behind (2 rides out one lost snapshot); min/max: limits on that delay in ms;
+// ahead: how long to carry a unit on its last heading when no newer snapshot has come, in ms; ease: how fast
+// the drawn position closes on the worked-out one (per second).
+export const SMOOTH = { gaps: 2, min: 70, max: 320, ahead: 140, ease: 28 };
