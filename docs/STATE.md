@@ -83,7 +83,6 @@ Last updated: 2026-11-12 (F7-water built). Older detail: `docs/history/2026-11-l
 | 15b | V1b | Voice for phones on the relay: a TURN relay that works. Free route: Metered.ca free tier (20 GB a month, sign-up, no card), its key kept as a secret in the online service, which hands out short-lived credentials (code slot `TURN_KEY_URL` exists). Helps the game link too | S | Arjun's sign-up and go |
 | 16 | V2 | All-talk voice | O | servers |
 | 17 | M3 | Ramparts for archers | O | |
-| 18 | Bug | Misplaced village on the mountain map | H | |
 | 19 | P0.8 / P0.9 | Fair timing / host hand-over. Cut P0.9 if battles move to servers | O | P0.10 |
 | - | P0.5 | Cloudflare TURN relay | S | **Parked** (needs a card) |
 | - | Phases 1-9 | Roles & Combat behind `?roles=1` | mixed | the list above, Arjun's approval |
@@ -113,5 +112,4 @@ Last updated: 2026-11-12 (F7-water built). Older detail: `docs/history/2026-11-l
 - Budget: 50 dollars, nothing spent.
 
 ## Known bugs
-- The misplaced village on the mountain map (queue #18).
 - Live captain-point popups can differ between phones (queue #10).
