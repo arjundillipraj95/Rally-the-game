@@ -56,7 +56,7 @@ import { bindLobby, showLobby, hostLobbyTick, clientLobbyTick, netLeave, matchHo
 import { ON, online, startOnline, isLeader } from './net/online.js';
 import { crowns, mergeCrowns, titleOf, award, FMT_NAME, setCrowns } from './ui/crowns.js';
 import { lookCode, lookFrom } from './core/look.js';
-import { PARRY, CAPKILL_SLOW } from './config.js';
+import { PARRY, CAPKILL_SLOW, FEEL } from './config.js';
 
 const $ = id => document.getElementById(id);
 { const nj = $('nojs'); if (nj) nj.remove(); }
@@ -254,7 +254,7 @@ bus.on('end', ({ w, why }) => {
   $('menuBtn').textContent = session.NET ? 'Leave' : 'Menu';
   $('endNote').textContent = client ? 'Waiting for the host to start the next battle…' : '';
   if (host) netHostSend(true);
-  setTimeout(() => { if (G.state === 'end') $('ovEnd').hidden = false; }, 1600);
+  setTimeout(() => { if (G.state !== 'end') return; const o = $('ovEnd'); o.style.setProperty('--fade', FEEL.end.fade + 's'); o.hidden = false; o.classList.remove('endFade'); void o.offsetWidth; o.classList.add('endFade'); }, FEEL.end.hold * 1000); // (F7h: hold on the final moment, then fade)
 });
 let lastRep = null;
 function endTab(t) {
@@ -1005,7 +1005,7 @@ window.__fb = {
   attack() { actions.attack(); }, duel() { actions.duel(); }, jump() { actions.jump(); }, weapon(w) { actions.weapon(w); }, upgrade(id) { actions.upgrade(id); },
   fort(c, lv) { G.teams[c].up.fort = lv; applyFort(c); },
   feel: feelStats, death: deathState, nick: ti => nickFor(ti), hitstop: () => hitstopN, camera,
-  tlTick, tlPack, ledger, voiceState, voiceLevels, setOrder, rideRelease, findPath, gatePos, orderVolley, mkUnit, challenge, canChallenge, G, W, c2Points, die, cam, scene, renderer, audio: () => audioStats(),
+  tlTick, tlPack, ledger, voiceState, voiceLevels, setOrder, rideRelease, findPath, gatePos, orderVolley, mkUnit, challenge, canChallenge, G, W, c2Points, die, cam, scene, renderer, camera, audio: () => audioStats(),
 };
 
 function onResize() { resize(); resizeOverlay(); }

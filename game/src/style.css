@@ -750,3 +750,7 @@ body.deadLow #deathFx .dVig{background:radial-gradient(ellipse at center,rgba(70
 #deathFx .dCount b{font:400 36px var(--display);font-style:italic;line-height:1;color:var(--gold);font-variant-numeric:tabular-nums;}
 #deathFx .dCount b[hidden]{display:none;}
 #blackout{position:fixed;inset:0;z-index:45;background:#000;opacity:0;pointer-events:none;}
+
+/* F7h: the results fade in over the held last moment */
+@keyframes endFade{from{opacity:0}to{opacity:1}}
+#ovEnd.endFade{animation:endFade var(--fade,.6s) ease-out both;}
