@@ -46,6 +46,8 @@ Last updated: 2026-11-11 (evening). Older detail: `docs/history/2026-11-log.md`.
   - C1 Three Roman helmets free (season locks off); their metal takes the armour finish's colour. `r_C1.mjs`.
   - C4 Capes: the new captain body had none (F8). Now a team-coloured cape on the chest, lifting as he runs: Long, Short,
     No cape (the default). Mantle and ermine hidden. `r_C4.mjs`.
+  - C5 Checked: faces do nothing on the F8 body (the Face tab saves a choice nothing draws). Report in `docs/tickets/C5.md`;
+    faces become a package later. Arjun decides whether to hide the Face tab meanwhile.
 - F7 no abrupt cuts, Arjun's agreed rhythm (12 Nov): F7e duel ring shoves people to the edge over 0.3 s (was one frame).
   `r_F7e.mjs`. F7g over the chasm's edge: 0.6 s fall from the rim with a scream, untouchable, then dead (was the same
   frame). `r_F7g.mjs`; `c2bits.mjs` now waits out the fall. crown2sim and crown2online pass roles off and on.
