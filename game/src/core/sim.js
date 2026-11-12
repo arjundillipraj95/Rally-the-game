@@ -1649,8 +1649,17 @@ function c2Tick(dt) {
       const r = G.layout.chasm.r + G.layout.chasm.w + 2.5, side = rnd(-1.2, 1.2); u.x = Math.cos(best) * r - Math.sin(best) * side; u.z = Math.sin(best) * r + Math.cos(best) * side; u.path = null; continue; }
     const k = (ar + 1.4) / (d || 1); u.x = d ? u.x * k : ar + 1.4; u.z = d ? u.z * k : 0; u.path = null;
   }
-  // over the edge into the chasm: gone, there and then
-  { const H = CROWN2.h; for (const u of G.units) if (!u.dead && !(u.jy > .3) && Math.hypot(u.x, u.z) < G.layout.chasm.r + G.layout.chasm.w + 1 && groundY(u.x, u.z) < H.top - 4) { if (u.isMe) fx('shake', .4); u.cause = 'chasm'; die(u, null, 0); } }
+  // over the edge into the chasm: (F7g) a short fall from the rim with a scream, untouchable, then dead (FEEL.chasm)
+  { const H = CROWN2.h, C = G.layout.chasm; for (const u of G.units) {
+    if (u.dead) continue;
+    if (u.chasmT > 0) { u.chasmT -= dt; if (u.chasmT <= 0) { u.chasmT = 0; u.cause = 'chasm'; die(u, null, 0); } continue; }
+    const d = Math.hypot(u.x, u.z);
+    if (u.jy > .3 || d >= C.r + C.w + 1 || groundY(u.x, u.z) >= H.top - 4) continue;
+    const rr = d < C.r + C.w / 2 ? C.r - 1.5 : C.r + C.w + 1.5, k = rr / (d || 1); // (the rim he went over: the nearer one)
+    u.chasmT = FEEL.chasm.fall; u.y = Math.max(groundY(u.x, u.z), groundY(u.x * k, u.z * k)); u.vy = 0;
+    u.vx *= FEEL.chasm.drift; u.vz *= FEEL.chasm.drift; u.iframeT = FEEL.chasm.fall + .2; u.stun = Math.max(u.stun || 0, FEEL.chasm.fall + .2); u.path = null;
+    if (u.isMe) fx('shake', .4); sound('scream', u.x, u.z);
+  } }
   // the glacier is solid: you stand at its face and hack, not inside it
   { const gl = K.breaks.find(b => b.kind === 'glacier'); if (gl && gl.hp > 0) for (const u of G.units) {
     if (u.dead) continue; const d = Math.hypot(u.x - gl.x, u.z - gl.z), m = gl.r - .2 + u.r; if (d >= m) continue;
@@ -2668,6 +2677,7 @@ export function update(dt, input) {
   }
   for (const u of G.units) {
     if (u.dead) { fallStep(u, dt); continue; }
+    if (u.chasmT > 0) { u.x += u.vx * dt; u.z += u.vz * dt; u.vy -= FEEL.chasm.g * dt; u.y += u.vy * dt; continue; } // (F7g: falling into the chasm)
     if (u.remote) { u.y = groundY(u.x, u.z) + (u.jy || 0); continue; } // moved by their own phone
     integrate(u, u.slowT > 0 ? dt * PARRY.slow : dt, u.z);
   }

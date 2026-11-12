@@ -1,5 +1,5 @@
 // Dev check, the mountain: garrisons fight back with real arrows; a built watchtower's volleys see off a lone
-// soldier; a man shoved into the chasm dies there and then (one on the bridge doesn't); the Points panel
+// soldier; a man shoved into the chasm falls and dies (one on the bridge doesn't); the Points panel
 // opens on the enemy captains, and the results list who cut whom down.
 import { chromium } from 'playwright';
 import { open, frames } from './stage.mjs';
@@ -24,7 +24,7 @@ const out = await page.evaluate(() => { const F = window.__fb, { G } = F, o = {}
   // 3. the chasm: one shoved off beside the bridge, one on the bridge
   const L = G.layout, a = -Math.PI / 2, ux = Math.cos(a), uz = Math.sin(a), d = L.chasm.r;
   const off = F.mkUnit(2, ux * d - uz * 4.5, uz * d + ux * 4.5, 'foot'), on = F.mkUnit(2, ux * d, uz * d, 'foot'); off.test = on.test = true;
-  F.step(3); o.chasm = { off: off.dead, on: on.dead };
+  F.step(24); o.chasm = { off: off.dead, on: on.dead }; // (F7g: he falls for 0.6 s first)
   // 4. Blue's captain cuts down Red's; Green's is got by Blue's men
   const me = G.player, red = G.teams[1].leader, grn = G.teams[2].leader;
   F.die(red, me, 0); const man = G.units.find(u => u.ti === G.myTi && !u.leader && !u.dead); F.die(grn, man, 0);

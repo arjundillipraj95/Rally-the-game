@@ -371,6 +371,7 @@ export const FEEL = {
   // fadeIn: back in; watch: with no way back, how long the camera stays on him; blackMax: never black longer than this;
   // zoom, lift: the camera pulls back and up over a fallen captain; msgs: fight moments kept for joined phones
   death: { body: 14, fadeOut: .45, hold: .15, fadeIn: .5, watch: 4, blackMax: 3, zoom: 1.18, lift: 1.4 },
+  chasm: { fall: .6, g: 18, drift: .6 }, // (F7g: over the chasm's edge he falls for `fall` seconds, screaming, then is dead; g: gravity, drift: how much of his run carries him on)
   net: { msgs: 12 },
 };
 
