@@ -52,6 +52,17 @@ export const CROWN2 = {
   // (the war chest lands at 5:00 in the arena, armies let in; broken open, or at 7:00, the gates shut)
   dusk: 450, night: 480, crack: 570, glacierHits: 80, // (dusk at 7:30; at 8:00 the arena opens to captains and the glacier can be hit; it breaks after so many captain blows)
   bridgeHw: 2.2, chasmBridgeHw: 2.1, arenaGateW: 5.2,
+  // F7 the summit's lake: it fills the arena (only the glacier shows) and is what keeps everyone out. It drains at
+  // 5:00 (the chest) and at 8:00 (the Crown). After the chest (taken, or chestShut) a countdown of `count` s, then
+  // it rushes back out from the glacier at `rush` m/s and carries everyone it touches out of the nearest gate at
+  // `carry` m/s, over the bridge, `out` m past the chasm's far rim. Nobody crosses while it's above `cross`.
+  // depth: the water's height over the floor when full; drain: seconds to go down; pool: how far the water wells up
+  // round the glacier in the countdown; causeW, causeH: the four rock causeways, gate to glacier (drawn only).
+  // wait: (F7c, from 8:00) soldiers whose captain goes in wait this far past the chasm's far rim, in line with his gate.
+  // ramp: seconds the water takes to sweep a man up to full speed; lane: how far off his gate's middle he rides
+  // the bridge, at most (it's 2.1 either side), and spread: how much wider they fan out past it, in ranks row m apart;
+  // land: the stagger when he's set down
+  lake: { depth: 1.1, drain: 5, cross: .25, count: 10, rush: 14, carry: 9, ramp: .35, out: 2.5, lane: 1.3, spread: 2.4, row: 1.1, land: .3, pool: 4.6, causeW: 3.4, causeH: .22, wait: 3 },
 };
 // Match length, in minutes: Quick, Standard (the default) or Long. A shorter battle runs hotter: more
 // gold, and computer armies march out with smaller squads (gather).

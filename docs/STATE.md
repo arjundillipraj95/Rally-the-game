@@ -2,7 +2,7 @@
 
 Current work: **friends' playtest fixes (F tickets) and lag (Phase 0)**, then Roles & Combat (design and plan in
 Claude Docs, links in CLAUDE.md). Every builder updates this file as the last step of its ticket. Owner: Opus owner chat.
-Last updated: 2026-11-12. Older detail: `docs/history/2026-11-log.md`.
+Last updated: 2026-11-12 (F7-water built). Older detail: `docs/history/2026-11-log.md`.
 
 ## Live on main
 - P0.1 Dead-code cleanup · P0.2 Lag harness · P0.3 Ping readout · M1 Neutral soldiers look like soldiers
@@ -52,6 +52,17 @@ Last updated: 2026-11-12. Older detail: `docs/history/2026-11-log.md`.
   `r_F7e.mjs`. F7f execution: the executioner slides in over 0.25 s and the camera pushes in a little more. `r_F7f.mjs`. F7h the start was already smooth (checked); the results now come after a 1.5 s hold and fade in (was a hard cut). `r_F7h.mjs`. F7g over the chasm's edge: 0.6 s fall from the rim with a scream, untouchable, then dead (was the same
   frame). `r_F7g.mjs`; `c2bits.mjs` now waits out the fall. crown2sim and crown2online pass roles off and on.
 
+## On `roles`, waiting for Arjun's "ship"
+- F7-water (F7b, F7a, F7c), card `docs/tickets/F7-water.md`: the summit is a lake (only the glacier shows) that keeps
+  everyone out; it drains at 5:00 (chest) and 8:00 (Crown), four rock causeways first. Chest taken (last blow) or 7:00:
+  10 s countdown (horn, big numbers, a glowing pool rising round the glacier), then the flood rushes out and carries
+  everyone inside out of the nearest gate and over the bridge (untouchable, can't act, no deaths, no points; duels
+  and executions called off). From 8:00 soldiers can't pass a gate and wait over the bridge; captains go in. Gates stand
+  open all battle; the old move-outs (F7 moments 1, 2) are gone; the glacier stays solid. A joined player's own phone
+  carries him. `r_F7-water.mjs` (host, roles off and on) and `r_F7-water-join.mjs` (joined phone) pass; crown2sim and
+  crown2online pass roles off and on; F7e-h, c2bits unchanged; lag 32 jumps, max 0.92 m. One commit for the three
+  (they share one function). Arjun judges the look and the push's feel.
+
 ## Build queue (in order; model = best fit; Fable 5.2 available until 15 Nov)
 | # | Ticket | What | Model | Waits on |
 |---|---|---|---|---|
@@ -78,14 +89,12 @@ Last updated: 2026-11-12. Older detail: `docs/history/2026-11-log.md`.
 | - | Phases 1-9 | Roles & Combat behind `?roles=1` | mixed | the list above, Arjun's approval |
 
 ### F7 moments (Arjun picks walk or fade; owner's suggestion in brackets)
-1. Arena shuts at the war chest and at night: everyone inside is moved at once across the chasm to their home side
-   (the one the friends saw). [Walk: everyone is herded out at a run over 3-4 s, can't fight; a horn sounds first.]
-2. At night the soldiers (not captains) are moved out of the arena the same way. [Same as 1.]
+1. and 2. Done by F7-water: the flood carries everyone out; from 8:00 soldiers wait at the gates.
 3. Captain respawn: appears at home and the camera whips across the map, turning at once. [Fade to black and back; part of F5.]
 4. A duel starts: anyone inside the ring is pushed to its edge in one frame. [Shove over 0.3 s.]
 5. An execution: the executioner snaps to his spot beside the victim. [Slide over 0.25 s.]
 6. Falling into the chasm: dead the same frame. [A short fall and a scream, then dead.]
-7. Pushed out of the glacier's footprint (small, usually under 1 m). [Leave as is.]
+7. Pushed out of the glacier's footprint: kept (Arjun, 12 Nov).
 8. Not yet checked: battle start after the flyover, and battle end to the results screen.
 
 ## Arjun's to-dos

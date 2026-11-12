@@ -1597,7 +1597,7 @@ export function c2Begin() {
   for (const c of L.camps) { const Q = CROWN2.camp, hp = Q.foot * STATS.foot.hp + Q.arch * STATS.arch.hp; K.breaks.push({ brk: true, kind: 'camp', id: c.id, x: c.x, z: c.z, r: 2.6, hp, max: hp, cd: 1, shootCd: [rnd(.5, 2), rnd(.5, 2)], back: 0, men: Q.foot + Q.arch, foot: Q.foot, arch: Q.arch }); }
   K.breaks.push({ brk: true, kind: 'glacier', x: 0, z: 0, r: 2.6, hp: CROWN2.glacierHits, max: CROWN2.glacierHits });
   applyCastleGates();
-  G.plazaWall.up = true; G.plazaWall.broken = 0;
+  G.plazaWall.up = true; G.plazaWall.broken = 15; // (F7: the arena's gates stand open; the lake keeps everyone out)
 }
 const c2CanHit = (u, b) => b.kind === 'glacier' ? u.leader && G.c2.phase === 'night' : b.kind === 'chest' ? G.c2.chest === 1 : true;
 // how many of a garrison still stand: [footmen, archers] (the footmen in front go down first)
@@ -1623,13 +1623,76 @@ function c2Hit(u, b) {
 }
 function c2ChestTo(a, ti = -1) { // (ti: the captain whose blow broke it, if anyone's)
   const K = G.c2; K.chest = 2; const b = K.breaks.find(x => x.kind === 'chest'); if (b) b.hp = 0;
+  if (K.floodAt == null && G.T < CROWN2.night) K.floodAt = G.T; // (F7a: the chest is done; the lake's countdown starts)
   if (a != null) { K.chestPts[a] = CROWN2.points.chest; for (const i of sideArmies(a)) { hl(i, 'chest'); const s = G.teams[i]; s.gold += CHEST.gold; s.rally = 100; s.morale = Math.min(100, s.morale + 15); } say('chestTaken', a, CHEST.gold, ti); }
   fx('netFlush');
 }
-// the arena's gates: shut, open to everyone (the war chest), shut again, then open to captains only
+// the arena's phases: shut (under the lake), open to everyone (the war chest), shut again, then the captains' (night).
+// (F7: the gates stand open all battle; the lake and, from 8:00, the gate rule for soldiers are what keep men out)
 function c2Phase(ph) {
-  const K = G.c2; if (K.phase === ph) return; K.phase = ph;
-  G.plazaWall.broken = ph === 'open' || ph === 'night' ? 15 : 0; applyPlazaWall(); fx('netFlush');
+  const K = G.c2; if (K.phase === ph) return; K.phase = ph; fx('netFlush');
+}
+// F7 the summit's lake (CROWN2.lake): how high it stands (1 full, 0 dry), how far the flood's front has rushed out
+// from the glacier (0: not rushing), the countdown's seconds left (-1: none), and whether anyone may cross.
+// Every phone works it out the same way from the clock and the time the countdown began (K.floodAt).
+export function c2Lake(T = G.T) {
+  const C = CROWN2, Lk = C.lake, K = G.c2, ar = G.layout.arena.r, f = K && K.floodAt != null ? K.floodAt : null;
+  let level = 0, front = 0, count = -1;
+  if (T < C.chest) level = 1;
+  else if (T >= C.night) level = Math.max(0, 1 - (T - C.night) / Lk.drain);
+  else if (f != null && T >= f + Lk.count) { level = 1; front = Math.min(ar + 1, Lk.pool + (T - f - Lk.count) * Lk.rush); }
+  else { level = Math.max(0, 1 - (T - C.chest) / Lk.drain); if (f != null && T >= f) count = f + Lk.count - T; }
+  return { level, front, count, block: level > Lk.cross, ar };
+}
+// the arena gate in line with a point (one faces each keep)
+export function c2GateA(x, z) {
+  const a0 = Math.atan2(z, x); let best = mountHomeA(0);
+  for (let c = 1; c < 4; c++) if (Math.abs(angDiff(a0, mountHomeA(c))) < Math.abs(angDiff(a0, best))) best = mountHomeA(c);
+  return best;
+}
+// One man and the lake. While it's up nobody crosses into the arena; the flood picks up everyone inside and carries
+// him out of the nearest gate; from 8:00 a soldier can't pass a gate (F7c), only a captain. own: this phone moves
+// him (the host does all but the players on other phones, and each phone its own captain); host: this phone runs
+// the battle (it calls off a duel or an execution the water breaks up). True while he's being carried.
+export function c2Water(u, dt, own = true, host = true) {
+  if (!G.c2 || u.dead || !G.layout.arena) return false;
+  const W = c2Lake(), ar = W.ar, r = Math.hypot(u.x, u.z), night = G.T >= CROWN2.night;
+  if (u.flood) return floodStep(u, dt, own, ar);
+  const out = W.block || (night && !u.leader);
+  if (W.front > 0 && W.front < ar && r < ar) { if (r >= W.front) return false; } // (the flood's on its way out to him)
+  else if (!(out && r < ar - .3)) { // (not inside where he mustn't be: at most kept on the threshold)
+    if (own && out && r < ar + .5) { const m = ar + .5, k = m / (r || 1); u.x = r ? u.x * k : m; u.z = r ? u.z * k : 0; // (at the gate: the water, or the gate, stops him there)
+      const vr = (u.vx * u.x + u.vz * u.z) / m; if (vr < 0) { u.vx -= vr * u.x / m; u.vz -= vr * u.z / m; } }
+    return false;
+  }
+  floodStart(u, host); return floodStep(u, dt, own, ar);
+}
+function floodStart(u, host) {
+  const a = c2GateA(u.x, u.z), lat = -Math.sin(a) * u.x + Math.cos(a) * u.z, Lk = CROWN2.lake;
+  u.flood = { a, lat: clamp(lat * .4, -Lk.lane, Lk.lane), row: u.id % 3, t: 0 }; u.path = null; u.charge = 0; u.aim = false; u.windup = 0;
+  if (!host) return;
+  for (const d of duels().filter(d => d.a === u || d.b === u)) endDuel(d, 'off');
+  const ex = u.execOf ? u : G.units.find(o => o.execOf === u);
+  if (ex) { const v = ex.execOf; ex.execT = 0; ex.execOf = null; ex.execA = false; if (v) { v.execT = 0; v.execV = false; } }
+  if (u.execV) { u.execT = 0; u.execV = false; }
+}
+// the water carries him: to the mouth of his gate (inside the wall: a straight run there never meets it), then out
+// along the bridge, easing onto his lane, and sets him down past the chasm's far rim. He can't act or be hurt.
+function floodStep(u, dt, own, ar) {
+  const F = u.flood, Lk = CROWN2.lake; F.t += dt;
+  u.stun = Math.max(u.stun || 0, .25); u.iframeT = Math.max(u.iframeT || 0, .25); u.swing = 0; u.blockT = 0;
+  const r = Math.hypot(u.x, u.z);
+  if (!own) { if (r > ar + 2 || F.t > 8) u.flood = null; return !!u.flood; } // (his own phone carries him)
+  const ca = Math.cos(F.a), sa = Math.sin(F.a), along = ca * u.x + sa * u.z, lat = -sa * u.x + ca * u.z, Ch = G.layout.chasm, rOut = Ch.r + Ch.w + Lk.out + F.row * Lk.row, off = along > Ch.r + Ch.w; // (set down in a few ranks, fanned out once off the bridge: not in one heap)
+  if (along >= rOut || F.t > 8) { u.flood = null; u.vx = u.vz = 0; u.stun = Lk.land; u.iframeT = Lk.land; return false; } // (set down)
+  const spd = Lk.carry * Math.min(1, .35 + .65 * F.t / Lk.ramp);
+  let ta, tl;
+  if (along < ar - 1.2 && Math.abs(lat - F.lat) > .4) { ta = ar - 1.2; tl = F.lat; } // (to the gate's mouth)
+  else { ta = Math.max(along, ar - 1.2) + 3; tl = lat + (F.lat * (off ? Lk.spread : 1) - lat) * .5; } // (out along the bridge)
+  const tx = ca * ta - sa * tl, tz = sa * ta + ca * tl, dx = tx - u.x, dz = tz - u.z, d = Math.hypot(dx, dz) || 1, s = Math.min(d, spd * dt);
+  u.x += dx / d * s; u.z += dz / d * s; u.vx = dx / d * spd; u.vz = dz / d * spd;
+  u.face = turn(u.face, Math.atan2(dx, dz), dt * 5); u.y = groundY(u.x, u.z);
+  return true;
 }
 function c2Tick(dt) {
   towersTick(dt); castleGatesTick(dt); castleTowersTick(dt);
@@ -1642,19 +1705,13 @@ function c2Tick(dt) {
   }
   if (T >= C.night) { once('c2night'); c2Phase('night'); } else if (K.chest >= 2 || T < C.chest) c2Phase('shut'); else c2Phase('open');
   if (T >= C.night - 20) once('c2nightSoon');
-  // nobody in the arena who shouldn't be: everyone out while it's shut, the men out once it's the captains'
-  const ar = G.layout.arena.r;
-  if (K.phase === 'shut' || K.phase === 'night') for (const u of G.units) {
-    if (u.dead || (K.phase === 'night' && u.leader)) continue;
-    const d = Math.hypot(u.x, u.z); if (d >= ar + .4) continue;
-    if (G.layout.chasm) { // (the mountain: out over the nearest bridge, onto the far side of the chasm, not into it)
-      const a0 = Math.atan2(u.z, u.x); let best = mountHomeA(0); for (let c = 1; c < 4; c++) if (Math.abs(angDiff(a0, mountHomeA(c))) < Math.abs(angDiff(a0, best))) best = mountHomeA(c);
-      const r = G.layout.chasm.r + G.layout.chasm.w + 2.5, side = rnd(-1.2, 1.2); u.x = Math.cos(best) * r - Math.sin(best) * side; u.z = Math.sin(best) * r + Math.cos(best) * side; u.path = null; continue; }
-    const k = (ar + 1.4) / (d || 1); u.x = d ? u.x * k : ar + 1.4; u.z = d ? u.z * k : 0; u.path = null;
-  }
+  // F7 the lake: nobody crosses while it's up, the flood carries everyone out, from 8:00 soldiers stay out (c2Water)
+  { const W = c2Lake(); for (let k = 0; k < 4; k++) setPalSeg('pg' + k, W.block); // (the pathfinder: no way through the arena under water)
+    if (W.count > 0) once('c2flood', Math.round(W.count));
+    for (const u of G.units) if (!u.dead) c2Water(u, dt, !u.remote, true); }
   // over the edge into the chasm: (F7g) a short fall from the rim with a scream, untouchable, then dead (FEEL.chasm)
   { const H = CROWN2.h, C = G.layout.chasm; for (const u of G.units) {
-    if (u.dead) continue;
+    if (u.dead || u.flood) continue;
     if (u.chasmT > 0) { u.chasmT -= dt; if (u.chasmT <= 0) { u.chasmT = 0; u.cause = 'chasm'; die(u, null, 0); } continue; }
     const d = Math.hypot(u.x, u.z);
     if (u.jy > .3 || d >= C.r + C.w + 1 || groundY(u.x, u.z) >= H.top - 4) continue;
@@ -2369,7 +2426,10 @@ function thinkSoldier(u, dt) {
   if (G.mode === 'conquest' && ci >= 0 && cd < CASTLE_REACH && myOrder === 'follow' && leaderUp && !L.mounted && Math.hypot(L.x - TEAMS[ci].pos[0], L.z - TEAMS[ci].pos[1]) < CASTLE_REACH + 6) {
     faceTo(u, TEAMS[ci].pos[0], TEAMS[ci].pos[1], dt, 6); moveToward(u, u.x, u.z, 0, dt); startSwing(u, { castle: ci }); return;
   }
-  const anchor = myOrder === 'hold' && s.holdPt ? s.holdPt : leaderUp ? L : null;
+  let anchor = myOrder === 'hold' && s.holdPt ? s.holdPt : leaderUp ? L : null;
+  if (anchor === L && G.c2 && G.T >= CROWN2.night && G.layout.chasm) { // (F7c: the Crown's fight is the captains'; his men wait over the bridge from his gate)
+    const ar = G.layout.arena.r, Ch = G.layout.chasm, w = Ch.r + Ch.w + CROWN2.lake.wait;
+    if (Math.hypot(L.x, L.z) < ar + 1) { const a = c2GateA(L.x, L.z); anchor = { x: Math.cos(a) * w, z: Math.sin(a) * w, face: Math.atan2(-Math.cos(a), -Math.sin(a)), human: L.human, isFront: L.isFront }; } }
   if (anchor) {
     const [gx, gz] = slotPos(anchor, anchor.isFront || !!anchor.human, u.slot || 0, u.kind === 'arch', u.meleeN || 0);
     const d = go(u, gx, gz, speedOf(u) * (Math.hypot(gx - u.x, gz - u.z) > 6 ? 1.15 : 1), dt);
@@ -2520,7 +2580,7 @@ export function update(dt, input) {
     if (nb !== G.bounty) { G.bounty = nb; if (nb >= 0) say('bounty', nb); }
   }
   const p = G.player;
-  if (p && !p.dead && input) {
+  if (p && !p.dead && input && !p.flood) { // (F7a: carried by the flood, he can't do a thing)
     const pdt = p.slowT > 0 ? dt * PARRY.slow : dt;
     driveCaptain(p, input, pdt);
     if (input.block && !p.blkPrev) blockPress(p); p.blkPrev = !!input.block;
@@ -2578,6 +2638,7 @@ export function update(dt, input) {
     if (u.rt <= 0) { u.rt = rnd(.25, .4); [u.foe, u.fd] = nearestFoe(u, 50); }
     if (u.foe && u.foe.dead) { u.foe = null; u.fd = 1e9; }
     if (u.foe) u.fd = Math.hypot(u.foe.x - u.x, u.foe.z - u.z);
+    if (u.flood) continue; // (F7a: the flood has him)
     if (u.human || u.dead) continue;
     if (u.execT > 0) continue; // (in an execution, one way or the other: no thinking)
     if (u.dashT > 0) { u.dashT -= dt; stepJump(u, dt); continue; } // (mid-evade: momentum carries him)
@@ -2666,7 +2727,7 @@ export function update(dt, input) {
     const a = live[i], ci = Math.floor(a.x / SC) + 128, cj = Math.floor(a.z / SC) + 128;
     for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) { const cell = sg.get((ci + di) * 512 + cj + dj); if (!cell) continue;
     for (let q = 0; q < cell.length; q++) {
-      const b = cell[q]; if (b.sepI <= i) continue;
+      const b = cell[q]; if (b.sepI <= i || a.flood || b.flood) continue; // (the flood carries men through each other)
       const dx = b.x - a.x, dz = b.z - a.z, min = a.r + b.r;
       if (dx > min || dx < -min || dz > min || dz < -min) continue;
       const d = Math.hypot(dx, dz) || .01; if (d >= min) continue;
@@ -2681,6 +2742,7 @@ export function update(dt, input) {
   for (const u of G.units) {
     if (u.dead) { fallStep(u, dt); continue; }
     if (u.chasmT > 0) { u.x += u.vx * dt; u.z += u.vz * dt; u.vy -= FEEL.chasm.g * dt; u.y += u.vy * dt; continue; } // (F7g: falling into the chasm)
+    if (u.flood && !u.remote) continue; // (F7a: the flood moves him, in c2Water)
     if (u.remote) { u.y = groundY(u.x, u.z) + (u.jy || 0); continue; } // moved by their own phone
     integrate(u, u.slowT > 0 ? dt * PARRY.slow : dt, u.z);
   }

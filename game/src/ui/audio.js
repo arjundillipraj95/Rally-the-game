@@ -394,6 +394,7 @@ export const sfx = {
   horn() { const pl = { v: .9, pan: 0, far: .3 }; drum(.8, 0, 1, pl); drum(.6, .22, 1.1, pl); drum(.9, .44, .95, pl); brass(98, 1.9, .1, .55); brass(147, 1.6, .06, .8); },
   order() { if (gateS('or', 150)) { brass(196, .32, .07); brass(262, .42, .05, .16); } },
   capture() { brass(262, .35, .08); brass(330, .35, .07, .3); brass(392, .9, .09, .6); },
+  rush() { noise(2.6, 380, .6, .6, 'lowpass', 90); noise(1.8, 1400, .5, .22, 'bandpass', 500, undefined, .15); }, // (F7a: the lake rushes out)
   crumble() { for (let i = 0; i < 4; i++) play('wall', null, null, { vol: .8, rate: .55 + i * .08, delay: i * .12 }); noise(1.6, 260, .7, .7, 'lowpass', 60); },
   cheer() { if (!gateS('ch', 400)) return; noise(1.6, 700, .8, .18, 'bandpass', 1400, undefined, 0, .4); noise(1.9, 480, .6, .14, 'bandpass', 900, undefined, .1, .4); },
   // anyone sent flying lets out a scream on the way up ("Aaah!", "Aarrgh!"): six voiced variants, each

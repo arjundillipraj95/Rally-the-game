@@ -7,7 +7,7 @@ import { SHOUTS, CROWN, HUMAN_CAPTAIN, ARMOUR, RHYTHM, BASH, EVADE, TEAMS, MAPS,
 import { G, bus, colorOf, isEnemyTi, activeFrom, ARMIES, duoStr, duoParse } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn, angDiff } from '../core/world.js';
 import { buildNav, syncGates } from '../core/nav.js';
-import { c2Begin } from '../core/sim.js';
+import { c2Begin, c2Water } from '../core/sim.js';
 import { adoptBattle, applyCastleGates, applyPlazaWall, volleyCharge, captainBash, duelAct, duelOffer, duelTarget, initForts, applyFort, fortLvl, captainEvade, evadeKind, makeHolds, execTarget, rallyCry, blockPress, attackHold, attackRelease, rideRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
 import { session, isClient, isHost } from './session.js';
 import { makeP2PRoom } from './p2p.js';
@@ -79,7 +79,7 @@ function encodeSnap() {
   const cx = G.units.filter(u => u.leader && !u.dead).map(u => [b36(u.id), Math.round(u.st ?? 100), (u.swingSide | 0) + 1, u.sideN | 0].join(',')).join(';');
   // the mountain: the arena's phase, the war chest, the points that aren't places, and what's left of every guard, camp and the glacier
   const K = G.c2, c2 = K ? (() => { const ch = K.breaks.find(b => b.kind === 'chest'), one = o => { const k = Object.keys(o).find(a => o[a]); return k == null ? -1 : k; };
-    return [['shut', 'open', 'night'].indexOf(K.phase), K.chest, ch ? Math.round(ch.hp) : 0, one(K.chestPts), one(K.crownPts), [0, 1, 2, 3].map(a => Object.values(K.kills[a] || {}).reduce((n, v) => n + v, 0)).join('.'), K.breaks.filter(b => b.kind !== 'chest').map(b => Math.max(0, Math.round(b.hp))).join('.')].join(','); })() : '';
+    return [['shut', 'open', 'night'].indexOf(K.phase), K.chest, ch ? Math.round(ch.hp) : 0, one(K.chestPts), one(K.crownPts), [0, 1, 2, 3].map(a => Object.values(K.kills[a] || {}).reduce((n, v) => n + v, 0)).join('.'), K.breaks.filter(b => b.kind !== 'chest').map(b => Math.max(0, Math.round(b.hp))).join('.'), K.floodAt == null ? '' : Math.round(K.floodAt * 10)].join(','); })() : ''; // (F7a: when the lake's countdown began)
   return [Math.round(G.T * 10), teams, us.join(';'), ars.join(';'), hs.join(';'), fl, pl, G.bounty, hd, cp, fo, du, wt, cx, c2].join('|');
 }
 // a remote player's blow landing (or landing on them) goes out at once rather than waiting for the
@@ -321,6 +321,7 @@ function clientApply(hp) {
     K.phase = ['shut', 'open', 'night'][+f[0]] || 'shut'; K.chest = +f[1] | 0;
     if (K.chest >= 1 && !K.breaks.some(b => b.kind === 'chest')) K.breaks.push({ brk: true, kind: 'chest', x: G.layout.arena.r * .5, z: 0, r: 1.6, hp: 1, max: CROWN2.chestHp });
     const ch = K.breaks.find(b => b.kind === 'chest'); if (ch) ch.hp = K.chest === 1 ? +f[2] : 0;
+    K.floodAt = f[7] == null || f[7] === '' ? null : +f[7] / 10; // (F7a: every phone works the lake out from this)
     K.chestPts = pts(f[3], CROWN2.points.chest); K.crownPts = pts(f[4], CROWN2.points.crown);
     (f[5] || '').split('.').forEach((n, a) => { K.kills[a] = +n ? { pts: +n } : {}; }); // (a phone needs the total only; the marker keeps its own list from the messages)
     const hp = (f[6] || '').split('.'), bs = K.breaks.filter(b => b.kind !== 'chest'); bs.forEach((b, i) => { if (hp[i] != null && hp[i] !== '') { const v = +hp[i]; if (v < b.hp) b.hitT = G.T; b.hp = v; } });
@@ -402,7 +403,8 @@ export function clientTick(dt) {
   pingTick(NET, performance.now()); // (P0.3: a ping every 2 s)
   C.localCd -= dt; syncGates();
   const me = G.player;
-  if (me && !me.dead && G.state === 'play') {
+  const wet = !!(me && !me.dead && G.state === 'play' && G.c2) && c2Water(me, dt, true, false); // (F7: the lake keeps you out, the flood carries you; your phone moves you)
+  if (me && !me.dead && G.state === 'play' && !wet) {
     me.stun -= dt;
     const mv = import.meta.env.DEV && window.__moveOverride ? window.__moveOverride() : readMove(dt);
     for (const u of G.units) if (u.slowT > 0) u.slowT -= dt; // (a parry's slow beat, for the two men in it)

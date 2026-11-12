@@ -97,8 +97,9 @@ export function msgText(k, a) {
     case 'villageFort': return mine(a[0]) ? ['Palisade up!', `${(G.holds[a[1]] || {}).name || 'The village'} now takes 11 seconds to take`, css(a[0])] : null;
     case 'c2capPoint': return mine(a[0]) ? ['Captain point claimed!', `You cut down ${nm(a[1])}: +${a[2] || 1}`, '#ffcf3a'] : null;
     case 'mineOn': return mine(a[0]) ? ["He's mine!", `${nm(a[1])} won't duel. Your men leave him to you for ${DUEL.mineT} seconds`, css(a[0])] : mine(a[1]) ? [`${nm(a[0])} is coming for you`, "You refused the duel: his men are leaving you to him", css(a[0])] : null;
-    case 'c2chestSoon': return ['A war chest is coming!', `It lands in the arena in ${a[0]} seconds. The gates open for everyone`, '#ffcf3a'];
+    case 'c2chestSoon': return ['A war chest is coming!', `In ${a[0]} seconds the lake drains and it lands in the arena, open to everyone`, '#ffcf3a'];
     case 'c2chestUp': return ['The war chest has landed!', 'The arena is open: break the chest for +4 points and gold', '#ffcf3a'];
+    case 'c2flood': return ['The waters rise!', `In ${a[0]} seconds the lake floods the arena and washes everyone out`, '#8fd8ff'];
     case 'c2nightSoon': return ['Night is coming', 'At 8:00 the arena opens to captains', '#bfe6f5'];
     case 'c2night': return ['The Crown awakens', 'Captains only: climb to the arena and break the glacier. +7 points', '#bfe6f5'];
     case 'c2crack': return ['The glacier is cracking', 'Thirty seconds left', '#bfe6f5'];
@@ -113,7 +114,7 @@ export function msgText(k, a) {
 // 2, your side's feed: what happens to your side (a place taken or lost, your castle's gate, an ally
 // down), merged and spaced. Everything between the other sides stays quiet. Highlights wait for the
 // results screen. Your own personal moments (gold, a new man, your horse) keep their small cues.
-const TIER1 = new Set(['start', 'c2chestSoon', 'c2chestUp', 'chestTaken', 'c2nightSoon', 'c2night', 'c2crack', 'crownTaken']);
+const TIER1 = new Set(['start', 'c2chestSoon', 'c2chestUp', 'chestTaken', 'c2flood', 'c2nightSoon', 'c2night', 'c2crack', 'crownTaken']);
 const PERSONAL = new Set(['gold', 'holdMen', 'respawn', 'horseDown', 'horseBack', 'armourOn', 'villageFort', 'castleFort', 'gateRepaired', 'duelOn', 'duelWon', 'duelNo', 'duelDraw', 'duelBroken', 'execReady']);
 const lastOwner = {};
 export function c2Tier(k, a) {
@@ -149,6 +150,7 @@ export function showMsg(k, a) {
   if (k === 'lastStand') { sfx.crumble(); sfx.horn(); if (colorOf(a[0]) === colorOf(myTi)) { buzz([120, 60, 120]); cam.shake = .5; } }
   if (k === 'chestTaken') { sfx.capture(); if (a[0] === G.ALLY[colorOf(myTi)]) { sfx.coin(); sfx.cheer(); buzz([60, 40, 60]); } }
   if (k === 'c2night') musicCue('night');
+  if (k === 'c2flood') sfx.horn(); // (F7a: the countdown's horn)
   if (k === 'holdTaken') { sfx.capture(); if (a[0] === G.ALLY[colorOf(myTi)]) { sfx.cheer(); buzz([50, 30, 50]); } }
   const m = msgText(k, a); if (!m) return;
   if (c2On()) { const t = c2Tier(k, a); if (t !== 1 && t !== 3) return; } // (the mountain: only the match's beats, and your own, take the banner)

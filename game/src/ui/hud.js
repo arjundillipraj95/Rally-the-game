@@ -2,11 +2,12 @@
 import { STAMINA, CROWN2, PING } from '../config.js';
 import { CROWN, TEAMS, MODES, STATS, AL_LETTER, ORDER_NAMES, UPGRADES, WEAPON_NAMES, WEAPON_CLASS, STREAK, LAST } from '../config.js';
 import { G, isFfa, colorOf, rules, matchTime, SLOT_NAME, isOut, capOf, isC2 } from '../core/state.js';
-import { colorOut, colorScore, colorHuman, squadOf, canRecruit, horseMax, upgradeCost, javMax, execTarget, castleHere, villageHere } from '../core/sim.js';
+import { c2Lake, colorOut, colorScore, colorHuman, squadOf, canRecruit, horseMax, upgradeCost, javMax, execTarget, castleHere, villageHere } from '../core/sim.js';
 import { session, isClient } from '../net/session.js';
 import { pingMedian } from '../net/ping.js';
 import { claimed, nameOf, glory, allyNames } from './messages.js';
 import { tlTick } from './timeline.js';
+import { sfx } from './audio.js';
 
 const $ = id => document.getElementById(id);
 export const fmt = s => { s = Math.max(0, Math.floor(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
@@ -67,8 +68,13 @@ const ORDER_ICONS = {
   focus: '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>',
 };
 // lastSnapAt: when a client last heard from the host
+let floodN = -1;
 export function updateHud(lastSnapAt) {
   tlTick(); // (the results' timeline: every phone keeps its own record)
+  if (G.c2 && G.layout && G.layout.arena && G.state === 'play') { // (F7a: the lake's countdown, big, every second; then the rush)
+    const W = c2Lake(), n = W.count >= 0 ? Math.ceil(W.count) : W.front > 0 && W.front < W.ar ? 0 : -1;
+    if (n !== floodN) { if (n > 0 && n < CROWN2.lake.count) banner(String(n), 'The waters rise: out of the arena!', '#8fd8ff'); if (n === 0 && floodN > 0) { sfx.rush(); banner('The flood!', '', '#8fd8ff'); } floodN = n; }
+  }
   TEAMS.forEach((t, i) => {
     const row = $('tp' + i); if (!row) return;
     const gone = isOut(i); row.hidden = gone; const pp = $('pip' + i); if (pp) pp.hidden = gone; if (gone) return; // (a castle out of this battle)

@@ -9,7 +9,7 @@ import { stoneTex, woodTex } from './look.js';
 import { nightLook, scene, camera, sun, hemi, renderer, lookK, skySunDir } from './scene.js';
 import { camTarget } from './camera.js';
 import { spark } from './effects.js';
-import { c2Garrison } from '../core/sim.js';
+import { c2Garrison, c2Lake } from '../core/sim.js';
 
 let M = null;
 const lam = (color, map, extra = {}) => new THREE.MeshLambertMaterial(Object.assign({ color, map: map || null }, extra));
@@ -200,6 +200,18 @@ export function buildMount(world, L) {
     const beam = new THREE.Mesh(new THREE.CylinderGeometry(.8, 1.6, 60, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0xcff0ff, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
     beam.position.set(0, gy + 30, 0); grp.add(beam);
     M.glacier = { ice, crown, beam, core, shards, mat: iceMat, lastHp: null, flash: 0 }; }
+  // F7 the summit's lake: the water (a disc: the whole arena, or the pool welling up round the glacier, or the
+  // flood rushing out from it), its glowing edge, and the four rock causeways from the gates to the glacier,
+  // the first ground to show as it drains
+  { const ar = L.arena.r, Lk = CROWN2.lake, fy = terrainMeshY(ar * .6, ar * .2);
+    const water = new THREE.Mesh(new THREE.CircleGeometry(1, 72), new THREE.MeshPhongMaterial({ color: 0x3a7aa3, specular: 0x9fc6de, shininess: 80, transparent: true, opacity: .86 }) /* (as the river below) */);
+    water.rotation.x = -Math.PI / 2; grp.add(water); // (it writes depth: the glacier above it shows, men below the surface don't)
+    const edge = new THREE.Mesh(new THREE.RingGeometry(.9, 1.03, 72), new THREE.MeshBasicMaterial({ color: 0xbff4ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    edge.rotation.x = -Math.PI / 2; edge.renderOrder = 3; grp.add(edge);
+    const rock = lam(0x6f675c, stoneTex());
+    for (let c = 0; c < 4; c++) { const a = mountHomeA(c), r0 = 3, r1 = ar - .3, mid = (r0 + r1) / 2, m = new THREE.Mesh(new THREE.BoxGeometry(r1 - r0, Lk.causeH * 2, Lk.causeW), rock);
+      m.position.set(Math.cos(a) * mid, fy, Math.sin(a) * mid); m.rotation.y = -a; m.receiveShadow = true; grp.add(m); }
+    M.lake = { water, edge, fy, ar }; }
   // village palisades: a ring of stakes, up once bought
   M.pals = [];
   for (const h of G.holds || []) if (h.kind === 'village') {
@@ -296,6 +308,14 @@ export function updateMount(dt) {
     g.crown.rotation.y += dt * (gl.hp > 0 ? .3 : 2.4); g.crown.position.y = groundY(0, 0) + (gl.hp > 0 ? 2.6 : 4.2 + Math.sin(M.t * 2) * .3);
     const night = T >= CROWN2.night ? 1 : T >= CROWN2.dusk ? (T - CROWN2.dusk) / (CROWN2.night - CROWN2.dusk) * .5 : 0;
     g.beam.material.opacity = night * (.22 + (T >= CROWN2.crack ? Math.sin(M.t * 8) * .1 : 0));
+  }
+  if (M.lake) { // (F7: the lake's level, the countdown's pool and the flood's front, from the clock: the same on every phone)
+    const Wl = c2Lake(T), Lk = CROWN2.lake, { water, edge, fy, ar } = M.lake;
+    let rad = ar - .25, y = fy - .3 + (Lk.depth + .3) * Wl.level, glow = 0;
+    if (Wl.count >= 0) { const p = 1 - Wl.count / Lk.count; rad = 2.6 + (Lk.pool - 2.6) * p; y = fy + .05 + .5 * p; glow = .55 + .35 * Math.sin(M.t * (5 + p * 9)); }
+    else if (Wl.front > 0) { rad = Math.min(Wl.front, ar - .25); y = fy + Lk.depth; glow = Wl.front < ar ? 1 : 0; }
+    water.visible = Wl.level > .01 || Wl.count >= 0; water.scale.setScalar(rad); water.position.set(0, y, 0);
+    edge.visible = glow > 0; edge.scale.setScalar(rad); edge.position.set(0, y + .03, 0); edge.material.opacity = glow;
   }
   const ch = K.breaks.find(b => b.kind === 'chest');
   if (M.chest) { M.chest.visible = !!ch && ch.hp > 0; if (ch && ch.hp > 0) { M.chest.position.set(ch.x, groundY(ch.x, ch.z), ch.z); if (ch.hitT && T - ch.hitT < .12) M.chest.rotation.y = Math.sin(M.t * 60) * .05; } }
