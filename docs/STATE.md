@@ -2,14 +2,14 @@
 
 Current work: **friends' playtest fixes (F tickets) and lag (Phase 0)**, then Roles & Combat (design and plan in
 Claude Docs, links in CLAUDE.md). Every builder updates this file as the last step of its ticket. Owner: Opus owner chat.
-Last updated: 2026-11-11 (evening). Older detail: `docs/history/2026-11-log.md`.
+Last updated: 2026-11-12. Older detail: `docs/history/2026-11-log.md`.
 
 ## Live on main
 - P0.1 Dead-code cleanup · P0.2 Lag harness · P0.3 Ping readout · M1 Neutral soldiers look like soldiers
 - P0.7 Smooth everyone else (joining phones draw others between two host snapshots; 20 snapshots a second)
 - F11 Same results and names on every phone (host's battle record sent to all phones at the end)
 
-## On `roles`, waiting for Arjun's "ship"
+## Shipped to main 12 Nov (Arjun's "ship"; main = roles at b598dda)
 - F10 The mountain's edge, then F10b The summit feeling (cliffs drop into a cloud sea; far peaks, sun, birds, snow).
   Checked 11 Nov, object by object: F10b's scene is slightly lighter than main (593k vs 595k triangles; 60 cliff
   trees removed), plus 4 small objects. `store/r_F10b.mjs` compares rendered frames, which vary with random units
