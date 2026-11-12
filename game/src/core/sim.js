@@ -679,7 +679,7 @@ export function challenge(p, v) {
 function startDuel(d) {
   const { a, b } = d;
   if (!canFight(a) || !canFight(b)) { endDuel(d, 'off'); return; }
-  d.state = 'on'; d.t = DUEL.time; d.graceT = 1.2; d.slotT = 0;
+  d.state = 'on'; d.t = DUEL.time; d.graceT = 1.2; d.slotT = 0; d.t0 = G.T;
   d.x = (a.x + b.x) / 2; d.z = (a.z + b.z) / 2;
   a.duelId = b.duelId = d.id; a.dueled = b.dueled = true;
   a.foe = b; b.foe = a; a.fd = b.fd = Math.hypot(a.x - b.x, a.z - b.z);
@@ -779,6 +779,15 @@ export function duelBounds(u) {
     if (u === d.a || u === d.b) { const m = DUEL.ring - .9; if (dd > m) { u.x = d.x + dx / dd * m; u.z = d.z + dz / dd * m; } continue; }
     const m = DUEL.ring + .3; if (dd >= m) continue;
     if (u.human && u.leader && isEnemy(u, d.a) && isEnemy(u, d.b) && !(d.graceT > 0)) continue;
+    // (F7e) in the ring's first shoveT seconds, whoever stood inside is eased out to the edge (an ease-out from
+    // where he stood when it closed), not set there in one frame; after that the edge simply holds him
+    const k = d.t0 != null ? (G.T - d.t0) / DUEL.shoveT : 1;
+    if (k < 1) {
+      if (u.shoveD !== d.id) { u.shoveD = d.id; u.shoveR0 = dd; }
+      const e = 1 - (1 - Math.max(0, k)) ** 2, r = Math.min(m, u.shoveR0 + (m - u.shoveR0) * e);
+      if (dd < r) { u.x = d.x + dx / dd * r; u.z = d.z + dz / dd * r; }
+      continue;
+    }
     u.x = d.x + dx / dd * m; u.z = d.z + dz / dd * m;
   }
 }

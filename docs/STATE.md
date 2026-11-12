@@ -43,6 +43,8 @@ Last updated: 2026-11-11 (evening). Older detail: `docs/history/2026-11-log.md`.
   - C2 "Leather & fur" is now "Burnished iron": it was matte leather, so its look became dark brown worked iron
     (captain and far soldiers; fur mantle gone). Same list place. `r_C2.mjs` checks the name and shoots each armour.
   - C3 Weapon tab hidden from the closet (looks only; the slot and saved choices are kept). `r_C3.mjs`.
+- F7 no abrupt cuts, Arjun's agreed rhythm (12 Nov): F7e duel ring shoves people to the edge over 0.3 s (was one frame).
+  `r_F7e.mjs`.
 
 ## Build queue (in order; model = best fit; Fable 5.2 available until 15 Nov)
 | # | Ticket | What | Model | Waits on |

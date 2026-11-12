@@ -224,7 +224,8 @@ export const EVADE = { iframe: .2, remote: .12, cd: .45, tired: 1.3, chain: 1.1,
 // and the duellists' armies get rally (brokenRally). Computer captains accept at accept[difficulty];
 // they challenge a player at aiChallenge[difficulty] per second when in range (aiVsAi between themselves).
 export const DUEL = { mineT: 15, // (a refused challenge: "He's mine!" for this many seconds)
-  offerR: 10, ring: 6, guardR: 25, offerT: 5, time: 60, accept: [.55, .75, .9], aiChallenge: [.02, .045, .08], aiVsAi: .02, decline: 8, winMorale: 30, broken: 20, brokenRally: 25, draw: 10 };
+  offerR: 10, ring: 6, guardR: 25, offerT: 5, time: 60, accept: [.55, .75, .9], aiChallenge: [.02, .045, .08], aiVsAi: .02, decline: 8, winMorale: 30, broken: 20, brokenRally: 25, draw: 10,
+  shoveT: .3 }; // (F7e: when a duel starts, anyone inside the ring is shoved to its edge over shoveT seconds, not in one frame)
 // A blow from behind (a captain's): harder, and it staggers. Circle him.
 export const BACKSTAB = { mult: 1.6, stun: .5 };
 // The execution: an enemy captain beaten down (hp at or under hp of his max, or hpStunned while
