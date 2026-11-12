@@ -37,6 +37,8 @@ let SRC = null;
 const PACK = { helmet: ['blue_crest', 'gold_ridge', 'red_crest'], shield: ['red_scutum', 'blue_oval', 'blue_kite'] };
 // the armour choices: the painted armour in its finishes (C2: 'Burnished iron', once 'Leather & fur', is dark worked iron; 'leather' stays for the archers' jerkin) (the tint multiplies its painted steel)
 const ARMOUR_FINISH = { steel: [0xffffff, .35, .45], bronze: [0xe0a458, .55, .38], leather: [0x9a6238, 0, .85], iron: [0xb4a08c, .65, .32], black: [0x3b3e46, .6, .3] };
+// C1: a helmet's metal (dome, cheek guards) is the colour of the armour finish the player picked
+const HELM_METAL = { steel: 0xc4cad2, bronze: 0xc8903c, iron: 0x8a7664, leather: 0x8a7664, black: 0x3b3e46 };
 const pick = (slot, i) => (SLOTS[SLOT_IX[slot]].items[i] || {}).name || '';
 // three Roman helmets, one file each; a retired helmet in a saved outfit is worn as the plain galea
 function helmFile(name) { if (/gild/i.test(name)) return 'gold_ridge'; if (/plumed/i.test(name)) return 'blue_crest'; return 'red_crest'; }
@@ -96,7 +98,7 @@ function make(u) {
   const weapon = weaponOf(u), team = hexOf(u), soldier = u.kind !== 'captain', L = lookOf(u);
   const shieldName = L ? pick('shield', L[SLOT_IX.shield]) : '', shield = SRC.shields[shieldFile(shieldName)];
   const R = soldier ? rigCaptain(SRC.soldier, { body: 'soldier', team, weapon, pack: u.kind === 'arch' ? { noShield: true } : { shield } })
-    : (clipsOn ? rigClip : rigCaptain)(clipsOn ? SRC.cap : SRC.body, { team, weapon, pack: { shield, helmet: L ? SRC.helmets[helmFile(pick('helm', L[SLOT_IX.helm]))] || null : SRC.helmets.red_crest } });
+    : (clipsOn ? rigClip : rigCaptain)(clipsOn ? SRC.cap : SRC.body, { team, weapon, pack: { shield, helmet: L ? SRC.helmets[helmFile(pick('helm', L[SLOT_IX.helm]))] || null : SRC.helmets.red_crest, helmetMetal: HELM_METAL[armourFile(L ? pick('armour', L[SLOT_IX.armour]) : '')] } });
   if (!soldier) { const a = SRC.armours[armourFile(L ? pick('armour', L[SLOT_IX.armour]) : '')]; (R.clip ? addClipArmour : addArmour)(R, a.geo, a.mat); }
   else if ((u.kind === 'foot' && u.tier >= 2) || u.neutral) { const a = SRC.armours[armourFile(L ? pick('armour', L[SLOT_IX.armour]) : '')]; addArmour(R, a.geo, a.mat); } // (the Armour upgrade: your army's armour over the tunic; the mountain's neutral soldiers always wear the steel, M1)
   if (u.kind === 'arch') archerGear(R, team, u.tier | 0);

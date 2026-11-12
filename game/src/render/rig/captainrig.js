@@ -163,7 +163,7 @@ export function addGear(bones, { body = 'captain', weapon = 'sword', team = null
     }
     // the helmet: a cap over the hair, its rim just above the brows (placeholder until the real one)
     if (body === 'captain' && pack && pack.helmet) {
-      const p = packPiece(pack.helmet, FIT.helmet, team); p.position.fromArray(FIT.helmet.at); p.rotation.x += FIT.helmet.tilt; bones.head.add(p);
+      const p = packPiece(pack.helmet, FIT.helmet, team, pack.helmetMetal); p.position.fromArray(FIT.helmet.at); p.rotation.x += FIT.helmet.tilt; bones.head.add(p);
       // the pack's steel came out chalk-white in daylight: a deeper, polished steel, with a sheen
       p.traverse(m => { if (!m.isMesh || /crest|plume/i.test(m.name)) return; const c = m.material.color, hsl = {}; c.getHSL(hsl); if (hsl.s < .25) { c.multiplyScalar(.62); m.material.metalness = .55; m.material.roughness = .32; } });
     }
@@ -193,10 +193,11 @@ export const FIT = {
 };
 // a piece from the pack: cloned, turned upright, scaled; its main colour (the one that isn't
 // steel, gold, wood or leather) recoloured to the team if one is given
-function packPiece(src, fit, team = null) {
+function packPiece(src, fit, team = null, metal = null) {
   const o = src.clone(true), w = new THREE.Group(); o.rotation.x = -Math.PI / 2; w.add(o);
   if (Array.isArray(fit.s)) o.scale.fromArray(fit.s); else w.scale.setScalar(fit.s); // (an array: across, front-to-back, up, in the pack's own frame)
   if (team != null) o.traverse(m => { if (m.isMesh && /crest|plume|scutum|oval|kite|face|field/i.test(m.name) && !/mount|rim|gold|boss/i.test(m.name)) { m.material = m.material.clone(); m.material.vertexColors = false; m.material.color.set(team); m.material.needsUpdate = true; } }); // (vertex colours off: the team colour would multiply with them)
+  if (metal != null) o.traverse(m => { if (m.isMesh && /dome|cheek/i.test(m.name)) { m.material = m.material.clone(); m.material.vertexColors = false; m.material.color.set(metal); m.material.needsUpdate = true; } }); // (C1: a helmet's metal takes the armour finish)
   o.traverse(m => { if (m.isMesh) { m.castShadow = true; m.material = m.material.clone(); m.material.metalness = Math.min(m.material.metalness, .3); m.material.roughness = Math.max(m.material.roughness, .45); } }); // (the pack's metals are fully metallic: black without a sky to reflect)
   return w;
 }
