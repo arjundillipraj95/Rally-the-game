@@ -35,12 +35,12 @@ let SRC = null;
 // the look's choices (core/look.js) become pack pieces: helmet, armour and shield. The weapon stays the
 // one you fight with (gameplay), so it is not a look here.
 const PACK = { helmet: ['blue_crest', 'gold_ridge', 'red_crest'], shield: ['red_scutum', 'blue_oval', 'blue_kite'] };
-// the armour choices: the painted armour in four finishes (the tint multiplies its painted steel)
-const ARMOUR_FINISH = { steel: [0xffffff, .35, .45], bronze: [0xe0a458, .55, .38], leather: [0x9a6238, 0, .85], black: [0x3b3e46, .6, .3] };
+// the armour choices: the painted armour in its finishes (C2: 'Burnished iron', once 'Leather & fur', is dark worked iron; 'leather' stays for the archers' jerkin) (the tint multiplies its painted steel)
+const ARMOUR_FINISH = { steel: [0xffffff, .35, .45], bronze: [0xe0a458, .55, .38], leather: [0x9a6238, 0, .85], iron: [0xb4a08c, .65, .32], black: [0x3b3e46, .6, .3] };
 const pick = (slot, i) => (SLOTS[SLOT_IX[slot]].items[i] || {}).name || '';
 // three Roman helmets, one file each; a retired helmet in a saved outfit is worn as the plain galea
 function helmFile(name) { if (/gild/i.test(name)) return 'gold_ridge'; if (/plumed/i.test(name)) return 'blue_crest'; return 'red_crest'; }
-function armourFile(name) { if (/bronze/i.test(name)) return 'bronze'; if (/leather|fur/i.test(name)) return 'leather'; if (/black/i.test(name)) return 'black'; return 'steel'; }
+function armourFile(name) { if (/bronze/i.test(name)) return 'bronze'; if (/burnish/i.test(name)) return 'iron'; if (/leather|fur/i.test(name)) return 'leather'; if (/black/i.test(name)) return 'black'; return 'steel'; }
 function shieldFile(name) { if (/hoplon|oval/i.test(name)) return 'blue_oval'; if (/round|kite/i.test(name)) return 'blue_kite'; return 'red_scutum'; }
 if (on) {
   const L = new GLTFLoader(), first = g => { let m = null; g.scene.traverse(o => { if (o.isMesh && !m) m = o; }); return m; };

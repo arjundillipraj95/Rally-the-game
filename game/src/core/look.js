@@ -15,7 +15,7 @@ export const SLOTS = [
   { id: 'helm', name: 'Helmet', army: true, items: [{ name: 'Galea' }, { gone: true, name: 'Corinthian' }, { gone: true, name: 'Wild hair' }, { name: 'Gilded galea', lock: { season: 1, tier: 4 } }, { gone: true, name: 'Headsman hood', lock: { feat: 'exec', n: 50, text: '50 executions' } },
     // (new pieces go on the end, so saved outfits and owned items keep their numbers)
     { gone: true, name: 'Nasal helm' }, { gone: true, name: 'Leather cap' }, { gone: true, name: 'Wolf pelt', lock: { feat: 'duel', n: 15, text: 'Win 15 duels' } }, { gone: true, name: 'Warden\'s great helm', lock: { feat: 'castle', n: 20, text: 'Take 20 castles' } }, { gone: true, name: 'Laurel wreath', lock: { feat: 'crown', n: 5, text: 'Carry the Crown 5 times' } }, { name: 'Plumed galea', lock: { season: 1, tier: 12 } }, { gone: true, name: 'Winged helm', lock: { pass: true, tier: 10 } }, { gone: true, name: 'Black visor helm', lock: { shop: true, price: '$1.49' } }] },
-  { id: 'armour', name: 'Armour', army: true, items: [{ name: 'Steel bands' }, { name: 'Bronze' }, { name: 'Leather & fur' }, { name: 'Black steel', lock: { shop: true, price: '$1.99' } }] },
+  { id: 'armour', name: 'Armour', army: true, items: [{ name: 'Steel bands' }, { name: 'Bronze' }, { name: 'Burnished iron' }, { name: 'Black steel', lock: { shop: true, price: '$1.99' } }] },
   { id: 'shield', name: 'Shield', army: true, items: [{ name: 'Tower' }, { name: 'Hoplon' }, { name: 'Wooden round' }] },
   { id: 'emblem', name: 'Emblem', army: true, items: [{ name: 'Eagle' }, { name: 'Sun' }, { name: 'Thunder' }] },
   { id: 'weapon', name: 'Weapon', army: true, items: [{ name: 'Gladius' }, { name: 'Long blade' }, { name: 'Axe' }] },

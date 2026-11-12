@@ -39,6 +39,10 @@ Last updated: 2026-11-11 (evening). Older detail: `docs/history/2026-11-log.md`.
   No spin clip: the combo's spin plays slash3. Heavy blow, bash, war cry, spear stay on the code pose. Soldier clips
   prepared, used by F1. Same commit: helmets cut to three Roman ones (Arjun, 12 Nov). Arjun judges the feel.
 
+- Closet fixes (12 Nov, Arjun's list: C2, C3, C1, C4, C5), one commit each:
+  - C2 "Leather & fur" is now "Burnished iron": it was matte leather, so its look became dark brown worked iron
+    (captain and far soldiers; fur mantle gone). Same list place. `r_C2.mjs` checks the name and shoots each armour.
+
 ## Build queue (in order; model = best fit; Fable 5.2 available until 15 Nov)
 | # | Ticket | What | Model | Waits on |
 |---|---|---|---|---|

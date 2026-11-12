@@ -168,7 +168,7 @@ const emCol = u => u.leader ? crestCol(u) : C.linen;
 const crestCol = u => CREST_C[(G.crests && G.crests[u.ti]) || 0] || CREST_C[0];
 const MELEE = K('foot', 'captain'), HELMED = K('foot', 'captain');
 // the earned pieces (core/look.js: Gilded galea, Headsman hood, Black steel, Ermine cape)
-const GILT = new THREE.Color(0xe0b040), IRON = new THREE.Color(0x3a3c42), HOOD = new THREE.Color(0x1d1b1a), ERMINE = new THREE.Color(0xf2efe6);
+const GILT = new THREE.Color(0xe0b040), IRON = new THREE.Color(0x3a3c42), BURNISHED = new THREE.Color(0x8a7664), HOOD = new THREE.Color(0x1d1b1a), ERMINE = new THREE.Color(0xf2efe6);
 const DENT = new THREE.Color(0x24211e), PELT = new THREE.Color(0x7a6c5e), SILVER = new THREE.Color(0xe3e7ee), LEAF = new THREE.Color(0x5f8f3a), NIGHT = new THREE.Color(0x14120f);
 const armed = u => u.tier >= 1; // Footman/captain Arms upgrade: spear + javelin
 const armored = u => u.tier >= 2; // Footman/captain Armor upgrade: extra plate
@@ -196,11 +196,12 @@ const PARTS = [
   { bone: 'legR', geo: 'greave', mat: 'metal', m: e(0, -.46, 0), s: S('armour', 3), k: HELMED, col: () => IRON },
   { bone: 'body', geo: 'torso', mat: 'metal', m: e(0, 1.08, 0), s: S('armour', 1), k: K('captain'), col: () => C.bronze },
   { bone: 'body', geo: 'torso', mat: 'plain', m: e(0, 1.08, 0), s: S('armour', 1), k: K('foot', 'spear'), col: () => C.linen },
-  { bone: 'body', geo: 'torso', mat: 'plain', m: e(0, 1.08, 0), s: S('armour', 2), k: MELEE, t: u => !armed(u), col: skinOf },
-  { bone: 'body', geo: 'torso', mat: 'plain', m: e(0, 1.08, 0), s: S('armour', 2), k: MELEE, t: armed, col: dark },
+  { bone: 'body', geo: 'torso', mat: 'metal', m: e(0, 1.08, 0), s: S('armour', 2), k: MELEE, col: () => BURNISHED }, // (C2: Burnished iron, once Leather & fur)
+  { bone: 'legL', geo: 'greave', mat: 'metal', m: e(0, -.46, 0), s: S('armour', 2), k: HELMED, col: () => BURNISHED },
+  { bone: 'legR', geo: 'greave', mat: 'metal', m: e(0, -.46, 0), s: S('armour', 2), k: HELMED, col: () => BURNISHED },
   { bone: 'body', geo: 'torso', mat: 'plain', m: e(0, 1.08, 0), k: K('arch'), col: dark },
   { bone: 'body', geo: 'skirt', mat: 'plain', m: e(0, .64, 0), s: S('armour', 0, 1, 3), col: team },
-  { bone: 'body', geo: 'belt', mat: 'plain', m: e(0, .78, 0), col: u => W(u, 'armour') === 2 ? team(u) : C.leather },
+  { bone: 'body', geo: 'belt', mat: 'plain', m: e(0, .78, 0), col: () => C.leather },
   { bone: 'body', geo: 'head', mat: 'plain', m: e(0, 1.78, 0), col: skinOf },
   ...EXPRS.map(k => ({ bone: 'body', geo: 'face', mat: 'face_' + k, m: e(0, 1.73, .39), t: u => exprOf(u) === k })),
   // archers (every faction)
@@ -278,7 +279,6 @@ const PARTS = [
   { bone: 'body', geo: 'beard', mat: 'plain', m: e(0, 1.55, .3, .15), s: S('face', 1), k: K('captain'), col: hairOf },
   { bone: 'body', geo: 'beard', mat: 'plain', m: e(0, 1.48, .3, .2, 0, 0, 1.25, 1.6, 1.15), s: S('face', 2), k: K('captain'), col: hairOf },
   { bone: 'body', geo: 'circlet', mat: 'metal', m: e(0, 1.92, 0, Math.PI / 2), s: S('helm', 2), k: K('captain'), col: crestCol },
-  { bone: 'body', geo: 'mantle', mat: 'plain', m: e(0, 1.44, 0), s: S('armour', 2), k: K('foot'), col: () => C.fur },
   { bone: 'body', geo: 'mantle', mat: 'plain', m: e(0, 1.44, 0), s: S('cape', 2), k: K('captain'), col: () => C.fur },
   { bone: 'body', geo: 'mantle', mat: 'plain', m: e(0, 1.44, 0), s: S('cape', 3), k: K('captain'), col: () => ERMINE },
   // captain's cape
