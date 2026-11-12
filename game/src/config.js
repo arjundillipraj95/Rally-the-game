@@ -372,3 +372,31 @@ export const FEEL = {
   death: { body: 14, fadeOut: .45, hold: .15, fadeIn: .5, watch: 4, blackMax: 3, zoom: 1.18, lift: 1.4 },
   net: { msgs: 12 },
 };
+
+// F8 captain animation: Mixamo clips on the shared skeleton (files made by tools/models/prep.mjs, which
+// prints each clip's length, the moment of its blow and the ground it covers per loop).
+//   fade: seconds to blend from one clip to the next (fast: into a blow or a hit); code: into and out of a
+//   move that is still posed in code. legs: the bones the legs' clip moves (the rest follow the upper body's).
+//   loco: standing below idleBelow m/s, running above runAbove; side: how much more sideways than forward he
+//   must be going to strafe; rate: slowest and fastest a moving clip is played; stride: metres per loop (model size).
+//   swing: per blow, the clip's second of the blow (hit), how long before it the clip is entered (lead), and
+//   its speed after the blow; hitDelay: seconds from the button to the blow landing in the rules.
+//   acts: moves the game doesn't have yet (set unit.act = { name, t: G.T }, hold: true to stay in it).
+export const ANIM = {
+  file: 'models/captain_anim.glb', soldierFile: 'models/soldier_anim.glb',
+  fade: .18, fast: .07, code: .12, out: .22,
+  legs: ['Hips', 'LeftUpLeg', 'LeftLeg', 'LeftFoot', 'LeftToeBase', 'RightUpLeg', 'RightLeg', 'RightFoot', 'RightToeBase'],
+  loco: { idleBelow: .35, runAbove: 2.6, side: 1.2, rate: [.55, 1.8],
+    stride: { walk: 1.19, walkBack: 1.02, run: 2.1, runBack: 1.69, strafeL: 1.02, strafeR: 1.01, strafeRunL: 1.68, strafeRunR: 1.72 } },
+  hitDelay: .15, swingTail: .3,
+  shield: { at: [.1, .09, 0] }, // (where the shield is strapped for the clips, from the left elbow: [toward the hand, off the back of the arm, across it], model units)
+  swing: { slash1: { hit: .467, lead: .3, after: 1.5 }, slash2: { hit: .467, lead: .3, after: 1.5 }, slash3: { hit: .4, lead: .28, after: 1.5 },
+    attack: { hit: .467, lead: .3, after: 1.5 }, attackBoost: { hit: .5, lead: .34, after: 1.5 } },
+  swingKind: ['slash1', 'slash2', 'slash3', 'attack', 'slash3'], boost: 'attackBoost', boostWithin: .7, // (swingKind 4 is the sword's spin finisher: no spin clip yet, so the big third slash)
+  turn: { clip: 'turn180', min: 2.3, maxSpeed: 1.5, rate: 2 },
+  block: ['block', 'blockIdle'], blockHit: { clip: 'blockImpact', rate: 1.4 },
+  impact: { clips: ['impact', 'impact2'], rate: 1.5, minDmg: .5 },
+  death: { front: 'death', back: 'death2', rate: 1.15 },
+  acts: { kick: { steps: ['kick'], legs: true }, crouch: { steps: ['crouch', 'crouchIdle'], legs: true, then: 'crouchUp' }, crouchUp: { steps: ['crouchUp'], legs: true },
+    sheath: { steps: ['sheath1', 'sheath2'] }, powerUp: { steps: ['powerUp'] }, cast: { steps: ['casting'] } },
+};

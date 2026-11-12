@@ -801,7 +801,7 @@ function renderMissions() {
   const rec = record(); $('seasonRec').textContent = rec.length ? 'Your record: ' + rec.map(x => `Season ${x.season}: ${x.titles.join(' / ')}`).join(' · ') : '';
 }
 function renderShop() {
-  const rows = []; SLOTS.forEach((sl, si) => sl.items.forEach((it, j) => { if (it.lock && it.lock.shop) rows.push({ si, j, sl, it }); }));
+  const rows = []; SLOTS.forEach((sl, si) => sl.items.forEach((it, j) => { if (it.lock && it.lock.shop && !it.gone) rows.push({ si, j, sl, it }); }));
   $('shopList').innerHTML = rows.map(({ si, j, sl, it }) => `<div class="frow trow${owns(si, j) ? ' have' : ''}"><span class="tg">${sl.name}</span><b>${it.name}</b>${owns(si, j) ? '<em>Yours</em>' : `<div class="btns"><button type="button" class="go alt" data-buy="${sl.id}:${j}">${it.lock.price || 'Buy'}</button></div>`}</div>`).join('');
 }
 $('missBtn').addEventListener('click', () => { renderMissions(); setHomeView('missions'); });

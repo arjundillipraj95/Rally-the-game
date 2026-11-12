@@ -5,11 +5,12 @@
 // Captains only for now: a few skinned meshes are cheap; soldiers (hundreds) need baked instancing.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { TEAMS, NEUTRAL } from '../config.js';
+import { TEAMS, NEUTRAL, ANIM } from '../config.js';
 import { G, colorOf } from '../core/state.js';
 import { scene } from './scene.js';
 import { groundY } from '../core/world.js';
 import { rigCaptain, addArmour, applyPose, moveAt, mixPose, CLIPS, POSES, teamMaterial } from './rig/captainrig.js';
+import { loadClipBody, rigClip, addClipArmour, play, tick, head, ended } from './rig/cliprig.js';
 import { SLOTS, SLOT_IX } from '../core/look.js';
 import { canBrace } from '../core/sim.js';
 
@@ -24,6 +25,9 @@ const RIDE = { thigh_L: [-1.25, 0, 0], thigh_R: [-1.25, 0, 0], shin_L: [1.45, 0,
 let on = false;
 try { on = new URLSearchParams(location.search).get('models') !== '0' && localStorage.getItem('rally.models') !== '0'; } catch (e) { /* (no storage: on) */ }
 export const heroesOn = () => on && !!SRC;
+// F8: captains move by real clips. ?clips=0 (or localStorage 'rally.clips' = '0') puts back the code-posed captain, to compare.
+let clipsOn = true;
+try { clipsOn = new URLSearchParams(location.search).get('clips') !== '0' && localStorage.getItem('rally.clips') !== '0'; } catch (e) { /* on */ }
 
 const SCALE = 1.22; // (the old captain stood about 2.4 tall; the model is 1.96)
 const SOLDIER_SCALE = .8; // (a foot soldier stands about 80% of the captain's height)
@@ -34,24 +38,24 @@ const PACK = { helmet: ['blue_crest', 'gold_ridge', 'red_crest'], shield: ['red_
 // the armour choices: the painted armour in four finishes (the tint multiplies its painted steel)
 const ARMOUR_FINISH = { steel: [0xffffff, .35, .45], bronze: [0xe0a458, .55, .38], leather: [0x9a6238, 0, .85], black: [0x3b3e46, .6, .3] };
 const pick = (slot, i) => (SLOTS[SLOT_IX[slot]].items[i] || {}).name || '';
-function helmFile(name) { if (/wild hair/i.test(name)) return null; if (/gild|gold|corinth/i.test(name)) return 'gold_ridge'; if (/great|wolf|warden/i.test(name)) return 'red_crest'; return 'blue_crest'; }
+// three Roman helmets, one file each; a retired helmet in a saved outfit is worn as the plain galea
+function helmFile(name) { if (/gild/i.test(name)) return 'gold_ridge'; if (/plumed/i.test(name)) return 'blue_crest'; return 'red_crest'; }
 function armourFile(name) { if (/bronze/i.test(name)) return 'bronze'; if (/leather|fur/i.test(name)) return 'leather'; if (/black/i.test(name)) return 'black'; return 'steel'; }
 function shieldFile(name) { if (/hoplon|oval/i.test(name)) return 'blue_oval'; if (/round|kite/i.test(name)) return 'blue_kite'; return 'red_scutum'; }
 if (on) {
   const L = new GLTFLoader(), first = g => { let m = null; g.scene.traverse(o => { if (o.isMesh && !m) m = o; }); return m; };
   const scene$ = f => L.loadAsync(f).then(g => g.scene), mesh$ = f => L.loadAsync(f).then(first);
   Promise.all([
-    ...['models/body_plain.glb', 'models/soldier.glb', 'models/armour_segmented.glb'].map(mesh$),
+    loadClipBody(ANIM.file), ...['models/soldier.glb', 'models/armour_segmented.glb'].map(mesh$),
     ...PACK.helmet.map(n => scene$(`models/pack/captain_helmet_${n}.glb`)),
     ...PACK.shield.map(n => scene$(`models/pack/captain_shield_${n}.glb`)),
     scene$('models/horse.glb'), mesh$('models/soldier_lod.glb')
   ]).then(all => {
-    const [b, sd, ar, ...rest] = all, helmets = rest.slice(0, 3), shields = rest.slice(3, 6), horse = rest[6], lod = rest[7].geometry;
+    const [cap, sd, ar, ...rest] = all, b = cap.mesh, helmets = rest.slice(0, 3), shields = rest.slice(3, 6), horse = rest[6], lod = rest[7].geometry;
     { const P = lod.attributes.position; let x0 = 1e9, x1 = -1e9; for (let i = 0; i < P.count; i++) { const y = P.getY(i); if (y > -.2 && y < -.15) { x0 = Math.min(x0, P.getX(i)); x1 = Math.max(x1, P.getX(i)); } } if (x1 > x0) lod.translate(-(x0 + x1) / 2, 0, 0); } // (centred on the waist, as the rig centres the full one)
     sd.material.metalness = 0; sd.material.roughness = .8; sd.geometry.userData.material = sd.material;
-    b.material.metalness = 0; b.material.roughness = .8; b.geometry.userData.material = b.material;
     const by = (list, names) => Object.fromEntries(names.map((n, i) => [n, list[i]]));
-    SRC = { body: b.geometry, soldier: sd.geometry, soldierMat: sd.material, lod, horse: horseTemplate(horse),
+    SRC = { cap, body: b.geometry, soldier: sd.geometry, soldierMat: sd.material, lod, horse: horseTemplate(horse),
       armours: Object.fromEntries(Object.entries(ARMOUR_FINISH).map(([n, [c, mt, rg]]) => { const m = ar.material.clone(); m.color.set(c); m.metalness = mt; m.roughness = rg; return [n, { geo: ar.geometry, mat: m }]; })),
       helmets: by(helmets, PACK.helmet), shields: by(shields, PACK.shield) };
   }).catch(e => { console.warn('captain models failed to load', e); on = false; });
@@ -92,8 +96,8 @@ function make(u) {
   const weapon = weaponOf(u), team = hexOf(u), soldier = u.kind !== 'captain', L = lookOf(u);
   const shieldName = L ? pick('shield', L[SLOT_IX.shield]) : '', shield = SRC.shields[shieldFile(shieldName)];
   const R = soldier ? rigCaptain(SRC.soldier, { body: 'soldier', team, weapon, pack: u.kind === 'arch' ? { noShield: true } : { shield } })
-    : rigCaptain(SRC.body, { team, weapon, pack: { shield, helmet: L ? SRC.helmets[helmFile(pick('helm', L[SLOT_IX.helm]))] || null : SRC.helmets.blue_crest } });
-  if (!soldier) { const a = SRC.armours[armourFile(L ? pick('armour', L[SLOT_IX.armour]) : '')]; addArmour(R, a.geo, a.mat); }
+    : (clipsOn ? rigClip : rigCaptain)(clipsOn ? SRC.cap : SRC.body, { team, weapon, pack: { shield, helmet: L ? SRC.helmets[helmFile(pick('helm', L[SLOT_IX.helm]))] || null : SRC.helmets.red_crest } });
+  if (!soldier) { const a = SRC.armours[armourFile(L ? pick('armour', L[SLOT_IX.armour]) : '')]; (R.clip ? addClipArmour : addArmour)(R, a.geo, a.mat); }
   else if ((u.kind === 'foot' && u.tier >= 2) || u.neutral) { const a = SRC.armours[armourFile(L ? pick('armour', L[SLOT_IX.armour]) : '')]; addArmour(R, a.geo, a.mat); } // (the Armour upgrade: your army's armour over the tunic; the mountain's neutral soldiers always wear the steel, M1)
   if (u.kind === 'arch') archerGear(R, team, u.tier | 0);
   R.root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
@@ -230,9 +234,19 @@ function drawFallen(u, a, h, dt) {
   const R = h.R, r = a.rag, air = r && (r.flip || r.cart);
   let P = LIMP;
   if (air) { const f = r.fl || 0; P = { ...LIMP, upperArm_R: [Math.sin(f) * 1.2, 0, Math.cos(f * .7) * .8], upperArm_L: [Math.sin(f + 2) * 1.2, 0, -Math.cos(f * .7 + 1) * .8], thigh_R: [Math.sin(f + 1) * .9, 0, -.2], thigh_L: [Math.sin(f + 3.5) * .9, 0, .2], shin_R: [.6, 0, 0], shin_L: [.6, 0, 0] }; }
-  h.cur = settle(h.cur, P, 1 - Math.exp(-(air ? 30 : 12) * Math.min(dt, .1)));
-  applyPose(R, h.cur);
   const top = h.U || R.root;
+  if (R.clip && !h.U && !air && h.fell !== 'code') { // F8: a captain cut down where he stands plays his death (launched or ridden down: the code's tumble, below)
+    if (!h.fell) { h.fell = 'clip'; const back = u.hitAng != null && Math.cos(u.hitAng - u.face) < 0; h.an = { key: 'death', steps: [back ? ANIM.death.back : ANIM.death.front] }; } // (struck from behind, he pitches forward)
+    for (const part of ['lo', 'up']) play(R, part, h.an.steps[0], 'death', { fade: ANIM.fast, loop: false }).act.timeScale = ANIM.death.rate;
+    tick(R, dt, { code: false });
+    top.rotation.set(0, u.face + (a.yaw || 0), 0);
+    top.position.set(u.x, (u.y || 0) + (a.lift || 0) * .4 - (a.sink || 0) + .998 * h.sc, u.z);
+    top.visible = true;
+    return true;
+  }
+  h.fell = 'code';
+  h.cur = settle(h.cur, P, 1 - Math.exp(-(air ? 30 : 12) * Math.min(dt, .1)));
+  if (R.clip) { R.cw = 1; tick(R, dt, { P: h.cur, code: true }); } else applyPose(R, h.cur);
   _ef.set(a.bodyRX || 0, u.face + (a.yaw || 0), a.bodyRZ || 0, 'YXZ'); _qf.setFromEuler(_ef);
   _vf.set(0, .998 * h.sc, 0).applyQuaternion(_qf);
   top.quaternion.copy(_qf);
@@ -282,6 +296,110 @@ function drop(h) {
   h.R.root.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); // (the horse's geometry is shared: only the rider's is freed)
 }
 
+// the pose the code gives a man for what he is doing this frame. rate: how fast he moves into it; roll:
+// the side evade's turn; tag: 'loco' (standing or moving), 'block', 'swing', or 'code' for every other move
+function pickPose(u, a, h, dt, sp, mv, blocking) {
+  let P, rate = 16, roll = 0, tag = 'code'; // (rate: how fast he moves into the pose; roll: the side evade's turn)
+  if (u.execA || u.execV) h.exT = (h.exT || 0) + dt; else h.exT = 0;
+  const ev = u.evade && !h.U && G.T - u.evade.t < EV_T ? (G.T - u.evade.t) / EV_T : -1;
+  if (ev >= 0 && h.evT !== u.evade.t) { h.evT = u.evade.t; const dx = Math.sin(u.face) * (u.vz || 0) - Math.cos(u.face) * (u.vx || 0); h.evDir = dx > 0 ? -1 : 1; } // (which way the roll turns: the way he's going)
+  if (u.execV) { P = POSES.kneel; rate = 10; }
+  else if (u.execA && !h.U) { P = moveAt(h.weapon === 'spear' ? 'exec_spear' : h.weapon === 'jav' ? 'exec_jav' : 'exec_sword', Math.min(1, h.exT / 1.3)); rate = 26; }
+  else if (ev >= 0) { // the evades: into the move fast, held, then out of it
+    const k = ev < .22 ? ev / .22 : ev < .7 ? 1 : 1 - (ev - .7) / .3, kind = u.evade.kind;
+    P = mixPose(CLIPS.idle(G.T), kind === 'pounce' ? POSES.evPounce : kind === 'back' ? POSES.evBack : POSES.evRoll, Math.min(1, k * 1.3)); rate = 30;
+    if (kind === 'side') { const r = Math.min(1, Math.max(0, (ev - .06) / .62)); roll = h.evDir * Math.PI * 2 * r * r * (3 - 2 * r); } // (a full turn, eased in and out)
+  }
+  else if (a.stumble > 0) { P = moveAt('stagger', Math.min(1, 1 - a.stumble / .4) * .7); rate = 30; }
+  else if (u.windup > 0) P = moveAt('heavy', .4); // (wound up, weapon high, the glint coming)
+  else if (u.swing > 0) {
+    tag = 'swing';
+    const t = 1 - u.swing / .38, k = u.swingKind | 0;
+    let name = KIND[k] || 'forehand';
+    if (h.weapon === 'spear') name = k === 5 ? 'lunge' : k === 6 ? 'bash' : (k === 1 || k === 2) ? 'thrustHigh' : 'thrust'; // (the spear: a low stab, an overhand stab, the skewer)
+    else if (h.weapon === 'jav') name = k === 6 ? 'bash' : 'throw'; // (javelins are thrown)
+    if (h.weapon === 'bow') name = null; // (the archer looses: the bow held up)
+    P = name === null ? POSES.guard : name === 'heavy' ? moveAt('heavy', .4 + .6 * t) : moveAt(name, t); rate = 34;
+  } else if (u.parryT != null && G.T - u.parryT < .32 && G.T - u.parryT >= 0) { P = moveAt('parry', (G.T - u.parryT) / .32); rate = 34; }
+  else if (u.heavyCharge > 0 && h.weapon === 'sword') { // the held heavy blow: raised and trembling, deeper the longer it's held
+    P = moveAt('heavy', .25 + .15 * Math.min(1, u.heavyCharge)); P = Object.assign({}, P, { upperArm_R: P.upperArm_R.map((v, i) => i === 2 ? v + Math.sin(G.T * 40) * .03 * u.heavyCharge : v) }); rate = 20;
+  }
+  else if (u.bracing) { P = POSES.brace; rate = 18; }
+  else if (u.javDraw > 0) { P = mixPose(POSES.rest, POSES.javDraw, Math.min(1, .55 + .45 * u.javDraw)); rate = 20; }
+  else if (blocking) { tag = 'block'; P = G.T - h.blockHitT < .3 ? moveAt('block', (G.T - h.blockHitT) / .3) : POSES.guard; rate = G.T - h.blockHitT < .3 ? 30 : 18; }
+  else if (u.kind !== 'captain' && !u.mounted && chargeAt(u)) { P = u.kind === 'arch' ? mixPose(POSES.rest, POSES.evBack, .8) : h.weapon === 'spear' ? POSES.brace : POSES.guard; rate = 14; } // (a rider bearing down on him: shield up and crouched, spear set, an archer shrinking back)
+  else if (a.cheerT > 0) { P = mixPose(CLIPS.idle(G.T), POSES.cheer, Math.min(1, Math.sin(Math.PI * Math.min(1, a.cheerT / .9)) * 1.6)); }
+  else { tag = 'loco'; P = mv > .05 ? mixPose(CLIPS.idle(G.T), CLIPS.run(h.run, Math.min(1, .45 + sp / 9)), Math.min(1, mv * 1.6)) : CLIPS.idle(G.T); }
+  return { P, rate, roll, tag };
+}
+
+// ---- F8: a captain on real clips. Which clip plays on his legs and which on his upper body, from what
+// he is doing; moves with no clip keep the code's pose (blended in over the clips). Returns how far his
+// body is turned from the way he faces (the 180 turn: the clip steps, this turns him).
+const wrapA = d => d - Math.round(d / (Math.PI * 2)) * Math.PI * 2, clampN = (v, a, b) => Math.max(a, Math.min(b, v));
+function locoClip(u, h, sp) {
+  const L = ANIM.loco; if (h.U || sp < L.idleBelow) { h.side = false; return ['idle', 1]; }
+  const sn = Math.sin(u.face), cs = Math.cos(u.face), f = (u.vx || 0) * sn + (u.vz || 0) * cs, s = (u.vx || 0) * cs - (u.vz || 0) * sn;
+  h.fast = sp > L.runAbove * (h.fast ? .85 : 1); h.side = Math.abs(s) > Math.abs(f) * (h.side ? 1 / L.side : L.side); // (each holds until clearly the other, so he doesn't flicker between them)
+  const name = h.side ? (s > 0 ? (h.fast ? 'strafeRunL' : 'strafeL') : (h.fast ? 'strafeRunR' : 'strafeR')) : f >= 0 ? (h.fast ? 'run' : 'walk') : (h.fast ? 'runBack' : 'walkBack');
+  const C = SRC.cap.clips[name];
+  return [name, clampN(sp / (L.stride[name] * h.sc / C.dur), L.rate[0], L.rate[1])]; // (his feet keep time with the ground)
+}
+function clipHero(u, a, h, dt, sp, blocking, hurt, P, rate, tag) {
+  const R = h.R, T = G.T, C = SRC.cap.clips, kind = u.swingKind | 0;
+  // what has just happened
+  if (u.swing > (h.swPrev || 0) + .05) { // a blow begun: the sword's combo, thrust and boosted blows have clips
+    h.swN = (h.swN || 0) + 1; h.swT = T;
+    const boosted = (u.evade && T - u.evade.t < ANIM.boostWithin) || (u.pending && u.pending.leap);
+    h.swClip = h.weapon === 'sword' && kind < ANIM.swingKind.length ? (boosted ? ANIM.boost : ANIM.swingKind[kind]) : null;
+  }
+  h.swPrev = u.swing || 0;
+  if (blocking && !h.wasBlocking) h.blkN = (h.blkN || 0) + 1; h.wasBlocking = blocking;
+  if (hurt && !blocking && !(a.stumble > 0)) { h.impN = (h.impN || 0) + 1; h.impT = T; }
+  const d = h.face == null ? 0 : wrapA(u.face - h.face); h.face = u.face;
+  const code = !(tag === 'loco' || tag === 'block' || (tag === 'swing' && h.swClip));
+  if (Math.abs(d) > ANIM.turn.min && sp < ANIM.turn.maxSpeed && tag === 'loco' && !h.U) h.turn = { d, key: 'turn' + T };
+  if (h.turn && (code || tag !== 'loco')) h.turn = null;
+  // the move his clips should show, most pressing first
+  const X = u.act && ANIM.acts[u.act.name] ? u.act : null, xKey = X ? X.name + X.t : null;
+  if (h.xHeld && (!X || !X.hold || xKey !== h.xHeld.key)) { const then = ANIM.acts[h.xHeld.name].then; if (then) h.xAfter = { name: then, key: then + T, steps: ANIM.acts[then].steps, legs: ANIM.acts[then].legs }; h.xHeld = null; }
+  const imp = ANIM.impact, bh = ANIM.blockHit;
+  let W = null;
+  if (code) W = null;
+  else if (h.turn) W = { key: h.turn.key, steps: [ANIM.turn.clip], legs: true, rate: ANIM.turn.rate, fade: ANIM.fast, turn: true };
+  else if (h.swClip && h.swT != null && T - h.swT < .38 + ANIM.swingTail) W = { key: 'sw' + h.swN, steps: [h.swClip], swing: ANIM.swing[h.swClip], fade: ANIM.fast };
+  else if (blocking && T - h.blockHitT >= 0 && T - h.blockHitT < C[bh.clip].dur / bh.rate) W = { key: 'bh' + h.blockHitT, steps: [bh.clip], rate: bh.rate, fade: ANIM.fast };
+  else if (blocking) W = { key: 'blk' + h.blkN, steps: ANIM.block, hold: true };
+  else if (h.impT != null && T - h.impT < C[imp.clips[h.impN % imp.clips.length]].dur / imp.rate) W = { key: 'imp' + h.impN, steps: [imp.clips[h.impN % imp.clips.length]], rate: imp.rate, fade: ANIM.fast };
+  else if (X && (X.hold || h.xDone !== xKey)) { W = { key: xKey, steps: ANIM.acts[X.name].steps, legs: ANIM.acts[X.name].legs, hold: !!X.hold, act: true }; if (X.hold) h.xHeld = { name: X.name, key: xKey }; }
+  else if (h.xAfter) W = h.xAfter;
+  if (W && !(h.an && h.an.key === W.key)) h.an = { ...W, i: 0 }; else if (!W) h.an = null;
+  const an = h.an, [loco, lrate] = locoClip(u, h, sp);
+  if (an) { // step through the move's clips; a finished move lets go
+    const e = head(R, 'up'), last = an.i >= an.steps.length - 1;
+    if (e && e.name === an.steps[an.i] && R.up.key === an.key + ':' + an.i && ended(e)) {
+      if (!last) an.i++;
+      else if (!an.hold) { if (an.act) h.xDone = an.key; if (an === h.xAfter || (h.xAfter && an.key === h.xAfter.key)) h.xAfter = null; if (an.turn) h.turn = null; h.an = null; }
+    }
+  }
+  let turn = 0;
+  if (h.an) {
+    const name = an.steps[an.i], loops = !!an.hold && an.i === an.steps.length - 1, full = an.legs || loco === 'idle', key = an.key + ':' + an.i;
+    const S = an.swing, e = play(R, 'up', name, key, { fade: an.i ? ANIM.fast : an.fade || ANIM.fade, loop: loops, at: S ? Math.max(0, S.hit - S.lead) : 0 }); // (a blow is entered a little before it lands, so it lands when the rules say it does)
+    e.act.timeScale = S ? (e.act.time < S.hit ? S.lead / ANIM.hitDelay : S.after) : an.rate || 1;
+    if (full) { const l = play(R, 'lo', name, key, { fade: an.i ? ANIM.fast : an.fade || ANIM.fade, loop: loops, at: e.act.time }); l.act.timeScale = e.act.timeScale; l.act.time = e.act.time; }
+    else play(R, 'lo', loco, 'L' + loco).act.timeScale = lrate;
+    if (an.turn) { const k = clampN(e.act.time / e.C.dur, 0, 1); turn = -h.turn.d * (1 - k * k * (3 - 2 * k)); }
+  } else {
+    const l = play(R, 'lo', loco, 'L' + loco), e = play(R, 'up', loco, 'L' + loco, { fade: code ? ANIM.fade : ANIM.out });
+    l.act.timeScale = e.act.timeScale = lrate; e.act.time = l.act.time; // (one clip, head to toe)
+  }
+  if (code) { if (!h.coded) h.cur = null; h.cur = settle(h.cur, P, 1 - Math.exp(-rate * Math.min(dt, .1))); } // (a code pose is eased toward as before; the blend from the clips eases it in)
+  h.coded = code;
+  tick(R, dt, { P: code ? h.cur : h.U ? P : null, code, ride: !!h.U, reel: a });
+  return turn;
+}
+
 // pose and place one captain. a: the old renderer's state for him (lift, sink, yaw, stumble).
 // Returns false when this one is left to the old renderer (models not loaded, mounted, dead).
 export function drawHero(u, a, dt) {
@@ -296,52 +414,28 @@ export function drawHero(u, a, dt) {
   const R = h.R, sp = Math.hypot(u.vx || 0, u.vz || 0), mv = Math.min(1, sp / 4);
   h.run += dt * sp / (2.0 * h.sc * 1.5); // (the stride keeps time with the ground: one stride (two steps) per 2 m at his size, so his feet don't skate)
   if (u.dead) return drawFallen(u, a, h, dt);
-  const blocking = (u.human && u.blocking) || u.blockT > 0;
+  const blocking = (u.human && u.blocking) || u.blockT > 0, hurt = u.hp < h.hp - ANIM.impact.minDmg;
   if (blocking && u.hp < h.hp - .5) h.blockHitT = G.T; // (a blow taken on the shield: it jolts)
   h.hp = u.hp;
-  let P, rate = 16, roll = 0; // (rate: how fast he moves into the pose; roll: the side evade's turn)
-  if (u.execA || u.execV) h.exT = (h.exT || 0) + dt; else h.exT = 0;
-  const ev = u.evade && !h.U && G.T - u.evade.t < EV_T ? (G.T - u.evade.t) / EV_T : -1;
-  if (ev >= 0 && h.evT !== u.evade.t) { h.evT = u.evade.t; const dx = Math.sin(u.face) * (u.vz || 0) - Math.cos(u.face) * (u.vx || 0); h.evDir = dx > 0 ? -1 : 1; } // (which way the roll turns: the way he's going)
-  if (u.execV) { P = POSES.kneel; rate = 10; }
-  else if (u.execA && !h.U) { P = moveAt(h.weapon === 'spear' ? 'exec_spear' : h.weapon === 'jav' ? 'exec_jav' : 'exec_sword', Math.min(1, h.exT / 1.3)); rate = 26; }
-  else if (ev >= 0) { // the evades: into the move fast, held, then out of it
-    const k = ev < .22 ? ev / .22 : ev < .7 ? 1 : 1 - (ev - .7) / .3, kind = u.evade.kind;
-    P = mixPose(CLIPS.idle(G.T), kind === 'pounce' ? POSES.evPounce : kind === 'back' ? POSES.evBack : POSES.evRoll, Math.min(1, k * 1.3)); rate = 30;
-    if (kind === 'side') { const r = Math.min(1, Math.max(0, (ev - .06) / .62)); roll = h.evDir * Math.PI * 2 * r * r * (3 - 2 * r); } // (a full turn, eased in and out)
-  }
-  else if (a.stumble > 0) { P = moveAt('stagger', Math.min(1, 1 - a.stumble / .4) * .7); rate = 30; }
-  else if (u.windup > 0) P = moveAt('heavy', .4); // (wound up, weapon high, the glint coming)
-  else if (u.swing > 0) {
-    const t = 1 - u.swing / .38, k = u.swingKind | 0;
-    let name = KIND[k] || 'forehand';
-    if (h.weapon === 'spear') name = k === 5 ? 'lunge' : k === 6 ? 'bash' : (k === 1 || k === 2) ? 'thrustHigh' : 'thrust'; // (the spear: a low stab, an overhand stab, the skewer)
-    else if (h.weapon === 'jav') name = k === 6 ? 'bash' : 'throw'; // (javelins are thrown)
-    if (h.weapon === 'bow') name = null; // (the archer looses: the bow held up)
-    P = name === null ? POSES.guard : name === 'heavy' ? moveAt('heavy', .4 + .6 * t) : moveAt(name, t); rate = 34;
-  } else if (u.parryT != null && G.T - u.parryT < .32 && G.T - u.parryT >= 0) { P = moveAt('parry', (G.T - u.parryT) / .32); rate = 34; }
-  else if (u.heavyCharge > 0 && h.weapon === 'sword') { // the held heavy blow: raised and trembling, deeper the longer it's held
-    P = moveAt('heavy', .25 + .15 * Math.min(1, u.heavyCharge)); P = Object.assign({}, P, { upperArm_R: P.upperArm_R.map((v, i) => i === 2 ? v + Math.sin(G.T * 40) * .03 * u.heavyCharge : v) }); rate = 20;
-  }
-  else if (u.bracing) { P = POSES.brace; rate = 18; }
-  else if (u.javDraw > 0) { P = mixPose(POSES.rest, POSES.javDraw, Math.min(1, .55 + .45 * u.javDraw)); rate = 20; }
-  else if (blocking) { P = G.T - h.blockHitT < .3 ? moveAt('block', (G.T - h.blockHitT) / .3) : POSES.guard; rate = G.T - h.blockHitT < .3 ? 30 : 18; }
-  else if (u.kind !== 'captain' && !u.mounted && chargeAt(u)) { P = u.kind === 'arch' ? mixPose(POSES.rest, POSES.evBack, .8) : h.weapon === 'spear' ? POSES.brace : POSES.guard; rate = 14; } // (a rider bearing down on him: shield up and crouched, spear set, an archer shrinking back)
-  else if (a.cheerT > 0) { P = mixPose(CLIPS.idle(G.T), POSES.cheer, Math.min(1, Math.sin(Math.PI * Math.min(1, a.cheerT / .9)) * 1.6)); }
-  else P = mv > .05 ? mixPose(CLIPS.idle(G.T), CLIPS.run(h.run, Math.min(1, .45 + sp / 9)), Math.min(1, mv * 1.6)) : CLIPS.idle(G.T);
+  let { P, rate, roll, tag } = pickPose(u, a, h, dt, sp, mv, blocking);
   const top = h.U || R.root; // (mounted: the horse and rider move together, their feet on the ground)
   if (h.U) P = Object.assign({}, P, RIDE); // (mounted: his legs go over the saddle whatever he is doing)
-  h.cur = settle(h.cur, P, 1 - Math.exp(-rate * Math.min(dt, .1))); // (eased into each pose, never snapped)
-  applyPose(R, reeled(h.cur, a));
+  let turn = 0;
+  if (R.clip) turn = clipHero(u, a, h, dt, sp, blocking, hurt, P, rate, tag);
+  else {
+    h.cur = settle(h.cur, P, 1 - Math.exp(-rate * Math.min(dt, .1))); // (eased into each pose, never snapped)
+    applyPose(R, reeled(h.cur, a));
+  }
   // the blow landing: a white flash through him (his own body's material only: the gear is shared)
   const fl = Math.max(0, Math.min(1, a.flash || 0)); if (R.mesh.material.emissive && fl !== h.fl) { h.fl = fl; R.mesh.material.emissive.setScalar(fl * .55); }
   top.position.set(u.x, (u.y || 0) + (a.lift || 0) - (a.sink || 0) + (h.U ? 0 : .998 * h.sc), u.z);
-  top.rotation.set(0, u.face + (a.yaw || 0), 0);
+  top.rotation.set(0, u.face + (a.yaw || 0) + turn, 0);
   if (roll) { R.root.rotateZ(roll); R.root.position.y -= .25 * Math.sin(Math.abs(roll) / 2) * h.sc; } // (the side roll: a full turn about his forward axis, tucked low)
   top.visible = true;
   if (h.legs) { const [bob, pitch] = gait(h.legs, sp, dt); top.position.y += bob; top.rotation.order = 'YXZ'; top.rotation.x = pitch; } // (the horse walks, trots or gallops for its speed, the rider going with it)
   return true;
 }
+if (import.meta.env.DEV) window.__f8 = { live, src: () => SRC, THREE, rigClip, addClipArmour, play, tick, loadClipBody, ANIM }; // (dev: tests read the captains' clips and bones)
 // after a frame's drawing: captains no longer drawn this way (gone, mounted, dead) are taken down
 export function sweepHeroes() {
   if (!on) return;

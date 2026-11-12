@@ -14,6 +14,13 @@ import { trail, slash, pow, dust, spark } from './effects.js';
 import { groundY } from '../core/world.js';
 import { quality } from './quality.js';
 import { drawHero, drawFar, sweepHeroes } from './heroes.js';
+import { loadClipBody } from './rig/cliprig.js';
+import { ANIM } from '../config.js';
+// F8: the soldier's painted body on the shared skeleton, with its clips, for the batched soldiers (F1).
+// Loaded only when asked for: nothing draws it yet.
+let soldierBody = null;
+export const loadSoldierBody = () => soldierBody || (soldierBody = loadClipBody(ANIM.soldierFile));
+if (import.meta.env.DEV) window.__soldierBody = loadSoldierBody;
 
 const MAX_UNITS = 320;
 

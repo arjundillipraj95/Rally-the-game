@@ -34,12 +34,16 @@ Last updated: 2026-11-11 (evening). Older detail: `docs/history/2026-11-log.md`.
   Only seen headless: Arjun judges the feel, the vibration and the four placeholder sounds on his phone.
   Found, not fixed: the host's own hit-stop slows the rules for everyone for 30-100 ms (was so before F6).
 
+- F8 Real animation for the captain (Mixamo clips on one shared skeleton, blended; upper body attacks while the legs
+  run). Card: `docs/tickets/F8.md`. r_F8 passes; crown2 tests pass roles off and on; Low draw calls level (1214 vs 1216).
+  No spin clip: the combo's spin plays slash3. Heavy blow, bash, war cry, spear stay on the code pose. Soldier clips
+  prepared, used by F1. Same commit: helmets cut to three Roman ones (Arjun, 12 Nov). Arjun judges the feel.
+
 ## Build queue (in order; model = best fit; Fable 5.2 available until 15 Nov)
 | # | Ticket | What | Model | Waits on |
 |---|---|---|---|---|
 | 1 | F7 | No abrupt cuts. Moments listed below; Arjun picks walk or fade | S | Arjun's picks |
 | 3 | F1 | Batched soldiers (P8.1 forward): about 1,200 draw calls down to 150 | **Fable**, else O | card |
-| 4 | F8 | Animation: real clips on one shared skeleton, blending. F8a file prep (H) | **Fable** if files by ~13 Nov, else O | Arjun's Mixamo files |
 | 4b | F15 | Always landscape and full screen: on Android, full screen and locked sideways from the first tap, whatever way the player entered; in portrait mid-battle, a 'turn your phone' screen. iPhone can't be locked by a website: same screen, plus Add to Home Screen. Android: an Install button (the manifest is already there) | S | Arjun's go |
 | 5 | F14 | Adapts to any phone: picks its quality from the first seconds of frame rate and keeps adjusting; targets iPhone 13+, Galaxy S23+, and plays on any Android | S | after F1 |
 | 6 | F4 | Neutral garrisons and camps fight as real soldiers and ambush (today one shared health pool, standing still) | O | card |

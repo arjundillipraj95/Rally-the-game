@@ -1,7 +1,7 @@
 // F6 frame cost: draw calls and triangles at a Crown start on Low quality, with a fixed random seed so two
 // builds can be compared. Usage: node store/r_F6perf.mjs  (prints one JSON line)
 import { chromium } from 'playwright';
-export async function perf(browser) {
+export async function perf(browser, q = '') {
   const page = await browser.newPage({ viewport: { width: 844, height: 390 } });
   page.on('pageerror', e => console.log('PAGEERROR', e.message));
   await page.addInitScript(() => {
@@ -11,10 +11,10 @@ export async function perf(browser) {
     window.requestAnimationFrame = cb => { window.__raf.push(cb); return window.__raf.length; };
     window.__frame = (n = 1, dt = 1000 / 30) => { for (let i = 0; i < n; i++) { window.__t += dt; const q = window.__raf; window.__raf = []; q.forEach(cb => cb(window.__t)); } };
   });
-  await page.goto('http://127.0.0.1:8766/?crown2=1');
+  await page.goto('http://127.0.0.1:8766/?crown2=1' + q);
   await page.waitForFunction(() => window.__fb && window.__fb.G);
   await page.evaluate(() => window.__frame(3));
-  await page.click('#segMode button[data-v="crown"]'); await page.click('#goBtn');
+  await page.evaluate(() => { document.querySelector('#segMode button[data-v="crown"]').click(); document.getElementById('goBtn').click(); });
   await page.waitForTimeout(4000); // (the models load)
   const r = await page.evaluate(async () => {
     const F = window.__fb, R = F.renderer; let calls = 0, tris = 0, n = 0;

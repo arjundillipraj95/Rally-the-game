@@ -36,7 +36,7 @@ export function wardrobe(el, opts) {
   function items() {
     if (cat === 'crest') return CRESTS.map((c, i) => ({ name: c.name, on: opts.crest() === i, locked: !opts.crestOpen(i), need: opts.crestNeed(i), swatch: c.css, i }));
     const si = SLOTS.findIndex(s => s.id === cat), sl = SLOTS[si], cur = opts.look()[si];
-    return sl.items.map((it, j) => ({ name: it.name, on: cur === j, locked: !owns(si, j), need: lockText(it.lock), icon: cat === 'emblem' ? EMB[j] || IC.emblem : IC[cat], i: j, si }));
+    return sl.items.map((it, j) => ({ it, name: it.name, on: cur === j, locked: !owns(si, j), need: lockText(it.lock), icon: cat === 'emblem' ? EMB[j] || IC.emblem : IC[cat], i: j, si })).filter(x => !x.it.gone);
   }
   function render() {
     const c = cats.find(x => x.id === cat), sl = SLOTS.find(s => s.id === cat);

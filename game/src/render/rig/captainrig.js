@@ -41,7 +41,8 @@ const PARENT = {
   thigh_R: 'hips', shin_R: 'thigh_R', foot_R: 'shin_R',
   thigh_L: 'hips', shin_L: 'thigh_L', foot_L: 'shin_L',
 };
-const NAMES = Object.keys(PROFILES.captain.J);
+export const NAMES = Object.keys(PROFILES.captain.J);
+export const jointsOf = body => PROFILES[body].J;
 const sm = t => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t); };
 
 // the raw weights for one vertex, by region: {bone: weight}
@@ -92,7 +93,7 @@ function straightenArms(geo, { pivot: [px, py], angle, dir: [dx, dy] }) {
 }
 
 // skin weights per vertex from a region function, smoothed over the surface
-function skinWeights(geo, weightFn) {
+export function skinWeights(geo, weightFn) {
   const pos = geo.attributes.position, nV = pos.count;
   // weights per vertex, as dense rows, then smoothed over the mesh's neighbours
   // (texture seams split vertices; weights are worked out per welded point so both sides of a seam bend alike)
@@ -136,11 +137,16 @@ export function rigCaptain(srcGeo, { gear = true, show = false, body = 'captain'
   }
   const mat = geo.attributes.color ? new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .75 }) : new THREE.MeshStandardMaterial({ color: 0xe8e2d8, roughness: .7 });
   const base = srcGeo.userData.material || mat, mesh = new THREE.SkinnedMesh(geo, team != null && base.map ? teamMaterial(base, team, body === 'soldier' ? .26 : .23) : base);
-  const teamCol = team != null ? team : 0x2f62c8;
   mesh.add(bones.hips); mesh.bind(new THREE.Skeleton(NAMES.map(n => bones[n])));
   const root = new THREE.Group(); root.add(mesh);
   if (show) root.add(new THREE.SkeletonHelper(mesh));
-  if (gear) {
+  if (gear) addGear(bones, { body, weapon, team, pack });
+  return { root, mesh, bones, x0, weapon };
+}
+// the gear, hung on the hand and head bones (any skeleton's: the bones only need to sit and point as this rig's do)
+export function addGear(bones, { body = 'captain', weapon = 'sword', team = null, pack = null } = {}) {
+  const teamCol = team != null ? team : 0x2f62c8; let shieldAt = null;
+  {
     // a sword in the right fist (blade forward along +z), a shield on the left forearm, a helmet on the head
     const steel = new THREE.MeshStandardMaterial({ color: 0xd8dde2, metalness: .6, roughness: .3 }), gold = new THREE.MeshStandardMaterial({ color: 0xe0b040, metalness: .5, roughness: .4 }), leather = new THREE.MeshStandardMaterial({ color: 0x5a3a20 });
     const sw = pack && pack.weapon ? packPiece(pack.weapon, FIT.weapon[weapon] || FIT.weapon.sword) : makeWeapon(weapon); sw.position.set(-.08, 0, 0); if (pack && pack.weapon) { sw.rotation.x = Math.PI / 2; sw.position.z = -(FIT.weapon[weapon] || FIT.weapon.sword).grip; }
@@ -148,7 +154,7 @@ export function rigCaptain(srcGeo, { gear = true, show = false, body = 'captain'
     bones.hand_R.add(sw);
     // the shield: gripped in the left fist, its face along the hand's +z, its long side along +y.
     // Which way both point is set per pose (see aimGear): the wrist turns to match.
-    const sh = new THREE.Group(); sh.position.set(-.1, 0, .12); bones.hand_L.add(sh);
+    const sh = new THREE.Group(); sh.position.set(-.1, 0, .12); bones.hand_L.add(sh); shieldAt = sh;
     if (pack && pack.shield) { const p = packPiece(pack.shield, FIT.shield, team); p.position.z = FIT.shield.grip; sh.add(p); }
     else if (pack && pack.noShield) { /* (the archer's left hand is empty: it holds the bow) */ }
     else {
@@ -166,7 +172,15 @@ export function rigCaptain(srcGeo, { gear = true, show = false, body = 'captain'
     const crest = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: teamCol })); crest.scale.set(.05 / .97, .2 / .96, .28 / 1.06); crest.position.set(0, .34, 0); helm.add(crest); // (rides the helmet's own top, so it follows the tilt)
     }
   }
-  return { root, mesh, bones, x0, weapon };
+  return { shield: shieldAt };
+}
+// this rig's bones with no body on them: poses worked out here are carried onto another skeleton (rig/cliprig.js)
+export function bareRig(weapon = 'sword') {
+  const bones = {}; for (const n of NAMES) { bones[n] = new THREE.Object3D(); bones[n].name = n; }
+  const Jc = PROFILES.captain.J;
+  for (const n of NAMES) { const p = Jc[n], par = PARENT[n]; if (par) { const q = Jc[par]; bones[n].position.set(p[0] - q[0], p[1] - q[1], p[2] - q[2]); bones[par].add(bones[n]); } else bones[n].position.set(...p); }
+  const mesh = new THREE.Object3D(), root = new THREE.Group(); mesh.add(bones.hips); root.add(mesh);
+  return { root, mesh, bones, weapon };
 }
 
 // the equipment pack (separate static models, Z-up with the front toward -Y): each piece turned to
@@ -210,7 +224,7 @@ export function teamMaterial(src, hex, neckY = .24) {
 
 // armour regions: the shoulder guards ride the upper arms; the cuirass the chest and spine; the belt
 // and the hanging strips the hips, the strips' lower ends partly following the legs (like the skirt)
-function armourWeights(x, y) {
+export function armourWeights(x, y) {
   const ax = Math.abs(x), S = x < 0 ? '_R' : '_L', w = {};
   const add = (b, v) => { if (v > 0) w[b] = (w[b] || 0) + v; };
   const arm = y > -.2 ? sm((ax - .23) / .07) : 0;
@@ -222,14 +236,9 @@ function armourWeights(x, y) {
 // fit a generated armour (its own scale, centred on itself) over the body, and skin it to the same
 // skeleton. fit: scale per axis and where its neck rim and belt land. Its shoulder guards were made for
 // arms hanging at `armAngle` below level, so that's the pose it's bound in: they follow the arms from there.
-export function addArmour(R, srcGeo, material, { s = [.5, .4375, .48], src = { yNeck: .82, yBelt: -.3, zMid: .03 }, dst = { yNeck: .23, yBelt: -.29, zMid: .018 }, armAngle = .75 } = {}) {
-  const geo = srcGeo.clone(), pos = geo.attributes.position;
-  const sy = (dst.yNeck - dst.yBelt) / (src.yNeck - src.yBelt);
-  let xmin = 1e9, xmax = -1e9; for (let i = 0; i < pos.count; i++) { const x = pos.getX(i); xmin = Math.min(xmin, x); xmax = Math.max(xmax, x); }
-  const ax0 = (xmin + xmax) / 2;
-  for (let i = 0; i < pos.count; i++) pos.setXYZ(i, (pos.getX(i) - ax0) * s[0], (pos.getY(i) - src.yBelt) * sy + dst.yBelt, (pos.getZ(i) - src.zMid) * s[2] + dst.zMid);
-  geo.computeVertexNormals(); geo.computeBoundingSphere();
-  skinWeights(geo, armourWeights);
+const ARMOUR_FIT = { s: [.5, .4375, .48], src: { yNeck: .82, yBelt: -.3, zMid: .03 }, dst: { yNeck: .23, yBelt: -.29, zMid: .018 }, armAngle: .75 };
+export function addArmour(R, srcGeo, material, fit = {}) {
+  const { armAngle, dst } = { ...ARMOUR_FIT, ...fit }, geo = fitArmour(srcGeo, fit);
   const mesh = new THREE.SkinnedMesh(geo, material); R.root.add(mesh);
   // bind with the arms at the guards' angle, then back to whatever pose they were in
   const keep = Object.fromEntries(Object.entries(R.bones).map(([n, b]) => [n, b.quaternion.clone()]));
@@ -239,22 +248,38 @@ export function addArmour(R, srcGeo, material, { s = [.5, .4375, .48], src = { y
   mesh.bind(new THREE.Skeleton(NAMES.map(n => R.bones[n])), mesh.matrixWorld);
   for (const [n, q] of Object.entries(keep)) R.bones[n].quaternion.copy(q);
   R.root.updateMatrixWorld(true);
-  // tuck the body in under the armour (unseen there), so the tunic never pokes through the chest plate
-  const bp = R.mesh.geometry.attributes.position;
+  tuckBody(R.mesh.geometry, dst);
+  R.armour = mesh; return mesh;
+}
+// the armour's shape, scaled and placed over the body, with which bone moves which part (as this rig names them)
+export function fitArmour(srcGeo, fit = {}) {
+  const { s, src, dst } = { ...ARMOUR_FIT, ...fit }, geo = srcGeo.clone(), pos = geo.attributes.position;
+  const sy = (dst.yNeck - dst.yBelt) / (src.yNeck - src.yBelt);
+  let xmin = 1e9, xmax = -1e9; for (let i = 0; i < pos.count; i++) { const x = pos.getX(i); xmin = Math.min(xmin, x); xmax = Math.max(xmax, x); }
+  const ax0 = (xmin + xmax) / 2;
+  for (let i = 0; i < pos.count; i++) pos.setXYZ(i, (pos.getX(i) - ax0) * s[0], (pos.getY(i) - src.yBelt) * sy + dst.yBelt, (pos.getZ(i) - src.zMid) * s[2] + dst.zMid);
+  geo.computeVertexNormals(); geo.computeBoundingSphere();
+  skinWeights(geo, armourWeights);
+  return geo;
+}
+export const ARMOUR_ARM = ARMOUR_FIT.armAngle;
+// tuck the body in under the armour (unseen there), so the tunic never pokes through the chest plate
+// (x0: where the body's middle is, for a body not centred on x = 0)
+export function tuckBody(geometry, dst = ARMOUR_FIT.dst, x0 = 0) {
+  const bp = geometry.attributes.position;
   for (let i = 0; i < bp.count; i++) {
-    const x = bp.getX(i), y = bp.getY(i), z = bp.getZ(i);
+    const x = bp.getX(i) - x0, y = bp.getY(i), z = bp.getZ(i);
     const ax = Math.abs(x);
     if (y < -.32 || y > .22 || ax > .52) continue;
     if (ax <= .3) { // the chest and back: in toward the spine, full under the plate, easing out at the collar
       const k = .8 + .2 * sm((y - .15) / .07);
-      bp.setXYZ(i, x * k, y, dst.zMid + (z - dst.zMid) * k);
+      bp.setXYZ(i, x * k + x0, y, dst.zMid + (z - dst.zMid) * k);
     } else if (y > -.12) { // the shoulder and upper arm under the guard: in toward the arm's line
       const k = .82 + .18 * sm((ax - .44) / .08);
-      bp.setXYZ(i, x, y * k, z * k);
+      bp.setXYZ(i, x + x0, y * k, z * k);
     }
   }
-  bp.needsUpdate = true; R.mesh.geometry.computeBoundingSphere();
-  R.armour = mesh; return mesh;
+  bp.needsUpdate = true; geometry.computeBoundingSphere();
 }
 
 // poses: bone -> [x, y, z] rotation (radians, in the parent's frame); and where the gear points, in
