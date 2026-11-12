@@ -1,6 +1,6 @@
 // Third-person camera that follows your captain (or an ally's once you fall).
 import { G, isEnemyTi } from '../core/state.js';
-import { FEEL } from '../config.js';
+import { FEEL, EXEC } from '../config.js';
 import { groundY, terrainMeshY, rnd, W } from '../core/world.js';
 import { camera, view } from './scene.js';
 
@@ -48,7 +48,7 @@ function direct(tgt, dt) {
   // an execution: in close and low on the two of them, quickly
   // (and swung round side-on, so the kneeling man isn't hidden behind the executioner; eased back after)
   const exU = tgt.execA ? tgt : G.units.find(u => u.execA && !u.dead && Math.hypot(u.x - tgt.x, u.z - tgt.z) < 6), ex = !!exU || tgt.execV;
-  if (exU && exU !== dir.ex) { dir.side = Math.sin(cam.yaw + dir.orbit - exU.face) >= 0 ? 1 : -1; }
+  if (exU && exU !== dir.ex) { dir.side = Math.sin(cam.yaw + dir.orbit - exU.face) >= 0 ? 1 : -1; dir.zoom -= EXEC.push; } // (F7f: a very short extra push-in as it begins)
   dir.ex = exU || null;
   if (ex) { dir.want = .68; dir.wantLift = -.9; dir.t = .4; }
   const wantOrbit = exU ? angTo(cam.yaw, exU.face + dir.side * 1.25) : 0;

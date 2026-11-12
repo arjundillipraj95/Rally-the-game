@@ -49,7 +49,7 @@ Last updated: 2026-11-11 (evening). Older detail: `docs/history/2026-11-log.md`.
   - C5 Checked: faces do nothing on the F8 body (the Face tab saves a choice nothing draws). Report in `docs/tickets/C5.md`;
     faces become a package later. Arjun decides whether to hide the Face tab meanwhile.
 - F7 no abrupt cuts, Arjun's agreed rhythm (12 Nov): F7e duel ring shoves people to the edge over 0.3 s (was one frame).
-  `r_F7e.mjs`. F7g over the chasm's edge: 0.6 s fall from the rim with a scream, untouchable, then dead (was the same
+  `r_F7e.mjs`. F7f execution: the executioner slides in over 0.25 s and the camera pushes in a little more. `r_F7f.mjs`. F7g over the chasm's edge: 0.6 s fall from the rim with a scream, untouchable, then dead (was the same
   frame). `r_F7g.mjs`; `c2bits.mjs` now waits out the fall. crown2sim and crown2online pass roles off and on.
 
 ## Build queue (in order; model = best fit; Fable 5.2 available until 15 Nov)

@@ -230,8 +230,8 @@ export const DUEL = { mineT: 15, // (a refused challenge: "He's mine!" for this 
 export const BACKSTAB = { mult: 1.6, stun: .5 };
 // The execution: an enemy captain beaten down (hp at or under hp of his max, or hpStunned while
 // reeling) with none of his own men within clearR of him is marked to finish. Attack within reach
-// executes him: he drops to his knees, the blow comes down at strikeAt into dur; both untouchable.
-export const EXEC = { hp: .3, hpStunned: .45, clearR: 5, reach: 2.9, markR: 7, dur: 1.3, strikeAt: .75, gap: 1.95, beatenSpd: .7, beatenCd: 1.8, morale: 15, rally: 20 };
+// executes him (F7f: the executioner slides to his spot over `slide` s, and the camera pushes in a little more, `push`): he drops to his knees, the blow comes down at strikeAt into dur; both untouchable.
+export const EXEC = { hp: .3, hpStunned: .45, clearR: 5, reach: 2.9, markR: 7, dur: 1.3, strikeAt: .75, gap: 1.95, slide: .25, push: .08, beatenSpd: .7, beatenCd: 1.8, morale: 15, rally: 20 };
 // a captain cut down by another: the two of them in slow motion for this long (like a parry, only them)
 export const CAPKILL_SLOW = .7;
 // The rally horn. A captain fills it fighting well (per kill, captain kill, parry, perfect ride-by, guard

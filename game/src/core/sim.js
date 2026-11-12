@@ -856,7 +856,10 @@ function execTick(u, dt) {
   u.execT -= dt; u.vx = u.vz = 0;
   const v = u.execOf;
   if (v) { // the executioner: square to him at arm's length, and bring it down at strikeAt
-    if (!v.dead) { const ang = Math.atan2(v.x - u.x, v.z - u.z); u.face = ang; u.x = v.x - Math.sin(ang) * EXEC.gap; u.z = v.z - Math.cos(ang) * EXEC.gap; }
+    if (!v.dead) { // (F7f: he slides to his spot beside the victim over EXEC.slide s, not in one frame; once there he stays on it)
+      const ang = Math.atan2(v.x - u.x, v.z - u.z), tx = v.x - Math.sin(ang) * EXEC.gap, tz = v.z - Math.cos(ang) * EXEC.gap, left = EXEC.slide - (EXEC.dur - u.execT - dt), k = left > dt ? dt / left : 1;
+      u.face = ang; u.x += (tx - u.x) * k; u.z += (tz - u.z) * k;
+    }
     if (!u.execHit && EXEC.dur - u.execT >= EXEC.strikeAt) {
       u.execHit = true;
       if (!v.dead) {
