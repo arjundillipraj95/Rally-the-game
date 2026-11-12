@@ -11,6 +11,8 @@ import { G } from './state.js';
 // track), { pass, tier } (its Gold track) or { shop }: the wardrobe shows how to get it (ui/season.js).
 // `army: true` slots are worn by the whole army; the rest by the captain alone. `gone: true` pieces are retired
 // (12 Nov, Arjun: Roman general only; three helmets): hidden everywhere, kept here so saved outfits keep their numbers.
+// `hidden: true` slots are kept (an outfit still stores and wears them) but not shown in the closet (C3: the Weapon
+// slot, looks only; roles will pick weapons).
 export const SLOTS = [
   { id: 'helm', name: 'Helmet', army: true, items: [{ name: 'Galea' }, { gone: true, name: 'Corinthian' }, { gone: true, name: 'Wild hair' }, { name: 'Gilded galea', lock: { season: 1, tier: 4 } }, { gone: true, name: 'Headsman hood', lock: { feat: 'exec', n: 50, text: '50 executions' } },
     // (new pieces go on the end, so saved outfits and owned items keep their numbers)
@@ -18,7 +20,7 @@ export const SLOTS = [
   { id: 'armour', name: 'Armour', army: true, items: [{ name: 'Steel bands' }, { name: 'Bronze' }, { name: 'Burnished iron' }, { name: 'Black steel', lock: { shop: true, price: '$1.99' } }] },
   { id: 'shield', name: 'Shield', army: true, items: [{ name: 'Tower' }, { name: 'Hoplon' }, { name: 'Wooden round' }] },
   { id: 'emblem', name: 'Emblem', army: true, items: [{ name: 'Eagle' }, { name: 'Sun' }, { name: 'Thunder' }] },
-  { id: 'weapon', name: 'Weapon', army: true, items: [{ name: 'Gladius' }, { name: 'Long blade' }, { name: 'Axe' }] },
+  { id: 'weapon', name: 'Weapon', army: true, hidden: true, items: [{ name: 'Gladius' }, { name: 'Long blade' }, { name: 'Axe' }] },
   { id: 'cape', name: 'Cape', items: [{ name: 'Long cape' }, { name: 'Short cape' }, { name: 'Fur mantle' }, { name: 'Ermine cape', lock: { pass: true, tier: 6 } }] },
   { id: 'face', name: 'Face', items: [{ name: 'Clean' }, { name: 'Bearded' }, { name: 'Big beard' }] },
 ];

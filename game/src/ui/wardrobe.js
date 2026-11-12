@@ -27,7 +27,7 @@ const LOCK = svg('<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 1
 // opts: { look, crest, crestOpen(i), crestNeed(i), rankName(i), onPick(slot, v), onCrest(i) }
 export function wardrobe(el, opts) {
   let cat = SLOTS[0].id;
-  const cats = [...SLOTS.map(s => ({ id: s.id, name: s.name, army: s.army })), { id: 'crest', name: 'Crest' }];
+  const cats = [...SLOTS.filter(s => !s.hidden).map(s => ({ id: s.id, name: s.name, army: s.army })), { id: 'crest', name: 'Crest' }];
   function lockText(lock) {
     if (!lock) return '';
     if (lock.rank != null) return `${opts.rankName(lock.rank)} rank`;
@@ -53,5 +53,5 @@ export function wardrobe(el, opts) {
     if (cat === 'crest') opts.onCrest(i); else opts.onPick(SLOTS.findIndex(s => s.id === cat), i);
     render();
   });
-  return { render, show(c) { if (c) cat = c; render(); } };
+  return { render, show(c) { if (c && cats.some(x => x.id === c)) cat = c; render(); } };
 }
