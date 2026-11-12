@@ -21,12 +21,12 @@ export const SLOTS = [
   { id: 'shield', name: 'Shield', army: true, items: [{ name: 'Tower' }, { name: 'Hoplon' }, { name: 'Wooden round' }] },
   { id: 'emblem', name: 'Emblem', army: true, items: [{ name: 'Eagle' }, { name: 'Sun' }, { name: 'Thunder' }] },
   { id: 'weapon', name: 'Weapon', army: true, hidden: true, items: [{ name: 'Gladius' }, { name: 'Long blade' }, { name: 'Axe' }] },
-  { id: 'cape', name: 'Cape', items: [{ name: 'Long cape' }, { name: 'Short cape' }, { name: 'Fur mantle' }, { name: 'Ermine cape', lock: { pass: true, tier: 6 } }] },
+  { id: 'cape', name: 'Cape', items: [{ name: 'Long cape' }, { name: 'Short cape' }, { gone: true, name: 'Fur mantle' }, { gone: true, name: 'Ermine cape', lock: { pass: true, tier: 6 } }, { name: 'No cape' }], def: 4 }, // (C4: None is new, on the end, and the default; the mantle and ermine are retired)
   { id: 'face', name: 'Face', items: [{ name: 'Clean' }, { name: 'Bearded' }, { name: 'Big beard' }] },
 ];
 for (const s of SLOTS) s.opts = s.items.map(i => i.name); // (the plain names, for older code)
 export const SLOT_IX = Object.fromEntries(SLOTS.map((s, i) => [s.id, i]));
-export const DEFAULT_LOOK = SLOTS.map(() => 0);
+export const DEFAULT_LOOK = SLOTS.map(s => s.def || 0); // (a slot's `def`: what a new outfit wears; else its first item)
 
 const okLook = v => Array.isArray(v) && v.length === SLOTS.length && v.every((x, i) => Number.isInteger(x) && x >= 0 && x < SLOTS[i].opts.length);
 // An outfit as text: one base-36 character per slot (room for 36 items a slot). A code saved before a
@@ -34,11 +34,11 @@ const okLook = v => Array.isArray(v) && v.length === SLOTS.length && v.every((x,
 export const lookCode = v => (okLook(v) ? v : DEFAULT_LOOK).map(x => x.toString(36)).join('');
 export const lookFrom = s => {
   const str = String(s || ''); if (!str || str.length > SLOTS.length) return null;
-  const v = SLOTS.map((_, i) => i < str.length ? parseInt(str[i], 36) : 0);
+  const v = SLOTS.map((sl, i) => i < str.length ? parseInt(str[i], 36) : sl.def || 0);
   return okLook(v) ? v : null;
 };
 // an old faction becomes a matching outfit (Romans 0, Greeks 1, Barbarians 2)
-export const lookOfFaction = f => { const b = { roman: 0, greek: 1, barbarian: 2 }[f] ?? 0; return [b, b, b, b % 3, b, b === 2 ? 2 : 0, b === 2 ? 1 : 0]; };
+export const lookOfFaction = f => { const b = { roman: 0, greek: 1, barbarian: 2 }[f] ?? 0; return [b, b, b, b % 3, b, 4, b === 2 ? 1 : 0]; };
 
 // a computer captain: one style at heart, with a piece or two from elsewhere
 export function randomLook(seed) {

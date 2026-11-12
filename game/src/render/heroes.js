@@ -39,6 +39,8 @@ const PACK = { helmet: ['blue_crest', 'gold_ridge', 'red_crest'], shield: ['red_
 const ARMOUR_FINISH = { steel: [0xffffff, .35, .45], bronze: [0xe0a458, .55, .38], leather: [0x9a6238, 0, .85], iron: [0xb4a08c, .65, .32], black: [0x3b3e46, .6, .3] };
 // C1: a helmet's metal (dome, cheek guards) is the colour of the armour finish the player picked
 const HELM_METAL = { steel: 0xc4cad2, bronze: 0xc8903c, iron: 0x8a7664, leather: 0x8a7664, black: 0x3b3e46 };
+// C4: 0 = none, 1 = long, 2 = short (the retired mantle and ermine, in an old saved outfit, are worn as the long cape)
+const capeOf = L => { if (!L) return 0; const n = pick('cape', L[SLOT_IX.cape]); return /^no /i.test(n) ? 0 : /short/i.test(n) ? 2 : 1; };
 const pick = (slot, i) => (SLOTS[SLOT_IX[slot]].items[i] || {}).name || '';
 // three Roman helmets, one file each; a retired helmet in a saved outfit is worn as the plain galea
 function helmFile(name) { if (/gild/i.test(name)) return 'gold_ridge'; if (/plumed/i.test(name)) return 'blue_crest'; return 'red_crest'; }
@@ -93,12 +95,12 @@ function weaponOf(u) { if (u.kind === 'arch') return 'bow'; if (u.weapon) return
 const lookOf = u => (G.looks && G.looks[u.ti]) || null;
 // the colour an army's cloth, shield face and hood are tinted to: its team's, or the neutral grey (M1: the mountain's garrisons and camps)
 const hexOf = u => u.neutral ? NEUTRAL.hex : TEAMS[colorOf(u.ti)].hex;
-const keyOf = u => { const L = lookOf(u); return [hexOf(u), u.kind, u.tier | 0, L ? [L[SLOT_IX.helm], L[SLOT_IX.armour], L[SLOT_IX.shield]].join('.') : ''].join('|'); };
+const keyOf = u => { const L = lookOf(u); return [hexOf(u), u.kind, u.tier | 0, L ? [L[SLOT_IX.helm], L[SLOT_IX.armour], L[SLOT_IX.shield], L[SLOT_IX.cape]].join('.') : ''].join('|'); };
 function make(u) {
   const weapon = weaponOf(u), team = hexOf(u), soldier = u.kind !== 'captain', L = lookOf(u);
   const shieldName = L ? pick('shield', L[SLOT_IX.shield]) : '', shield = SRC.shields[shieldFile(shieldName)];
   const R = soldier ? rigCaptain(SRC.soldier, { body: 'soldier', team, weapon, pack: u.kind === 'arch' ? { noShield: true } : { shield } })
-    : (clipsOn ? rigClip : rigCaptain)(clipsOn ? SRC.cap : SRC.body, { team, weapon, pack: { shield, helmet: L ? SRC.helmets[helmFile(pick('helm', L[SLOT_IX.helm]))] || null : SRC.helmets.red_crest, helmetMetal: HELM_METAL[armourFile(L ? pick('armour', L[SLOT_IX.armour]) : '')] } });
+    : (clipsOn ? rigClip : rigCaptain)(clipsOn ? SRC.cap : SRC.body, { team, weapon, pack: { shield, helmet: L ? SRC.helmets[helmFile(pick('helm', L[SLOT_IX.helm]))] || null : SRC.helmets.red_crest, cape: capeOf(L), helmetMetal: HELM_METAL[armourFile(L ? pick('armour', L[SLOT_IX.armour]) : '')] } });
   if (!soldier) { const a = SRC.armours[armourFile(L ? pick('armour', L[SLOT_IX.armour]) : '')]; (R.clip ? addClipArmour : addArmour)(R, a.geo, a.mat); }
   else if ((u.kind === 'foot' && u.tier >= 2) || u.neutral) { const a = SRC.armours[armourFile(L ? pick('armour', L[SLOT_IX.armour]) : '')]; addArmour(R, a.geo, a.mat); } // (the Armour upgrade: your army's armour over the tunic; the mountain's neutral soldiers always wear the steel, M1)
   if (u.kind === 'arch') archerGear(R, team, u.tier | 0);
@@ -433,6 +435,7 @@ export function drawHero(u, a, dt) {
   top.position.set(u.x, (u.y || 0) + (a.lift || 0) - (a.sink || 0) + (h.U ? 0 : .998 * h.sc), u.z);
   top.rotation.set(0, u.face + (a.yaw || 0) + turn, 0);
   if (roll) { R.root.rotateZ(roll); R.root.position.y -= .25 * Math.sin(Math.abs(roll) / 2) * h.sc; } // (the side roll: a full turn about his forward axis, tucked low)
+  if (R.cape) { const k = R.cape.userData, want = k.base + Math.min(.55, sp * .07) + Math.sin(FRAME * .09 + u.id) * .03 * mv; k.a = k.a === undefined ? want : k.a + (want - k.a) * Math.min(1, dt * 6); R.cape.rotation.x = k.a; } // (C4: lifts behind him as he runs, eased)
   top.visible = true;
   if (h.legs) { const [bob, pitch] = gait(h.legs, sp, dt); top.position.y += bob; top.rotation.order = 'YXZ'; top.rotation.x = pitch; } // (the horse walks, trots or gallops for its speed, the rider going with it)
   return true;

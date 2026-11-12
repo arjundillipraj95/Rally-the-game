@@ -53,12 +53,12 @@ export function rigClip(S, { weapon = 'sword', team = null, pack = null } = {}) 
   }
   // the shield: gripped in the fist for the code's poses (which turn the wrist to face it); for the clips it
   // is strapped along the forearm, facing out from the back of the hand, as the clips were made
-  const shield = addGear(sock, { body: 'captain', weapon, team, pack }).shield;
+  const gear = addGear(sock, { body: 'captain', weapon, team, pack }), shield = gear.shield;
   sock.foreArm_L.updateMatrix(); sock.hand_L.updateMatrix();
   const mount = shield && { code: [shield.position.clone(), shield.quaternion.clone()], hand: mx.LeftHand, p: new THREE.Vector3(), q: new THREE.Quaternion(),
     clip: sock.foreArm_L.matrix.clone().multiply(new THREE.Matrix4().makeBasis(new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0)).setPosition(...ANIM.shield.at)), inv: sock.hand_L.matrix.clone().invert() };
   const mixer = new THREE.AnimationMixer(inner);
-  return { clip: true, S, root, inner, mesh, shield, mount, bones: sock, mx, list, rest, hips, hipsRest, weapon, mixer, shadow: bareRig(weapon),
+  return { clip: true, S, root, inner, mesh, shield, cape: gear.cape, mount, bones: sock, mx, list, rest, hips, hipsRest, weapon, mixer, shadow: bareRig(weapon),
     lo: { list: [], key: null, fade: ANIM.fade, part: 'lo' }, up: { list: [], key: null, fade: ANIM.fade, part: 'up' },
     cw: 0, cq: list.map(() => new THREE.Quaternion()), cy: 0, dq: list.map(() => new THREE.Quaternion()), wq: list.map(() => new THREE.Quaternion()) };
 }

@@ -140,12 +140,18 @@ export function rigCaptain(srcGeo, { gear = true, show = false, body = 'captain'
   mesh.add(bones.hips); mesh.bind(new THREE.Skeleton(NAMES.map(n => bones[n])));
   const root = new THREE.Group(); root.add(mesh);
   if (show) root.add(new THREE.SkeletonHelper(mesh));
-  if (gear) addGear(bones, { body, weapon, team, pack });
-  return { root, mesh, bones, x0, weapon };
+  const cape = gear ? addGear(bones, { body, weapon, team, pack }).cape : null;
+  return { root, mesh, bones, x0, weapon, cape };
 }
 // the gear, hung on the hand and head bones (any skeleton's: the bones only need to sit and point as this rig's do)
 export function addGear(bones, { body = 'captain', weapon = 'sword', team = null, pack = null } = {}) {
   const teamCol = team != null ? team : 0x2f62c8; let shieldAt = null;
+  let cape = null;
+  if (pack && pack.cape && bones.chest) { // (C4) hangs from the shoulders down his back; heroes.js lifts it with his speed
+    const [w, len] = pack.cape === 2 ? [.5, .55] : [.52, 1.05], g = new THREE.PlaneGeometry(w, len, 1, 6); g.translate(0, -len / 2, 0);
+    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: teamCol, roughness: .9, side: THREE.DoubleSide })); m.castShadow = true;
+    cape = new THREE.Group(); cape.position.set(0, .2, -.2); cape.add(m); bones.chest.add(cape); cape.userData.base = .06;
+  }
   {
     // a sword in the right fist (blade forward along +z), a shield on the left forearm, a helmet on the head
     const steel = new THREE.MeshStandardMaterial({ color: 0xd8dde2, metalness: .6, roughness: .3 }), gold = new THREE.MeshStandardMaterial({ color: 0xe0b040, metalness: .5, roughness: .4 }), leather = new THREE.MeshStandardMaterial({ color: 0x5a3a20 });
@@ -172,7 +178,7 @@ export function addGear(bones, { body = 'captain', weapon = 'sword', team = null
     const crest = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: teamCol })); crest.scale.set(.05 / .97, .2 / .96, .28 / 1.06); crest.position.set(0, .34, 0); helm.add(crest); // (rides the helmet's own top, so it follows the tilt)
     }
   }
-  return { shield: shieldAt };
+  return { shield: shieldAt, cape };
 }
 // this rig's bones with no body on them: poses worked out here are carried onto another skeleton (rig/cliprig.js)
 export function bareRig(weapon = 'sword') {
