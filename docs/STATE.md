@@ -2,7 +2,7 @@
 
 Current work: **friends' playtest fixes (F tickets) and lag (Phase 0)**, then Roles & Combat (design and plan in
 Claude Docs, links in CLAUDE.md). Every builder updates this file as the last step of its ticket. Owner: Opus owner chat.
-Last updated: 2026-11-12 (F1a and F1b built; F7-water shipped). Older detail: `docs/history/2026-11-log.md`.
+Last updated: 2026-11-12 (F1a and F1b shipped). Older detail: `docs/history/2026-11-log.md`.
 
 ## Live on main
 - P0.1 Dead-code cleanup · P0.2 Lag harness · P0.3 Ping readout · M1 Neutral soldiers look like soldiers
@@ -53,8 +53,9 @@ Last updated: 2026-11-12 (F1a and F1b built; F7-water shipped). Older detail: `d
   frame). `r_F7g.mjs`; `c2bits.mjs` now waits out the fall. crown2sim and crown2online pass roles off and on.
 
 - F7-water (lake, flood-out, summit gate) shipped to main 12 Nov (main = roles at 3df5b61).
+- F1a + F1b (draw calls ~1,220 -> ~151 at the Crown start, same look) shipped to main 12 Nov (main = roles at 8695d5e).
 
-## On `roles`, waiting for Arjun's "ship"
+## Shipped detail (F1)
 - F1a the map in batches, card `docs/tickets/F1a.md`: on the mountain the still scenery is folded into ~20 batches
   (one per look per 120 m cell, colours moved into vertices) and the live pieces batched by their builders (castle
   fort tiers, holds' cloths and rings, garrison banners, camp fires, torches, the glacier's crown). Crown start, same

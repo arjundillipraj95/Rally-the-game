@@ -1,7 +1,7 @@
 # F1a Batched map: the mountain's still pieces merged (F1, part 1 of 2)
 
 Model: Fable, else O · Written by the owner 12 Nov 2026 from plan P8.1 / P8.9 (tech ticket, no design rev)
-Status: built 12 Nov on roles, waiting on Arjun's ship. Low 1,220 -> 269 calls, High 1,226 -> 270, triangles +1%, frames identical. Phone fps: Arjun.
+Status: shipped to main 12 Nov. Low 1,220 -> 269 calls, High 1,226 -> 270, triangles +1%, frames identical. Phone fps: Arjun.
 
 ## What to build
 F1 (about 1,200 draw calls down to about 150, no visual change, no gameplay change) is split in two (Arjun, 12 Nov):

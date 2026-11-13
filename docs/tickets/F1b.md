@@ -1,7 +1,7 @@
 # F1b Batched men: each near soldier and captain in a few meshes (F1, part 2 of 2)
 
 Model: Fable, else O · Written by the owner 12 Nov 2026 from plan P8.1 / P8.9 (tech ticket, no design rev)
-Status: built 12 Nov on roles, waiting on Arjun's ship. Men 147 -> 29 draws; total with F1a 1,220 -> 151 on Low; frames identical.
+Status: shipped to main 12 Nov. Men 147 -> 29 draws; total with F1a 1,220 -> 151 on Low; frames identical.
 
 ## What to build
 The men near the camera are drawn piece by piece: a captain is about 22 meshes, a soldier about 12
