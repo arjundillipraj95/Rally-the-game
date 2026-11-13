@@ -13,6 +13,8 @@ import { rigCaptain, addArmour, applyPose, moveAt, mixPose, CLIPS, POSES, teamMa
 import { loadClipBody, rigClip, addClipArmour, play, tick, head, ended } from './rig/cliprig.js';
 import { SLOTS, SLOT_IX } from '../core/look.js';
 import { canBrace } from '../core/sim.js';
+import { batchOn, abOn, abOld } from './batch.js';
+import { foldGear, foldShow } from './rig/fold.js';
 
 // the warhorse's leg joints, in its own (Z-up) model space: each leg swings from the top of its upper part
 const LEGS = { frontL: [-.34, -.63, 1.2], frontR: [.34, -.63, 1.2], backL: [-.36, .58, 1.2], backR: [.36, .58, 1.2] };
@@ -107,7 +109,8 @@ function make(u) {
   R.root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
   const sc = soldier ? SCALE * SOLDIER_SCALE : SCALE;
   R.root.scale.setScalar(sc);
-  const h = { R, weapon, team, key: keyOf(u), run: 0, moveName: null, moveT: 0, hp: u.hp, blockHitT: -1, sc, mounted: !!u.mounted, U: null, legs: null };
+  const fold = batchOn() ? foldGear(R, [R.shield, R.cape]) : null; // (F1b: his gear in one or two draws; ?f1=0 the old pieces)
+  const h = { R, fold, weapon, team, key: keyOf(u), run: 0, moveName: null, moveT: 0, hp: u.hp, blockHitT: -1, sc, mounted: !!u.mounted, U: null, legs: null };
   if (u.mounted) { // on the warhorse: the rider sits on the saddle, and the unit moves as one
     const hc = SRC.horse.clone(true), U = new THREE.Group();
     U.add(hc); U.add(R.root); R.root.position.set(0, SEAT_TOP + (.38 + .04) * sc, SEAT_Z); // (his hips, .38 below his root, on the seat)
@@ -414,6 +417,7 @@ export function drawHero(u, a, dt) {
   let h = live.get(u);
   if (h && (h.weapon !== weaponOf(u) || h.key !== keyOf(u) || h.mounted !== !!u.mounted)) { drop(h); live.delete(u); h = null; }
   if (!h) { h = make(u); live.set(u, h); }
+  if (h.fold && abOn()) foldShow(h.fold, abOld()); // (dev, ?f1=ab: the test draws one frame both ways)
   h.seen = FRAME; // (drawn this frame: by a frame count, since the game clock stands still on the home screen)
   const R = h.R, sp = Math.hypot(u.vx || 0, u.vz || 0), mv = Math.min(1, sp / 4);
   h.run += dt * sp / (2.0 * h.sc * 1.5); // (the stride keeps time with the ground: one stride (two steps) per 2 m at his size, so his feet don't skate)

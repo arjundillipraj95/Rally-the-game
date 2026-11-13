@@ -88,7 +88,8 @@ export function mergeInto(meshes, space) {
 }
 
 // one indexed geometry from many pieces, each moved into the batch's space (mirrored pieces keep their faces outward)
-function merge(list) {
+// (list: [{ o: { geometry }, m: Matrix4 }]; attributes the matrix doesn't know, e.g. colours, are carried as they are)
+export function merge(list) {
   const parts = list.map(({ o, m, bake }) => {
     const g = o.geometry.clone(); g.applyMatrix4(m);
     if (bake) { const n = g.attributes.position.count, old = o.material.vertexColors && g.attributes.color, c = o.material.color, a = new Float32Array(n * 3);
