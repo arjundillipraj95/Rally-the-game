@@ -698,6 +698,7 @@ function renderSoloSeats() {
 }
 // each mode's target (tickets, captures...), shown for the mode picked
 function renderTargets() {
+  const tg = $('segTime').closest('.grp'); if (tg) tg.hidden = G.mode === 'crown'; // (F13: the Crown is always 10:00: no length to pick)
   const T = TARGETS[G.mode], grp = $('segTarget').closest('.grp'); if (grp) grp.hidden = !T; if (!T) return; // (the Crown has no target to pick)
   $('targetLabel').textContent = T.label;
   $('segTarget').innerHTML = T.opts.map(([v, n]) => `<button type="button" data-v="${v}" aria-pressed="${v === (G.target ?? T.def)}">${n}</button>`).join('');

@@ -1,6 +1,6 @@
 // The whole game state lives in one plain object. Rules read and write it;
 // the renderer and UI only read it. Nothing here depends on three.js or the DOM.
-import { MAPS, TIMES, PACE, TARGETS, CROWN, CROWN2, BOT_NAMES } from '../config.js';
+import { MAPS, MODES, TIMES, PACE, TARGETS, CROWN, CROWN2, BOT_NAMES } from '../config.js';
 
 export const G = {
   role: 'solo',          // 'solo' | 'host' | 'client'
@@ -75,14 +75,15 @@ export const SLOT_NAME = ['', 'Co-captain', 'Third captain'];
 // the numbers for this battle (pace from its length, and the target chosen for its mode), worked out
 // once per setting (it's read every frame)
 let rulesKey = '', rulesNow = null;
+const lenOf = () => (G.mode === 'crown' ? MODES.crown.time / 60 : G.time); // (F13: the Crown is always ten minutes, whatever length was picked for another mode)
 export const rules = () => {
-  const k = G.time + '|' + G.mode + '|' + G.target; if (k === rulesKey) return rulesNow;
-  const t = TIMES.find(x => x[0] === G.time) || TIMES[1], P = PACE[t[0]];
+  const len = lenOf(), k = len + '|' + G.mode + '|' + G.target; if (k === rulesKey) return rulesNow;
+  const t = TIMES.find(x => x[0] === len) || TIMES[1], P = PACE[t[0]];
   const r = { name: t[1], gather: P.gather, gold: P.gold }; for (const T of Object.values(TARGETS)) r[T.key] = T.def;
   const T = TARGETS[G.mode]; if (T && T.opts.some(o => o[0] === G.target)) r[T.key] = G.target;
   rulesKey = k; return (rulesNow = r);
 };
-export const matchTime = () => (TIMES.some(x => x[0] === G.time) ? G.time : 10) * 60;
+export const matchTime = () => (TIMES.some(x => x[0] === lenOf()) ? lenOf() : 10) * 60;
 export const targetFor = mode => { const T = TARGETS[mode]; return T ? T.def : null; };
 export const modeDesc = m => (m.desc || '').replace('{tickets}', rules().tickets).replace('{caps}', rules().caps).replace('{win}', rules().win);
 export const isEnemyTi = (a, b) => G.ALLY[colorOf(a)] !== G.ALLY[colorOf(b)];

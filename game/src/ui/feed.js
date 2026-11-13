@@ -17,6 +17,9 @@ const HERALD = {
   start: ['Gentlemen, please do not die before the trumpet.', 'Remember: the pointy end goes in the other fellow.', 'May the best captain win. Or the luckiest.', 'Today\'s weather: overcast, with a chance of arrows.', 'No refunds.'],
   first: ['First blood! Somebody\'s mother will hear about this.', 'And we\'re off! One captain already regrets everything.', 'First blood! The crowd goes mild.'],
   castle: ['A castle falls. The estate agents weep.', 'There goes the neighbourhood.', 'That castle had a lovely garden, too.', 'Under new management!'],
+  sunrise: ['The sun\'s up. So are the arrows.', 'Dawn on the mountain. Birds sing. Captains sharpen things.', 'Good morning, everyone who\'s about to be less well.', 'Sunrise! Do try to enjoy it before the shouting.'],
+  noon: ['High noon on the mountain: no shade, no excuses.', 'The sun\'s at its highest. So is the war chest\'s price.', 'Lunch hour! Nobody is eating lunch. Everyone is eating arrows.'],
+  sunset: ['The sun is going down. So are a few captains, probably.', 'Golden hour: the best light for the worst ideas.', 'Dusk is coming. Night will be shorter and shoutier.'],
   chestSoon: ['A war chest approaches. Greed, everyone! Greed!', 'Gold incoming. Try not to trample each other. Actually, do.'],
   chest: ['The war chest is claimed. Accountants everywhere rejoice.', 'Somebody just got very rich, very quickly.'],
   duel: ['A duel decided! Songs will be sung. Badly.', 'Honour satisfied, one captain slightly flattened.'],
@@ -35,7 +38,7 @@ function herald(text) {
 }
 function heraldFor(k, a) {
   if (G.mode === 'crown' && !CALM.herald.has(k)) return;
-  if (k === 'start') return herald(pickOne(HERALD.start));
+  if (k === 'start') return herald(pickOne(c2On() ? HERALD.sunrise : HERALD.start)); // (F13: the mountain's battle begins at sunrise)
   if (k === 'capDown') {
     if (a[1] == null || a[1] < 0) return; // (he fell with nobody's help: a line in the feed, no fanfare)
     if (!firstBlood) { firstBlood = true; return herald(pickOne(HERALD.first)); }
@@ -133,7 +136,7 @@ bus.on('shownMsg', ({ k, a }) => {
 // at most every 5 s (the same news within that merges into the last line, anything else waits out),
 // and nothing that's said repeats within 30 s
 let t2 = null; const said = {};
-const c2HeraldLines = { c2chestSoon: () => pickOne(HERALD.chestSoon), chestTaken: () => pickOne(HERALD.chest), c2night: () => 'Night falls. The Crown awakens. Captains, up the mountain!', c2crack: () => 'The glacier is cracking. Thirty seconds, gentlemen.', crownTaken: a => `${who(a[0])} broke the glacier and took the Crown!` };
+const c2HeraldLines = { c2chestSoon: () => pickOne(HERALD.noon), c2nightSoon: () => pickOne(HERALD.sunset), chestTaken: () => pickOne(HERALD.chest), c2night: () => 'Night falls. The Crown awakens. Captains, up the mountain!', c2crack: () => 'The glacier is cracking. Thirty seconds, gentlemen.', crownTaken: a => `${who(a[0])} broke the glacier and took the Crown!` };
 function c2Feed(k, a) {
   const tier = c2Tier(k, a), now = performance.now();
   if (tier === 1) { const f = c2HeraldLines[k]; if (f) setTimeout(() => herald(f(a)), 900); return; }

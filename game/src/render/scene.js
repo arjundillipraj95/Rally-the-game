@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { quality } from './quality.js';
 import { lookFor } from './look.js';
+import { DAY } from '../config.js';
 
 // Filmic, color-managed rendering with a sun that casts real shadows around the camera.
 export const canvas = document.getElementById('gl');
@@ -97,20 +98,46 @@ export function followSun(x, z, t) {
 // The mountain's dusk and night (k: 0 day, .5 sunset, 1 night): sky, haze, sun and fill light ease
 // from the map's own colours to orange, then to a cold moonlit blue. The fill stays bright enough
 // that armies and their colours read clearly: it's a look, not a handicap.
-let BASE = null; const DUSK = { zenith: 0x4a5a8a, horizon: 0xe8945a, sun: 0xffa060, sky: 0xd8b49a }, NIGHT = { zenith: 0x0a1430, horizon: 0x2c3c62, sun: 0xa8c0ff, sky: 0x8fa3d0, gnd: 0x3a3a46 };
+let BASE = null, DAYP = null; const DUSK = { zenith: 0x4a5a8a, horizon: 0xe8945a, sun: 0xffa060, sky: 0xd8b49a }, NIGHT = { zenith: 0x0a1430, horizon: 0x2c3c62, sun: 0xa8c0ff, sky: 0x8fa3d0, gnd: 0x3a3a46 };
 const ca = new THREE.Color(), cb = new THREE.Color();
 const mix3 = (day, dusk, night, k) => k < .5 ? ca.set(day).lerp(cb.set(dusk), k * 2) : ca.set(dusk).lerp(cb.set(night), (k - .5) * 2);
+const GOLD = { sun: 0xffc27a, horizon: 0xf2c79a, zenith: 0x5f86c4, sky: 0xf0dcc0 }, eZ = new THREE.Color(), eH = new THREE.Color(), eS = new THREE.Color(), eK = new THREE.Color();
 export function nightLook(k) {
   if (!BASE) return; k = Math.max(0, Math.min(1, k)); if (BASE.k === k) return; BASE.k = k;
-  skyU.zenith.value.copy(mix3(BASE.zenith, DUSK.zenith, NIGHT.zenith, k)); skyU.horizon.value.copy(mix3(BASE.horizon, DUSK.horizon, NIGHT.horizon, k));
-  skyU.sunCol.value.copy(mix3(BASE.sun, DUSK.sun, NIGHT.sun, k)); scene.fog.color.copy(mix3(BASE.horizon, DUSK.horizon, NIGHT.horizon, k));
-  sun.color.copy(mix3(BASE.sun, DUSK.sun, NIGHT.sun, k)); sun.intensity = BASE.sunI * (1 - .5 * k);
-  hemi.color.copy(mix3(BASE.sky, DUSK.sky, NIGHT.sky, k)); hemi.groundColor.copy(ca.set(BASE.gnd).lerp(cb.set(NIGHT.gnd), k)); hemi.intensity = BASE.hemiI * (1 + .1 * k); // (moonlight: the fill stays up so armies read)
+  const d = DAYP || { gold: 0, sunI: 1, hemiI: 1, mist: 1 }, g = d.gold; // (F13: the day's own light stands in for the map's, until dusk)
+  const zen = g ? eZ.set(BASE.zenith).lerp(cb.set(GOLD.zenith), g * .25) : eZ.set(BASE.zenith), hor = g ? eH.set(BASE.horizon).lerp(cb.set(GOLD.horizon), g * .55) : eH.set(BASE.horizon);
+  const sn = g ? eS.set(BASE.sun).lerp(cb.set(GOLD.sun), g * .8) : eS.set(BASE.sun), sk = g ? eK.set(BASE.sky).lerp(cb.set(GOLD.sky), g * .4) : eK.set(BASE.sky);
+  skyU.zenith.value.copy(mix3(zen, DUSK.zenith, NIGHT.zenith, k)); skyU.horizon.value.copy(mix3(hor, DUSK.horizon, NIGHT.horizon, k));
+  skyU.sunCol.value.copy(mix3(sn, DUSK.sun, NIGHT.sun, k)); scene.fog.color.copy(mix3(hor, DUSK.horizon, NIGHT.horizon, k));
+  sun.color.copy(mix3(sn, DUSK.sun, NIGHT.sun, k)); sun.intensity = BASE.sunI * d.sunI * (1 - .5 * k);
+  hemi.color.copy(mix3(sk, DUSK.sky, NIGHT.sky, k)); hemi.groundColor.copy(ca.set(BASE.gnd).lerp(cb.set(NIGHT.gnd), k)); hemi.intensity = BASE.hemiI * d.hemiI * (1 + .1 * k); // (moonlight: the fill stays up so armies read)
+  scene.fog.near = BASE.fogN * d.mist; scene.fog.far = BASE.fogF * d.mist;
 }
-export const lookK = () => (BASE ? BASE.k : 0); // (0 day, .5 sunset, 1 night)
+// F13: the sun's place at match time T (seconds) from the DAY table: smooth between keyframes, the map's own light from 7:30 on.
+// Call before nightLook each frame (it forces nightLook to re-mix). The same T on every phone gives the same sun.
+const _sp = new THREE.Vector3(), ss = x => x * x * (3 - 2 * x);
+function swing(out, base, el, az) { // base direction, swung round by az degrees and set to el degrees high (null: as base)
+  const len = Math.hypot(base[0], base[1], base[2]) || 1, e = el == null ? Math.asin(base[1] / len) : el * Math.PI / 180, a = Math.atan2(base[2], base[0]) + az * Math.PI / 180;
+  return out.set(Math.cos(e) * Math.cos(a), Math.sin(e), Math.cos(e) * Math.sin(a));
+}
+export function dayLook(T) {
+  if (!BASE) return;
+  if (T >= DAY[DAY.length - 1].t) { if (DAYP) { DAYP = null; BASE.k = -1; sunDir.set(...BASE.sunDir).normalize(); skyU.sunDir.value.set(...(BASE.sunSky || BASE.sunDir)).normalize(); } return; }
+  let i = 0; while (i < DAY.length - 2 && T >= DAY[i + 1].t) i++;
+  const A = DAY[i], B = DAY[i + 1], u = ss(Math.max(0, Math.min(1, (T - A.t) / (B.t - A.t))));
+  const baseEl = x => Math.asin(x[1] / (Math.hypot(x[0], x[1], x[2]) || 1)) * 180 / Math.PI;
+  const lerp = (a, b) => a + (b - a) * u, pick = (v, base) => v == null ? base : v;
+  const sd = BASE.sunDir, sk = BASE.sunSky || BASE.sunDir, az = lerp(A.az, B.az);
+  DAYP = { gold: lerp(A.gold, B.gold), sunI: lerp(A.sunI, B.sunI), hemiI: lerp(A.hemiI, B.hemiI), mist: lerp(A.mist, B.mist) };
+  sunDir.copy(swing(_sp, sd, lerp(pick(A.el, baseEl(sd)), pick(B.el, baseEl(sd))), az));
+  skyU.sunDir.value.copy(swing(_sp, sk, lerp(pick(A.sky, baseEl(sk)), pick(B.sky, baseEl(sk))), az));
+  BASE.k = -1; // (forces nightLook to mix the new light in)
+}
+export const dayGold = () => (DAYP ? DAYP.gold : 0);
+export const lookK = () => (BASE ? Math.max(0, BASE.k) : 0); // (0 day, .5 sunset, 1 night)
 export const skySunDir = () => skyU.sunDir.value;
 export function setLook(map) {
-  const L = lookFor(map.id); BASE = { ...L, k: 0 };
+  const L = lookFor(map.id); BASE = { ...L, k: 0, fogN: L.fog[0] * quality.cfg.fogScale, fogF: L.fog[1] * quality.cfg.fogScale }; DAYP = null;
   skyU.zenith.value.set(L.zenith); skyU.horizon.value.set(L.horizon); skyU.sunCol.value.set(L.sun); skyU.grad.value = L.skyGrad || .45; // (skyGrad: lower, the blue comes down nearer the horizon)
   sunDir.set(...L.sunDir).normalize(); skyU.sunDir.value.set(...(L.sunSky || L.sunDir)).normalize(); // (sunSky: where the sun's disc shows, if lower than the light)
   scene.fog.color.set(L.horizon);

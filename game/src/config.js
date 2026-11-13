@@ -33,6 +33,17 @@ export const CROWN = {
 // field, castle, home), the jungle ring above with four villages and eight bandit camps, the meltwater
 // river (wade it anywhere, slowly; eight narrow bridges), four keeps on the top ring and, behind a
 // chasm, the arena where the Crown sits frozen in a glacier. Radii are fractions of the field's radius.
+// F13: a day in one battle (the Crown, always 10:00). The match clock (seconds) picks the light: sunrise at 0:00, noon at 5:00 (the war chest),
+// gold in the afternoon, and at 7:30 (450) the map's own light, from where dusk (CROWN2.dusk) and night take over exactly as before.
+// el: the sun's height in degrees (the light), sky: where its disc shows, az: degrees swung round from the map's own sun, gold: 0-1 warm tint,
+// sunI / hemiI: multiples of the map's own sun and fill, mist: multiple of the haze distance (<1 = low mist in the valleys). null = the map's own.
+export const DAY = [
+  { t: 0,   el: 9,    sky: 2,    az: -75, gold: 1,   sunI: .62, hemiI: .85, mist: .55 },
+  { t: 150, el: 28,   sky: 14,   az: -50, gold: .5,  sunI: .85, hemiI: .95, mist: .8 },
+  { t: 300, el: 70,   sky: 60,   az: -10, gold: 0,   sunI: 1.12, hemiI: 1,  mist: 1 },
+  { t: 400, el: 52,   sky: 22,   az: -2,  gold: .35, sunI: 1,   hemiI: 1,   mist: 1 },
+  { t: 450, el: null, sky: null, az: 0,   gold: 0,   sunI: 1,   hemiI: 1,   mist: 1 },
+];
 export const CROWN2 = {
   R: 150, scale: [.7, .85, 1], // (field radius for a trio; a duo's is .85 of it, a solo's .7)
   r: { home: .92, lane: .835, ridge: .705, village: .59, camp: .575, river: .443, riverW: .022, keep: .32, top: .42, chasm: .19, chasmW: .028, arena: .165 },

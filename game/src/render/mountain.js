@@ -7,7 +7,7 @@ import { TEAMS, CROWN2, NEUTRAL } from '../config.js';
 import { G, ARMIES } from '../core/state.js';
 import { groundY, terrainMeshY, mountHomeA, mulberry, W } from '../core/world.js';
 import { stoneTex, woodTex } from './look.js';
-import { nightLook, scene, camera, sun, hemi, renderer, lookK, skySunDir } from './scene.js';
+import { nightLook, dayLook, dayGold, scene, camera, sun, hemi, renderer, lookK, skySunDir } from './scene.js';
 import { camTarget } from './camera.js';
 import { spark } from './effects.js';
 import { c2Garrison, c2Lake } from '../core/sim.js';
@@ -127,7 +127,7 @@ function buildRim(grp) {
 const cA = new THREE.Color(), cB = new THREE.Color();
 const mix3 = (pal, i, k) => k < .5 ? cA.set(pal.day[i]).lerp(cB.set(pal.dusk[i]), k * 2) : cA.set(pal.dusk[i]).lerp(cB.set(pal.night[i]), (k - .5) * 2);
 function updateRim(F, dt) {
-  F.t += dt; const R = W.R, k = lookK(), tg = camTarget();
+  F.t += dt; const R = W.R, k = lookK() + dayGold() * .2, tg = camTarget(); // (F13: the far clouds and peaks warm with the morning and evening sun)
   F.cl.position.x = camera.position.x; F.cl.position.z = camera.position.z;
   cloudU.t.value = F.t; cloudU.haze.value.copy(scene.fog.color); cloudU.sunCol.value.copy(sun.color);
   cloudU.lit.value.copy(mix3(CL, 0, k)); cloudU.shade.value.copy(mix3(CL, 1, k));
@@ -343,7 +343,7 @@ export function updateMount(dt) {
   for (const p of M.pals) p.inst.visible = !!p.h.fort;
   // dusk from 7:30, night at 8:00: the sky darkens, the torches come up and flicker
   const nk = T < CROWN2.dusk ? 0 : T < CROWN2.night ? (T - CROWN2.dusk) / (CROWN2.night - CROWN2.dusk) * .5 : Math.min(1, .5 + (T - CROWN2.night) / 8 * .5);
-  nightLook(nk);
+  dayLook(T); nightLook(nk); // (F13: the day's sun first, then dusk and night as before)
   if (M.torchGlow) { const U = M.torchGlow.material.uniforms; U.opacity.value = Math.min(1, Math.max(0, (nk - .2) * 2)); U.t.value = M.t; M.torchGlow.visible = U.opacity.value > 0 && !abOld(); }
   if (M.torches) { if (M.torchGlow) for (const t of M.torches) t.visible = abOld(); M.torchMat.opacity = Math.min(1, Math.max(0, (nk - .2) * 2)); if (M.torchMat.opacity > 0) for (const t of M.torches) t.scale.setScalar(2.2 + Math.sin(M.t * 11 + t.userData.ph) * .25 + Math.sin(M.t * 7.3 + t.userData.ph * 2) * .15); }
   for (const { flag } of M.homes) flag.rotation.y = Math.sin(M.t * 1.6) * .25;

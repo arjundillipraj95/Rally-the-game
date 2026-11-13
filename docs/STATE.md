@@ -2,7 +2,7 @@
 
 Current work: **friends' playtest fixes (F tickets) and lag (Phase 0)**, then Roles & Combat (design and plan in
 Claude Docs, links in CLAUDE.md). Every builder updates this file as the last step of its ticket. Owner: Opus owner chat.
-Last updated: 2026-11-12 (F1a and F1b shipped). Older detail: `docs/history/2026-11-log.md`.
+Last updated: 2026-11-12 (F15, F12, F13 built on `roles`, not shipped). Older detail: `docs/history/2026-11-log.md`.
 
 ## Live on main
 - P0.1 Dead-code cleanup · P0.2 Lag harness · P0.3 Ping readout · M1 Neutral soldiers look like soldiers
@@ -68,17 +68,29 @@ Last updated: 2026-11-12 (F1a and F1b shipped). Older detail: `docs/history/2026
   High 1,225 -> 153; triangles +1%; frames identical (start, a fight, three wardrobe looks). `?f1=0` = old.
   `r_F1b.mjs`, r_F8, crown2sim and crown2online (roles off and on) pass. Next draw-call cuts: the horse (P8.5).
 
+## Built on `roles` 12 Nov, waiting for Arjun's "ship" (his go: F15, F12, F13 in that order)
+- F15 Always landscape and full screen (`game/src/ui/orient.js`). Android: any tap takes the game full screen and locks it sideways,
+  and the next tap after anything drops full screen (the mic prompt) puts it back. Portrait in a battle: a "Turn your phone sideways"
+  screen (the battle keeps running underneath; not shown on the home screen, which has its own hint). iPhone: same screen plus an
+  Add to Home Screen hint (websites can't lock or full-screen iPhone). Install button (home and turn screen) once the browser offers it.
+  `r_F15.mjs` 13/13 with stubbed full screen/lock. Arjun checks on a real phone. Not done: asking for the mic in the lobby.
+- F12 Same +2 captain markers on every phone: the host's snapshot now carries which enemy captains each side has cut down
+  (new last field of the mountain section; an older host still works as before). `r_F12.mjs`: host and joined phone agree
+  even with the joined phone's own list wiped.
+- F13 A day in one battle (card `docs/tickets/F13.md`). `DAY` table in config.js; sun height/direction, tint, brightness, mist, far
+  clouds and peaks follow the match clock; 7:30 and 8:00 equal today's dusk/night (checked). The Crown is always 10:00 (`matchTime`,
+  `rules`) and its length selectors are hidden on home and lobby; sunrise/noon/sunset herald lines. Draw calls unchanged (325/152).
+  `r_F13.mjs` ALL PASS, shots in /tmp/f13/. Arjun judges the look on his phone.
+- crown2sim and crown2online pass roles off and on.
+
 ## Build queue (in order; model = best fit; Fable 5.2 available until 15 Nov)
 | # | Ticket | What | Model | Waits on |
 |---|---|---|---|---|
 | 1 | F7 | No abrupt cuts. Moments listed below; Arjun picks walk or fade | S | Arjun's picks |
-| 4b | F15 | Always landscape and full screen: on Android, full screen and locked sideways from the first tap, whatever way the player entered; in portrait mid-battle, a 'turn your phone' screen. iPhone can't be locked by a website: same screen, plus Add to Home Screen. Android: an Install button (the manifest is already there) | S | Arjun's go |
 | 5 | F14 | Adapts to any phone: picks its quality from the first seconds of frame rate and keeps adjusting; targets iPhone 13+, Galaxy S23+, and plays on any Android | S | F1 shipped |
 | 6 | F4 | Neutral garrisons and camps fight as real soldiers and ambush (today one shared health pool, standing still) | O | card |
 | 7 | F9 | Horse charges: full stop only on Hold and facing; standing men slow it; moving or flanked men are bowled over | O | card |
-| 8 | F13 | A day in one battle (sunrise to night; Crown always 10:00) | S | F10b shipped (card ready) |
 | 9 | F2 | One lobby for all 8 or 12 players: lanes (left, right, jungle), ready-up, 10 s versus screen | O | card |
-| 10 | F12 | Live captain-point popups can still differ between phones (found in F11) | S | |
 | 11 | P0.11 | Matchmake by region first (India with India, US with US) | S | |
 | 12 | P0.7b | Finer positions in snapshots; version check so old and new phones don't mix | S | |
 | 13 | P0.4 | Best host | S | |
@@ -116,5 +128,4 @@ Last updated: 2026-11-12 (F1a and F1b shipped). Older detail: `docs/history/2026
 - Budget: 50 dollars, nothing spent.
 
 ## Known bugs
-- Live captain-point popups can differ between phones (queue #10).
 - High only: a black wedge down the left edge at the Crown start (seen in F1a's test shots, before and after F1a).

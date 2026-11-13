@@ -134,7 +134,7 @@ export function renderLobby() {
   const setSeg = (id, val, ro) => { const el = $(id); el.classList.toggle('ro', ro); el.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === String(val)))); };
   const hostSeat = host ? NET.seats[NET.me] : v.seats[NET.hostPeer];
   const presetOf = al => Object.keys(PRESETS).find(k => allyFor(k, colorOf(hostSeat ?? 0)).join('') === al.join('')) || '';
-  setSeg('lobbyTeams', presetOf(v.al), !host); setSeg('lobbyMode', v.mode, !host); setSeg('lobbyMap', v.map, !host); setSeg('lobbyDiff', v.diff, !host); setSeg('lobbyTime', v.time, !host);
+  setSeg('lobbyTeams', presetOf(v.al), !host); setSeg('lobbyMode', v.mode, !host); setSeg('lobbyMap', v.map, !host); setSeg('lobbyDiff', v.diff, !host); setSeg('lobbyTime', v.time, !host); { const tg = $('lobbyTime').closest('.grp'); if (tg) tg.hidden = v.mode === 'crown'; } // (F13: the Crown is always 10:00)
   { // the mode's own target (tickets, captures...), for the mode the host picked
     const T = TARGETS[v.mode] || TARGETS.conquest, cur = v.tgt ?? T.def; $('lobbyTargetLabel').textContent = T.label;
     const want = T.opts.map(o => o[0]).join(); if ($('lobbyTarget').dataset.opts !== want) { $('lobbyTarget').dataset.opts = want; $('lobbyTarget').innerHTML = T.opts.map(([x, n]) => `<button type="button" data-v="${x}">${n}</button>`).join(''); }
