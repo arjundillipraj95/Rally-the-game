@@ -2,6 +2,7 @@
 // a banner, the safe ring), the bridges over the chasm, the glacier on the summit with the Crown frozen
 // in it, the war chest, a neutral castle's guards and the bandits round their campfires.
 import * as THREE from 'three';
+import { keepLive, batchOn, abOn, abOld, abShow, mergeInto } from './batch.js';
 import { TEAMS, CROWN2, NEUTRAL } from '../config.js';
 import { G, ARMIES } from '../core/state.js';
 import { groundY, terrainMeshY, mountHomeA, mulberry, W } from '../core/world.js';
@@ -150,6 +151,35 @@ function updateRim(F, dt) {
   U.col.value.copy(hemi.color).lerp(cA.set(0xffffff), .6 - .3 * k); U.px.value = renderer.getPixelRatio();
 }
 
+// F1a the torches' glow in one draw: camera-facing squares drawn exactly as the sprites were (same size,
+// texture, fog and flicker), one per torch, the flicker's phase per torch
+function torchBatch(spots, map) {
+  const n = spots.length, inst = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.ShaderMaterial({
+    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { map: { value: null }, opacity: { value: 0 }, t: { value: 0 } }]),
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: true,
+    vertexShader: `attribute float ph; uniform float t; varying vec2 vUv;
+      #include <fog_pars_vertex>
+      void main(){ vUv = uv; vec4 mvPosition = modelViewMatrix * vec4(instanceMatrix[3].xyz, 1.);
+        mvPosition.xy += position.xy * (2.2 + sin(t * 11. + ph) * .25 + sin(t * 7.3 + ph * 2.) * .15);
+        gl_Position = projectionMatrix * mvPosition;
+        #include <fog_vertex>
+      }`,
+    fragmentShader: `uniform sampler2D map; uniform float opacity; varying vec2 vUv;
+      #include <fog_pars_fragment>
+      void main(){ vec4 c = texture2D(map, vUv); gl_FragColor = vec4(c.rgb, c.a * opacity);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+        #include <fog_fragment>
+      }`,
+  }), n);
+  inst.material.uniforms.map.value = map;
+  const ph = new Float32Array(n), m4 = new THREE.Matrix4();
+  spots.forEach(([x, z], i) => { m4.makeTranslation(x, groundY(x, z) + 3, z); inst.setMatrixAt(i, m4); ph[i] = i * 1.7; });
+  inst.geometry.setAttribute('ph', new THREE.InstancedBufferAttribute(ph, 1));
+  inst.frustumCulled = false; inst.visible = false;
+  return keepLive(inst);
+}
+
 export function buildMount(world, L) {
   if (G.map.id !== 'mount' || !L.mount) { M = null; return; }
   const grp = new THREE.Group(); world.add(grp);
@@ -171,7 +201,7 @@ export function buildMount(world, L) {
     const px = h.x + Math.cos(h.a) * 3, pz = h.z + Math.sin(h.a) * 3, py = terrainMeshY(px, pz); // (behind the town, out of the captain's way)
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(.12, .14, 9, 8), woodDark); pole.position.set(px, py + 4.5, pz); grp.add(shadowy(pole));
     const flag = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 2), new THREE.MeshLambertMaterial({ color: t.hex, side: THREE.DoubleSide })); flag.position.set(px + 1.6, py + 7.8, pz); grp.add(flag);
-    M.homes.push({ ring, flag, h });
+    M.homes.push({ ring, flag, h }); keepLive(flag);
   }
   // bridges over the chasm, one in line with each keep
   const ch = CROWN2.r.chasm * W.R, cw = CROWN2.r.chasmW * W.R, hw = CROWN2.chasmBridgeHw;
@@ -199,7 +229,7 @@ export function buildMount(world, L) {
     crown.scale.setScalar(1.8); crown.position.set(0, gy + 2.6, 0); grp.add(crown);
     const beam = new THREE.Mesh(new THREE.CylinderGeometry(.8, 1.6, 60, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0xcff0ff, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }));
     beam.position.set(0, gy + 30, 0); grp.add(beam);
-    M.glacier = { ice, crown, beam, core, shards, mat: iceMat, lastHp: null, flash: 0 }; }
+    keepLive(ice, crown, beam); M.glacier = { ice, crown, beam, core, shards, mat: iceMat, lastHp: null, flash: 0 }; }
   // F7 the summit's lake: the water (a disc: the whole arena, or the pool welling up round the glacier, or the
   // flood rushing out from it), its glowing edge, and the four rock causeways from the gates to the glacier,
   // the first ground to show as it drains
@@ -211,7 +241,7 @@ export function buildMount(world, L) {
     const rock = lam(0x6f675c, stoneTex());
     for (let c = 0; c < 4; c++) { const a = mountHomeA(c), r0 = 3, r1 = ar - .3, mid = (r0 + r1) / 2, m = new THREE.Mesh(new THREE.BoxGeometry(r1 - r0, Lk.causeH * 2, Lk.causeW), rock);
       m.position.set(Math.cos(a) * mid, fy, Math.sin(a) * mid); m.rotation.y = -a; m.receiveShadow = true; grp.add(m); }
-    M.lake = { water, edge, fy, ar }; }
+    keepLive(water, edge); M.lake = { water, edge, fy, ar }; }
   // village palisades: a ring of stakes, up once bought
   M.pals = [];
   for (const h of G.holds || []) if (h.kind === 'village') {
@@ -229,14 +259,16 @@ export function buildMount(world, L) {
     for (const b of L.river.bridges) for (const s2 of [-1, 1]) spots.push([b.x + Math.cos(b.a) * s2 * (b.len + 1.2) - Math.sin(b.a) * (b.hw + .4), b.z + Math.sin(b.a) * s2 * (b.len + 1.2) + Math.cos(b.a) * (b.hw + .4)]);
     for (let k = 0; k < 4; k++) { const a = mountHomeA(k); for (const d of [ch - cw - 1, ch + cw + 1]) for (const s2 of [-1, 1]) spots.push([Math.cos(a) * d - Math.sin(a) * s2 * (hw + .5), Math.sin(a) * d + Math.cos(a) * s2 * (hw + .5)]); }
     for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2 + .2, d = L.arena.r + .9; spots.push([Math.cos(a) * d, Math.sin(a) * d]); }
-    M.torches = spots.map(([x2, z2], i) => { const sp = new THREE.Sprite(mat); sp.position.set(x2, groundY(x2, z2) + 3, z2); sp.scale.setScalar(2.4); sp.userData.ph = i * 1.7; grp.add(sp);
-      const post = new THREE.Mesh(new THREE.CylinderGeometry(.07, .09, 2.6, 5), woodDark); post.position.set(x2, groundY(x2, z2) + 1.3, z2); grp.add(post); return sp; });
+    const postGeo = new THREE.CylinderGeometry(.07, .09, 2.6, 5);
+    for (const [x2, z2] of spots) { const post = new THREE.Mesh(postGeo, woodDark); post.position.set(x2, groundY(x2, z2) + 1.3, z2); grp.add(post); }
+    if (batchOn()) { M.torchGlow = torchBatch(spots, mat.map); grp.add(M.torchGlow); } // (F1a: every glow in one draw, hidden while unlit)
+    if (!batchOn() || abOn()) M.torches = spots.map(([x2, z2], i) => { const sp = new THREE.Sprite(mat); sp.position.set(x2, groundY(x2, z2) + 3, z2); sp.scale.setScalar(2.4); sp.userData.ph = i * 1.7; grp.add(sp); return sp; });
     M.torchMat = mat; }
   // the war chest (hidden until it lands)
   { const g = new THREE.Group(), box = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1, 1.1), wood); box.position.y = .5; g.add(box);
     const lid = new THREE.Mesh(new THREE.CylinderGeometry(.55, .55, 1.6, 12, 1, false, 0, Math.PI), wood); lid.rotation.z = Math.PI / 2; lid.position.y = 1; g.add(lid);
     for (const x of [-.6, .6]) { const band = new THREE.Mesh(new THREE.BoxGeometry(.12, 1.62, 1.16), new THREE.MeshPhongMaterial({ color: 0xffcf3a, emissive: 0x4a3400 })); band.position.set(x, .78, 0); g.add(band); }
-    g.visible = false; grp.add(shadowy(g)); M.chest = g; }
+    g.visible = false; grp.add(shadowy(g)); keepLive(g); M.chest = g; }
   // guards and bandits alike (M1): a squad each, 3 footmen in front and 2 archers (bows) behind, dropping one by
   // one as they're cut down. They are drawn by render/soldiers.js with the real soldier model in neutral grey
   // steel (see `figure`), under one grey banner each; the banner's pole and cloth are shared by all of them.
@@ -258,10 +290,33 @@ export function buildMount(world, L) {
     const flap = new THREE.Group(); flap.position.y = NEUTRAL.h - NEUTRAL.ch / 2 - .15; banner.add(flap); // (the cloth swings about the pole)
     const cloth = new THREE.Mesh(clothGeo, clothMat); cloth.position.x = NEUTRAL.w / 2; flap.add(cloth);
     grp.add(shadowy(banner));
-    if (b.kind === 'camp') { const fire = new THREE.Mesh(new THREE.ConeGeometry(.45, .9, 6), new THREE.MeshBasicMaterial({ color: 0xff8a2a })); fire.position.set(b.x, groundY(b.x, b.z) + .45, b.z); grp.add(fire); M.camps.push({ b, fire }); }
-    M.guards.push({ b, men, banner, flap, seen: 0 });
+    if (b.kind === 'camp') { const fire = new THREE.Mesh(new THREE.ConeGeometry(.45, .9, 6), new THREE.MeshBasicMaterial({ color: 0xff8a2a })); fire.position.set(b.x, groundY(b.x, b.z) + .45, b.z); grp.add(fire); M.camps.push({ b, fire }); keepLive(fire); }
+    keepLive(banner); M.guards.push({ b, men, banner, flap, seen: 0 });
     for (const m of men) M.live.push(m.u);
   }
+  // F1a every garrison's banner (pole, cloth) and every camp's fire in one draw each
+  if (batchOn()) {
+    const inst = (geo, mat, n, cast) => { const m = new THREE.InstancedMesh(geo, mat, Math.max(1, n)); for (let i = 0; i < Math.max(1, n); i++) m.setMatrixAt(i, ZERO); m.castShadow = cast; m.receiveShadow = cast; m.frustumCulled = false; grp.add(keepLive(m)); return m; };
+    M.gb = { poles: inst(poleGeo, poleMat, M.guards.length, true), cloths: inst(clothGeo, clothMat, M.guards.length, true), fires: inst(M.camps.length ? M.camps[0].fire.geometry : new THREE.ConeGeometry(.45, .9, 6), M.camps.length ? M.camps[0].fire.material : new THREE.MeshBasicMaterial(), M.camps.length, false) };
+    if (!abOn()) { for (const g of M.guards) grp.remove(g.banner); for (const c of M.camps) grp.remove(c.fire); }
+  }
+  // F1a the Crown on the glacier: its band and points share one material, so one mesh
+  if (batchOn()) { const cr = M.glacier.crown, parts = cr.children.slice(), one = mergeInto(parts, cr); for (const m of one) cr.add(m); M.glacier.crownOne = one; M.glacier.crownParts = parts; if (!abOn()) for (const p of parts) cr.remove(p); }
+}
+// F1a the batched banners and fires follow the same rules as the separate ones (a zero-size instance is a hidden one)
+const ZERO = new THREE.Matrix4().makeScale(0, 0, 0), gm = new THREE.Matrix4(), gq = new THREE.Quaternion(), gv = new THREE.Vector3(), gs = new THREE.Vector3(), gY = new THREE.Vector3(0, 1, 0);
+function updateGuardBatch() {
+  const B = M.gb; if (!B) return;
+  M.guards.forEach((g, i) => {
+    const show = g.banner.userData.on, bp = g.banner.position;
+    if (!show) { B.poles.setMatrixAt(i, ZERO); B.cloths.setMatrixAt(i, ZERO); return; }
+    const pole = g.banner.children[0], cloth = g.flap.children[0];
+    gm.makeTranslation(bp.x + pole.position.x, bp.y + pole.position.y, bp.z + pole.position.z); B.poles.setMatrixAt(i, gm);
+    gq.setFromAxisAngle(gY, g.flap.rotation.y); gv.set(cloth.position.x, 0, 0).applyQuaternion(gq);
+    gm.compose(gs.set(bp.x + gv.x, bp.y + g.flap.position.y + gv.y, bp.z + gv.z), gq, gv.set(1, 1, 1)); B.cloths.setMatrixAt(i, gm);
+  });
+  M.camps.forEach(({ fire }, i) => { if (!fire.userData.on) { B.fires.setMatrixAt(i, ZERO); return; } gm.compose(fire.position, fire.quaternion, fire.scale); B.fires.setMatrixAt(i, gm); });
+  for (const m of [B.poles, B.cloths, B.fires]) { m.instanceMatrix.needsUpdate = true; m.visible = abShow(true); }
 }
 
 // the neutral soldiers standing now, for drawSoldiers to draw beside the armies (null off the mountain)
@@ -276,19 +331,21 @@ export function updateMount(dt) {
   for (const g of M.guards) {
     const { b, men } = g, [nf, na] = c2Garrison(b);
     const fresh = b.swingT && b.swingT !== g.seen && T - b.swingT < .35; if (fresh) g.seen = b.swingT; // (the garrison struck: its footmen swing)
-    g.banner.visible = nf + na > 0; g.flap.rotation.y = Math.sin(M.t * 1.6 + b.x) * .3;
+    g.banner.userData.on = nf + na > 0; g.banner.visible = abShow(false) && g.banner.userData.on; g.flap.rotation.y = Math.sin(M.t * 1.6 + b.x) * .3;
     for (const { u, archer, i } of men) {
       if (i >= (archer ? na : nf)) continue; // (cut down: gone)
       if (!archer) { if (fresh) u.swing = .38; else if (u.swing > 0) u.swing = Math.max(0, u.swing - dt); }
       M.live.push(u);
     }
   }
-  for (const { b, fire } of M.camps) { fire.visible = b.hp > 0; fire.scale.y = .8 + Math.sin(M.t * 9 + b.x) * .2; }
+  for (const { b, fire } of M.camps) { fire.userData.on = b.hp > 0; fire.visible = abShow(false) && fire.userData.on; fire.scale.y = .8 + Math.sin(M.t * 9 + b.x) * .2; }
+  updateGuardBatch();
   for (const p of M.pals) p.inst.visible = !!p.h.fort;
   // dusk from 7:30, night at 8:00: the sky darkens, the torches come up and flicker
   const nk = T < CROWN2.dusk ? 0 : T < CROWN2.night ? (T - CROWN2.dusk) / (CROWN2.night - CROWN2.dusk) * .5 : Math.min(1, .5 + (T - CROWN2.night) / 8 * .5);
   nightLook(nk);
-  if (M.torchMat) { M.torchMat.opacity = Math.min(1, Math.max(0, (nk - .2) * 2)); if (M.torchMat.opacity > 0) for (const t of M.torches) t.scale.setScalar(2.2 + Math.sin(M.t * 11 + t.userData.ph) * .25 + Math.sin(M.t * 7.3 + t.userData.ph * 2) * .15); }
+  if (M.torchGlow) { const U = M.torchGlow.material.uniforms; U.opacity.value = Math.min(1, Math.max(0, (nk - .2) * 2)); U.t.value = M.t; M.torchGlow.visible = U.opacity.value > 0 && !abOld(); }
+  if (M.torches) { if (M.torchGlow) for (const t of M.torches) t.visible = abOld(); M.torchMat.opacity = Math.min(1, Math.max(0, (nk - .2) * 2)); if (M.torchMat.opacity > 0) for (const t of M.torches) t.scale.setScalar(2.2 + Math.sin(M.t * 11 + t.userData.ph) * .25 + Math.sin(M.t * 7.3 + t.userData.ph * 2) * .15); }
   for (const { flag } of M.homes) flag.rotation.y = Math.sin(M.t * 1.6) * .25;
   // the glacier: whole, cracking as captains hack at it, gone once broken (the Crown rises and spins)
   const gl = K.breaks.find(b => b.kind === 'glacier'), g = M.glacier;
@@ -305,6 +362,7 @@ export function updateMount(dt) {
     g.ice.position.x = g.flash > 0 ? Math.sin(M.t * 90) * .08 : 0;
     const left = Math.ceil(k * g.shards.length); g.shards.forEach((m, i) => { m.visible = i < left; });
     g.core.scale.set(.7 + .3 * k, .55 + .45 * k, .7 + .3 * k);
+    if (g.crownOne) { for (const m of g.crownOne) m.visible = abShow(true); for (const p of g.crownParts) p.visible = abShow(false); }
     g.crown.rotation.y += dt * (gl.hp > 0 ? .3 : 2.4); g.crown.position.y = groundY(0, 0) + (gl.hp > 0 ? 2.6 : 4.2 + Math.sin(M.t * 2) * .3);
     const night = T >= CROWN2.night ? 1 : T >= CROWN2.dusk ? (T - CROWN2.dusk) / (CROWN2.night - CROWN2.dusk) * .5 : 0;
     g.beam.material.opacity = night * (.22 + (T >= CROWN2.crack ? Math.sin(M.t * 8) * .1 : 0));

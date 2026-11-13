@@ -2,6 +2,7 @@
 // knocked flat when it's breached, with a burst of dust and splinters) and its gate towers (the second
 // level): a raised platform on four posts under a little roof. The Wooden Fort draws its own towers.
 import * as THREE from 'three';
+import { keepLive } from './batch.js';
 import { FORT } from '../config.js';
 import { G } from '../core/state.js';
 import { terrainMeshY, mulberry } from '../core/world.js';
@@ -26,7 +27,7 @@ export function buildPalisades(world, L) {
     const deck = new THREE.Mesh(new THREE.BoxGeometry(2.6, .3, 2.6), logMat); deck.position.y = 4.4; g.add(deck);
     for (const [px, pz, w, d] of [[0, -1.25, 2.6, .15], [0, 1.25, 2.6, .15], [-1.25, 0, .15, 2.6], [1.25, 0, .15, 2.6]]) { const rail = new THREE.Mesh(new THREE.BoxGeometry(w, .7, d), logMat); rail.position.set(px, 4.9, pz); g.add(rail); }
     const roof = new THREE.Mesh(new THREE.ConeGeometry(2.2, 1.5, 4), roofMat); roof.position.y = 6.4; roof.rotation.y = Math.PI / 4; g.add(roof);
-    g.position.set(t.x, y, t.z); g.visible = false; g.traverse(m => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } }); world.add(g); return g;
+    g.position.set(t.x, y, t.z); g.visible = false; keepLive(g); g.traverse(m => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } }); world.add(g); return g;
   }));
   P = { logs, tips, items, sig: [], towers, L };
   updatePalisades(true);

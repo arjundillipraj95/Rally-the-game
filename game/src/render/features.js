@@ -2,6 +2,7 @@
 // the arena, its stands, crowd and timed gates (Colosseum), the sand fortress and palms (Desert Fort),
 // palisade rings, watchtowers and huts (Wooden Fort). Repeated pieces are instanced.
 import * as THREE from 'three';
+import { keepLive } from './batch.js';
 import { seeThrough } from './seethrough.js';
 import { TEAMS } from '../config.js';
 import { G } from '../core/state.js';
@@ -213,7 +214,7 @@ export function buildFeatures(L, world) {
     for (const gt of L.gates) {
       const a = Math.atan2(gt.z, gt.x), mesh = new THREE.Mesh(new THREE.PlaneGeometry(gt.w + .4, 4.4), gm);
       mesh.position.set(gt.x, 2.2, gt.z); mesh.rotation.y = Math.atan2(-Math.cos(a), -Math.sin(a)); // bars run along the ring
-      mesh.castShadow = true; world.add(mesh); anim.gates.push({ mesh, y: 2.2 });
+      mesh.castShadow = true; world.add(mesh); anim.gates.push({ mesh, y: 2.2 }); keepLive(mesh);
     }
   }
 }

@@ -17,6 +17,7 @@ import { buildFrost, updateFrost, clearFrost, frostGround, onPond } from './fros
 import { buildDesert, updateDesert, clearDesert, desertGround } from './desert.js';
 import { buildForum, forumGround } from './forum.js';
 import { buildMount, updateMount, mountGround } from './mountain.js';
+import { batchStatic, keepLive } from './batch.js';
 
 let world = null;
 export let castleObjs = [];
@@ -164,6 +165,7 @@ export function buildWorldView(L) {
   if (M.id === 'desert') buildDesert(world, L);
   if (M.id === 'forum') buildForum(world, L);
   buildGrass(L, LK);
+  if (M.id === 'mount') batchStatic(world); // (F1a: the still scenery in a few batches)
 }
 
 function buildControlPoints(L) {
@@ -173,7 +175,7 @@ function buildControlPoints(L) {
     const cloth = new THREE.Mesh(new THREE.PlaneGeometry(1.3, .9), new THREE.MeshLambertMaterial({ color: neutCol, side: THREE.DoubleSide })); cloth.position.set(.65, 2.6, 0); grp.add(cloth);
     const ring = new THREE.Mesh(new THREE.RingGeometry(CTRL.radius - .3, CTRL.radius, 40), new THREE.MeshBasicMaterial({ color: neutCol, transparent: true, opacity: .35, side: THREE.DoubleSide, depthWrite: false }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = .05; grp.add(ring);
-    shadowy(grp);
+    shadowy(grp); keepLive(grp);
     return { id: s.id, grp, cloth, ring };
   });
 }
@@ -202,7 +204,7 @@ function buildCastle(t, i) {
   const flag = add(new THREE.PlaneGeometry(2.6, 1.6), banMats[i], 1.3, 12.5, -1.5);
   grp.position.set(t.pos[0], 0, t.pos[1]);
   grp.rotation.y = Math.atan2(-t.pos[0], -t.pos[1]);
-  world.add(shadowy(grp));
+  world.add(shadowy(grp)); keepLive(grp); // (sinks as the castle weakens)
   return { grp, flag, fell: false };
 }
 

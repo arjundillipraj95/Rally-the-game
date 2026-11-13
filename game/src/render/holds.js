@@ -2,12 +2,14 @@
 // banner, both in the colour of the side that holds it (pale while nobody does), pulsing gold while
 // it's being taken or fought over.
 import * as THREE from 'three';
+import { keepLive, batchOn, abOn, abShow } from './batch.js';
 import { TEAMS } from '../config.js';
 import { G, colorOf } from '../core/state.js';
 import { terrainMeshY } from '../core/world.js';
 import { buildCastleFort, updateCastleFort } from './castlefort.js';
 
-let objs = [];
+let objs = [], hb = null; // (hb, F1a: every hold's banner cloth in one draw and every ring in another)
+const POLE = new THREE.MeshLambertMaterial({ color: 0x6a4e34 }); // (one for all: the poles stand still, so they join the map's batches)
 const neutral = new THREE.Color(0xe8e2d0), gold = new THREE.Color(0xffcf3a), tmp = new THREE.Color();
 // an alliance's colour as this player sees it: your own colour for your side, else its first castle's
 export function sideCss(a) { if (a < 0) return '#e8e2d0'; if (a === G.ALLY[colorOf(G.myTi)]) return TEAMS[colorOf(G.myTi)].css; const i = G.ALLY.findIndex(x => x === a); return TEAMS[Math.max(0, i)].css; }
@@ -24,7 +26,7 @@ function buildCrown(world) {
   const casing = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.8, 3, 10), new THREE.MeshLambertMaterial({ color: 0x9a9284 })); casing.castShadow = true;
   g.scale.setScalar(1.4);
   const root = new THREE.Group(); root.add(g, glowG, casing); root.visible = false; world.add(root);
-  crown = { root, g, glow: glowG, casing };
+  crown = { root, g, glow: glowG, casing }; keepLive(root);
 }
 // The plaza's wall (the Crown): stone blocks round the ring and a wooden gate across each gap; down in the
 // ground until 9:00, then it rises over a couple of seconds. A broken gate drops into a heap of planks.
@@ -35,7 +37,7 @@ function buildWall(world, P) {
   const bm = new THREE.InstancedMesh(new THREE.BoxGeometry(1.25, 3.4, .9), stone, blocks.length), gm = new THREE.InstancedMesh(new THREE.BoxGeometry(1.25, 3, .5), plank, gates.length);
   bm.castShadow = gm.castShadow = true; bm.receiveShadow = true;
   const grp = new THREE.Group(); grp.add(bm, gm); grp.visible = false; world.add(grp);
-  wall = { grp, bm, gm, blocks, gates, rise: 0, m: new THREE.Matrix4(), q: new THREE.Quaternion(), v: new THREE.Vector3(), sc: new THREE.Vector3(1, 1, 1) };
+  keepLive(grp); wall = { grp, bm, gm, blocks, gates, rise: 0, m: new THREE.Matrix4(), q: new THREE.Quaternion(), v: new THREE.Vector3(), sc: new THREE.Vector3(1, 1, 1) };
 }
 function updateWall(dt) {
   const w = wall, W = G.plazaWall; if (!w || !W) return;
@@ -84,11 +86,41 @@ export function buildHolds(world, L) {
     ring.rotation.x = -Math.PI / 2; ring.position.set(h.x, terrainMeshY(h.x, h.z) + .08, h.z); ring.renderOrder = 1; grp.add(ring);
     const px = h.px ?? h.x, pz = h.pz ?? h.z, py = terrainMeshY(px, pz);
     const noPole = h.kind === 'plaza'; // (the plaza has the Crown instead of a banner)
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(.12, .14, 6.5, 6), new THREE.MeshLambertMaterial({ color: 0x6a4e34 })); pole.position.set(px, py + 3.25, pz); pole.castShadow = true; grp.add(pole);
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(.12, .14, 6.5, 6), POLE); pole.position.set(px, py + 3.25, pz); pole.castShadow = true; grp.add(pole);
     const cloth = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.4, 6, 1), new THREE.MeshLambertMaterial({ color: neutral, side: THREE.DoubleSide })); cloth.position.set(px + 1.1, py + 5.6, pz); cloth.castShadow = true; grp.add(cloth);
     if (noPole) { pole.visible = false; cloth.visible = false; }
-    return { grp, ring, cloth, base: cloth.geometry.attributes.position.array.slice() };
+    keepLive(ring, cloth); // (the banner ripples and takes its owner's colour; the ring pulses)
+    return { grp, ring, cloth, noPole, base: cloth.geometry.attributes.position.array.slice() };
   });
+  hb = batchOn() && G.map.id === 'mount' && objs.length ? holdBatch(world, objs) : null;
+  if (hb && !abOn()) for (const o of objs) { o.grp.remove(o.ring); o.grp.remove(o.cloth); }
+}
+// F1a the holds' cloths and rings, each set in one draw: the same shapes, colours, ripple and pulse as the
+// separate pieces (whose materials still carry each hold's colour, copied over every frame)
+function holdBatch(world, objs) {
+  const n = objs.length, T = { value: 0 };
+  const ripple = sh => { sh.uniforms.uT = T; sh.vertexShader = 'attribute float hi; uniform float uT;\n' + sh.vertexShader.replace('#include <begin_vertex>',
+    '#include <begin_vertex>\n transformed.z += sin(uT * 4. + position.x * 2.2 + hi) * .12 * (position.x + 1.1) / 2.2;'); };
+  const clothMat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide }); clothMat.onBeforeCompile = ripple;
+  const cloth = new THREE.InstancedMesh(new THREE.PlaneGeometry(2.2, 1.4, 6, 1), clothMat, n);
+  cloth.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }); cloth.customDepthMaterial.onBeforeCompile = ripple;
+  const hi = new Float32Array(n), m4 = new THREE.Matrix4();
+  objs.forEach((o, i) => { hi[i] = i; m4.compose(o.cloth.position, o.cloth.quaternion, o.noPole ? new THREE.Vector3(0, 0, 0) : o.cloth.scale); cloth.setMatrixAt(i, m4); cloth.setColorAt(i, o.cloth.material.color); });
+  cloth.geometry.setAttribute('hi', new THREE.InstancedBufferAttribute(hi, 1));
+  cloth.castShadow = true; cloth.frustumCulled = false; world.add(keepLive(cloth));
+  // the rings: one geometry, each vertex knowing its hold; colour and opacity per hold from two small tables
+  const pos = [], idx = [], hv = []; let base = 0; const v = new THREE.Vector3();
+  objs.forEach((o, i) => { const g = o.ring.geometry, P = g.attributes.position; o.ring.updateMatrix();
+    for (let k = 0; k < P.count; k++) { v.fromBufferAttribute(P, k).applyMatrix4(o.ring.matrix); pos.push(v.x, v.y, v.z); hv.push(i); }
+    for (const k of g.index.array) idx.push(k + base); base += P.count; });
+  const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); rg.setAttribute('hi', new THREE.Float32BufferAttribute(hv, 1)); rg.setIndex(idx);
+  const U = { hcol: { value: objs.map(o => o.ring.material.color.clone()) }, hop: { value: objs.map(o => o.ring.material.opacity) } };
+  const ringMat = new THREE.MeshBasicMaterial({ transparent: true, side: THREE.DoubleSide, depthWrite: false });
+  ringMat.onBeforeCompile = sh => { sh.uniforms.hcol = U.hcol; sh.uniforms.hop = U.hop;
+    sh.vertexShader = `#define NH ${n}\nattribute float hi; uniform vec3 hcol[NH]; uniform float hop[NH]; varying vec4 vHc;\n` + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vHc = vec4(hcol[int(hi + .5)], hop[int(hi + .5)]);');
+    sh.fragmentShader = 'varying vec4 vHc;\n' + sh.fragmentShader.replace('vec4 diffuseColor = vec4( diffuse, opacity );', 'vec4 diffuseColor = vHc;'); };
+  const ring = new THREE.Mesh(rg, ringMat); ring.renderOrder = 1; world.add(keepLive(ring));
+  return { cloth, ring, T, U };
 }
 function updateCrown() {
   const f = G.flag, c = crown; if (!c) return;
@@ -142,5 +174,8 @@ export function updateHolds() {
     const p = o.cloth.geometry.attributes.position, b = o.base;
     for (let k = 0; k < p.count; k++) p.array[k * 3 + 2] = b[k * 3 + 2] + Math.sin(G.T * 4 + b[k * 3] * 2.2 + i) * .12 * (b[k * 3] + 1.1) / 2.2;
     p.needsUpdate = true;
+    o.cloth.visible = abShow(false) && !o.noPole; o.ring.visible = abShow(false);
+    if (hb) { hb.cloth.setColorAt(i, o.cloth.material.color); hb.U.hcol.value[i].copy(o.ring.material.color); hb.U.hop.value[i] = o.ring.material.opacity; }
   });
+  if (hb) { hb.T.value = G.T; hb.cloth.instanceColor.needsUpdate = true; hb.cloth.visible = hb.ring.visible = abShow(true); }
 }

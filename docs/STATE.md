@@ -2,7 +2,7 @@
 
 Current work: **friends' playtest fixes (F tickets) and lag (Phase 0)**, then Roles & Combat (design and plan in
 Claude Docs, links in CLAUDE.md). Every builder updates this file as the last step of its ticket. Owner: Opus owner chat.
-Last updated: 2026-11-12 (F7-water built). Older detail: `docs/history/2026-11-log.md`.
+Last updated: 2026-11-12 (F1a built; F7-water shipped). Older detail: `docs/history/2026-11-log.md`.
 
 ## Live on main
 - P0.1 Dead-code cleanup · P0.2 Lag harness · P0.3 Ping readout · M1 Neutral soldiers look like soldiers
@@ -52,22 +52,22 @@ Last updated: 2026-11-12 (F7-water built). Older detail: `docs/history/2026-11-l
   `r_F7e.mjs`. F7f execution: the executioner slides in over 0.25 s and the camera pushes in a little more. `r_F7f.mjs`. F7h the start was already smooth (checked); the results now come after a 1.5 s hold and fade in (was a hard cut). `r_F7h.mjs`. F7g over the chasm's edge: 0.6 s fall from the rim with a scream, untouchable, then dead (was the same
   frame). `r_F7g.mjs`; `c2bits.mjs` now waits out the fall. crown2sim and crown2online pass roles off and on.
 
+- F7-water (lake, flood-out, summit gate) shipped to main 12 Nov (main = roles at 3df5b61).
+
 ## On `roles`, waiting for Arjun's "ship"
-- F7-water (F7b, F7a, F7c), card `docs/tickets/F7-water.md`: the summit is a lake (only the glacier shows) that keeps
-  everyone out; it drains at 5:00 (chest) and 8:00 (Crown), four rock causeways first. Chest taken (last blow) or 7:00:
-  10 s countdown (horn, big numbers, a glowing pool rising round the glacier), then the flood rushes out and carries
-  everyone inside out of the nearest gate and over the bridge (untouchable, can't act, no deaths, no points; duels
-  and executions called off). From 8:00 soldiers can't pass a gate and wait over the bridge; captains go in. Gates stand
-  open all battle; the old move-outs (F7 moments 1, 2) are gone; the glacier stays solid. A joined player's own phone
-  carries him. `r_F7-water.mjs` (host, roles off and on) and `r_F7-water-join.mjs` (joined phone) pass; crown2sim and
-  crown2online pass roles off and on; F7e-h, c2bits unchanged; lag 32 jumps, max 0.92 m. One commit for the three
-  (they share one function). Arjun judges the look and the push's feel.
+- F1a the map in batches, card `docs/tickets/F1a.md`: on the mountain the still scenery is folded into ~20 batches
+  (one per look per 120 m cell, colours moved into vertices) and the live pieces batched by their builders (castle
+  fort tiers, holds' cloths and rings, garrison banners, camp fires, torches, the glacier's crown). Crown start, same
+  frame: Low 1,220 -> 269 draw calls, High 1,226 -> 270; triangles +1%; map pieces 1,283 -> 83 (119 with every castle
+  at level III); frames identical (0% pixels differ) at start, mid-battle, night and with castles/camps/holds changed.
+  `?f1=0` = the old map for one release. `r_F1a.mjs`, r_F7-water, crown2sim and crown2online (roles off and on) pass.
+  Other maps unbatched (same code would apply; not tested). Arjun checks phone fps.
 
 ## Build queue (in order; model = best fit; Fable 5.2 available until 15 Nov)
 | # | Ticket | What | Model | Waits on |
 |---|---|---|---|---|
 | 1 | F7 | No abrupt cuts. Moments listed below; Arjun picks walk or fade | S | Arjun's picks |
-| 3 | F1 | Batched soldiers (P8.1 forward): about 1,200 draw calls down to 150 | **Fable**, else O | card |
+| 3 | F1b | Batched men near the camera (F1 part 2): ~150 draw calls to ~30, total about 150 | **Fable**, else O | Arjun's go (card ready) |
 | 4b | F15 | Always landscape and full screen: on Android, full screen and locked sideways from the first tap, whatever way the player entered; in portrait mid-battle, a 'turn your phone' screen. iPhone can't be locked by a website: same screen, plus Add to Home Screen. Android: an Install button (the manifest is already there) | S | Arjun's go |
 | 5 | F14 | Adapts to any phone: picks its quality from the first seconds of frame rate and keeps adjusting; targets iPhone 13+, Galaxy S23+, and plays on any Android | S | after F1 |
 | 6 | F4 | Neutral garrisons and camps fight as real soldiers and ambush (today one shared health pool, standing still) | O | card |
@@ -113,3 +113,4 @@ Last updated: 2026-11-12 (F7-water built). Older detail: `docs/history/2026-11-l
 
 ## Known bugs
 - Live captain-point popups can differ between phones (queue #10).
+- High only: a black wedge down the left edge at the Crown start (seen in F1a's test shots, before and after F1a).
