@@ -54,6 +54,14 @@ export function rigClip(S, { weapon = 'sword', team = null, pack = null } = {}) 
   // the shield: gripped in the fist for the code's poses (which turn the wrist to face it); for the clips it
   // is strapped along the forearm, facing out from the back of the hand, as the clips were made
   const gear = addGear(sock, { body: 'captain', weapon, team, pack }), shield = gear.shield;
+  if (ANIM.shaftGrip[weapon] != null) { // F17: a spear or javelin lies along the forearm, point out past the fist (the clips hold it so); a sword stays across the fist
+    const hs = sock.hand_R, v = mx.RightHand.getWorldPosition(new THREE.Vector3()).sub(mx.RightForeArm.getWorldPosition(new THREE.Vector3()));
+    v.applyQuaternion(hs.getWorldQuaternion(new THREE.Quaternion()).invert()).normalize();
+    const piv = new THREE.Object3D(); piv.name = 'shaft';
+    piv.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), v).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -ANIM.shaftGrip[weapon]));
+    for (const c of [...hs.children]) piv.add(c);
+    hs.add(piv);
+  }
   sock.foreArm_L.updateMatrix(); sock.hand_L.updateMatrix();
   const mount = shield && { code: [shield.position.clone(), shield.quaternion.clone()], hand: mx.LeftHand, p: new THREE.Vector3(), q: new THREE.Quaternion(),
     clip: sock.foreArm_L.matrix.clone().multiply(new THREE.Matrix4().makeBasis(new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0)).setPosition(...ANIM.shield.at)), inv: sock.hand_L.matrix.clone().invert() };

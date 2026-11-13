@@ -358,7 +358,8 @@ function clipHero(u, a, h, dt, sp, blocking, hurt, P, rate, tag) {
   if (u.swing > (h.swPrev || 0) + .05) { // a blow begun: the sword's combo, thrust and boosted blows have clips
     h.swN = (h.swN || 0) + 1; h.swT = T;
     const boosted = (u.evade && T - u.evade.t < ANIM.boostWithin) || (u.pending && u.pending.leap);
-    h.swClip = h.weapon === 'sword' && kind < ANIM.swingKind.length ? (boosted ? ANIM.boost : ANIM.swingKind[kind]) : null;
+    const set = h.weapon === 'sword' ? ANIM.swingKind : ANIM.weaponSwing[h.weapon]; // (F17: spear and javelins have clips too)
+    h.swClip = set && kind < set.length ? (boosted && h.weapon === 'sword' && kind < 2 ? ANIM.boost : set[kind]) : null;
   }
   h.swPrev = u.swing || 0;
   if (blocking && !h.wasBlocking) h.blkN = (h.blkN || 0) + 1; h.wasBlocking = blocking;
@@ -374,7 +375,7 @@ function clipHero(u, a, h, dt, sp, blocking, hurt, P, rate, tag) {
   let W = null;
   if (code) W = null;
   else if (h.turn) W = { key: h.turn.key, steps: [ANIM.turn.clip], legs: true, rate: ANIM.turn.rate, fade: ANIM.fast, turn: true };
-  else if (h.swClip && h.swT != null && T - h.swT < .38 + ANIM.swingTail) W = { key: 'sw' + h.swN, steps: [h.swClip], swing: ANIM.swing[h.swClip], fade: ANIM.fast };
+  else if (h.swClip && h.swT != null && T - h.swT < .38 + ANIM.swingTail) W = { key: 'sw' + h.swN, steps: [h.swClip], swing: ANIM.swing[h.swClip], fade: ANIM.fast, legs: ANIM.swingLegs.includes(h.swClip) };
   else if (blocking && T - h.blockHitT >= 0 && T - h.blockHitT < C[bh.clip].dur / bh.rate) W = { key: 'bh' + h.blockHitT, steps: [bh.clip], rate: bh.rate, fade: ANIM.fast };
   else if (blocking) W = { key: 'blk' + h.blkN, steps: ANIM.block, hold: true };
   else if (h.impT != null && T - h.impT < C[imp.clips[h.impN % imp.clips.length]].dur / imp.rate) W = { key: 'imp' + h.impN, steps: [imp.clips[h.impN % imp.clips.length]], rate: imp.rate, fade: ANIM.fast };
@@ -398,8 +399,9 @@ function clipHero(u, a, h, dt, sp, blocking, hurt, P, rate, tag) {
     else play(R, 'lo', loco, 'L' + loco).act.timeScale = lrate;
     if (an.turn) { const k = clampN(e.act.time / e.C.dur, 0, 1); turn = -h.turn.d * (1 - k * k * (3 - 2 * k)); }
   } else {
-    const l = play(R, 'lo', loco, 'L' + loco), e = play(R, 'up', loco, 'L' + loco, { fade: code ? ANIM.fade : ANIM.out });
-    l.act.timeScale = e.act.timeScale = lrate; e.act.time = l.act.time; // (one clip, head to toe)
+    const wi = ANIM.weaponIdle[h.weapon] && !h.U && !h.fast ? ANIM.weaponIdle[h.weapon] : null; // (F17: the spear held forward while he stands or walks)
+    const l = play(R, 'lo', loco, 'L' + loco), e = play(R, 'up', wi || loco, 'L' + (wi || loco), { fade: code ? ANIM.fade : ANIM.out, loop: true });
+    l.act.timeScale = lrate; if (!wi) { e.act.timeScale = lrate; e.act.time = l.act.time; } // (one clip, head to toe)
   }
   if (code) { if (!h.coded) h.cur = null; h.cur = settle(h.cur, P, 1 - Math.exp(-rate * Math.min(dt, .1))); } // (a code pose is eased toward as before; the blend from the clips eases it in)
   h.coded = code;

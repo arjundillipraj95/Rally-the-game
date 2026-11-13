@@ -418,12 +418,23 @@ export const ANIM = {
   hitDelay: .15, swingTail: .3,
   shield: { at: [.1, .09, 0] }, // (where the shield is strapped for the clips, from the left elbow: [toward the hand, off the back of the arm, across it], model units)
   swing: { slash1: { hit: .467, lead: .3, after: 1.5 }, slash2: { hit: .467, lead: .3, after: 1.5 }, slash3: { hit: .4, lead: .28, after: 1.5 },
-    attack: { hit: .467, lead: .3, after: 1.5 }, attackBoost: { hit: .5, lead: .34, after: 1.5 } },
-  swingKind: ['slash1', 'slash2', 'slash3', 'attack', 'slash3'], boost: 'attackBoost', boostWithin: .7, // (swingKind 4 is the sword's spin finisher: no spin clip yet, so the big third slash)
+    attack: { hit: .467, lead: .3, after: 1.5 }, attackBoost: { hit: .5, lead: .34, after: 1.5 },
+    // F17 (Cosindra clips, tools/models/extra.py): hit = the moment the hand is fastest, seconds into the clip
+    spin: { hit: 1.33, lead: .6, after: 1.4 }, leapSmash: { hit: .97, lead: .5, after: 1.3 }, overhead: { hit: .7, lead: .45, after: 1.4 },
+    slashWide: { hit: .33, lead: .25, after: 1.4 }, slashBack: { hit: .3, lead: .25, after: 1.4 },
+    spearThrust: { hit: .47, lead: .3, after: 1.4 }, javThrow: { hit: 1.27, lead: .5, after: 1.4 }, shieldBash: { hit: .33, lead: .25, after: 1.3 } },
+  // the clip for each swingKind, by weapon: 0-1 combo, 2 leap, 3 spear thrust, 4 sword spin finisher / javelin throw / streak, 5 held heavy blow or skewer, 6 shield bash
+  swingKind: ['slash1', 'slash2', 'leapSmash', 'attack', 'spin', 'overhead', 'shieldBash'], boost: 'attackBoost', boostWithin: .7,
+  weaponSwing: { spear: ['spearThrust', 'spearThrust', 'leapSmash', 'spearThrust', 'slashWide', 'spearThrust', 'shieldBash'],
+    jav: [null, null, 'leapSmash', null, 'javThrow', null, 'shieldBash'] },
+  swingLegs: ['spin', 'leapSmash'], // (these play head to toe, even on the run: the spin turns on its feet, the leap tucks its legs)
+  weaponIdle: { spear: 'spearIdle' },
+  shaftGrip: { spear: .2, jav: .2 }, // (clips: these lie along the forearm, the point lifted this much, radians) // (his upper body while he stands or walks with this weapon)
   turn: { clip: 'turn180', min: 2.3, maxSpeed: 1.5, rate: 2 },
   block: ['block', 'blockIdle'], blockHit: { clip: 'blockImpact', rate: 1.4 },
   impact: { clips: ['impact', 'impact2'], rate: 1.5, minDmg: .5 },
   death: { front: 'death', back: 'death2', rate: 1.15 },
   acts: { kick: { steps: ['kick'], legs: true }, crouch: { steps: ['crouch', 'crouchIdle'], legs: true, then: 'crouchUp' }, crouchUp: { steps: ['crouchUp'], legs: true },
-    sheath: { steps: ['sheath1', 'sheath2'] }, powerUp: { steps: ['powerUp'] }, cast: { steps: ['casting'] } },
+    sheath: { steps: ['sheath1', 'sheath2'] }, powerUp: { steps: ['powerUp'] }, cast: { steps: ['casting'] },
+    knockdown: { steps: ['knockdown'], legs: true }, getUp: { steps: ['getUp'], legs: true } }, // (F17: ready for the roles' knockdowns; nothing sets them yet)
 };

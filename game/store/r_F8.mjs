@@ -70,7 +70,7 @@ const first = await run(30);
 ok('the player captain is on the clip skeleton', first[29] && first[29].up, first[29]);
 if (!(first[29] && first[29].up)) { await browser.close(); process.exit(1); }
 const info = await page.evaluate(() => { const S = window.__f8.src().cap; return { bones: S.names.length, clips: Object.keys(S.clips), weapon: window.__h().weapon }; });
-ok('the captain file: 22 shared bones, 30 clips', info.bones === 22 && info.clips.length === 30, info.bones + ' bones, ' + info.clips.length + ' clips');
+ok('the captain file: 22 shared bones, 41 clips (30 Mixamo, 11 added by F17)', info.bones === 22 && info.clips.length === 41, info.bones + ' bones, ' + info.clips.length + ' clips');
 // the player fights with a sword here (the clips are sword and shield)
 await page.evaluate(() => { const p = window.__fb.G.player; if (p.weapon && p.weapon !== 'sword') p.weapon = 'sword'; p.hp = p.max = Math.max(p.max, 500); window.__frame(2); });
 
@@ -91,7 +91,7 @@ await run(20);
 // the sword's combo, by the real attack button, standing
 const combo = [];
 for (let k = 0; k < 3; k++) { await page.evaluate(() => { const p = window.__fb.G.player; p.cd = 0; window.__fb.attack(); }); const g = await run(16); combo.push({ k: await page.evaluate(() => window.__fb.G.player.swingKind), up: seen(g, 'up'), lo: seen(g, 'lo') }); if (k === 0) await shot('slash'); }
-ok('three presses of attack, standing: slash1, slash2, then slash3 for the spin finisher, head to toe', ['slash1', 'slash2', 'slash3'].every((c, i) => combo[i].up.includes(c) && combo[i].lo.includes(c)), combo.map(c => c.k + ':' + c.up.join('/')));
+ok('three presses of attack, standing: slash1, slash2, then the spin finisher (F17), head to toe', ['slash1', 'slash2', 'spin'].every((c, i) => combo[i].up.includes(c) && combo[i].lo.includes(c)), combo.map(c => c.k + ':' + c.up.join('/')));
 f = await run(45); ok('and back to idle after the last blow', f[44].up === 'idle' && f[44].lo === 'idle', f[44].up);
 f = await run(22, null, 'p.swing = .38; p.swingKind = 3; p.combo = 0;'); ok('a thrust with the sword (staged): attack', has(f, 'up', 'attack'), seen(f, 'up')); await run(30);
 f = await run(22, null, 'p.evade = { t: G.T - .5, kind: "back" }; p.swing = .38; p.swingKind = 0;'); ok('a blow straight out of an evade (staged): attackBoost', has(f, 'up', 'attackBoost'), seen(f, 'up')); await run(30);

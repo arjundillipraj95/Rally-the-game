@@ -91,6 +91,15 @@ Last updated: 2026-11-12 (F15, F12, F13, F16 shipped to main at 1018462; voice d
   teammate: no teammate phones / on the relay / linking / can't link / linked, silent / hearing them, and whether they hear you
   (bytes leaving). `r_V1.mjs` checks it. Waiting for a real-phone test; its text says where voice stops.
 
+## F17 More captain clips (13 Nov, Arjun's animation chat; card `docs/tickets/F17.md`)
+- 11 free Cosindra MotionSmith clips put on the shared skeleton (`tools/models/cosindra_export.py` in Blender, then
+  `tools/models/extra.py`, run after prep.mjs). Sword: spin finisher, leap, held heavy blow, shield bash. Spear: held
+  forward (idle), thrust, sweep; it now lies along the forearm on the clip rig. Javelins: the throw. unit.act
+  'knockdown'/'getUp' ready for the roles' knockdowns. Soldiers' file has them too (soldiers still code-posed).
+- `r_F17.mjs` 16/16; r_F8 passes (now expects 41 clips and the spin); crown2sim and crown2online pass roles off and on.
+  Each anim file +~350 KB. Arjun judges the feel. On `roles` only: Arjun held main (13 Nov) until V1c is reviewed.
+- Next: horse (Quaternius CC0, Arjun downloads; the app's browser can't) and rider (sitting pose made, lance to make).
+
 ## Build queue (in order; model = best fit; Fable 5.2 available until 15 Nov)
 | # | Ticket | What | Model | Waits on |
 |---|---|---|---|---|
