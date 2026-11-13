@@ -38,6 +38,7 @@ import { feelTick, clearFeel, feelStats } from './render/feel.js';
 import { initDeath, deathTick, deathReset, deathState } from './ui/death.js';
 import { initAudio, sfx, buzz, gateS, startCrowd, stopCrowd, audioTick, audioStats, setMuted, musicCue, setMusic, musicEnabled, setVibe, vibeEnabled } from './ui/audio.js';
 import { portal, portalInit, onPortal } from './portal.js';
+import { initOrient } from './ui/orient.js';
 import { showMsg, allyNames, setNamer, glory } from './ui/messages.js';
 import { renderPointsV2, tlTick, tlPack, ledger } from './ui/timeline.js';
 import { voiceBattle, stopVoice, bindVoice, voiceState, voiceLevels } from './net/voice.js';
@@ -730,15 +731,8 @@ seg('segQuality', v => {
 // don't eat a quarter of the view. It needs a tap to be allowed, so it hangs off the start buttons.
 // (Android browsers honour this; iPhone Safari doesn't allow it, where "Add to Home Screen" does the job.)
 const coarse = matchMedia('(pointer: coarse)').matches;
-function goFullscreen() {
-  if (!coarse || document.fullscreenElement || onPortal()) return; // the games site provides its own fullscreen
-  const el = document.documentElement, req = el.requestFullscreen || el.webkitRequestFullscreen;
-  if (!req) return;
-  try {
-    const p = req.call(el, { navigationUI: 'hide' });
-    if (p && p.then) p.then(() => { try { screen.orientation.lock('landscape').catch(() => {}); } catch (e) {} }).catch(() => {});
-  } catch (e) {}
-}
+function goFullscreen() { /* (F15: now every tap does this; see ui/orient.js) */ }
+initOrient({ G, onPortal, coarse });
 ['goBtn', 'quickBtn', 'againBtn', 'hostBtn', 'joinBtn', 'startBtn'].forEach(id => { const b = $(id); if (b) b.addEventListener('click', goFullscreen); });
 // Building a battlefield takes a moment on a slow phone. Show "Mustering the troops" the instant a
 // start button is touched (a tap spans a frame or two before it becomes a click, so this gets drawn
