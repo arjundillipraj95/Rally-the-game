@@ -2,7 +2,7 @@
 
 Current work: **friends' playtest fixes (F tickets) and lag (Phase 0)**, then Roles & Combat (design and plan in
 Claude Docs, links in CLAUDE.md). Every builder updates this file as the last step of its ticket. Owner: Opus owner chat.
-Last updated: 2026-11-12 (F15, F12, F13 built on `roles`, not shipped). Older detail: `docs/history/2026-11-log.md`.
+Last updated: 2026-11-12 (F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
 
 ## Live on main
 - P0.1 Dead-code cleanup · P0.2 Lag harness · P0.3 Ping readout · M1 Neutral soldiers look like soldiers
@@ -87,7 +87,9 @@ Last updated: 2026-11-12 (F15, F12, F13 built on `roles`, not shipped). Older de
   flood. One shader on the existing water meshes (lake, Ford river, Crown river): draw calls unchanged. `store/r_water.mjs` shoots it to
   /tmp/water/ (river checked by eye; the lake's framing in the shots missed it, so Arjun judges the lake on his phone).
 - Voice: `r_V1.mjs` passes headless (both ways, mute, refused-then-tap). Arjun's real phones: other person can't hear him and no message
-  shows. Cause not found; proposed an on-screen mic level and per-teammate status line (waiting for Arjun's go).
+  shows. V2-diag (built 12 Nov, Arjun's go): the mic button glows with your voice level, and a small status box under it says per
+  teammate: no teammate phones / on the relay / linking / can't link / linked, silent / hearing them, and whether they hear you
+  (bytes leaving). `r_V1.mjs` checks it. Waiting for a real-phone test; its text says where voice stops.
 
 ## Build queue (in order; model = best fit; Fable 5.2 available until 15 Nov)
 | # | Ticket | What | Model | Waits on |

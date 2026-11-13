@@ -52,8 +52,10 @@ if (process.env.NOLINK) {
 }
 let st = null; for (let i = 0; i < 25 && !(st && st[0].heard && st[1].heard); i++) { await sleep(1000); st = [await vs(A), await vs(B)]; }
 console.log('one side', JSON.stringify(st)); 
+const stat = async P => P.evaluate(() => document.getElementById('voiceStat').textContent); await sleep(2500);
+const [sA, sB] = [await stat(A), await stat(B)]; console.log('status A:', JSON.stringify(sA), '\nstatus B:', JSON.stringify(sB));
 const [hA, hB] = [await lv(A), await lv(B)];
-res.hearEachOther = hA.d > 1e-4 && hB.d > 1e-4; res.playing = hA.playing && hB.playing;
+res.statusShows = /hearing them/.test(sA) && /they hear you/.test(sA) && /hearing them/.test(sB) && /they hear you/.test(sB); res.hearEachOther = hA.d > 1e-4 && hB.d > 1e-4; res.playing = hA.playing && hB.playing;
 // 4) Arjun mutes: nothing more arrives at Ravi's end; unmute: sound again
 await A.tap('#micBtn'); await sleep(800); const mutedB = await lv(B);
 await A.tap('#micBtn'); await sleep(800); const backB = await lv(B);

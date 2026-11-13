@@ -9,6 +9,36 @@ const KEY = 'rally.mic';
 const V = { on: true, stream: null, calls: new Map(), audio: new Map(), state: new Map(), timer: null, live: false,
   starting: false, failed: null, room: null, asked: false, said: new Set() };
 try { V.on = localStorage.getItem(KEY) !== 'off'; } catch (e) {}
+// diagnostics (a real-phone test shows where voice stops): my mic's level, whether sound is leaving, and per teammate whether it arrives
+const D = { ac: null, an: null, buf: null, lv: 0, out: new Map(), inn: new Map(), why: '' };
+function meter() {
+  if (D.an || !V.stream) return;
+  try { const AC = window.AudioContext || window.webkitAudioContext; D.ac = new AC(); const src = D.ac.createMediaStreamSource(V.stream); D.an = D.ac.createAnalyser(); D.an.fftSize = 512; D.buf = new Uint8Array(D.an.fftSize); src.connect(D.an); if (D.ac.state === 'suspended') D.ac.resume().catch(() => {}); } catch (e) { D.an = null; }
+}
+function level() { // 0..1 from the mic, 10 times a second
+  if (!D.an) return; if (D.ac && D.ac.state === 'suspended') D.ac.resume().catch(() => {});
+  D.an.getByteTimeDomainData(D.buf); let m = 0; for (let i = 0; i < D.buf.length; i++) m = Math.max(m, Math.abs(D.buf[i] - 128));
+  D.lv = Math.min(1, m / 60); const b = document.getElementById('micBtn'); if (b) b.style.setProperty('--lv', (V.on ? D.lv : 0).toFixed(2));
+}
+async function stats() { // once a second: bytes sent to / audio energy from each teammate
+  for (const [p, c] of V.calls) { const pc = c.peerConnection; if (!pc) continue;
+    let sent = 0, got = 0; try { (await pc.getStats()).forEach(r => { if (r.type === 'outbound-rtp' && r.kind === 'audio') sent += r.bytesSent || 0; if (r.type === 'inbound-rtp' && r.kind === 'audio') got += r.totalAudioEnergy || 0; }); } catch (e) {}
+    const o = D.out.get(p) || { sent: 0, up: false }, i = D.inn.get(p) || { got: 0, up: false };
+    o.up = sent > o.sent + 200; o.sent = sent; i.up = got > i.got + 1e-5; i.got = got; D.out.set(p, o); D.inn.set(p, i); }
+}
+function paintStat() {
+  const el = document.getElementById('voiceStat'); if (!el) return;
+  const NET = session.NET; if (!NET || G.state !== 'play') { el.hidden = true; return; }
+  const mates = teammates(), rows = [];
+  rows.push(V.live ? `Mic: ${V.on ? 'on' : 'muted'} · you ${'▮'.repeat(Math.round((V.on ? D.lv : 0) * 5)).padEnd(5, '▯')}` : `Mic: ${V.failed === 'denied' ? 'blocked: tap the mic' : V.failed === 'no-mic' ? 'none found' : V.starting ? 'asking…' : D.why || 'not started'}`);
+  if (V.live) {
+    if (!mates.length) rows.push('No teammate phones on your side');
+    mates.forEach((p, n) => { const st = V.state.get(p), o = D.out.get(p), i = D.inn.get(p), r = p.startsWith('r-') ? 'relay' : '';
+      const t = r ? 'on the relay: no sound possible' : !st ? 'not calling yet' : st === 'failed' || st === 'error' ? "can't link" : st === 'calling' ? 'linking…' : `${i && i.up ? 'hearing them' : 'linked, silent'} · ${o && o.up ? 'they hear you' : 'sending nothing'}`;
+      rows.push(`Mate ${n + 1}: ${t}`); });
+  }
+  el.hidden = false; el.textContent = rows.join('\n');
+}
 const say = (k, t) => { if (V.said.has(k)) return; V.said.add(k); bus.emit('voiceMsg', t); }; // (each message once a battle)
 
 export const micOn = () => V.on;
@@ -87,7 +117,8 @@ export function setMic(v) { V.on = !!v; try { localStorage.setItem(KEY, V.on ? '
 // first ask failed (Android's Chrome can refuse an ask that didn't come from a tap)
 export async function startVoice(fromTap) {
   const room = session.NET && session.NET.room;
-  if (V.live || V.starting || !room || !room.voice) return;
+  if (V.live || V.starting) return;
+  if (!room || !room.voice) { D.why = 'no voice link in this battle'; paintStat(); return; }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { V.failed = 'no-mic'; paint(); say('nomic', 'Voice needs a microphone this browser can use'); return; }
   V.starting = true;
   try { V.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false }); }
@@ -99,11 +130,12 @@ export async function startVoice(fromTap) {
   }
   V.starting = false; V.live = true; V.failed = null; V.on = fromTap ? true : V.on;
   if (V.room !== room) { V.room = room; room.voice.onCall(onCall); }
-  setTrack(); V.timer = setInterval(link, 1000); link(); paint();
+  setTrack(); meter(); V.timer = setInterval(() => { link(); stats().then(paintStat); }, 1000); V.lvT = setInterval(level, 100); link(); paint(); paintStat();
   setTimeout(() => { if (V.live && !teammates().length) say('alone', 'Voice: no teammates on your side to talk to'); }, 6000);
 }
 export function stopVoice() {
-  V.asked = false; clearInterval(V.timer); V.timer = null;
+  V.asked = false; clearInterval(V.timer); V.timer = null; clearInterval(V.lvT); V.lvT = null; try { if (D.ac) D.ac.close(); } catch (e) {} D.ac = D.an = null; D.out.clear(); D.inn.clear(); D.lv = 0; D.why = '';
+  { const el = document.getElementById('voiceStat'); if (el) el.hidden = true; }
   for (const p of [...V.calls.keys()]) hang(p);
   if (V.stream) V.stream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} });
   V.stream = null; V.live = false; V.starting = false; V.failed = null; V.state.clear(); V.said.clear(); paint();
