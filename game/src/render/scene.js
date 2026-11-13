@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { quality } from './quality.js';
 import { lookFor } from './look.js';
 import { DAY } from '../config.js';
+import { WATER } from './water.js';
 
 // Filmic, color-managed rendering with a sun that casts real shadows around the camera.
 export const canvas = document.getElementById('gl');
@@ -83,7 +84,7 @@ export const shadowsOn = () => renderer.shadowMap.enabled;
 // Keeps the sun's shadow box centred on what the camera looks at, snapped to shadow texels so edges don't shimmer.
 const tmp = new THREE.Vector3();
 export function followSun(x, z, t) {
-  skyU.time.value = t;
+  skyU.time.value = t; WATER.time.value = t;
   sky.position.copy(camera.position);
   if (!sun.castShadow) { sun.position.set(x, 0, z).addScaledVector(sunDir, 150); sun.target.position.set(x, 0, z); return; }
   const r = quality.cfg.shadowRange, step = (2 * r) / quality.cfg.shadows;

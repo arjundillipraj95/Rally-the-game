@@ -8,6 +8,7 @@ import { buildHolds, updateHolds } from './holds.js';
 import { buildPalisades, updatePalisades } from './palisade.js';
 import { scene, setLook } from './scene.js';
 import { quality } from './quality.js';
+import { waterMaterial } from './water.js';
 import { lookFor, groundTex, stoneTex, woodTex, uvScale } from './look.js';
 import { buildFeatures, updateFeatures } from './features.js';
 import { seeThrough, clearSeeThrough } from './seethrough.js';
@@ -96,7 +97,7 @@ export function buildWorldView(L) {
     world.add(shadowy(inst), shadowy(tips));
   }
   if (M.id === 'river') {
-    const water = new THREE.Mesh(new THREE.PlaneGeometry(420, 10.4), new THREE.MeshPhongMaterial({ color: 0x3a7aa3, specular: 0x9fc6de, shininess: 80, transparent: true, opacity: .84 }));
+    const water = new THREE.Mesh(new THREE.PlaneGeometry(420, 10.4), waterMaterial({ opacity: .84 }));
     water.rotation.x = -Math.PI / 2; water.position.y = -.18; water.receiveShadow = true; world.add(water);
     for (const bx of [-32, 32]) {
       const deck = new THREE.Mesh(uvScale(new THREE.BoxGeometry(5, .3, 14), 2, 5), woodMat); deck.position.set(bx, .22, 0); world.add(shadowy(deck));
@@ -348,7 +349,7 @@ function buildCrownRiver(world, V) {
     if (i) { const b = (i - 1) * 2; idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2); }
   }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
-  const water = new THREE.Mesh(g, new THREE.MeshPhongMaterial({ color: 0x3a7aa3, specular: 0x9fc6de, shininess: 80, transparent: true, opacity: .86, side: THREE.DoubleSide }));
+  const water = new THREE.Mesh(g, waterMaterial({ opacity: .86, side: THREE.DoubleSide }));
   water.receiveShadow = true; world.add(water);
   for (const b of V.bridges) {
     const y = groundY(b.x + Math.cos(b.a) * (b.len + 1), b.z + Math.sin(b.a) * (b.len + 1)), grp = new THREE.Group();

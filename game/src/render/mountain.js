@@ -10,6 +10,7 @@ import { stoneTex, woodTex } from './look.js';
 import { nightLook, dayLook, dayGold, scene, camera, sun, hemi, renderer, lookK, skySunDir } from './scene.js';
 import { camTarget } from './camera.js';
 import { spark } from './effects.js';
+import { waterMaterial } from './water.js';
 import { c2Garrison, c2Lake } from '../core/sim.js';
 
 let M = null;
@@ -234,7 +235,7 @@ export function buildMount(world, L) {
   // flood rushing out from it), its glowing edge, and the four rock causeways from the gates to the glacier,
   // the first ground to show as it drains
   { const ar = L.arena.r, Lk = CROWN2.lake, fy = terrainMeshY(ar * .6, ar * .2);
-    const water = new THREE.Mesh(new THREE.CircleGeometry(1, 72), new THREE.MeshPhongMaterial({ color: 0x3a7aa3, specular: 0x9fc6de, shininess: 80, transparent: true, opacity: .86 }) /* (as the river below) */);
+    const water = new THREE.Mesh(new THREE.CircleGeometry(1, 72), waterMaterial({ opacity: .86, foam: 1 }));
     water.rotation.x = -Math.PI / 2; grp.add(water); // (it writes depth: the glacier above it shows, men below the surface don't)
     const edge = new THREE.Mesh(new THREE.RingGeometry(.9, 1.03, 72), new THREE.MeshBasicMaterial({ color: 0xbff4ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
     edge.rotation.x = -Math.PI / 2; edge.renderOrder = 3; grp.add(edge);
@@ -372,6 +373,7 @@ export function updateMount(dt) {
     let rad = ar - .25, y = fy - .3 + (Lk.depth + .3) * Wl.level, glow = 0;
     if (Wl.count >= 0) { const p = 1 - Wl.count / Lk.count; rad = 2.6 + (Lk.pool - 2.6) * p; y = fy + .05 + .5 * p; glow = .55 + .35 * Math.sin(M.t * (5 + p * 9)); }
     else if (Wl.front > 0) { rad = Math.min(Wl.front, ar - .25); y = fy + Lk.depth; glow = Wl.front < ar ? 1 : 0; }
+    water.material.userData.rush.value = Wl.front > 0 ? 1 : Wl.count >= 0 ? .35 : 0; // (the flood: faster, whiter; the welling pool: livelier)
     water.visible = Wl.level > .01 || Wl.count >= 0; water.scale.setScalar(rad); water.position.set(0, y, 0);
     edge.visible = glow > 0; edge.scale.setScalar(rad); edge.position.set(0, y + .03, 0); edge.material.opacity = glow;
   }

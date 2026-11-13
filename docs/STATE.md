@@ -82,6 +82,12 @@ Last updated: 2026-11-12 (F15, F12, F13 built on `roles`, not shipped). Older de
   `rules`) and its length selectors are hidden on home and lobby; sunrise/noon/sunset herald lines. Draw calls unchanged (325/152).
   `r_F13.mjs` ALL PASS, shots in /tmp/f13/. Arjun judges the look on his phone.
 - crown2sim and crown2online pass roles off and on.
+- F16 Water that moves (`game/src/render/water.js`, Arjun's go 12 Nov): rolling swells and fine ripples bend the surface so the sun glints,
+  colour swims deep to shallow, crest sparkles (not on Low), foam fringe on the summit lake's shore that goes faster and whiter in the
+  flood. One shader on the existing water meshes (lake, Ford river, Crown river): draw calls unchanged. `store/r_water.mjs` shoots it to
+  /tmp/water/ (river checked by eye; the lake's framing in the shots missed it, so Arjun judges the lake on his phone).
+- Voice: `r_V1.mjs` passes headless (both ways, mute, refused-then-tap). Arjun's real phones: other person can't hear him and no message
+  shows. Cause not found; proposed an on-screen mic level and per-teammate status line (waiting for Arjun's go).
 
 ## Build queue (in order; model = best fit; Fable 5.2 available until 15 Nov)
 | # | Ticket | What | Model | Waits on |
