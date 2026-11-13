@@ -102,6 +102,55 @@ function drawSlashes() {
   slashMesh.instanceMatrix.needsUpdate = true; slashMesh.instanceColor.needsUpdate = true; slashAlpha.needsUpdate = true;
 }
 
+// ---------- (F17b) blade ribbons: the swoosh traced by the real blade, from where its edge starts to its point ----------
+// Each frame of a swing, the blade's base and tip are sampled (render/soldiers.js, from the clip skeleton); the last few
+// make a ribbon, smoothed through the samples, bright at the point and fading at the old end. A few, reused.
+const RIB = 10, RIB_N = 10, RIB_SUB = 3, RIB_LIFE = .26, RIB_V = (RIB_N - 1) * RIB_SUB + 1;
+const ribMat = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, depthTest: false, side: THREE.DoubleSide, vertexColors: true });
+ribMat.onBeforeCompile = sh => {
+  sh.vertexShader = 'attribute float aA;\nvarying float vA;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvA = aA;');
+  sh.fragmentShader = 'varying float vA;\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.a *= vA;');
+};
+ribMat.customProgramCacheKey = () => 'ribbon';
+const ribIdx = []; for (let i = 0; i < RIB_V - 1; i++) { const b = i * 2; ribIdx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2); }
+const ribbons = Array.from({ length: RIB }, () => {
+  const g = new THREE.BufferGeometry(), pos = new Float32Array(RIB_V * 6), al = new Float32Array(RIB_V * 2), col = new Float32Array(RIB_V * 6);
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('aA', new THREE.BufferAttribute(al, 1)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setIndex(ribIdx);
+  const m = new THREE.Mesh(g, ribMat); m.frustumCulled = false; m.visible = false; m.renderOrder = 5; scene.add(m);
+  return { key: null, pts: [], mesh: m, c: new THREE.Color(), a: 1 };
+});
+// key: whose blade; base, tip: world points this frame; c: tint; strength: how bright
+export function bladeTrail(key, base, tip, c = '#fff6d8', strength = 1) {
+  let r = ribbons.find(r => r.key === key) || ribbons.find(r => !r.pts.length) || ribbons.reduce((o, r) => (r.pts[0] ? r.pts[r.pts.length - 1].age : 9) > (o.pts[0] ? o.pts[o.pts.length - 1].age : 9) ? r : o);
+  if (r.key !== key) { r.key = key; r.pts.length = 0; }
+  const last = r.pts[r.pts.length - 1];
+  if (last && Math.hypot(last.t[0] - tip.x, last.t[1] - tip.y, last.t[2] - tip.z) < .02) { last.age = 0; return; } // (a blade at rest leaves nothing)
+  r.pts.push({ b: [base.x, base.y, base.z], t: [tip.x, tip.y, tip.z], age: 0 }); if (r.pts.length > RIB_N) r.pts.shift();
+  r.c.set(c); r.a = strength;
+}
+if (import.meta.env.DEV) window.__rib = () => ribbons.map(r => ({ key: r.key, n: r.pts.length, vis: r.mesh.visible, dr: r.mesh.geometry.drawRange.count }));
+const cr = (p0, p1, p2, p3, t, k) => { const t2 = t * t, t3 = t2 * t; return .5 * ((2 * p1[k]) + (-p0[k] + p2[k]) * t + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * t2 + (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * t3); };
+function ribbonsTick(dt) {
+  for (const r of ribbons) {
+    for (const p of r.pts) p.age += dt;
+    while (r.pts.length && r.pts[0].age > RIB_LIFE) r.pts.shift();
+    const n = r.pts.length; r.mesh.visible = n >= 2; if (n < 2) { if (!n) r.key = null; continue; }
+    const g = r.mesh.geometry, P = g.attributes.position.array, A = g.attributes.aA.array, C = g.attributes.color.array; let v = 0;
+    for (let i = 0; i < n - 1; i++) {
+      const p0 = r.pts[Math.max(0, i - 1)], p1 = r.pts[i], p2 = r.pts[i + 1], p3 = r.pts[Math.min(n - 1, i + 2)];
+      for (let s = 0; s < RIB_SUB || (i === n - 2 && s === RIB_SUB); s++) {
+        const t = s / RIB_SUB, age = p1.age + (p2.age - p1.age) * t, k = Math.max(0, 1 - age / RIB_LIFE), along = (i + t) / (n - 1);
+        for (let k3 = 0; k3 < 3; k3++) { P[v * 6 + k3] = cr(p0.b, p1.b, p2.b, p3.b, t, k3); P[v * 6 + 3 + k3] = cr(p0.t, p1.t, p2.t, p3.t, t, k3); }
+        const a = r.a * k * Math.min(1, along * 2.5); A[v * 2] = a * .45; A[v * 2 + 1] = a;
+        C[v * 6] = C[v * 6 + 3] = r.c.r; C[v * 6 + 1] = C[v * 6 + 4] = r.c.g; C[v * 6 + 2] = C[v * 6 + 5] = r.c.b;
+        v++;
+      }
+    }
+    g.setDrawRange(0, Math.max(0, v - 1) * 6);
+    g.attributes.position.needsUpdate = true; g.attributes.aA.needsUpdate = true; g.attributes.color.needsUpdate = true;
+  }
+}
+
 // Smoke from a failing castle, rubble when it falls.
 export function castleFx(kind, pos) {
   if (kind === 'smoke') puff({ x: pos[0] + rnd(-6, 6), y: rnd(3, 6), z: pos[1] + rnd(-6, 6), vx: rnd(-.4, .4), vy: rnd(1.5, 3), vz: rnd(-.4, .4), life: rnd(1.2, 2), c: '#5b5550', s: rnd(5, 9) });
@@ -148,7 +197,7 @@ arrowMesh.frustumCulled = false; arrowMesh.count = 0; scene.add(arrowMesh);
 const o3 = new THREE.Object3D();
 
 export function effectsTick(dt) {
-  wavesTick(dt);
+  wavesTick(dt); ribbonsTick(dt);
   { let n = 0; // (the live ones are kept in order at the front; the spent go back on the spare pile)
     for (let i = 0; i < parts.length; i++) {
       const p = parts[i]; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.vy -= (p.s > 5 ? -.5 : 9) * dt; p.life -= dt;
@@ -188,7 +237,7 @@ export function drawEffects() {
   arrowMesh.count = n; arrowMesh.instanceMatrix.needsUpdate = true;
 }
 
-export function clearEffects() { while (parts.length) spare.push(parts.pop()); floats = []; decals = []; pows = []; for (const sl of slashes) sl.on = false; slashLive = 0; for (const w of waves) scene.remove(w.m); waves = []; }
+export function clearEffects() { while (parts.length) spare.push(parts.pop()); floats = []; decals = []; pows = []; for (const sl of slashes) sl.on = false; slashLive = 0; for (const r of ribbons) { r.pts.length = 0; r.key = null; r.mesh.visible = false; } for (const w of waves) scene.remove(w.m); waves = []; }
 // a ring rolling out across the ground (the rally horn)
 let waves = [];
 export function shockwave(x, z, r, color) {

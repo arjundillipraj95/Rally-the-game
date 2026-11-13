@@ -10,10 +10,10 @@ import { braced } from '../core/sim.js';
 import { lookOf, slotOf, SLOT_IX } from '../core/look.js';
 import { scene, shadowsOn, camera } from './scene.js';
 import { camTarget } from './camera.js';
-import { trail, slash, pow, dust, spark } from './effects.js';
+import { trail, slash, pow, dust, spark, bladeTrail } from './effects.js';
 import { groundY } from '../core/world.js';
 import { quality } from './quality.js';
-import { drawHero, drawFar, sweepHeroes } from './heroes.js';
+import { drawHero, drawFar, sweepHeroes, heroBlade } from './heroes.js';
 import { loadClipBody } from './rig/cliprig.js';
 import { ANIM } from '../config.js';
 // F8: the soldier's painted body on the shared skeleton, with its clips, for the batched soldiers (F1).
@@ -740,7 +740,7 @@ function pose(u, dt) {
 // ---------- bones ----------
 const M = { root: new THREE.Matrix4(), hips: new THREE.Matrix4(), body: new THREE.Matrix4(), legL: new THREE.Matrix4(), legR: new THREE.Matrix4(), sArm: new THREE.Matrix4(), wArm: new THREE.Matrix4(), spear: new THREE.Matrix4(), shield: new THREE.Matrix4() };
 const flashC = new THREE.Color(), WHITE = new THREE.Color(1, 1, 1), wearC = new THREE.Color(), SOOT = new THREE.Color(0x2e2a26);
-const tmp = new THREE.Matrix4(), slashM = new THREE.Matrix4(), out = new THREE.Matrix4(), eu = new THREE.Euler(), qq = new THREE.Quaternion(), vp = new THREE.Vector3(), vs = new THREE.Vector3(), tipV = new THREE.Vector3();
+const tmp = new THREE.Matrix4(), slashM = new THREE.Matrix4(), out = new THREE.Matrix4(), eu = new THREE.Euler(), qq = new THREE.Quaternion(), vp = new THREE.Vector3(), vs = new THREE.Vector3(), tipV = new THREE.Vector3(), baseV = new THREE.Vector3();
 function local(x, y, z, rx, ry, rz) { eu.set(rx, ry, rz); qq.setFromEuler(eu); return tmp.compose(vp.set(x, y, z), qq, vs.set(1, 1, 1)); }
 function bones(u, a) {
   const s = u.kind === 'captain' ? 1.18 : 1;
@@ -796,11 +796,14 @@ export function drawSoldiers(units, dt, extra = null) {
     const hero = ((u.kind === 'captain' || nearCam(u, quality.cfg.near || 26)) && drawHero(u, a, held ? 0 : dt)) || drawFar(u, a); // (the new 3D captain, and the soldiers, archers and mounts near the camera: only their shadow and ring come from the parts below)
     if (u.mounted && u.charge > 0 && Math.random() < dt * 16) dust(u.x - Math.sin(u.face) * 1.4, u.z - Math.cos(u.face) * 1.4); // a charge kicks up a trail
     // a brief streak off the blade/spear tip while mid-swing, so a fast hit reads as motion
+    const real = hero && u.swing > 0 && !u.dead && heroBlade(u, baseV, tipV); // (F17b: drawn on the clip skeleton: the swoosh is traced by his real blade)
+    if (real && !spearOut(u) && u.weapon !== 'jav' && nearCam(u, 22)) bladeTrail(u.id, baseV, tipV, u.leader ? '#fff6d8' : '#ffffff', u.leader ? 1 : .6);
     if (u.swing > 0 && !u.dead && (u.kind === 'foot' || u.kind === 'captain')) {
-      if (spearOut(u)) tipV.set(0, 0, 2.1).applyMatrix4(M.spear); else tipV.set(0, -.4, 1.0).applyMatrix4(M.wArm);
+      if (!real) { if (spearOut(u)) tipV.set(0, 0, 2.1).applyMatrix4(M.spear); else tipV.set(0, -.4, 1.0).applyMatrix4(M.wArm); }
       trail(tipV.x, tipV.y, tipV.z, '#eef2f5');
       // the moment the blade starts through: a crescent swoosh along its path (near your captain only)
       const a = anim.get(u), st = 1 - u.swing / .38;
+      if (real && a && !spearOut(u)) a.slashed = true; // (his ribbon is the swoosh: no fixed crescent over it)
       const kind0 = u.mounted ? 0 : u.swingKind | 0;
       if (a && !a.slashed && kind0 === 4 && st >= .14 && !spearOut(u) && nearCam(u, 22)) { // the spin: a whole ring of steel
         a.slashed = true;

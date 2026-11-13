@@ -119,15 +119,16 @@ f = await run(40); ok('then the run again, head to toe', f[39].up === 'run' && f
 await page.keyboard.down('ShiftLeft'); f = await run(30); ok('Shift while moving: the block above, the legs still stepping', f.slice(15).every(x => /^block/.test(x.up) && !/^block|idle/.test(x.lo)), { up: seen(f, 'up'), lo: seen(f, 'lo') });
 await page.keyboard.up('ShiftLeft'); await page.keyboard.up('KeyW'); await run(30);
 
-console.log('moves with no clip keep the code pose (blended in over the clips)');
-f = await run(14, null, 'p.swing = .38; p.swingKind = 4;'); ok('the spin (the combo\'s finisher): the big third slash, no spin clip yet', has(f, 'up', 'slash3') && Math.max(...f.map(x => x.cw)) < .5, seen(f, 'up')); await run(40);
-for (const [name, setup, n] of [['the heavy blow', 'p.swing = .38; p.swingKind = 5;', 14], ['the shield bash', 'p.swing = .38; p.swingKind = 6;', 14], ['the war cry', 'p.rallyT = 1;', 20]]) {
+console.log('moves with no clip keep the code pose (blended in over the clips); since F17 the spin, heavy blow, shield bash and spear thrust have clips');
+f = await run(14, null, 'p.swing = .38; p.swingKind = 4;'); ok('the spin (the combo\'s finisher): its clip (F17)', has(f, 'up', 'spin') && Math.max(...f.map(x => x.cw)) < .5, seen(f, 'up')); await run(40);
+for (const [name, clip] of [['the heavy blow', 'overhead'], ['the shield bash', 'shieldBash']]) { f = await run(14, null, `p.swing = .38; p.swingKind = ${clip === 'overhead' ? 5 : 6};`); ok(`${name}: its clip (F17), no code pose`, has(f, 'up', clip) && Math.max(...f.map(x => x.cw)) < .5, seen(f, 'up')); await run(40); }
+for (const [name, setup, n] of [['the war cry', 'p.rallyT = 1;', 20]]) {
   f = await run(n, null, setup); const peak = Math.max(...f.map(x => x.cw)); const g = await run(40);
   ok(`${name}: code pose in, then out`, peak > .85 && g[39].cw === 0, { peak, after: g[39].cw });
 }
 await page.evaluate(() => { window.__fb.weapon('spear'); window.__frame(3); });
 f = await run(14, null, 'p.swing = .38; p.swingKind = 0;'); const spear = await page.evaluate(() => window.__h().weapon);
-ok('a spear in his hand: its thrust is the code pose, his standing and moving the clips', spear === 'spear' && Math.max(...f.map(x => x && x.cw || 0)) > .85, { weapon: spear, peak: Math.max(...f.map(x => x && x.cw || 0)) });
+ok('a spear in his hand: its thrust is the spearThrust clip (F17)', spear === 'spear' && has(f, 'up', 'spearThrust'), { weapon: spear, up: seen(f, 'up') });
 await run(30); await page.evaluate(() => { window.__fb.weapon('sword'); window.__frame(3); }); await run(10);
 
 console.log('a. death');
@@ -159,7 +160,7 @@ const sold = await page.evaluate(async () => {
   const v = new X.THREE.Vector3(); out.footY = +Math.min(R.mx.LeftToeBase.getWorldPosition(v).y, R.mx.RightToeBase.getWorldPosition(v).y).toFixed(2); out.headY = +R.mx.Head.getWorldPosition(v).y.toFixed(2);
   return out;
 });
-ok('the soldier file loads: the same 22 bones, the same 30 clips by name', sold.same && sold.bones === 22 && sold.clips === 30 && sold.sameClips, sold.bones + ' bones, ' + sold.clips + ' clips');
+ok('the soldier file loads: the same 22 bones, the same 41 clips by name (30 Mixamo, 11 added by F17)', sold.same && sold.bones === 22 && sold.clips === 41 && sold.sameClips, sold.bones + ' bones, ' + sold.clips + ' clips');
 ok('every soldier clip and every captain clip plays on the soldier\'s body: no broken bone, no T-pose', !sold.bad.length && !sold.tpose.length, { bad: sold.bad.slice(0, 4), tpose: sold.tpose.slice(0, 4) });
 ok('the soldier stands on the ground in his idle (toes near y = -1, head up)', sold.footY < -.85 && sold.footY > -1.1 && sold.headY > .1, { footY: sold.footY, headY: sold.headY });
 ok('no page or shader errors', !errors.length, errors.slice(0, 3));

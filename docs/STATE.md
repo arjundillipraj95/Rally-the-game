@@ -100,6 +100,13 @@ Last updated: 2026-11-12 (F15, F12, F13, F16 shipped to main at 1018462; voice d
   Each anim file +~350 KB. Arjun judges the feel. On `roles` only: Arjun held main (13 Nov) until V1c is reviewed.
 - Next: horse (Quaternius CC0, Arjun downloads; the app's browser can't) and rider (sitting pose made, lance to make).
 
+## F17b Strikes go where he faces, swoosh on the real blade, water (13 Nov; card `docs/tickets/F17b.md`)
+- Spear/javelin aimed each frame at a spot straight ahead (`ANIM.shaftAim`): was ~60 degrees off his facing. The swoosh
+  is now a ribbon traced by the clip skeleton's real blade (`bladeTrail`), on foot and mounted. Water: uneven swells,
+  sun glints instead of the dot grid, light fresnel. Quaternius horse looked at and left out (another art style).
+- Tests: r_F17 16/16 (roles off, on), r_F8 43/43 (5 stale pre-F17 checks fixed), r_water, crown2sim + crown2online off/on.
+- Arjun checks the feel on his phone. Horse and rider (lance) work still open.
+
 ## Build queue (in order; model = best fit; Fable 5.2 available until 15 Nov)
 | # | Ticket | What | Model | Waits on |
 |---|---|---|---|---|

@@ -429,6 +429,7 @@ export const ANIM = {
     jav: [null, null, 'leapSmash', null, 'javThrow', null, 'shieldBash'] },
   swingLegs: ['spin', 'leapSmash'], // (these play head to toe, even on the run: the spin turns on its feet, the leap tucks its legs)
   weaponIdle: { spear: 'spearIdle' },
+  shaftAim: { at: 3, h: 1.15, rideAt: 4.5, rideDip: .12 }, // (F17b: a shaft points at a spot `at` m straight ahead, `h` m up (a man's chest); mounted, further out and dipped a touch, a lance couched)
   shaftGrip: { spear: .2, jav: .2 }, // (clips: these lie along the forearm, the point lifted this much, radians) // (his upper body while he stands or walks with this weapon)
   turn: { clip: 'turn180', min: 2.3, maxSpeed: 1.5, rate: 2 },
   block: ['block', 'blockIdle'], blockHit: { clip: 'blockImpact', rate: 1.4 },

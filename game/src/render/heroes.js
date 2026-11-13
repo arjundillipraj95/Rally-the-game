@@ -444,7 +444,30 @@ export function drawHero(u, a, dt) {
   if (R.cape) { const k = R.cape.userData, want = k.base + Math.min(.55, sp * .07) + Math.sin(FRAME * .09 + u.id) * .03 * mv; k.a = k.a === undefined ? want : k.a + (want - k.a) * Math.min(1, dt * 6); R.cape.rotation.x = k.a; } // (C4: lifts behind him as he runs, eased)
   top.visible = true;
   if (h.legs) { const [bob, pitch] = gait(h.legs, sp, dt); top.position.y += bob; top.rotation.order = 'YXZ'; top.rotation.x = pitch; } // (the horse walks, trots or gallops for its speed, the rider going with it)
+  if (R.shaft) aimShaft(u, h, R);
   return true;
+}
+// a spear or javelin points where he faces (where the rules land the thrust), the grip still in his fist: the clips
+// were made with a sword, whose blade points ahead from a bent wrist, so the forearm alone sends a shaft off to his side.
+// A code pose (blended in by R.cw) keeps its own hold.
+const _hp = new THREE.Vector3(), _dir = new THREE.Vector3(), _pq = new THREE.Quaternion(), _aq = new THREE.Quaternion(), FWD = new THREE.Vector3(0, 0, 1);
+function aimShaft(u, h, R) {
+  (h.U || R.root).updateMatrixWorld(true);
+  const hs = R.shaft.parent; hs.getWorldPosition(_hp);
+  const A = ANIM.shaftAim, mounted = !!h.U, d = (mounted ? A.rideAt : A.at) * h.sc, fx = Math.sin(u.face), fz = Math.cos(u.face);
+  _dir.set(u.x + fx * d - _hp.x, mounted ? -A.rideDip : (u.y || 0) + A.h * h.sc - _hp.y, u.z + fz * d - _hp.z);
+  if (mounted) _dir.y = -A.rideDip * Math.hypot(_dir.x, _dir.z);
+  _dir.normalize();
+  hs.getWorldQuaternion(_pq).invert();
+  _aq.setFromUnitVectors(FWD, _dir).premultiply(_pq);
+  R.shaft.quaternion.slerpQuaternions(_aq, R.shaftQ0, R.cw || 0);
+  R.shaft.updateMatrixWorld(true);
+}
+// where his weapon's blade is in the world this frame (base, tip): false if he isn't drawn on the clip skeleton
+export function heroBlade(u, base, tip) {
+  const h = live.get(u); if (!h || !h.R.clip || !h.R.blade || h.seen !== FRAME) return false;
+  if (!h.R.shaft) (h.U || h.R.root).updateMatrixWorld(true); // (a shaft's frame was brought up to date when it was aimed)
+  h.R.blade.base.getWorldPosition(base); h.R.blade.tip.getWorldPosition(tip); return true;
 }
 if (import.meta.env.DEV) window.__f8 = { live, src: () => SRC, THREE, rigClip, addClipArmour, play, tick, loadClipBody, ANIM }; // (dev: tests read the captains' clips and bones)
 // after a frame's drawing: captains no longer drawn this way (gone, mounted, dead) are taken down
