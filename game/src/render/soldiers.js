@@ -13,7 +13,7 @@ import { camTarget } from './camera.js';
 import { trail, slash, pow, dust, spark, bladeTrail } from './effects.js';
 import { groundY } from '../core/world.js';
 import { quality } from './quality.js';
-import { drawHero, drawFar, sweepHeroes, heroBlade } from './heroes.js';
+import { drawHero, drawFar, sweepHeroes, heroBlade, heroBlow } from './heroes.js';
 import { loadClipBody } from './rig/cliprig.js';
 import { ANIM } from '../config.js';
 // F8: the soldier's painted body on the shared skeleton, with its clips, for the batched soldiers (F1).
@@ -797,13 +797,14 @@ export function drawSoldiers(units, dt, extra = null) {
     if (u.mounted && u.charge > 0 && Math.random() < dt * 16) dust(u.x - Math.sin(u.face) * 1.4, u.z - Math.cos(u.face) * 1.4); // a charge kicks up a trail
     // a brief streak off the blade/spear tip while mid-swing, so a fast hit reads as motion
     const real = hero && u.swing > 0 && !u.dead && heroBlade(u, baseV, tipV); // (F17b: drawn on the clip skeleton: the swoosh is traced by his real blade)
-    if (real && !spearOut(u) && u.weapon !== 'jav' && nearCam(u, 22)) bladeTrail(u.id, baseV, tipV, u.leader ? '#fff6d8' : '#ffffff', u.leader ? 1 : .6);
+    const blow = real && heroBlow(u); // (F17c: a captain's spear sweep leaves a ribbon from its head (as his spear streak, captains only); a poke or lunge, a straight streak)
+    if (real && (!spearOut(u) && u.weapon !== 'jav' || blow === 'slashWide' && u.kind === 'captain') && nearCam(u, 22)) bladeTrail(u.id, baseV, tipV, u.leader ? '#fff6d8' : '#ffffff', u.leader ? 1 : .6);
     if (u.swing > 0 && !u.dead && (u.kind === 'foot' || u.kind === 'captain')) {
       if (!real) { if (spearOut(u)) tipV.set(0, 0, 2.1).applyMatrix4(M.spear); else tipV.set(0, -.4, 1.0).applyMatrix4(M.wArm); }
       trail(tipV.x, tipV.y, tipV.z, '#eef2f5');
       // the moment the blade starts through: a crescent swoosh along its path (near your captain only)
       const a = anim.get(u), st = 1 - u.swing / .38;
-      if (real && a && !spearOut(u)) a.slashed = true; // (his ribbon is the swoosh: no fixed crescent over it)
+      if (real && a && (!spearOut(u) || blow === 'slashWide' && u.kind === 'captain')) a.slashed = true; // (his ribbon is the swoosh: no fixed crescent over it)
       const kind0 = u.mounted ? 0 : u.swingKind | 0;
       if (a && !a.slashed && kind0 === 4 && st >= .14 && !spearOut(u) && nearCam(u, 22)) { // the spin: a whole ring of steel
         a.slashed = true;
@@ -815,9 +816,10 @@ export function drawSoldiers(units, dt, extra = null) {
       }
       if (a && !a.slashed && u.kind === 'captain' && spearOut(u) && u.weapon === 'spear' && st >= .17 && st < .45 && nearCam(u, 22)) { // the spear: a straight streak down the thrust
         a.slashed = true;
-        const sk = kind0 === 5; // (the skewer: a long one, and dust kicked up behind the lunge)
+        const sk = real ? blow === 'spearLunge' : kind0 === 5; // (the skewer, or the combo's lunge: a long one, and dust kicked up behind it)
         eu.set(0, u.face, 0); qq.setFromEuler(eu);
-        slashM.compose(vp.set(u.x + Math.sin(u.face) * .4, u.y + a.lift + (sk ? 1.15 : 1.35), u.z + Math.cos(u.face) * .4), qq, vs.set(1, 1, 1)); slashM.multiply(tmp.makeRotationX(-.3)).multiply(tmp.makeScale(sk ? .36 : .28, 1, sk ? 6 : 3.6));
+        if (real) slashM.compose(vp.set(baseV.x, baseV.y, baseV.z), qq, vs.set(1, 1, 1)); // (F17c: from his spear's head, at its height)
+        else slashM.compose(vp.set(u.x + Math.sin(u.face) * .4, u.y + a.lift + (sk ? 1.15 : 1.35), u.z + Math.cos(u.face) * .4), qq, vs.set(1, 1, 1)); slashM.multiply(tmp.makeRotationX(-.3)).multiply(tmp.makeScale(sk ? .36 : .28, 1, sk ? 6 : 3.6));
         slash(slashM, sk ? '#ffe9a8' : '#fff6d8', sk ? 1 : .9);
         if (sk) { dust(u.x - Math.sin(u.face) * .6, u.z - Math.cos(u.face) * .6); dust(u.x, u.z); }
       }

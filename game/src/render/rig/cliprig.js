@@ -60,20 +60,21 @@ export function rigClip(S, { weapon = 'sword', team = null, pack = null } = {}) 
     v.applyQuaternion(hs.getWorldQuaternion(new THREE.Quaternion()).invert()).normalize();
     const piv = new THREE.Object3D(); piv.name = 'shaft';
     piv.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), v).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -ANIM.shaftGrip[weapon]));
-    for (const c of [...hs.children]) piv.add(c);
+    const slide = new THREE.Object3D(); slide.name = 'shaftSlide'; piv.add(slide); // (F17c: the shaft slides in his grip, along its own length: grounded when held upright)
+    for (const c of [...hs.children]) if (c !== piv) slide.add(c);
     hs.add(piv); shaft = piv;
   }
   // the weapon's point and where its blade starts, marked in the frame it is held in: the swoosh follows them (render/soldiers.js)
-  const wf = shaft || sock.hand_R, blade = {};
+  const wf = shaft ? shaft.children[0] : sock.hand_R, blade = {}; let butt = 0;
   { root.updateMatrixWorld(true); const box = new THREE.Box3(), inv = new THREE.Matrix4().copy(wf.matrixWorld).invert(), b = new THREE.Box3();
     wf.traverse(o => { if (o.isMesh) { o.geometry.computeBoundingBox(); box.union(b.copy(o.geometry.boundingBox).applyMatrix4(_m.multiplyMatrices(inv, o.matrixWorld))); } });
-    const z1 = isFinite(box.max.z) ? box.max.z : 1;
+    const z1 = isFinite(box.max.z) ? box.max.z : 1; butt = isFinite(box.min.z) ? box.min.z : 0;
     for (const [k, z] of [['tip', z1], ['base', shaft ? Math.max(z1 - .7, z1 * .5) : z1 * .12]]) { const o = new THREE.Object3D(); o.name = 'blade_' + k; o.position.set(0, 0, z); wf.add(o); blade[k] = o; } }
   sock.foreArm_L.updateMatrix(); sock.hand_L.updateMatrix();
   const mount = shield && { code: [shield.position.clone(), shield.quaternion.clone()], hand: mx.LeftHand, p: new THREE.Vector3(), q: new THREE.Quaternion(),
     clip: sock.foreArm_L.matrix.clone().multiply(new THREE.Matrix4().makeBasis(new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0)).setPosition(...ANIM.shield.at)), inv: sock.hand_L.matrix.clone().invert() };
   const mixer = new THREE.AnimationMixer(inner);
-  return { clip: true, S, root, inner, mesh, shield, cape: gear.cape, mount, shaft, shaftQ0: shaft && shaft.quaternion.clone(), blade, bones: sock, mx, list, rest, hips, hipsRest, weapon, mixer, shadow: bareRig(weapon),
+  return { clip: true, S, root, inner, mesh, shield, cape: gear.cape, mount, shaft, shaftQ0: shaft && shaft.quaternion.clone(), slide: shaft && shaft.children[0], butt, blade, bones: sock, mx, list, rest, hips, hipsRest, weapon, mixer, shadow: bareRig(weapon),
     lo: { list: [], key: null, fade: ANIM.fade, part: 'lo' }, up: { list: [], key: null, fade: ANIM.fade, part: 'up' },
     cw: 0, cq: list.map(() => new THREE.Quaternion()), cy: 0, dq: list.map(() => new THREE.Quaternion()), wq: list.map(() => new THREE.Quaternion()) };
 }

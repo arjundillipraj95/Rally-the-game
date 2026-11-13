@@ -422,14 +422,21 @@ export const ANIM = {
     // F17 (Cosindra clips, tools/models/extra.py): hit = the moment the hand is fastest, seconds into the clip
     spin: { hit: 1.33, lead: .6, after: 1.4 }, leapSmash: { hit: .97, lead: .5, after: 1.3 }, overhead: { hit: .7, lead: .45, after: 1.4 },
     slashWide: { hit: .33, lead: .25, after: 1.4 }, slashBack: { hit: .3, lead: .25, after: 1.4 },
-    spearThrust: { hit: .47, lead: .3, after: 1.4 }, javThrow: { hit: 1.27, lead: .5, after: 1.4 }, shieldBash: { hit: .33, lead: .25, after: 1.3 } },
+    spearThrust: { hit: .47, lead: .3, after: 1.4 }, spearLunge: { hit: .47, lead: .45, after: 1.1 }, javThrow: { hit: 1.27, lead: .5, after: 1.4 }, shieldBash: { hit: .33, lead: .25, after: 1.3 } },
   // the clip for each swingKind, by weapon: 0-1 combo, 2 leap, 3 spear thrust, 4 sword spin finisher / javelin throw / streak, 5 held heavy blow or skewer, 6 shield bash
   swingKind: ['slash1', 'slash2', 'leapSmash', 'attack', 'spin', 'overhead', 'shieldBash'], boost: 'attackBoost', boostWithin: .7,
-  weaponSwing: { spear: ['spearThrust', 'spearThrust', 'leapSmash', 'spearThrust', 'slashWide', 'spearThrust', 'shieldBash'],
+  // F17c spear combo (Arjun): 1 poke, 2 sweep, 3 a stronger thrust. The rules send a spear's presses as swingKind 3, 3, then 5
+  // (the skewer: a running lunge through the line); the second 3 (combo 1) is drawn as the sweep, the skewer as the lunge
+  // (the thrust clip, wound up longer, his legs stepping into it). spearSweep: the clip for combo step 1 of swingKind 3.
+  weaponSwing: { spear: ['spearThrust', 'spearThrust', 'leapSmash', 'spearThrust', 'slashWide', 'spearLunge', 'shieldBash'],
     jav: [null, null, 'leapSmash', null, 'javThrow', null, 'shieldBash'] },
-  swingLegs: ['spin', 'leapSmash'], // (these play head to toe, even on the run: the spin turns on its feet, the leap tucks its legs)
-  weaponIdle: { spear: 'spearIdle' },
-  shaftAim: { at: 3, h: 1.15, rideAt: 4.5, rideDip: .12 }, // (F17b: a shaft points at a spot `at` m straight ahead, `h` m up (a man's chest); mounted, further out and dipped a touch, a lance couched)
+  spearSweep: 'slashWide',
+  swingLegs: ['spin', 'leapSmash', 'spearLunge'],
+  clipOf: { spearLunge: 'spearThrust' }, // (a blow that plays another's clip, its own timing) // (these play head to toe, even on the run: the spin turns on its feet, the leap tucks its legs)
+  // F17c how a spear or javelin is held: upright at his side when he stands, walks or runs (tipped `lean` rad forward, butt
+  // `ground` m off the ground); level along his facing in a poke or lunge (`dip` rad down) and when he braces behind the shield;
+  // the sweep, an arc from his right (`sweepArc[0]` rad) across his front, dead ahead as the blow lands, round to `[1]` over `[2]` s; mounted, couched (dipped `rideDip`); eased at `ease`/s
+  shaftAim: { lean: .17, ground: .06, dip: .04, rideDip: .12, ease: 20, slideEase: 14, sweep: ['slashWide'], sweepArc: [-1.75, 1.2, .22], level: ['spearThrust', 'spearLunge', 'leapSmash', 'javThrow'] },
   shaftGrip: { spear: .2, jav: .2 }, // (clips: these lie along the forearm, the point lifted this much, radians) // (his upper body while he stands or walks with this weapon)
   turn: { clip: 'turn180', min: 2.3, maxSpeed: 1.5, rate: 2 },
   block: ['block', 'blockIdle'], blockHit: { clip: 'blockImpact', rate: 1.4 },
