@@ -3,7 +3,8 @@
 // it's being taken or fought over.
 import * as THREE from 'three';
 import { keepLive, batchOn, abOn, abShow } from './batch.js';
-import { TEAMS } from '../config.js';
+import { TEAMS, CROWNFX } from '../config.js';
+import { shockwave } from './effects.js';
 import { G, colorOf } from '../core/state.js';
 import { terrainMeshY } from '../core/world.js';
 import { buildCastleFort, updateCastleFort } from './castlefort.js';
@@ -25,8 +26,12 @@ function buildCrown(world) {
   glow.rotation.x = -Math.PI / 2; const glowG = new THREE.Group(); glowG.add(glow);
   const casing = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.8, 3, 10), new THREE.MeshLambertMaterial({ color: 0x9a9284 })); casing.castShadow = true;
   g.scale.setScalar(1.4);
-  const root = new THREE.Group(); root.add(g, glowG, casing); root.visible = false; world.add(root);
-  crown = { root, g, glow: glowG, casing }; keepLive(root);
+  // F18: a soft golden beam over the carrier, so everyone can find the Crown at a glance
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(CROWNFX.beamR * .6, CROWNFX.beamR, CROWNFX.beamH, 14, 1, true),
+    new THREE.MeshBasicMaterial({ color: 0xffd76a, transparent: true, opacity: CROWNFX.beamOp, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+  beam.position.y = CROWNFX.beamH / 2 - 2; beam.visible = false; beam.renderOrder = 2;
+  const root = new THREE.Group(); root.add(g, glowG, casing, beam); root.visible = false; world.add(root);
+  crown = { root, g, glow: glowG, casing, beam, last: null }; keepLive(root);
 }
 // The plaza's wall (the Crown): stone blocks round the ring and a wooden gate across each gap; down in the
 // ground until 9:00, then it rises over a couple of seconds. A broken gate drops into a heap of planks.
@@ -126,6 +131,10 @@ function updateCrown() {
   const f = G.flag, c = crown; if (!c) return;
   c.root.visible = !!f; if (!f) return;
   const t = G.T;
+  const holder = f.state === 'carried' ? f.carrier : null;
+  if (holder !== c.last) { if (holder) shockwave(holder.x, holder.z, CROWNFX.ringR, '#ffcf3a'); c.last = holder; } // (F18: a pulse ring as it changes hands)
+  c.beam.visible = !!holder && !holder.fog;
+  if (holder) c.beam.material.opacity = CROWNFX.beamOp * (.8 + Math.sin(t * 2.2) * .2);
   if (f.state === 'carried' && f.carrier) { const u = f.carrier; c.root.position.set(u.x, u.y + 3.3, u.z); c.casing.visible = false; c.glow.visible = false; c.g.position.y = Math.sin(t * 3) * .08; }
   else {
     c.root.position.set(f.x, terrainMeshY(f.x, f.z), f.z);

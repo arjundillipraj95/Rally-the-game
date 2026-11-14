@@ -315,10 +315,10 @@ export const CRESTS = [
   { name: 'Emerald', hex: 0x2fa35a, css: '#2fa35a' }, { name: 'Flame', hex: 0xff6a1a, css: '#ff6a1a' },
 ]; // crest i unlocks at rank i
 // Cheek for the results screen and the menu.
-export const QUIPS = {
-  win: ['Glory! And only slightly fewer sandals.', 'The bards will sing of this. Badly.', 'Victory! Somebody fetch the goats.', 'Flawless. Well, mostly flawless.', 'They\u2019ll be finding helmets for weeks.'],
-  lose: ['A tactical retreat. Very tactical.', 'We\u2019ll call that a rehearsal.', 'At least the helmets had fun.', 'In fairness, they had more pointy sticks.', 'Morale is… present.'],
-  draw: ['Everybody lost. Mostly the goats.', 'A draw. Nobody tell the emperor.', 'Honours even. Bruises everywhere.'],
+export const QUIPS = { // F18 tone: proud, with a dry line now and then
+  win: ['Glory to the legion.', 'The field is ours.', 'They will remember this day.', 'Well fought. Mostly.', 'Rome thanks you. Eventually.'],
+  lose: ['Regroup. Return stronger.', 'A setback, not the end.', 'The legion remembers its losses.', 'Next time, more shields.'],
+  draw: ['Honours even.', 'Neither side yields.', 'A hard-fought stalemate.'],
 };
 export const TIPS = [
   'Hitting people is faster than asking nicely.', 'Spears beat horses. Horses beat feet. Nobody beats the goat.',
@@ -388,7 +388,7 @@ export const FEEL = {
   // a blow taken on a shield. kb: how much of the blow's push the defender still takes (he slides back a little)
   block: { kb: .55, stop: .045, world: .03, flash: 1.7, flashT: .2, recoil: 8, jolt: 3, shake: [.12, .22], kick: .16, buzz: [18, 25], near: 20 },
   // a captain cuts a soldier down. kb, up: how he's thrown on a joined phone (the host's rules throw him there); launch: a big hit
-  cut: { stop: .09, world: .1, kb: 14, launch: 11, up: [3, 6], slash: 2.9, stars: 6, star: .5, starT: .7, shake: [.1, .28], kick: .22, buzz: 40, near: 24 },
+  cut: { stop: .09, world: .1, kb: 14, launch: 8, up: [2, 4], slash: 2.9, stars: 6, star: .5, starT: .7, shake: [.1, .28], kick: .22, buzz: 40, near: 24 },
   // your own blows, as before F6 (seconds of hold, shake) plus a short buzz when one lands
   own: { stop: { blocked: .03, heavy: .1, shove: .075, hit: .055 }, shake: { heavy: .22, shove: .16, hit: .1 }, buzz: { hit: 12, heavy: 28, blocked: 0 } },
   // any blow that lands on anybody: the struck man holds his pose this long, by how hard it was (light, heavy)
@@ -468,3 +468,13 @@ export const ANIM = {
 // back up (scale first, then level), never above the level the device was detected at, and not back to
 // a level it fell from within ban s. The level reached is kept for the next battle on this phone.
 export const ADAPT = { win: 4, settle: 2, gap: 2, down: 28, up: 55, upN: 3, ban: 60, scaleStep: .15, scaleMin: .7 };
+
+// F18 grounded knockback: a captain's killing blow throws a soldier this far (m/s across, m/s up); was 8.5-12 and 9-12
+export const LAUNCH = { push: [6, 8], up: [4, 6] };
+// F18 the Crown on its carrier: a soft gold beam (radius, height m, opacity) and a pulse ring (m) when it changes hands
+export const CROWNFX = { beamR: 1.1, beamH: 40, beamOp: .16, ringR: 10 };
+// F19 the living world (render/ambient.js; nothing on Low). motes: how many per level; box: half-size round the
+// camera (x, height, z m); drift/wind m/s; emberRise m/s within crownR m of the summit; shafts: how many per level,
+// spread shaftR m sideways and shaftAhead m ahead of the camera, width and height m, opacity by day plus extra in the golden hours.
+export const AMBIENT = { motes: { low: 0, medium: 140, high: 260 }, box: [22, 9, 22], size: .45, op: .8, drift: .35, wind: [.25, .1],
+  emberRise: .9, crownR: 40, shafts: { low: 0, medium: 3, high: 5 }, shaftR: 22, shaftAhead: [8, 30], shaftW: [4, 8], shaftH: 34, shaftDay: .05, shaftGold: .12 };

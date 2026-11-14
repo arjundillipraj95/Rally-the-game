@@ -6,27 +6,28 @@ import { SHOUTS, CALM } from '../config.js';
 import { G, bus, isEnemyTi, colorOf } from '../core/state.js';
 import { camTarget } from './camera.js';
 
+// F18 tone (Arjun, 13 Nov): Roman, proud, battle-hardened. Mostly real battle calls; a dry aside now and
+// then (about one line in five), never a gag.
 const LINES = {
-  launch: ['Wheeee!', 'I can fly!', 'Not agaaain!', 'Mummyyy!', 'Worth it!', 'My sandals!', 'Tell my goat…', 'Bye!', 'Too high!', 'Wasn’t ready!'],
-  clout: ['Not the face!', 'Ow! My everything!', 'Rude!', 'That’ll bruise.', 'I felt that.', 'Ow, ow, ow.', 'My helmet!', 'Oof.'],
-  stars: ['Pretty stars…', 'Mummy?', 'Which way is up?', 'Three of you now?', 'Is it Tuesday?'],
-  capDown: ['Who’s in charge now?', 'Captain?! …Captain?', 'Run! Er, regroup!', 'I’m the captain now!', 'Nobody panic!', 'AAAAH!'],
-  march: ['Are we there yet?', 'My feet hurt.', 'I joined for the free sandals.', 'Is it lunch yet?', 'Tell my goat I loved him.',
-    'For the… uh… glory!', 'Who packed the snacks?', 'I think I left the oven on.', 'Left, right, left… which is left?', 'Nice day for it.'],
-  win: ['We did it?', 'Victory! And snacks!', 'Glory!', 'Told you so.', 'Did everyone see that?', 'Home for lunch!'],
-  flee: ['Run away!', 'Tactical retreat!', 'Every man for himself!', 'Mummyyy!', 'Not the face!'],
-  follow: ['With me, lads!', 'This way!', 'Follow the shiny helmet!', 'Keep up!'],
-  hold: ['Hold the line!', 'Hold! …which line?', 'Stay! Good soldiers.', 'Nobody move!'],
-  charge: ['CHAAARGE!', 'At them!', 'For glory! And lunch!', 'GO GO GO!'],
-  shieldwall: ['Shields up!', 'Wall! Not that high, Marcus.', 'Turtle time!', 'Lock shields!'],
-  cheer: ['Ours now!', 'Mine! I mean, ours!', 'Free real estate!', 'Dibs on the good bed!', 'Somebody put the kettle on.', 'Easiest job I ever had.', 'Plant the flag!'],
-  lost: ['That was ours!', 'Who left the door open?', 'Not our castle!', 'I liked that place.', 'We’re homeless!'],
-  gasp: ['Ooooh!', 'That’s gotta hurt.', 'Did you see that?!', 'Remind me never to annoy him.', 'Brutal.', 'Respect.'],
-  contact: ['Here they come!', 'Steady…', 'Enemy ahead!', 'Oh no, they’re real.', 'Look busy!', 'Big ones, lads.'],
-  rich: ['Captain, we’re rich. Spend it!', 'Buy us something nice!', 'Gold’s no use in your pocket!', 'More men? Pretty please?', 'Armour would be nice…'],
-  duel: ['Fight! Fight! Fight!', 'Five on our captain!', 'Go on, sir!', 'Hit him with the pointy end!', 'Don’t blink!'],
-  taunt: ['Is that your army?', 'Run home!', 'Nice helmet. Mine now.', 'Come and get it!', 'I’ve fought sheep tougher than you!', 'You call that a sword?'],
-  breach: ['They’re through!', 'Hole in the wall!', 'Plug the gap!', 'Who built this, a goat?'],
+  launch: ['Aagh!', 'Down!', 'Man down!', 'Ugh…', 'Not like this…'],
+  clout: ['Ngh!', 'I’m hit!', 'Still standing.', 'Is that all?', 'That one hurt.'],
+  stars: ['On your feet!', 'Get up, soldier!', 'Shake it off.', 'Head’s ringing…'],
+  capDown: ['The captain’s down!', 'Hold together!', 'Close ranks!', 'Who leads us now?', 'Avenge him!'],
+  march: ['Eyes forward.', 'Keep the pace.', 'Steady, lads.', 'Long road.', 'Rome wasn’t marched in a day.', 'Quiet. Too quiet.'],
+  win: ['Victory!', 'For Rome!', 'The field is ours!', 'Glory to the legion!', 'Told you.'],
+  flee: ['Fall back!', 'Back to the line!', 'Regroup!', 'Retreat!'],
+  follow: ['With me!', 'On the captain!', 'Form up!', 'Keep up!'],
+  hold: ['Hold the line!', 'Stand fast!', 'Not one step back!', 'Hold!'],
+  charge: ['CHARGE!', 'At them!', 'For the legion!', 'Forward!'],
+  shieldwall: ['Shields up!', 'Lock shields!', 'Wall!', 'Testudo!'],
+  cheer: ['Ours now!', 'Raise our banner!', 'Taken!', 'The keep is ours!', 'Decent beds, at least.'],
+  lost: ['We lost the keep!', 'They took it!', 'Take it back!', 'The keep has fallen!'],
+  gasp: ['Brutal.', 'Did you see that?', 'Remind me not to cross him.', 'Respect.', 'Clean.'],
+  contact: ['Here they come!', 'Steady…', 'Enemy ahead!', 'Contact!', 'Ready yourselves!'],
+  rich: ['Captain, the coffers are full.', 'Spend the gold, sir.', 'More men would help.', 'Armour, sir?'],
+  duel: ['Fight!', 'Go on, sir!', 'Finish him!', 'Watch his blade!', 'Don’t blink.'],
+  taunt: ['Is that your army?', 'Go home!', 'Kneel.', 'Come and take it!', 'You’ll break.', 'I’ve seen better shields on a cart.'],
+  breach: ['They’re through!', 'Breach!', 'Plug the gap!', 'The wall’s down!'],
 };
 const recent = [];
 function pick(kind) {
@@ -59,9 +60,9 @@ export function banterTick(dt) {
     let s = seen.get(u);
     if (!s) { s = { hp: u.hp, dead: u.dead, stars: false }; seen.set(u, s); continue; }
     if (d < 26) {
-      if (u.dead && !s.dead && u.launch && Math.random() < .45) say(u, 'launch');
-      else if (!u.dead && s.hp - u.hp > u.max * .3 && Math.random() < .22) say(u, 'clout');
-      else if (!u.dead && u.seesStars && !s.stars && Math.random() < .3) say(u, 'stars');
+      if (u.dead && !s.dead && u.launch && Math.random() < .2) say(u, 'launch');
+      else if (!u.dead && s.hp - u.hp > u.max * .3 && Math.random() < .12) say(u, 'clout');
+      else if (!u.dead && u.seesStars && !s.stars && Math.random() < .12) say(u, 'stars');
     }
     s.hp = u.hp; s.dead = u.dead; s.stars = !!u.seesStars;
   }
@@ -78,13 +79,13 @@ export function banterTick(dt) {
   if (richT <= 0) { richT = 25; if (tm && tm.gold >= 180) { const mine = myMen(T, 14); if (mine.length) say(mine[(Math.random() * mine.length) | 0], 'rich'); } }
   // an enemy captain close to you calls across
   if (tauntT <= 0) {
-    tauntT = 14 + Math.random() * 10;
+    tauntT = 25 + Math.random() * 15;
     const cap = G.units.find(o => !o.dead && o.leader && !o.human && isEnemyTi(o.ti, G.myTi) && Math.hypot(o.x - T.x, o.z - T.z) < 18);
     if (cap) say(cap, 'taunt');
   }
   // the odd grumble from your own ranks while nothing much is happening
   if (marchT <= 0) {
-    marchT = 18 + Math.random() * 16;
+    marchT = 40 + Math.random() * 30;
     const quiet = !G.units.some(o => !o.dead && isEnemyTi(o.ti, G.myTi) && Math.hypot(o.x - T.x, o.z - T.z) < 18);
     const mine = G.units.filter(o => !o.dead && !o.leader && o.ti === G.myTi && Math.hypot(o.x - T.x, o.z - T.z) < 14);
     if (quiet && mine.length) say(mine[(Math.random() * mine.length) | 0], 'march');

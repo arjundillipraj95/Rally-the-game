@@ -12,7 +12,12 @@ export function camKick(dx, dz) { if (reduceMotion) return; cam.kx += dx; cam.kz
 // the match's opening (main.js): when set, it may move the camera after the follow camera has placed it
 export const introCam = { on: null };
 export const CAM_PITCH = .42; // a little higher than eye level, so the squad behind you doesn't wall off the fight
-const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+// F18: the Screen shake setting (off = no shake and no camera kick, like the phone's reduce-motion)
+function readShake() { try { return localStorage.getItem('rally-shake') !== 'off'; } catch (e) { return true; } }
+if (!readShake()) reduceMotion = true;
+export function shakeEnabled() { return !reduceMotion; }
+export function setShake(on) { try { localStorage.setItem('rally-shake', on ? 'on' : 'off'); } catch (e) {} reduceMotion = !on || matchMedia('(prefers-reduced-motion: reduce)').matches; }
 
 export function camTarget() {
   const p = G.player;

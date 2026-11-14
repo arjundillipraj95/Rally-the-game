@@ -13,6 +13,7 @@ import { rideRelease, orderVolley, challenge, canChallenge, startMatch, mkUnit, 
 import { makeLayout, gatePos, groundY, W } from './core/world.js';
 import { buildNav, findPath } from './core/nav.js';
 import { renderer, scene, camera, resize, applyPixelRatio, applyShadowQuality, followSun } from './render/scene.js';
+import { ambientTick } from './render/ambient.js';
 import { quality, saveSetting, saveAuto, adaptStep, LEVELS } from './render/quality.js';
 import { buildWorldView, updateWorldView, grassTime } from './render/world.js';
 import { drawSoldiers, drawCalls, clearProps } from './render/soldiers.js';
@@ -33,7 +34,7 @@ import { drawHorses, clearHorses } from './render/horses.js';
 import { drawFreeHorses } from './render/heroes.js';
 import { spark, splat, dust, drawAura, floatText, pow, shockwave, castleFx, effectsTick, drawEffects, clearEffects } from './render/effects.js';
 import { drawOverlay, clearOverlay, resizeOverlay } from './render/overlay.js';
-import { cam, followCamera, orbitCamera, camTarget, CAM_PITCH, introCam } from './render/camera.js';
+import { cam, followCamera, orbitCamera, camTarget, CAM_PITCH, introCam, setShake, shakeEnabled } from './render/camera.js';
 import { feelTick, clearFeel, feelStats } from './render/feel.js';
 import { initDeath, deathTick, deathReset, deathState, fadeToBlack, fadeBackIn } from './ui/death.js';
 import { initAudio, sfx, buzz, gateS, startCrowd, stopCrowd, audioTick, audioStats, setMuted, musicCue, setMusic, musicEnabled, setVibe, vibeEnabled } from './ui/audio.js';
@@ -104,7 +105,7 @@ bus.on('fxmsg', d => {
   const near = me && Math.hypot(u.x - me.x, u.z - me.z) < (d.k === 'fxbreach' ? 1e9 : d.k === 'fxrally' || d.k === 'fxrout' || d.k === 'fxcapkill' ? 40 : 22), mine = u === me;
   if (!near && !mine && d.a !== me) return;
   if (d.k === 'fxrally') { // a captain sounds the rally: a ring of gold rolls out from him, and the horn
-    pow(u.x, u.y + 3.4, u.z, 'RALLY!', '#ffd23a', 3); shockwave(u.x, u.z, 18, '#ffd23a'); sfx.horn(); if (near || mine) cam.shake = Math.max(cam.shake, .35); if (mine) { buzz(80); musicCue('rally'); }
+    pow(u.x, u.y + 3.4, u.z, 'RALLY!', '#ffd23a', 3); shockwave(u.x, u.z, 18, teamCss(u)); sfx.horn(); if (near || mine) cam.shake = Math.max(cam.shake, .35); if (mine) { buzz(80); musicCue('rally'); }
     return;
   }
   if (d.k === 'fxcapkill') { // a captain cut down by a captain: both of them in slow motion, a drum like thunder
@@ -141,7 +142,7 @@ bus.on('fxmsg', d => {
   if (d.k === 'fxpush') { const f = u.face; if (mine) pow(u.x + Math.sin(f) * 3, u.y + 2.6, u.z + Math.cos(f) * 3, 'PUSH!', '#ffffff', 1); if (d.heavy) { dust(u.x + Math.sin(f) * 3, u.z + Math.cos(f) * 3); cam.shake = Math.max(cam.shake, mine ? .4 : .2); } if (mine) buzz(d.heavy ? [40, 20, 60] : 20); return; }
   if (d.k === 'fxrhythm') { if (mine) pow(u.x, u.y + 3.3, u.z, 'RHYTHM!', '#ffd23a', 1); sfx.heavy(u.x, u.z); if (mine) { buzz([30, 20, 30, 20, 60]); cam.shake = Math.max(cam.shake, .4); } return; }
   if (d.k === 'fxvland') { if (mine) bus.emit('fighttip', 'vcharge'); return; } // (your volley's landed: the moment to charge)
-  if (d.k === 'fxvcharge') { pow(u.x, u.y + 3.4, u.z, 'VOLLEY & CHARGE!', '#ffd23a', 2); shockwave(u.x, u.z, 12, '#ffd23a'); sfx.charge && sfx.charge(u.x, u.z); if (mine) { buzz([40, 30, 60]); cam.shake = Math.max(cam.shake, .35); } return; }
+  if (d.k === 'fxvcharge') { pow(u.x, u.y + 3.4, u.z, 'VOLLEY & CHARGE!', '#ffd23a', 2); shockwave(u.x, u.z, 12, teamCss(u)); sfx.charge && sfx.charge(u.x, u.z); if (mine) { buzz([40, 30, 60]); cam.shake = Math.max(cam.shake, .35); } return; }
   if (d.k === 'fxdisarm') { // a perfect parry: his blade knocked from his hand
     if (!near && !mine && d.a !== me) return;
     pow(u.x, u.y + 3.1, u.z, 'DISARMED!', '#ff8a3a', 3); sfx.parry(u.x, u.z); sfx.heavy(u.x, u.z);
@@ -157,7 +158,7 @@ bus.on('fxmsg', d => {
   }
   if (d.k === 'fxstreak') { // the streak's whirlwind
     if (!near && !mine) return;
-    pow(u.x, u.y + 3.4, u.z, 'RAMPAGE!', '#ffd23a', 3); shockwave(u.x, u.z, 8, '#ffd23a'); sfx.heavy(u.x, u.z);
+    pow(u.x, u.y + 3.4, u.z, 'RAMPAGE!', '#ffd23a', 3); shockwave(u.x, u.z, 8, teamCss(u)); sfx.heavy(u.x, u.z);
     if (mine) { buzz([50, 30, 80]); cam.shake = Math.max(cam.shake, .45); }
     return;
   }
@@ -729,6 +730,8 @@ seg('segMusic', v => { setMusic(v === 'on'); pressSeg('segMusic', v); });
 pressSeg('segMusic', musicEnabled() ? 'on' : 'off');
 seg('segVibe', v => { setVibe(v === 'on'); pressSeg('segVibe', v); });
 pressSeg('segVibe', vibeEnabled() ? 'on' : 'off');
+seg('segShake', v => { setShake(v === 'on'); pressSeg('segShake', v); });
+pressSeg('segShake', shakeEnabled() ? 'on' : 'off');
 seg('segQuality', v => {
   if (v === quality.setting) return;
   saveSetting(v);
@@ -881,6 +884,9 @@ $('menuBtn').addEventListener('click', () => {
   portal.midgameAd(() => { G.state = 'title'; resetSolo(); newTip(); clearCritters(); $('ovEnd').hidden = true; $('hudWrap').hidden = true; $('ovTitle').hidden = false; setHomeView('home'); seedDemo(); });
 });
 
+// F18: ability bursts glow in the caster's team colour
+function teamCss(u) { const t = TEAMS[colorOf(u.ti)]; return (t && t.css) || '#ffd23a'; }
+
 // ---------- frame-rate watchdog (F14): keeps adjusting graphics all battle long, on Auto only ----------
 // Down when slow, back up when smooth for a while; never above the detected level (see ADAPT).
 const watchdog = {
@@ -927,7 +933,7 @@ function drawMatch(dt) {
 }
 function drawScene(dt) {
   try { audioTick(dt); } catch (e) { fault('sound', e); } // (sound can never freeze the screen)
-  banterTick(dt); updateCritters(dt); fogTick(dt);
+  banterTick(dt); updateCritters(dt); fogTick(dt); ambientTick(dt);
   drawSoldiers(G.units, dt, neutralFigs()); // (on the mountain, the neutral garrisons and camps are drawn beside the armies)
   const horses = (isClient() ? clientHorses() : G.horses.map(h => ({ key: h.id, ti: h.ti, x: h.x, z: h.z, face: h.face, spd: h.spd, state: h.state, t: h.t, fall: h.fall }))).filter(h => !fogGrid() || !isEnemyTi(h.ti, G.myTi) || seenAt(h.x, h.z));
   if (drawFreeHorses(horses, dt)) drawHorses([], dt); else drawHorses(horses, dt); // (the new warhorse when the new models are on)

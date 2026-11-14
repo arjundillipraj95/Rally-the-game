@@ -1,6 +1,6 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
-import { STAMINA, DUEL_DIR, CROWN2, FEEL } from '../config.js';
+import { STAMINA, DUEL_DIR, CROWN2, FEEL , LAUNCH } from '../config.js';
 import { CROWN, ECON, TEAMS, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, CASTLE_R, CASTLE_REACH, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, HOLDS, EVADE, FORT, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT, DUEL, CHEST, STREAK, BASH, LAST, VCHARGE, RHYTHM, PUSH, ARMOUR } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, activeFrom, gateOff, ARMIES, rules, matchTime, noCastle, capOf, isC2 } from './state.js';
 import { deepWater, groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W, groundSlow, onIce, mountHomeA } from './world.js';
@@ -1170,7 +1170,7 @@ export function die(u, killer, ang, launch = 0) {
   if (G.c2 && u.leader && killer && isEnemyTi(killer.ti, u.ti)) { const k = G.c2.kills, a = allianceOf(killer.ti); if (!(k[a] = k[a] || {})[u.ti]) { const v = killer.leader ? CROWN2.points.killCaptain : CROWN2.points.killArmy; k[a][u.ti] = v; say('c2capPoint', killer.ti, u.ti, v); fx('netFlush'); } }
   u.dead = true; u.deadT = 0;
   if (launch) { // off they go: high, far, spinning (see the ragdoll in render/soldiers.js)
-    const f = rnd(8.5, 12); u.vx += Math.sin(ang) * f; u.vz += Math.cos(ang) * f; u.vy = rnd(9, 12); u.launch = true;
+    const f = rnd(LAUNCH.push[0], LAUNCH.push[1]); u.vx += Math.sin(ang) * f; u.vz += Math.cos(ang) * f; u.vy = rnd(LAUNCH.up[0], LAUNCH.up[1]); u.launch = true;
     sound('scream', u.x, u.z);
   } else { u.vx += Math.sin(ang) * 6; u.vz += Math.cos(ang) * 6; u.vy = rnd(3, 6); }
   u.fallDir = Math.random() < .5 ? 1 : -1;

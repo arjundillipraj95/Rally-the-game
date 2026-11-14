@@ -133,6 +133,13 @@ Last updated: 2026-11-13 (F7 built on `roles`; F15, F12, F13, F16 shipped to mai
 - `r_F14.mjs` 12/12 (the rule); `r_F14b.mjs` (slow headless battle). Arjun checks on a weak Android.
 - Next from the visual polish pass (design doc, Changes for the owner): B combat juice extras, C living world, D art pass.
 
+## F18 + F19 + F20 Visual polish pass B, C, D (13 Nov; cards in docs/tickets). On `roles`, not shipped
+- F18: Screen shake setting; Crown carrier gets a gold beam + a pulse ring on hand-off; ability bursts in team colour;
+  lower, shorter death throws; tone rewritten (banter, herald, results quips: proud, rare dry line, no gags).
+- F19: `render/ambient.js`: drifting motes (dust, night flecks, summit embers) and faint sun shafts; none on Low.
+- F20: warmer mountain palette. Toon shading NOT done: needs its own ticket and Arjun's eye on shots.
+- `r_F18.mjs` 7/7; look shots via `TAG=x node store/r_look.mjs` (/tmp/look). Arjun judges the look and tone on his phone.
+
 ## Build queue (in order; model = best fit; Fable 5.2 available until 15 Nov)
 | # | Ticket | What | Model | Waits on |
 |---|---|---|---|---|

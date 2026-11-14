@@ -14,19 +14,19 @@ export function clearFeed() { if (el) el.innerHTML = ''; firstBlood = false; cap
 let firstBlood = false, capKills = {}, lastMinute = false, heraldAt = 0;
 const pickOne = a => a[(Math.random() * a.length) | 0];
 const HERALD = {
-  start: ['Gentlemen, please do not die before the trumpet.', 'Remember: the pointy end goes in the other fellow.', 'May the best captain win. Or the luckiest.', 'Today\'s weather: overcast, with a chance of arrows.', 'No refunds.'],
-  first: ['First blood! Somebody\'s mother will hear about this.', 'And we\'re off! One captain already regrets everything.', 'First blood! The crowd goes mild.'],
-  castle: ['A castle falls. The estate agents weep.', 'There goes the neighbourhood.', 'That castle had a lovely garden, too.', 'Under new management!'],
-  sunrise: ['The sun\'s up. So are the arrows.', 'Dawn on the mountain. Birds sing. Captains sharpen things.', 'Good morning, everyone who\'s about to be less well.', 'Sunrise! Do try to enjoy it before the shouting.'],
-  noon: ['High noon on the mountain: no shade, no excuses.', 'The sun\'s at its highest. So is the war chest\'s price.', 'Lunch hour! Nobody is eating lunch. Everyone is eating arrows.'],
-  sunset: ['The sun is going down. So are a few captains, probably.', 'Golden hour: the best light for the worst ideas.', 'Dusk is coming. Night will be shorter and shoutier.'],
-  chestSoon: ['A war chest approaches. Greed, everyone! Greed!', 'Gold incoming. Try not to trample each other. Actually, do.'],
-  chest: ['The war chest is claimed. Accountants everywhere rejoice.', 'Somebody just got very rich, very quickly.'],
-  duel: ['A duel decided! Songs will be sung. Badly.', 'Honour satisfied, one captain slightly flattened.'],
-  spree: ['is on a rampage! Somebody stop him. Anybody.', 'is collecting captains like stamps.', 'has clearly done this before.'],
-  last: ['One minute left! Whatever you were saving it for, now\'s the time.', 'Final minute! Heroes are made now. So are excuses.'],
-  stand: ['A last stand! Bards love a last stand.', 'Backs to the wall! Literally.'],
-  crownTaken: ['has the Crown. Everyone else has a new hobby: chasing them.', 'wears the Crown. It suits them. For now.'],
+  start: ['Captains, to your legions. The mountain awaits.', 'Take the castles. Climb the mountain. Claim the Crown.', 'Let the battle begin.', 'Four banners. One Crown.'],
+  first: ['First blood!', 'First blood is drawn.', 'And so it begins.'],
+  castle: ['A castle falls!', 'A keep changes hands.', 'The banners change over a castle.', 'Under new management.'],
+  sunrise: ['Dawn breaks over the mountain.', 'The sun rises. The legions march.', 'First light. Ready your men.'],
+  noon: ['High noon on the mountain.', 'The sun stands at its height.', 'Midday. No shade, no excuses.'],
+  sunset: ['The sun sinks. Night draws near.', 'Dusk is coming. Hold what you have.', 'Golden hour on the mountain.'],
+  chestSoon: ['A war chest approaches.', 'Gold is coming. Be ready to take it.'],
+  chest: ['The war chest is claimed.', 'The war chest has a new owner.'],
+  duel: ['A duel is decided.', 'Honour is settled.'],
+  spree: ['is on a rampage!', 'is cutting through the captains.', 'cannot be stopped!'],
+  last: ['One minute remains!', 'The final minute. Make it count.'],
+  stand: ['A last stand!', 'Backs to the wall!'],
+  crownTaken: ['has seized the Crown!', 'holds the Crown. Bring them down!'],
 };
 function herald(text) {
   if (!el || G.state !== 'play') return;
@@ -44,7 +44,7 @@ function heraldFor(k, a) {
     if (!firstBlood) { firstBlood = true; return herald(pickOne(HERALD.first)); }
     const by = a[1]; if (by == null || by < 0 || by === a[0]) return;
     capKills[by] = (capKills[by] || 0) + 1;
-    if (capKills[by] === 3 || capKills[by] === 6) return herald(by === G.myTi ? 'You are on a rampage! Somebody stop you. Anybody.' : `${who(by)} ${pickOne(HERALD.spree)}`);
+    if (capKills[by] === 3 || capKills[by] === 6) return herald(by === G.myTi ? 'You are on a rampage!' : `${who(by)} ${pickOne(HERALD.spree)}`);
     return;
   }
   if (k === 'castleDown') return herald(pickOne(HERALD.castle));
@@ -52,7 +52,7 @@ function heraldFor(k, a) {
   if (k === 'chestTaken') return herald(pickOne(HERALD.chest));
   if (k === 'duelWon') return herald(pickOne(HERALD.duel));
   if (k === 'lastStand') return herald(pickOne(HERALD.stand));
-  if (k === 'crownTaken') return herald(a[0] === G.myTi ? 'You have the Crown. Run. Run like the wind.' : `${who(a[0])} ${pickOne(HERALD.crownTaken)}`);
+  if (k === 'crownTaken') return herald(a[0] === G.myTi ? 'You hold the Crown. Keep it.' : `${who(a[0])} ${pickOne(HERALD.crownTaken)}`);
 }
 // called with the HUD: the final minute
 export function feedTick() {
