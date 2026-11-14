@@ -1,7 +1,7 @@
 # F7g Falling into the chasm
 
 Model: H (built by Opus) · Written 2026-11-12 from F7 moment 6 (Arjun agreed 12 Nov)
-Status: built (not shipped)
+Status: superseded by F7 (13 Nov, Arjun's picks); its test folded into `store/r_F7.mjs`
 
 ## What to build
 Over the chasm's edge: a short fall (FEEL.chasm.fall, 0.6 s) from the rim he went over, with a scream (the existing

@@ -204,6 +204,18 @@ export function buildMount(world, L) {
     const flag = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 2), new THREE.MeshLambertMaterial({ color: t.hex, side: THREE.DoubleSide })); flag.position.set(px + 1.6, py + 7.8, pz); grp.add(flag);
     M.homes.push({ ring, flag, h }); keepLive(flag);
   }
+  // (F7) the courtyard walls: one stone block per wall stone the rules placed, a cap along the top, a post either side
+  // of the open front; all of it merged into one draw (two with the caps) when batching is on
+  { const Y = CROWN2.yard, parts = [], cap = lam(0x7d776a, stoneTex());
+    for (const o of L.obstacles) { if (o.yard == null) continue;
+      const h = L.homes[o.yard], b = Math.atan2(o.z - h.z, o.x - h.x), len = Math.PI * 2 * Y.r / Math.ceil(Math.PI * 2 * Y.r / (.7 * 1.3)) + .12, y = terrainMeshY(o.x, o.z);
+      const w = new THREE.Mesh(new THREE.BoxGeometry(len, Y.h + .6, .7), stone); w.position.set(o.x, y + Y.h / 2 - .3, o.z); w.rotation.y = -b - Math.PI / 2; parts.push(w);
+      const c = new THREE.Mesh(new THREE.BoxGeometry(len, .22, .9), cap); c.position.set(o.x, y + Y.h + .1, o.z); c.rotation.y = w.rotation.y; parts.push(c); }
+    for (const h of L.homes) for (const s of [-1, 1]) {
+      const b = h.a + Math.PI + s * (Y.open / 2 + .5) / Y.r, x = h.x + Math.cos(b) * Y.r, z = h.z + Math.sin(b) * Y.r; if (Math.hypot(x, z) > W.R - 1.2) continue;
+      const p = new THREE.Mesh(new THREE.BoxGeometry(1.2, Y.post + .6, 1.2), stone); p.position.set(x, terrainMeshY(x, z) + Y.post / 2 - .3, z); p.rotation.y = -b; parts.push(p); }
+    for (const p of parts) { p.castShadow = p.receiveShadow = true; grp.add(p); }
+    if (batchOn()) { const one = mergeInto(parts, grp); for (const p of parts) grp.remove(p); for (const m of one) grp.add(m); } }
   // bridges over the chasm, one in line with each keep
   const ch = CROWN2.r.chasm * W.R, cw = CROWN2.r.chasmW * W.R, hw = CROWN2.chasmBridgeHw;
   for (let c = 0; c < 4; c++) {

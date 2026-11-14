@@ -41,6 +41,22 @@ export function mkUnit(ti, x, z, kind, human = false) {
     jy: 0, jvy: 0, jumpCd: 0, javAmmo: CAPTAIN_COMBAT.jav.ammo + tier, javRegen: 0, combo: 0, lastSwingT: -9, atkBuf: 0, st: STAMINA.max, stT: -9 };
   G.units.push(u); return u;
 }
+// (F7) Stepping out: a captain back on his feet (and at the start, with his men), or a soldier just raised, walks out
+// of the yard (or the place he was raised at) for a beat, untouchable, then is his own. A stick push takes over at once.
+// The first step shows the dust (and, for your own captain, the horn) on every phone; quiet: a joined phone's own copy.
+export function startMarch(u, big, quiet = false) {
+  const M = FEEL.march; u.marchT = big ? M.cap : M.men; u.marchA = u.face; u.marchBig = !!big; u.marchGo = !!quiet;
+  u.iframeT = Math.max(u.iframeT || 0, u.marchT);
+}
+export function marchStep(u, dt, move = true) {
+  if (!u.marchGo) { u.marchGo = true; fx('fxmsg', { k: 'fxmarch', u, heavy: u.marchBig }); }
+  u.marchT -= dt; if (!move) return;
+  u.face = u.marchA;
+  moveToward(u, u.x + Math.sin(u.marchA) * 3, u.z + Math.cos(u.marchA) * 3, speedOf(u) * FEEL.march.pace, dt, 0);
+}
+// (F7) how far below the rim a man going over the chasm is, from his own clock (a joined phone's copy of the fall)
+export function chasmFallY(u) { const C = FEEL.chasm, e = performance.now() / 1000 - u.chasmAt; return e < C.teeter ? u.rimY : u.rimY - .5 * C.g * (e - C.teeter) ** 2; }
+const inwardOf = ti => { const h = G.layout.homes[colorOf(ti)]; return Math.atan2(-Math.cos(h.a), -Math.sin(h.a)); };
 // Every army's moments of the match, for the results screen (yours, and your side's): counts (and the best streak).
 export function hl(ti, k, v) {
   const s = G.teams[ti]; if (!s || !s.active) return;
@@ -125,8 +141,10 @@ export function startMatch(humans, active = activeFrom([0, 0, 0, 0])) {
   G.c2 = null; if (isC2()) c2Begin(); applyPlazaWall();
   initForts();
   if (G.c2) for (const i of activeArmies()) { // the mountain: every captain at his home with five men
-    const [x, z] = c2HomePt(i, 0), h = G.layout.homes[colorOf(i)], L = G.teams[i].leader = mkUnit(i, x, z, 'captain', G.teams[i].human); L.face = Math.atan2(-Math.cos(h.a), -Math.sin(h.a));
-    CROWN2.startSquad.forEach((k, n) => { const [mx, mz] = c2HomePt(i, 4 + n * 2), m = mkUnit(i, mx, mz, k); m.face = L.face; });
+    const [x, z] = c2HomePt(i, 0), L = G.teams[i].leader = mkUnit(i, x, z, 'captain', G.teams[i].human); L.face = inwardOf(i); startMarch(L, true);
+    // (F7) his men in a column of twos behind him in the yard; they all step out together when the battle begins
+    const fx0 = Math.sin(L.face), fz0 = Math.cos(L.face);
+    CROWN2.startSquad.forEach((k, n) => { const row = (n >> 1) + 1, side = n & 1 ? 1.1 : -1.1, m = mkUnit(i, x - fx0 * 1.5 * row + fz0 * side, z - fz0 * 1.5 * row - fx0 * side, k); m.face = L.face; startMarch(m, false); m.marchT = FEEL.march.cap; });
   }
   for (let i = 0; i < ARMIES; i++) {
     if (!G.teams[i].active || G.crown) continue;
@@ -191,7 +209,7 @@ export function recruit(ti, kind) {
   const s = G.teams[ti], n = squadOf(ti).length, cost = STATS[kind].cost;
   if (!canRecruit(ti) || s.gold < cost || n >= capOf(ti)) return false;
   s.gold -= cost;
-  { const [gx, gz] = homeAt(ti); mkUnit(ti, gx, gz, kind); } // (from the place you hold nearest you)
+  { const [gx, gz] = homeAt(ti), m = mkUnit(ti, gx, gz, kind); if (isC2()) { m.face = Math.atan2(-gx, -gz); startMarch(m, false); } } // (from the place you hold nearest you; F7: he steps out of it)
   s.recruits = (s.recruits | 0) + 1; // (this army's recruits, for the results table)
   if (ti === G.myTi) { G.recruited++; sound('coin'); }
   return true;
@@ -872,7 +890,7 @@ function execTick(u, dt) {
         if (w === 'spear') { v.vx *= 1.5; v.vz *= 1.5; v.vy *= .55; } // (run through: thrown back flat, not up)
         if (w === 'jav') { v.vx *= .2; v.vz *= .2; v.vy = 1; } // (pinned where he knelt)
         loseHeart(v.ti, EXEC.morale); gainRally(u, EXEC.rally);
-        if (u.isMe) { fx('hitstop', .16); fx('shake', .6); }
+        if (u.isMe) fx('shake', .6); // (F7: the blow's slow motion is drawn on every phone, main.js; no freeze of the rules)
         if (u.remote) fx('netFlush');
       }
     }
@@ -1709,15 +1727,16 @@ function c2Tick(dt) {
   { const W = c2Lake(); for (let k = 0; k < 4; k++) setPalSeg('pg' + k, W.block); // (the pathfinder: no way through the arena under water)
     if (W.count > 0) once('c2flood', Math.round(W.count));
     for (const u of G.units) if (!u.dead) c2Water(u, dt, !u.remote, true); }
-  // over the edge into the chasm: (F7g) a short fall from the rim with a scream, untouchable, then dead (FEEL.chasm)
+  // over the edge into the chasm, "300" style (F7): he teeters at the rim in slow motion, flailing and screaming, then
+  // drops out of sight; dead at FEEL.chasm.fall, untouchable throughout (and no home's shield saves him: else he'd fall twice); his body falls on and is gone when it lands
   { const H = CROWN2.h, C = G.layout.chasm; for (const u of G.units) {
     if (u.dead || u.flood) continue;
-    if (u.chasmT > 0) { u.chasmT -= dt; if (u.chasmT <= 0) { u.chasmT = 0; u.cause = 'chasm'; die(u, null, 0); } continue; }
+    if (u.chasmT > 0) { u.chasmT -= dt; if (u.chasmT <= 0) { u.chasmT = 0; u.cause = 'chasm'; u.shieldT = 0; const vy = u.vy; die(u, null, 0); u.fz = 0; u.vx = u.dvx; u.vz = u.dvz; u.vy = Math.min(vy, -2); u.chasmGone = true; } continue; }
     const d = Math.hypot(u.x, u.z);
     if (u.jy > .3 || d >= C.r + C.w + 1 || groundY(u.x, u.z) >= H.top - 4) continue;
     const rr = d < C.r + C.w / 2 ? C.r - 1.5 : C.r + C.w + 1.5, k = rr / (d || 1); // (the rim he went over: the nearer one)
-    u.chasmT = FEEL.chasm.fall; u.y = Math.max(groundY(u.x, u.z), groundY(u.x * k, u.z * k)); u.vy = 0;
-    u.vx *= FEEL.chasm.drift; u.vz *= FEEL.chasm.drift; u.iframeT = FEEL.chasm.fall + .2; u.stun = Math.max(u.stun || 0, FEEL.chasm.fall + .2); u.path = null;
+    u.chasmT = FEEL.chasm.fall; u.y = u.rimY = Math.max(groundY(u.x, u.z), groundY(u.x * k, u.z * k)); u.vy = 0; u.edge = { x: u.x * k, z: u.z * k, y: u.rimY, edge: true }; // (edge: where your camera holds, looking down)
+    u.dvx = u.vx * FEEL.chasm.drift; u.dvz = u.vz * FEEL.chasm.drift; u.vx = u.vz = 0; u.iframeT = FEEL.chasm.fall + .2; u.stun = Math.max(u.stun || 0, FEEL.chasm.fall + .2); u.path = null; u.marchT = 0;
     if (u.isMe) fx('shake', .4); sound('scream', u.x, u.z);
   } }
   // the glacier is solid: you stand at its face and hack, not inside it
@@ -2573,6 +2592,7 @@ export function update(dt, input) {
       if (s.leaderDeadT <= 0) {
         const [gx, gz] = isC2() ? c2HomePt(i, 0) : homeAt(i, 7);
         const L = mkUnit(i, gx, gz, 'captain', s.human); s.leader = L; s.plan = null;
+        if (isC2()) { L.face = inwardOf(i); startMarch(L, true); } // (F7: he marches out of the yard)
         if (i === G.myTi) { G.player = L; bus.emit('respawnMe', L); }
         if (s.human) say('respawn', i);
       }
@@ -2586,7 +2606,8 @@ export function update(dt, input) {
   const p = G.player;
   if (p && !p.dead && input && !p.flood) { // (F7a: carried by the flood, he can't do a thing)
     const pdt = p.slowT > 0 ? dt * PARRY.slow : dt;
-    driveCaptain(p, input, pdt);
+    if (p.marchT > 0 && !(input.mag > .3) && !input.attackHeld && !input.block) marchStep(p, pdt); // (F7: stepping out, until the stick says otherwise)
+    else { p.marchT = 0; driveCaptain(p, input, pdt); }
     if (input.block && !p.blkPrev) blockPress(p); p.blkPrev = !!input.block;
     attackHold(p, !!input.attackHeld, pdt);
     if (p.atkBuf > 0 && p.cd <= 0 && p.stun <= 0 && !p.mounted) captainAttack(p);
@@ -2643,6 +2664,8 @@ export function update(dt, input) {
     if (u.foe && u.foe.dead) { u.foe = null; u.fd = 1e9; }
     if (u.foe) u.fd = Math.hypot(u.foe.x - u.x, u.foe.z - u.z);
     if (u.flood) continue; // (F7a: the flood has him)
+    if (u.marchT > 0 && u.remote) marchStep(u, dt, false); // (F7: a joined phone walks its own captain out; here, the dust and the count)
+    if (u.marchT > 0 && !u.human) { marchStep(u, dt); continue; } // (F7: stepping out of the yard, no thinking)
     if (u.human || u.dead) continue;
     if (u.execT > 0) continue; // (in an execution, one way or the other: no thinking)
     if (u.dashT > 0) { u.dashT -= dt; stepJump(u, dt); continue; } // (mid-evade: momentum carries him)
@@ -2745,7 +2768,7 @@ export function update(dt, input) {
   }
   for (const u of G.units) {
     if (u.dead) { fallStep(u, dt); continue; }
-    if (u.chasmT > 0) { u.x += u.vx * dt; u.z += u.vz * dt; u.vy -= FEEL.chasm.g * dt; u.y += u.vy * dt; continue; } // (F7g: falling into the chasm)
+    if (u.chasmT > 0) { const Ch = FEEL.chasm; if (Ch.fall - u.chasmT > Ch.teeter) { u.x += u.dvx * dt; u.z += u.dvz * dt; u.vy -= Ch.g * dt; u.y += u.vy * dt; } continue; } // (F7: teetering at the rim, then the drop)
     if (u.flood && !u.remote) continue; // (F7a: the flood moves him, in c2Water)
     if (u.remote) { u.y = groundY(u.x, u.z) + (u.jy || 0); continue; } // moved by their own phone
     integrate(u, u.slowT > 0 ? dt * PARRY.slow : dt, u.z);
@@ -2795,6 +2818,7 @@ export function fallStep(u, dt) {
   u.deadT += dt;
   u.x += u.vx * dt; u.z += u.vz * dt; u.vy -= 18 * dt;
   const gy = groundY(u.x, u.z), ny = u.y + u.vy * dt;
+  if (u.chasmGone && ny <= gy) { u.y = gy - 3; u.deadT = 1e3; return; } // (F7: the chasm's floor: no body left lying there)
   if (ny <= gy && u.vy < -5) { u.vy = -u.vy * .38; u.y = gy; u.bounces = (u.bounces || 0) + 1; if (u.launch) bus.emit('sfx', { name: 'thump', x: u.x, z: u.z }); }
   else if (ny <= gy) { u.y = gy; u.vy = 0; } // (F5: down and at rest. Before, the fall speed kept building on the ground and he hopped 10 cm every half second)
   else u.y = ny;

@@ -7,7 +7,7 @@ import { SHOUTS, CROWN, HUMAN_CAPTAIN, ARMOUR, RHYTHM, BASH, EVADE, TEAMS, MAPS,
 import { G, bus, colorOf, isEnemyTi, activeFrom, ARMIES, duoStr, duoParse } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn, angDiff } from '../core/world.js';
 import { buildNav, syncGates } from '../core/nav.js';
-import { c2Begin, c2Water } from '../core/sim.js';
+import { c2Begin, c2Water, startMarch, marchStep, chasmFallY } from '../core/sim.js';
 import { adoptBattle, applyCastleGates, applyPlazaWall, volleyCharge, captainBash, duelAct, duelOffer, duelTarget, initForts, applyFort, fortLvl, captainEvade, evadeKind, makeHolds, execTarget, rallyCry, blockPress, attackHold, attackRelease, rideRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
 import { session, isClient, isHost } from './session.js';
 import { makeP2PRoom } from './p2p.js';
@@ -55,7 +55,7 @@ function encodeSnap() {
     if (u.dead) continue;
     const kt = KINDS.indexOf(u.kind) * 16 + u.ti;
     const fl = (u.swing > 0 ? 1 : 0) | (u.mounted ? 2 : 0) | ((u.blockT > 0 || (u.human && u.blocking)) ? 4 : 0) | (u.carrying ? 8 : 0) | (u.stun > 0 ? 16 : 0) | (u.aim ? 32 : 0) | (u.shieldwall ? 64 : 0) | (u.weapon === 'spear' ? 128 : u.weapon === 'jav' ? 256 : u.weapon === 'sword' ? 512 : 0) | (u.charge > 0 ? 1024 : 0)
-      | (u.windup > 0 ? 2048 : 0) | (u.glint ? 4096 : 0) | (u.heavyCharge > 0 ? 8192 : 0) | (u.bracing ? 16384 : 0) | (u.javDraw > 0 ? 32768 : 0) | (u.couch || u.rideReady ? 65536 : 0) | (u.routing ? 131072 : 0) | (u.rallyT > 0 ? 262144 : 0) | (u.execReady ? 524288 : 0) | (u.execA ? 1048576 : 0) | (u.execV ? 2097152 : 0) | (u.leader && u.swing > 0 ? (u.swingKind & 7) * 4194304 : 0) | (u.dueled ? 33554432 : 0) | (u.armour > 0 ? Math.max(1, Math.round(u.armour / ARMOUR.hp * 7)) * 67108864 : 0); // (bits 26-28: a captain's armour, in sevenths) // (bits 22-24: which blow a captain is swinging)
+      | (u.windup > 0 ? 2048 : 0) | (u.glint ? 4096 : 0) | (u.heavyCharge > 0 ? 8192 : 0) | (u.bracing ? 16384 : 0) | (u.javDraw > 0 ? 32768 : 0) | (u.couch || u.rideReady ? 65536 : 0) | (u.routing ? 131072 : 0) | (u.rallyT > 0 ? 262144 : 0) | (u.execReady ? 524288 : 0) | (u.execA ? 1048576 : 0) | (u.execV ? 2097152 : 0) | (u.leader && u.swing > 0 ? (u.swingKind & 7) * 4194304 : 0) | (u.dueled ? 33554432 : 0) | (u.armour > 0 ? Math.max(1, Math.round(u.armour / ARMOUR.hp * 7)) * 67108864 : 0) | (u.chasmT > 0 ? 536870912 : 0); // (bit 29, F7: going over the chasm's edge) // (bits 26-28: a captain's armour, in sevenths) // (bits 22-24: which blow a captain is swinging)
     const row = [b36(u.id), kt.toString(16), encX(u.x), encX(u.z), encF(u.face), b36(clamp(u.hp / u.max, 0, 1) * 35), b36(fl)];
     if (u.jy > .05) row.push(b36(u.jy * 10));
     us.push(row.join(','));
@@ -224,6 +224,7 @@ function clientUnit(id, kind, ti, x, z) {
 function clientKill(u) {
   if (u.dead) return;
   u.dead = true; u.deadT = 0; u.vy = rnd(3, 6); u.fallDir = Math.random() < .5 ? 1 : -1;
+  if (u.chasmAt) { const Ch = FEEL.chasm; u.vy = -Math.max(2, Ch.g * (performance.now() / 1000 - u.chasmAt - Ch.teeter)); u.vx = u.vz = 0; u.chasmGone = true; return; } // (F7: he falls on out of sight)
   u.vx *= .5; u.vz *= .5;
   // (F5) he falls away from whoever was on him: the nearest enemy within a few steps (the host's rules know the blow; a
   // captain's kill arrives as its own moment and sets this exactly, see render/feel.js)
@@ -300,6 +301,7 @@ function clientApply(hp) {
     u.dueled = !!(fl & 33554432);
     if (id !== myId) u.armour = ((fl / 67108864) & 7) / 7 * ARMOUR.hp; // (others' armour, roughly: for the bar over their heads)
     u.execReady = !!(fl & 524288); u.execA = !!(fl & 1048576); u.execV = !!(fl & 2097152); // (an execution: who's marked, who's doing it, who's kneeling)
+    if (fl & 536870912) { if (!u.chasmAt) { u.chasmAt = performance.now() / 1000; u.rimY = u.y; u.edge = { x: u.x, z: u.z, y: u.y, edge: true }; if (id === myId) cam.shake = Math.max(cam.shake, .4); } } else u.chasmAt = 0; // (F7: over the chasm's edge: this phone plays the teeter and the drop from its own clock)
     if (id !== myId) {
       u.blockT = (fl & 4) ? .2 : 0; u.stun = (fl & 16) ? .1 : 0; u.aim = !!(fl & 32);
       if (kind === 'captain') u.weapon = (fl & 128) ? 'spear' : (fl & 256) ? 'jav' : (fl & 512) ? 'sword' : undefined;
@@ -312,7 +314,7 @@ function clientApply(hp) {
       u.tx = x; u.tz = z; u.tface = face;
       if (Math.hypot(u.x - x, u.z - z) > 8) { u.x = x; u.z = z; u.sq = null; }
       if (C.snapHt != null) { const q = u.sq || (u.sq = []); q.push({ t: C.snapHt, x, z, f: face }); if (q.length > 8) q.shift(); } else u.sq = null;
-    } else if (!C.meInit || C.meId !== id || u.execA || u.execV) { u.x = x; u.z = z; u.face = face; } // (in an execution the host places you)
+    } else if (!C.meInit || C.meId !== id || u.execA || u.execV || u.chasmAt) { u.x = x; u.z = z; u.face = face; } // (in an execution, or going over the chasm's edge, the host places you)
   }
   for (const u of [...C.byId.values()]) if (!seen.has(u.id)) clientKill(u);
   if (secs[12] != null && G.mode === 'crown') G.wtowers = secs[12] ? secs[12].split(';').map(r => { const f = r.split(','); return { id: +f[0], x: decX(f[1]), z: decX(f[2]), a: +f[3], hp: +f[4], build: +f[5] / 99, ti: +f[6] }; }) : [];
@@ -340,7 +342,7 @@ function clientApply(hp) {
   }
   if (myId != null && C.byId.get(myId)) {
     const me = C.byId.get(myId);
-    if (C.meId !== myId) { C.meId = myId; C.meInit = true; G.player = me; cam.yaw = me.face; C.kickN = C.meInfo ? C.meInfo.kn : 0; }
+    if (C.meId !== myId) { C.meId = myId; C.meInit = true; G.player = me; cam.yaw = me.face; C.kickN = C.meInfo ? C.meInfo.kn : 0; if (G.c2) startMarch(me, true, true); } // (F7: a new captain of yours, at the start or back on his feet: your phone walks him out of the yard)
     G.player = me;
     me.horseHp = C.meInfo.horseHp; me.horseCd = C.meInfo.horseCd; me.summon = !!C.meInfo.summon; me.hp = C.meInfo.hp; me.streak = C.meInfo.streak; me.armour = C.meInfo.armour;
     if (C.meInfo.kn !== C.kickN) {
@@ -406,11 +408,14 @@ export function clientTick(dt) {
   C.localCd -= dt; syncGates();
   const me = G.player;
   const wet = !!(me && !me.dead && G.state === 'play' && G.c2) && c2Water(me, dt, true, false); // (F7: the lake keeps you out, the flood carries you; your phone moves you)
-  if (me && !me.dead && G.state === 'play' && !wet) {
+  if (me && !me.dead && me.chasmAt) { me.y = chasmFallY(me); me.vx = me.vz = 0; } // (F7: going over the edge: no steering)
+  if (me && !me.dead && G.state === 'play' && !wet && !me.chasmAt) {
     me.stun -= dt;
     const mv = import.meta.env.DEV && window.__moveOverride ? window.__moveOverride() : readMove(dt);
     for (const u of G.units) if (u.slowT > 0) u.slowT -= dt; // (a parry's slow beat, for the two men in it)
-    driveCaptain(me, mv, me.slowT > 0 ? dt * PARRY.slow : dt);
+    const mdt = me.slowT > 0 ? dt * PARRY.slow : dt;
+    if (me.marchT > 0 && !(mv.mag > .3) && !mv.attackHeld && !mv.block) { if (!G.introOn) marchStep(me, mdt); } // (F7: stepping out, once the opening is over)
+    else { me.marchT = 0; driveCaptain(me, mv, mdt); }
     if (mv.block && !C.blkPrev && !me.mounted) { C.inp.par++; C.sendNow = true; C.blkAt = performance.now(); } C.blkPrev = !!mv.block; // (a Block press: the host opens a parry window)
     // holding Attack: shown here at once (sword raised, spear planted, javelin drawn); the host acts on the release
     const held = !!mv.attackHeld;
@@ -458,7 +463,7 @@ export function clientTick(dt) {
       const s = Math.min(1, dt * SMOOTH.ease); u.x += (px - u.x) * s; u.z += (pz - u.z) * s; u.face = turn(u.face, pf, dt * 14);
     } else { u.x += (u.tx - u.x) * k; u.z += (u.tz - u.z) * k; u.face = turn(u.face, u.tface, dt * 12); }
     u.vx = (u.x - ox) / Math.max(dt, 1e-3); u.vz = (u.z - oz) / Math.max(dt, 1e-3);
-    u.jy += ((u.jyT || 0) - u.jy) * Math.min(1, dt * 14); u.y = groundY(u.x, u.z) + u.jy;
+    u.jy += ((u.jyT || 0) - u.jy) * Math.min(1, dt * 14); u.y = u.chasmAt ? chasmFallY(u) : groundY(u.x, u.z) + u.jy;
     if (u.swing > 0) u.swing -= dt;
   }
   if (me && me.swing > 0) me.swing -= dt;

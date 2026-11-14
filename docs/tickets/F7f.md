@@ -1,7 +1,7 @@
 # F7f Execution: slide in, push in
 
 Model: S · Written 2026-11-12 from F7 moment 5 (Arjun agreed 12 Nov)
-Status: built (not shipped)
+Status: superseded by F7 (13 Nov, Arjun's picks); its test folded into `store/r_F7.mjs`
 
 ## What to build
 When an execution starts, the executioner slides to his spot beside the victim over 0.25 s (EXEC.slide) instead of

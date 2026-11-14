@@ -35,7 +35,7 @@ function setBlack(o, secs) { const b = $('blackout'); b.style.transition = secs 
 function grey(on) { document.body.classList.toggle('dead', on); document.body.classList.toggle('deadLow', on && quality.level === 'low'); }
 function start(now) {
   D.on = true; D.body = D.last; D.t0 = now; D.v = -1; D.black = 0; D.gaveUp = false;
-  deathCam.u = D.body;
+  deathCam.u = (D.body && D.body.chasmGone && D.body.edge) || D.body; // (F7: over the chasm's edge, the camera stays at the rim)
   fill(); $('deathFx').hidden = false; requestAnimationFrame(() => $('deathFx').classList.add('show'));
   grey(true);
 }
@@ -46,6 +46,9 @@ function stop() {
 // the camera goes somewhere else: black in this very frame, the camera put straight there, then back in
 function cut(now) { setBlack(1, 0); D.black = 3; D.blackAt = now; cam.snap = 2; }
 export function deathReset() { stop(); D.last = null; D.black = 0; setBlack(0, 0); }
+// (F7) the same fade for the battle's opening: to black over secs, then (fadeBackIn) the camera put straight on him, a beat, back in
+export function fadeToBlack(secs) { setBlack(1, secs); D.black = 2; D.blackAt = performance.now(); }
+export function fadeBackIn(now) { D.black = 3; D.blackAt = now; cam.snap = 2; }
 // the 'fell' announcement: [who fell, can he come back, who did it (-1: nobody), how]
 bus.on('shownMsg', ({ k, a }) => {
   if (k !== 'fell' || a[0] !== G.myTi) return;
@@ -71,7 +74,7 @@ export function deathTick(now) {
   } else if (!D.on && D.last && D.last.dead && G.state === 'play') start(now);
   if (D.black === 3 && now - D.blackAt >= F.hold * 1000) { setBlack(0, F.fadeIn); D.black = 0; }
   if (!D.on) return;
-  if (G.state !== 'play') { deathReset(); return; }
+  if (G.state !== 'play') { stop(); D.last = null; if (D.black) { setBlack(0, F.fadeIn); D.black = 0; } return; } // (F7: the battle ended on a dark screen: it comes back in, no snap)
   const rem = remaining(now);
   if (D.can) {
     const n = String(Math.max(1, Math.ceil(rem))); if ($('dNum').textContent !== n) $('dNum').textContent = n;

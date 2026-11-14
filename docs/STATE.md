@@ -2,7 +2,7 @@
 
 Current work: **friends' playtest fixes (F tickets) and lag (Phase 0)**, then Roles & Combat (design and plan in
 Claude Docs, links in CLAUDE.md). Every builder updates this file as the last step of its ticket. Owner: Opus owner chat.
-Last updated: 2026-11-12 (F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
+Last updated: 2026-11-13 (F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
 
 ## Live on main
 - P0.1 Dead-code cleanup · P0.2 Lag harness · P0.3 Ping readout · M1 Neutral soldiers look like soldiers
@@ -48,9 +48,7 @@ Last updated: 2026-11-12 (F15, F12, F13, F16 shipped to main at 1018462; voice d
     No cape (the default). Mantle and ermine hidden. `r_C4.mjs`.
   - C5 Checked: faces do nothing on the F8 body (the Face tab saves a choice nothing draws). Report in `docs/tickets/C5.md`;
     faces become a package later. Arjun decides whether to hide the Face tab meanwhile.
-- F7 no abrupt cuts, Arjun's agreed rhythm (12 Nov): F7e duel ring shoves people to the edge over 0.3 s (was one frame).
-  `r_F7e.mjs`. F7f execution: the executioner slides in over 0.25 s and the camera pushes in a little more. `r_F7f.mjs`. F7h the start was already smooth (checked); the results now come after a 1.5 s hold and fade in (was a hard cut). `r_F7h.mjs`. F7g over the chasm's edge: 0.6 s fall from the rim with a scream, untouchable, then dead (was the same
-  frame). `r_F7g.mjs`; `c2bits.mjs` now waits out the fall. crown2sim and crown2online pass roles off and on.
+- F7e/f/g/h (12 Nov): superseded by F7 below (cards kept, tests folded into `r_F7.mjs`).
 
 - F7-water (lake, flood-out, summit gate) shipped to main 12 Nov (main = roles at 3df5b61).
 - F1a + F1b (draw calls ~1,220 -> ~151 at the Crown start, same look) shipped to main 12 Nov (main = roles at 8695d5e).
@@ -116,10 +114,23 @@ Last updated: 2026-11-12 (F15, F12, F13, F16 shipped to main at 1018462; voice d
 - Tests: r_F17 16/16 (roles off, on), r_F8 43/43 (5 stale pre-F17 checks fixed), r_water, crown2sim + crown2online off/on.
 - Arjun checks the feel on his phone. Horse and rider (lance) work still open.
 
+## F7 No abrupt cuts (13 Nov, Arjun's picks; card `docs/tickets/F7.md`). On `roles`, not shipped
+- Homes are courtyards: a stone wall round the cottages, 10 m open front; enemies burn and yours heal only inside (safeR 15 -> 9.6).
+- Respawn = start: 0.4 s to black, camera moves, 0.4 s back in as he marches out of the yard (dust, horn, untouchable 1 s; a stick
+  push takes over). Start: flyover, black, every captain and his men march out in a column. Recruits step out smaller (no horn).
+  Joined phones walk their own captain out. Elsewhere than the mountain: the fade only.
+- Duel: the shove (0.3 s, easing) plus a stumble and dust, then the ring rises. Execution: two quick steps into place, 0.15 s slow
+  motion on the blow (drawing only, every phone near it; the old hit-stop freeze of the rules is gone).
+- Chasm "300": 0.5 s teeter in slow motion (windmilling, scream), then the drop; dead at 1.2 s, no body left; your camera holds at
+  the rim looking down. Fixed on the way: a man just out of home had his shield stop the chasm killing him, so he fell twice.
+- End: a black screen at the battle's end now fades back in (was a snap). Results hold 1.5 s then fade (F7h, kept).
+- `r_F7.mjs` (host) and `r_F7-join.mjs` (joined phone) pass; crown2sim, crown2online, c2bits pass roles off and on. Walls +2 draw calls.
+  Only seen headless: Arjun judges the feel; the scream is still the placeholder (comic one with the sounds pick).
+
 ## Build queue (in order; model = best fit; Fable 5.2 available until 15 Nov)
 | # | Ticket | What | Model | Waits on |
 |---|---|---|---|---|
-| 1 | F7 | No abrupt cuts. Moments listed below; Arjun picks walk or fade | S | Arjun's picks |
+| 1 | F7 | No abrupt cuts: built 13 Nov, waiting for Arjun's "ship" | S | Arjun's ship |
 | 5 | F14 | Adapts to any phone: picks its quality from the first seconds of frame rate and keeps adjusting; targets iPhone 13+, Galaxy S23+, and plays on any Android | S | F1 shipped |
 | 6 | F4 | Neutral garrisons and camps fight as real soldiers and ambush (today one shared health pool, standing still) | O | card |
 | 7 | F9 | Horse charges: full stop only on Hold and facing; standing men slow it; moving or flanked men are bowled over | O | card |
@@ -136,19 +147,10 @@ Last updated: 2026-11-12 (F15, F12, F13, F16 shipped to main at 1018462; voice d
 | - | P0.5 | Cloudflare TURN relay | S | **Parked** (needs a card) |
 | - | Phases 1-9 | Roles & Combat behind `?roles=1` | mixed | the list above, Arjun's approval |
 
-### F7 moments (Arjun picks walk or fade; owner's suggestion in brackets)
-1. and 2. Done by F7-water: the flood carries everyone out; from 8:00 soldiers wait at the gates.
-3. Captain respawn: appears at home and the camera whips across the map, turning at once. [Fade to black and back; part of F5.]
-4. A duel starts: anyone inside the ring is pushed to its edge in one frame. [Shove over 0.3 s.]
-5. An execution: the executioner snaps to his spot beside the victim. [Slide over 0.25 s.]
-6. Falling into the chasm: dead the same frame. [A short fall and a scream, then dead.]
-7. Pushed out of the glacier's footprint: kept (Arjun, 12 Nov).
-8. Not yet checked: battle start after the flyover, and battle end to the results screen.
-
 ## Arjun's to-dos
 1. Say "ship" for F10/F10b and, after review, V1.
 2. Mixamo animation files (walk, run, sword attack, block, hit, death; FBX), upload to the chat.
-3. Pick walk or fade for the F7 moments above.
+3. Say "ship" for F7 after trying it on his phone.
 4. The battle screen with the designer chat (fresh one from the design doc).
 5. Sound effects: pick from the owner's recommendations (Kenney, Sonniss GDC bundle, Freesound CC0).
 6. A duo battle with a friend to test voice, once V1 is shipped.

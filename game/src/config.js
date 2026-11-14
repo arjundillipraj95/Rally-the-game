@@ -49,7 +49,8 @@ export const CROWN2 = {
   r: { home: .92, lane: .835, ridge: .705, village: .59, camp: .575, river: .443, riverW: .022, keep: .32, top: .42, chasm: .19, chasmW: .028, arena: .165 },
   h: { lane: 0, jungle: 3.4, top: 6.8, chasm: -9 }, // (ground heights of the tiers)
   castleA: [Math.PI / 6, Math.PI / 3], fieldA: Math.PI / 4, campA: [.4, 1.17], // (angles from a home, toward the next one clockwise)
-  safeR: 15, safe: { dmg: 45, heal: 18, shield: 3, boost: 1.3, boostT: 4 }, // (home: enemies inside burn, yours heal; after you step out you're untouchable shield s and quicker for boostT s)
+  safeR: 9.6, safe: { dmg: 45, heal: 18, shield: 3, boost: 1.3, boostT: 4 }, // (home: enemies inside burn, yours heal; after you step out you're untouchable shield s and quicker for boostT s. F7: safeR is the yard inside the walls, was 15)
+  yard: { r: 10.5, open: 10, h: 2.5, post: 3.6 }, // (F7: each home is a courtyard, walls r m round its middle, open at the front `open` m wide toward the keep; h: wall height, post: the two posts at the opening)
   base: 5, perCastle: 5, perVillage: 3, startSquad: ['foot', 'foot', 'foot', 'arch', 'arch'],
   income: 6, gold: { castle: 2, village: 1 }, startGold: 150,
   bonus: { castle: 200, village: 100 }, steal: { castle: .1, village: .05 },
@@ -398,9 +399,18 @@ export const FEEL = {
   // seconds, see render/soldiers.js); fadeOut: black this long before you're back; hold: black after the camera has moved;
   // fadeIn: back in; watch: with no way back, how long the camera stays on him; blackMax: never black longer than this;
   // zoom, lift: the camera pulls back and up over a fallen captain; msgs: fight moments kept for joined phones
-  death: { body: 14, fadeOut: .45, hold: .15, fadeIn: .5, watch: 4, blackMax: 3, zoom: 1.18, lift: 1.4 },
+  death: { body: 14, fadeOut: .4, hold: .1, fadeIn: .4, watch: 4, blackMax: 3, zoom: 1.18, lift: 1.4 },
   end: { hold: 1.5, fade: .6 }, // (F7h: the last moment holds for `hold` s, then the results fade in over `fade` s, no hard cut)
-  chasm: { fall: .6, g: 18, drift: .6 }, // (F7g: over the chasm's edge he falls for `fall` seconds, screaming, then is dead; g: gravity, drift: how much of his run carries him on)
+  // F7 "300" over the chasm's edge: he teeters at the rim in slow motion for `teeter` s (flailing, the scream), then drops out of
+  // sight and is dead at `fall` s; g: gravity once he drops, drift: how much of his run carries him on, hide: he's gone this far below the rim
+  chasm: { teeter: .5, fall: 1.2, slow: .25, g: 22, drift: .6, hide: 4.5 },
+  // F7 stepping out (a captain's respawn, the start, and soldiers recruited): he walks out of the yard for `cap` s (soldiers `men`)
+  // at `pace` of his speed, untouchable for that long; a stick push takes over at once. fade: the start's fade to black and back
+  march: { cap: 1, men: .8, pace: .85, fade: .4 },
+  // F7 duel: the shoved stumble for `stumble` s with dust (at most `dust` puffs), then the ring rises over `rise` s
+  duel: { stumble: .3, dust: 8, rise: .25 },
+  // F7 execution: two quick steps into place (EXEC.slide), then `slowT` s of slow motion on the blow, the two of them, at `slow`
+  exec: { slowT: .15, slow: .3 },
   net: { msgs: 12 },
 };
 

@@ -1,7 +1,7 @@
 // The 2D layer drawn over the 3D view: sparks, floating text, health bars, names,
 // the banner pointer, the joystick and the red tint while you are down. Also the minimap.
 import * as THREE from 'three';
-import { TEAMS, DUEL, STREAK, RHYTHM, ARMOUR, STAMINA, DUEL_DIR } from '../config.js';
+import { TEAMS, DUEL, STREAK, RHYTHM, ARMOUR, STAMINA, DUEL_DIR, FEEL } from '../config.js';
 import { bus } from '../core/state.js';
 import { G, isEnemyTi, isFfa, colorOf, noCastle } from '../core/state.js';
 import { claimed } from '../ui/messages.js';
@@ -193,18 +193,23 @@ function drawFinish() {
 }
 // The duels: a gold ring on the ground round each one that's on, the time left over it; a challenge
 // waiting for an answer shows over the man called out.
+const ringSeen = new Map(); // (F7: when this phone first saw each duel's ring close)
 function drawDuels() {
-  const ds = G.duels; if (!ds || !ds.length) return;
+  const ds = G.duels; if (!ds || !ds.length) { ringSeen.clear(); return; }
   const now = performance.now() / 1000;
   for (const d of ds) {
     if (Math.hypot(d.x - camera.position.x, d.z - camera.position.z) > 60) continue;
     if (d.state === 'on') {
+      // (F7) the shove first, then the ring rises out of the ground (FEEL.duel.rise)
+      if (!ringSeen.has(d.id)) ringSeen.set(d.id, now);
+      const rk = Math.min(1, Math.max(0, (now - ringSeen.get(d.id) - DUEL.shoveT) / FEEL.duel.rise)); if (rk <= 0) continue;
+      const re = 1 - (1 - rk) ** 2;
       ctx.beginPath(); let pen = false;
       for (let k = 0; k <= 64; k++) {
-        const a = k / 64 * Math.PI * 2, x = d.x + Math.sin(a) * DUEL.ring, z = d.z + Math.cos(a) * DUEL.ring, [sx, sy, ok] = proj(x, groundY(x, z) + .08, z);
+        const a = k / 64 * Math.PI * 2, x = d.x + Math.sin(a) * DUEL.ring, z = d.z + Math.cos(a) * DUEL.ring, [sx, sy, ok] = proj(x, groundY(x, z) + .08 + (re < 1 ? (1 - re) * -.9 + Math.sin(rk * Math.PI) * .9 : 0), z);
         if (!ok) { pen = false; continue; } if (pen) ctx.lineTo(sx, sy); else { ctx.moveTo(sx, sy); pen = true; }
       }
-      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,210,58,.75)'; ctx.setLineDash([10, 7]); ctx.lineDashOffset = -now * 12; ctx.stroke(); ctx.setLineDash([]);
+      ctx.lineWidth = 3 + (1 - re) * 3; ctx.strokeStyle = `rgba(255,210,58,${(.75 * re).toFixed(3)})`; ctx.setLineDash([10, 7]); ctx.lineDashOffset = -now * 12; ctx.stroke(); ctx.setLineDash([]);
       const [sx, sy, ok] = proj(d.x, groundY(d.x, d.z) + 5.2, d.z);
       if (ok) { const t = Math.max(0, d.t | 0), txt = `⚔ ${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
         ctx.textAlign = 'center'; ctx.font = 'italic 20px Bangers, Impact, sans-serif'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.strokeText(txt, sx, sy); ctx.fillStyle = t <= 10 ? '#ff8a3a' : '#ffd23a'; ctx.fillText(txt, sx, sy); }

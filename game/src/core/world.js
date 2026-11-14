@@ -323,6 +323,9 @@ function mountPlaces(L, box, trees) {
     // home: a walled town on the rim, untakeable; its safe ground round it
     const [hx, hz] = P(a, K.home * R); L.homes[c] = { c, x: hx, z: hz, a, r: CROWN2.safeR };
     for (let k = 0; k < 6; k++) { const b = a + (k - 2.5) * .5, [bx, bz] = [hx + Math.cos(b) * 7.5, hz + Math.sin(b) * 7.5]; /* (behind the town, toward the rim: the way up stays open) */ box(L, bx, bz, 1.7, 1.4, -b + Math.PI / 2, 3.2, 'cottage').keep = true; }
+    // (F7) the courtyard: a wall round the cottages, open at the front toward the keep, and only where the field is
+    { const Y = CROWN2.yard, front = a + Math.PI;
+      ringWall(L, hx, hz, Y.r, .7, Y.h, b => Math.abs(angDiff(b, front)) * Y.r < Y.open / 2 || Math.hypot(hx + Math.cos(b) * Y.r, hz + Math.sin(b) * Y.r) > R - 1.2, { yard: c, keep: true }); }
     // the two lane castles of this home (one toward each neighbour)
     for (const sgn of [1, -1]) {
       const ca = a + sgn * CROWN2.castleA[0], [x, z] = P(ca, K.lane * R), tan = ca + sgn * Q; // (tan: along the lane, away from home)

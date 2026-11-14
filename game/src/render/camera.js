@@ -16,7 +16,7 @@ const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 export function camTarget() {
   const p = G.player;
-  if (p && !p.dead) return p;
+  if (p && !p.dead) return (p.chasmT > 0 || p.chasmAt) && p.edge ? p.edge : p; // (F7: going over the chasm's edge: the camera holds at the rim)
   if (deathCam.u) return deathCam.u;
   const ally = G.teams.map(s => s.leader).find(L => L && !L.dead && !isEnemyTi(L.ti, G.myTi));
   if (ally) return ally;
@@ -71,7 +71,9 @@ export function followCamera(dt) {
   camera.position.x += (cx - camera.position.x) * k; camera.position.z += (cz - camera.position.z) * k; camera.position.y += (py + h - camera.position.y) * k;
   const ground = Math.max(groundY(camera.position.x, camera.position.z), terrainMeshY(camera.position.x, camera.position.z)) + 1; if (camera.position.y < ground) camera.position.y = ground;
   if (cam.shake > 0 && !reduceMotion) { camera.position.x += rnd(-1, 1) * cam.shake * .3; camera.position.y += rnd(-1, 1) * cam.shake * .3; }
-  camera.lookAt(px + Math.sin(yaw) * 3, py + 1.6 + (tgt.mounted ? 1 : 0), pz + Math.cos(yaw) * 3);
+  if (tgt.edge) { dir.edgeK = Math.min(1, (dir.edgeK || 0) + dt * 2.5); } else dir.edgeK = 0; // (F7: at the chasm's rim the camera tips to look down after him)
+  const ek = dir.edgeK * dir.edgeK * (3 - 2 * dir.edgeK);
+  camera.lookAt(px + Math.sin(yaw) * (3 + ek * 2), py + 1.6 + (tgt.mounted ? 1 : 0) - ek * 9, pz + Math.cos(yaw) * (3 + ek * 2));
   if (introCam.on) introCam.on(camera, tgt);
 }
 

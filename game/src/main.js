@@ -35,7 +35,7 @@ import { spark, splat, dust, drawAura, floatText, pow, shockwave, castleFx, effe
 import { drawOverlay, clearOverlay, resizeOverlay } from './render/overlay.js';
 import { cam, followCamera, orbitCamera, camTarget, CAM_PITCH, introCam } from './render/camera.js';
 import { feelTick, clearFeel, feelStats } from './render/feel.js';
-import { initDeath, deathTick, deathReset, deathState } from './ui/death.js';
+import { initDeath, deathTick, deathReset, deathState, fadeToBlack, fadeBackIn } from './ui/death.js';
 import { initAudio, sfx, buzz, gateS, startCrowd, stopCrowd, audioTick, audioStats, setMuted, musicCue, setMusic, musicEnabled, setVibe, vibeEnabled } from './ui/audio.js';
 import { portal, portalInit, onPortal } from './portal.js';
 import { initOrient } from './ui/orient.js';
@@ -88,7 +88,7 @@ bus.on('shake', v => { cam.shake = v; });
 // the Crown: the plaza's walls grind up out of the ground
 bus.on('wallsRise', () => { sfx.crumble(); sfx.horn(); cam.shake = Math.max(cam.shake, .5); buzz([80, 40, 80]); for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2; dust(Math.cos(a) * 17.5, Math.sin(a) * 17.5); } });
 // hit-stop: the world freezes for a few frames when your blow lands, so it reads as weight
-let hitstop = 0, hitstopN = 0; // (hitstopN: how many have been asked for, for the tests)
+let hitstop = 0, hitstopN = 0, slowmo = 0; // (hitstopN: how many have been asked for, for the tests)
 bus.on('hitstop', t => { hitstop = Math.max(hitstop, t); hitstopN++; });
 bus.on('buzz', ms => buzz(ms));
 // the big moments of a fight: a parry, a guard smashed open, a rider skewered or knocked off his horse.
@@ -96,6 +96,9 @@ bus.on('buzz', ms => buzz(ms));
 const FIGHT_POW = { fxwrong: ['WRONG SIDE!', '#ff6a4a'], fxtired: ['WINDED!', '#e0a060'], fxgate: ['', ''], fxridedown: ['', ''], fxarmour: ['', ''], fxpush: ['', ''], fxrhythm: ['', ''], fxvland: ['', ''], fxvcharge: ['', ''], fxbreach: ['', ''], fxdisarm: ['DISARMED!', '#ff8a3a'], fxbash: ['BASH!', '#ffffff'], fxstreak: ['RAMPAGE!', '#ffd23a'], fxduelask: ['', ''], fxduel: ['', ''], fxduelwin: ['', ''], fxdueldraw: ['', ''], fxduelbreak: ['', ''], fxduelno: ['', ''], fxevade: ['EVADED!', '#9fe3ff'], fxback: ['BACKSTAB!', '#ff8a3a'], fxexec: ['EXECUTED!', '#ff3b2e'], fxexecgo: ['', ''], fxcapkill: ['CAPTAIN SLAIN!', '#ffd23a'], fxrally: ['RALLY!', '#ffd23a'], fxrout: ['', ''], fxride: ['', ''], fxjoust: ['JOUSTED!', '#ffd23a'], fxparry: ['PARRY!', '#ffffff'], fxbreak: ['GUARD BROKEN!', '#ff8a3a'], fximpale: ['SKEWERED!', '#ffd23a'], fxunhorse: ['UNHORSED!', '#ffd23a'], fxint: ['STAGGERED!', '#ffd23a'] };
 bus.on('fxmsg', d => {
   const u = d.u, me = G.player;
+  if (d.k === 'fxmarch') { if (!u) return; // (F7: stepping out of the yard: a dust puff at his feet, bigger for a captain; your own captain's horn)
+    const ct = camTarget(); if (!ct || Math.hypot(u.x - ct.x, u.z - ct.z) < 45) { const n = d.heavy ? 3 : 1, f = u.face; for (let k = 0; k < n; k++) dust(u.x - Math.sin(f) * .6 + (k - 1) * .5 * Math.cos(f), u.z - Math.cos(f) * .6 - (k - 1) * .5 * Math.sin(f)); }
+    if (d.heavy && u === me) sfx.horn(); return; }
   if (d.k === 'fxopen') { if (u && d.a === me) bus.emit('fighttip', 'shield'); return; } // (your blow knocked his shield aside)
   if (!u || !FIGHT_POW[d.k]) return;
   const near = me && Math.hypot(u.x - me.x, u.z - me.z) < (d.k === 'fxbreach' ? 1e9 : d.k === 'fxrally' || d.k === 'fxrout' || d.k === 'fxcapkill' ? 40 : 22), mine = u === me;
@@ -162,7 +165,9 @@ bus.on('fxmsg', d => {
     const inIt = mine || d.a === me;
     if (!near && !inIt) return;
     if (d.k === 'fxduelask') { const a = d.a || u; pow(a.x, a.y + 3.2, a.z, 'I CHALLENGE YOU!', '#ffd23a', 3); sfx.windup(a.x, a.z); if (mine) buzz([40, 40, 40]); }
-    else if (d.k === 'fxduel') { const a = d.a || u, mx = (a.x + u.x) / 2, mz = (a.z + u.z) / 2; pow(mx, u.y + 3.4, mz, 'DUEL!', '#ffd23a', 3); shockwave(mx, mz, DUEL.ring + 1, '#ffd23a'); sfx.horn(); if (inIt) { buzz(80); cam.shake = Math.max(cam.shake, .4); musicCue('rally'); } }
+    else if (d.k === 'fxduel') { const a = d.a || u, mx = (a.x + u.x) / 2, mz = (a.z + u.z) / 2;
+      { const now = performance.now(); let n = 0; for (const o of G.units) { if (o.dead || o === a || o === u || Math.hypot(o.x - mx, o.z - mz) > DUEL.ring + .3) continue; o.shoveAt = now; if (n++ < FEEL.duel.dust) dust(o.x, o.z); } } /* (F7: everyone in the ring is shoved out: a stumble and dust) */
+      pow(mx, u.y + 3.4, mz, 'DUEL!', '#ffd23a', 3); shockwave(mx, mz, DUEL.ring + 1, '#ffd23a'); sfx.horn(); if (inIt) { buzz(80); cam.shake = Math.max(cam.shake, .4); musicCue('rally'); } }
     else if (d.k === 'fxduelwin') { pow(u.x, u.y + 3.4, u.z, mine ? 'DUEL WON!' : 'VICTOR!', '#ffd23a', 3); shockwave(u.x, u.z, 16, '#ffd23a'); sfx.cheer(); if (mine) buzz([60, 40, 90]); }
     else if (d.k === 'fxdueldraw') pow(u.x, u.y + 3.2, u.z, 'DRAW', '#ffffff', 3);
     else if (d.k === 'fxduelbreak') { pow(u.x, u.y + 3.2, u.z, 'DISHONOUR!', '#e0352b', 3); sfx.heavy(u.x, u.z); }
@@ -175,6 +180,7 @@ bus.on('fxmsg', d => {
   }
   if (d.k === 'fxexec') { // ...and the blow falls
     if (!near && !mine && d.a !== me) return;
+    slowmo = Math.max(slowmo, FEEL.exec.slowT); // (F7: the blow in slow motion on every phone watching; the drawing slows, the rules don't)
     pow(u.x, u.y + 3.4, u.z, { spear: 'RUN THROUGH!', jav: 'PINNED!' }[d.q] || 'EXECUTED!', '#ff3b2e', 3); shockwave(u.x, u.z, 14, '#ff3b2e'); sfx.heavy(u.x, u.z);
     if (d.q === 'spear') sfx.trample(u.x, u.z); if (d.q === 'jav') sfx.thud(u.x, u.z);
     musicCue(mine ? 'fell' : d.a === me ? 'slain' : 'capdown'); cam.shake = Math.max(cam.shake, .6); if (d.a === me || mine) buzz(120);
@@ -421,7 +427,7 @@ function viewForMatch() {
   requestAnimationFrame(() => requestAnimationFrame(hideVeil));
   watchdog.reset();
   startCrowd(G.map.id); Object.assign(perfS, { n: 0, fps: 0, slow: 0, errs: 0 });
-  if (isClient() && !devNoIntro()) clientIntro = true; // (a joined phone plays the opening as well, once its captain is known)
+  if (isClient() && !devNoIntro()) { clientIntro = true; G.introOn = true; } // (a joined phone plays the opening as well, once its captain is known)
 }
 // The opening of a computer battle: the camera rises over the whole field, comes in to your captain while
 // the count runs 3, 2, 1, and the men are let go on "RUN FOR YOUR LIFE, YOU FOOLS!". The sim waits for it.
@@ -441,15 +447,15 @@ function startIntro(p) {
     I.fp.copy(c.position); I.fl.set(fx, tgt.y + 1.6, fz); // (where the follow camera had him)
     const R = W.R * 1.05, a = I.a0 + I.t * .07, H = W.R * .55 + 8;
     const ov = new THREE.Vector3(Math.sin(a) * R, H, Math.cos(a) * R), ovl = new THREE.Vector3(0, groundY(0, 0) + 2, 0);
-    const k = Math.min(1, Math.max(0, (I.t - INTRO.fly + .6) / (INTRO.from - INTRO.fly))), s = k * k * (3 - 2 * k);
-    c.position.lerpVectors(ov, I.fp, s); const look = new THREE.Vector3().lerpVectors(ovl, I.fl, s); c.lookAt(look);
+    c.position.copy(ov); c.lookAt(ovl); // (F7: the flyover stays up over the field; the way down to him is a fade to black, see introTick)
   };
-  introText('', false); $('introT').hidden = true;
+  introText('', false); $('introT').hidden = true; G.introOn = true;
 }
 function introTick(dt) {
   const I = intro; I.t += dt;
-  while (I.next < INTRO.count.length && I.t >= INTRO.count[I.next][0]) { const [, txt] = INTRO.count[I.next++]; const big = txt.length > 2; introText(txt, big); if (big) sfx.horn(); else sfx.uiClick(); }
-  if (I.t >= INTRO.go) { intro = null; introCam.on = null; $('hudWrap').style.visibility = ''; setTimeout(() => { $('introT').hidden = true; }, 1800); }
+  while (I.next < INTRO.count.length && I.t >= INTRO.count[I.next][0]) { const [, txt] = INTRO.count[I.next++]; const big = txt.length > 2; introText(txt, big); if (big) { if (!G.c2) sfx.horn(); } else sfx.uiClick(); } // (F7: on the mountain the horn sounds as he marches out)
+  if (!I.black && I.t >= INTRO.go - FEEL.march.fade) { I.black = true; fadeToBlack(FEEL.march.fade); } // (F7: after the flyover, to black; the camera goes to him under it)
+  if (I.t >= INTRO.go) { intro = null; introCam.on = null; G.introOn = false; fadeBackIn(performance.now()); $('hudWrap').style.visibility = ''; setTimeout(() => { $('introT').hidden = true; }, 1800); }
 }
 function beginMatch(humans, active) {
   G.crownAward = null;
@@ -457,7 +463,7 @@ function beginMatch(humans, active) {
   startMatch(humans, active);
   cam.yaw = G.player.face; cam.pitch = CAM_PITCH;
   viewForMatch();
-  sfx.horn();
+  if (!G.c2) sfx.horn(); // (F7: on the mountain, one horn as he marches out)
   startTutorial();
   if (!noIntro && !devNoIntro()) { G.state = 'intro'; startIntro(G.player); } // (the opening: every real battle, solo or hosted; never the warm-up; dev tests skip it unless they ask)
 }
@@ -944,6 +950,7 @@ function loop(now) {
   if (paused) { last = now; requestAnimationFrame(loop); return; }
   const raw = (now - last) / 1000; let dt = Math.min(.05, raw); last = now;
   if (hitstop > 0) { hitstop -= raw; dt *= .06; }
+  let rdt = dt; if (slowmo > 0) { slowmo -= raw; rdt = dt * FEEL.exec.slow; } // (F7: slow motion for the drawing only)
   if (raw > 0) fpsAvg += (1 / raw - fpsAvg) * .05;
   if (raw > 0 && raw < 1 && G.state === 'play' && !G.warmup) { perfS.n++; perfS.fps += 1 / raw; if (raw > 1 / 30) perfS.slow++; } // (the health report: this phone's frame rate over the battle)
   try {
@@ -951,21 +958,21 @@ function loop(now) {
       let live = true; try { live = clientTick(dt); } catch (e) { fault('net', e); }
       if (clientIntro && G.player && G.state === 'play') { clientIntro = false; startIntro(G.player); }
       if (intro) introTick(dt);
-      if (live && (G.state === 'play' || G.state === 'end')) drawMatch(dt); else demo(dt);
+      if (live && (G.state === 'play' || G.state === 'end')) drawMatch(rdt); else demo(dt);
     } else if (G.state === 'intro') {
       if (intro) introTick(dt); // (the opening: the sim waits, the camera tells the story)
       if (isHost() && performance.now() - (session.NET.lastSend || 0) > 400) netHostSend(true); // (hosting: the joined phones still hear from us while everyone waits)
       if (!intro) G.state = 'play';
-      drawMatch(dt);
+      drawMatch(rdt);
     } else if (G.state === 'play') {
       if (isHost()) netHostReadInputs();
       try { update(dt, import.meta.env.DEV && window.__moveOverride ? window.__moveOverride() : readMove(dt)); } catch (e) { fault('rules', e); } // (dev-only override for scripted capture)
       if (isHost() && G.state === 'play') netHostTick();
-      drawMatch(dt);
+      drawMatch(rdt);
       watchdog.tick(raw);
     } else if (G.state === 'end') {
       endStep(dt);
-      drawMatch(dt);
+      drawMatch(rdt);
       if (isHost() && now - (session.NET.lastSend || 0) > 500) netHostSend(true);
     } else {
       demo(dt);
@@ -999,7 +1006,7 @@ window.__fb = {
   volley(pt) { actions.volley(pt); }, order(o, pt) { actions.order(o, pt); }, rally() { actions.rally(); },
   attack() { actions.attack(); }, duel() { actions.duel(); }, jump() { actions.jump(); }, weapon(w) { actions.weapon(w); }, upgrade(id) { actions.upgrade(id); },
   fort(c, lv) { G.teams[c].up.fort = lv; applyFort(c); },
-  feel: feelStats, death: deathState, nick: ti => nickFor(ti), hitstop: () => hitstopN, camera,
+  feel: feelStats, death: deathState, nick: ti => nickFor(ti), hitstop: () => hitstopN, slowmo: () => slowmo, camTarget, camera,
   tlTick, tlPack, ledger, voiceState, voiceLevels, setOrder, rideRelease, findPath, gatePos, orderVolley, mkUnit, challenge, canChallenge, G, W, c2Points, die, cam, scene, renderer, camera, audio: () => audioStats(),
 };
 

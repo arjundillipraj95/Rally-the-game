@@ -1,7 +1,7 @@
 # F7e Duel ring: a shove, not a jump
 
 Model: H (built by Opus) · Written 2026-11-12 from F7 moment 4 (Arjun agreed 12 Nov)
-Status: built (not shipped)
+Status: superseded by F7 (13 Nov, Arjun's picks); its test folded into `store/r_F7.mjs`
 
 ## What to build
 When a duel starts, anyone inside the ring (other than the two) is shoved to its edge over 0.3 s, eased out, instead

@@ -5,7 +5,7 @@
 // Captains only for now: a few skinned meshes are cheap; soldiers (hundreds) need baked instancing.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { TEAMS, NEUTRAL, ANIM } from '../config.js';
+import { TEAMS, NEUTRAL, ANIM, EXEC, FEEL } from '../config.js';
 import { G, colorOf } from '../core/state.js';
 import { scene } from './scene.js';
 import { groundY } from '../core/world.js';
@@ -310,7 +310,13 @@ function pickPose(u, a, h, dt, sp, mv, blocking) {
   if (u.execA || u.execV) h.exT = (h.exT || 0) + dt; else h.exT = 0;
   const ev = u.evade && !h.U && G.T - u.evade.t < EV_T ? (G.T - u.evade.t) / EV_T : -1;
   if (ev >= 0 && h.evT !== u.evade.t) { h.evT = u.evade.t; const dx = Math.sin(u.face) * (u.vz || 0) - Math.cos(u.face) * (u.vx || 0); h.evDir = dx > 0 ? -1 : 1; } // (which way the roll turns: the way he's going)
-  if (u.execV) { P = POSES.kneel; rate = 10; }
+  if (u.chasmT > 0 || u.chasmAt) { // (F7 "300": over the chasm's edge, arms and legs windmilling; slow while he teeters at the rim)
+    const Ch = FEEL.chasm, e = u.chasmAt ? performance.now() / 1000 - u.chasmAt : Ch.fall - u.chasmT;
+    const f = h.flail = (h.flail || 0) + dt * 11 * (e < Ch.teeter ? Ch.slow : 1);
+    P = { ...LIMP, spine: [e < Ch.teeter ? -.35 : .2, 0, Math.sin(f * .5) * .2], upperArm_R: [Math.sin(f) * 1.4, 0, 1.6 + Math.cos(f * .7) * .6], upperArm_L: [Math.sin(f + 2) * 1.4, 0, -1.6 - Math.cos(f * .7 + 1) * .6],
+      thigh_R: [Math.sin(f + 1) * .9, 0, -.2], thigh_L: [Math.sin(f + 3.5) * .9, 0, .2], shin_R: [.6, 0, 0], shin_L: [.6, 0, 0] }; rate = 30; }
+  else if (u.execV) { P = POSES.kneel; rate = 10; }
+  else if (u.execA && !h.U && h.exT < EXEC.slide) { P = CLIPS.run(h.run, .8); tag = 'loco'; } // (F7: two quick steps into place first)
   else if (u.execA && !h.U) { P = moveAt(h.weapon === 'spear' ? 'exec_spear' : h.weapon === 'jav' ? 'exec_jav' : 'exec_sword', Math.min(1, h.exT / 1.3)); rate = 26; }
   else if (ev >= 0) { // the evades: into the move fast, held, then out of it
     const k = ev < .22 ? ev / .22 : ev < .7 ? 1 : 1 - (ev - .7) / .3, kind = u.evade.kind;
@@ -420,7 +426,7 @@ export function drawHero(u, a, dt) {
   if (!h) { h = make(u); live.set(u, h); }
   if (h.fold && abOn()) foldShow(h.fold, abOld()); // (dev, ?f1=ab: the test draws one frame both ways)
   h.seen = FRAME; // (drawn this frame: by a frame count, since the game clock stands still on the home screen)
-  const R = h.R, sp = Math.hypot(u.vx || 0, u.vz || 0), mv = Math.min(1, sp / 4);
+  const R = h.R, sp = u.execA && !h.U && (h.exT || 0) < EXEC.slide ? ANIM.loco.runAbove * 1.3 : Math.hypot(u.vx || 0, u.vz || 0), mv = Math.min(1, sp / 4); // (F7: the executioner's two steps)
   h.run += dt * sp / (2.0 * h.sc * 1.5); // (the stride keeps time with the ground: one stride (two steps) per 2 m at his size, so his feet don't skate)
   if (u.dead) return drawFallen(u, a, h, dt);
   const blocking = (u.human && u.blocking) || u.blockT > 0, hurt = u.hp < h.hp - ANIM.impact.minDmg;

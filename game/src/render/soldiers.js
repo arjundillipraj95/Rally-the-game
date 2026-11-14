@@ -510,6 +510,7 @@ function pose(u, dt) {
   if (u.dead) { a.bodyRY = 0; a.expr = 'dead'; a.dizzy = 0; ragdoll(u, a, dt); return a; }
   a.rag = null; a.yaw = 0; a.lift = 0; a.sink = 0; a.bodyRZ = 0; a.bodyRY = 0;
   a.idle = (a.idle || 0) + dt;
+  if (u.shoveAt && u.shoveAt !== a.shoveSeen) { a.shoveSeen = u.shoveAt; a.stumble = FEEL.duel.stumble; } // (F7: shoved out of a duel's ring: a stumble)
   // got hit: flash toward white and get knocked back on a spring that overshoots and settles
   if (a.hp != null && u.hp < a.hp - .5) {
     const dmg = a.hp - u.hp, sev = Math.min(1, dmg / 18), blocked = u.blockT > 0 || (u.human && u.blocking);

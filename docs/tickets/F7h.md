@@ -1,7 +1,7 @@
 # F7h Battle start and end
 
 Model: S · Written 2026-11-12 from F7 moment 8 (Arjun agreed 12 Nov; he has no complaints about what exists)
-Status: built (not shipped)
+Status: superseded by F7 (13 Nov, Arjun's picks); its test folded into `store/r_F7.mjs`
 
 ## What to build
 Checked first. Start: already eases from the flyover into the player's captain (smoothstep, `main.js` startIntro) and
