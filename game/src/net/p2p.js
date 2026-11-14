@@ -35,15 +35,16 @@ async function openRelay() {
 }
 // freeturn.net: a public relay with fixed credentials (best effort, like any free one)
 const FREETURN = { urls: ['turn:freeturn.net:3478', 'turn:freeturn.net:3478?transport=tcp', 'turns:freeturn.tel:5349'], username: 'free', credential: 'free' };
-let iceCache = null;
+let iceCache = null, iceAt = 0;
 export async function iceServers() {
-  if (iceCache) return iceCache;
+  if (iceCache && Date.now() - iceAt < 3600e3) return iceCache; // (a private relay's credentials last 4 h: ask again each hour)
   const list = [...STUN];
   let keyed = false;
-  if (TURN_KEY_URL) {
+  const keyUrl = TURN_KEY_URL || (ON.url ? ON.url.replace(/\/$/, '') + '/turn' : ''); // (the online service hands out short-lived relay credentials, V1b)
+  if (keyUrl) {
     try {
       const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 4000);
-      const r = await fetch(TURN_KEY_URL, { signal: ctl.signal }); clearTimeout(t);
+      const r = await fetch(keyUrl, { signal: ctl.signal }); clearTimeout(t);
       const extra = await r.json();
       if (Array.isArray(extra)) { const turn = extra.filter(s => /turns?:/.test([].concat(s.urls || s.url).join(' '))); list.push(...turn); keyed = turn.length > 0; }
     } catch (e) {}
@@ -52,7 +53,8 @@ export async function iceServers() {
     try { const r = await openRelay(); if (r) list.push(r); } catch (e) {}
     list.push(FREETURN); // (a second public relay, no sign-up: if one's down or overloaded, the other may get through)
   }
-  return (iceCache = list);
+  if (keyed) { iceCache = list; iceAt = Date.now(); } // (public relays are not cached: ask for the private one again next time)
+  return list;
 }
 const peerOpts = async () => {
   const o = Object.assign({ debug: 0 }, window.__PEER_OPTS || {});

@@ -95,6 +95,11 @@ Last updated: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `
   call-start errors. `r_V1d.mjs` (lower id never calls) and `r_V1.mjs` pass, crown2sim/online pass roles off+on.
   Still unknown: the real cause on the phones (need the OTHER phone's box, devices, networks). Next: V1b if it says relay/can't link;
   then team voice in the lobby, join/leave, carrying on into the battle; all-players channel later.
+- V1b (14 Nov, built on `roles`, card `docs/tickets/V1b.md`): worker `GET /turn` hands phones short-lived Metered relay credentials
+  (secrets `METERED_APP`, `METERED_SECRET_KEY`); phones use them for game link and voice, public relays stay the fallback.
+  `r_V1b.mjs` + crown2 pass. Needs Arjun's 3 steps (card) and a ship (online deploys from main); needs an Opus review before shipping.
+- Plan agreed with Arjun (14 Nov): order = V1d phone test (needs the OTHER phone's box) > V1b live > party voice that persists
+  main screen > lobby > battle (Opus, new card) > strangers-on-team mic opt-in. All-players channel and a team/all switch: later.
 
 ## F17 More captain clips (13 Nov, Arjun's animation chat; card `docs/tickets/F17.md`)
 - 11 free Cosindra MotionSmith clips put on the shared skeleton (`tools/models/cosindra_export.py` in Blender, then

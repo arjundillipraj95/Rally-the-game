@@ -7,6 +7,7 @@
 
 import { initStats, noteSeen, noteQuit as statQuit, noteMatch, notePerf, prune, adminData, isAdmin } from './stats.js';
 import { adminPage } from './admin.js';
+import { turnResponse } from './turn.js';
 
 const FMT_CAP = [1, 2, 3]; // captains per side: Solo, Duo, Trio
 const LOBBY_WAIT = 60e3, LATE_JOIN = 60e3, QUEUE_JOIN = 110e3, PARTY_MAX = 3; // (searchers drop into a battle in its first 110 s: the game takes late captains for 120) // (a friend can join a running battle in its first minute)
@@ -15,11 +16,12 @@ const rid = (n, set = CODE) => { const b = new Uint8Array(n); crypto.getRandomVa
 const cleanNick = s => String(s || '').replace(/[^\p{L}\p{N} _.-]/gu, '').trim().slice(0, 16) || 'Captain';
 
 export default {
-  async fetch(req, env) {
+  async fetch(req, env, ctx) {
     const url = new URL(req.url);
     const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'content-type' };
     if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
     if (url.pathname === '/health') return new Response(JSON.stringify({ ok: true, at: Date.now() }), { headers: { ...cors, 'content-type': 'application/json' } });
+    if (url.pathname === '/turn') return turnResponse(req, env, ctx, cors); // (relay credentials for voice and the game link, V1b)
     if (url.pathname === '/ws') { const hub = env.HUB.get(env.HUB.idFromName('hub')); return hub.fetch(req); }
     if (url.pathname === '/admin' || url.pathname === '/admin/data') { // (the admin page and its numbers: only with the key)
       if (!(await isAdmin(url.searchParams.get('key')))) return new Response('Not found', { status: 404 });
