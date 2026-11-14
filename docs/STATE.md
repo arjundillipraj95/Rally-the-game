@@ -5,6 +5,8 @@ Claude Docs, links in CLAUDE.md). Every builder updates this file as the last st
 Last updated: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
 
 ## Live on main
+- Shipped 14 Nov (Arjun's "ship whatever is ready"; main = roles at 5b30ce7): V1b (private voice relay; Arjun's 3 secret steps still
+  needed, public relays meanwhile), V2 party voice, F21 music, F2 one lobby (new online service deployed), F4 real garrisons.
 - P0.1 Dead-code cleanup · P0.2 Lag harness · P0.3 Ping readout · M1 Neutral soldiers look like soldiers
 - P0.7 Smooth everyone else (joining phones draw others between two host snapshots; 20 snapshots a second)
 - F11 Same results and names on every phone (host's battle record sent to all phones at the end)
