@@ -461,13 +461,38 @@ export const ANIM = {
     knockdown: { steps: ['knockdown'], legs: true }, getUp: { steps: ['getUp'], legs: true } }, // (F17: ready for the roles' knockdowns; nothing sets them yet)
 };
 
-// F14 Adapts to any phone (graphics on Auto only). The frame rate is measured in windows of win s
-// (the first settle s after a battle starts or a change are skipped; a frame longer than gap s (a stall, or
-// the tab hidden) voids the window). Below down fps: one step down: the level (High > Medium > Low) and, at
-// Low, the render scale by scaleStep down to scaleMin. Above up fps for upN windows in a row: one step
-// back up (scale first, then level), never above the level the device was detected at, and not back to
-// a level it fell from within ban s. The level reached is kept for the next battle on this phone.
-export const ADAPT = { win: 4, settle: 2, gap: 2, down: 28, up: 55, upN: 3, ban: 60, scaleStep: .15, scaleMin: .7 };
+// F14 Adapts to any phone (graphics on Auto only; Low/Medium/High are fixed choices).
+// rungs: the ladder, best first. One step down follows Arjun's order: render resolution (pr, the pixel ratio
+// cap), then shadows (sh: which level's shadows), then clouds and far scenery (far), then detail on distant
+// soldiers (near: the detailed-model radius in m, ol: outlines), then the last-resort resolution. lv is the
+// level for what is built once at a battle's start (grass, crowd, antialias, particle caps).
+// guess: the starting rung from the graphics chip; big screens (more than bigPx real pixels) start one lower.
+// Measuring: windows of win s; the first settle s after a battle start or a change are skipped; a frame longer
+// than gap s (a stall, a hidden tab) voids the window. The first window (probe s) may jump several rungs: one
+// per probeStep fps under down; at probeUp fps or more it climbs one. Then, after a change, wait cool s:
+// under down fps: one rung down; at up fps or more for upAfter s in a row: one rung up, never back to a rung
+// it fell from within ban s. A phone held at 30 fps by its browser (cap: that share of frames within
+// capMs ms, e.g. iPhone Low Power Mode) is left alone. Mid-fight (a swing or blow within calmR m of the
+// camera's captain in the last calmS s) only resolution steps happen; a visible step waits, and meanwhile
+// the resolution drops to fightScale. The rung reached is kept per phone (chip + screen) for the next battle.
+export const QUALITY = {
+  rungs: [
+    { lv: 'high',   pr: 2,   sh: 'high',   far: 1, near: 26, ol: 1 },
+    { lv: 'high',   pr: 1.7, sh: 'high',   far: 1, near: 26, ol: 1 },
+    { lv: 'medium', pr: 1.4, sh: 'high',   far: 1, near: 26, ol: 1 },
+    { lv: 'medium', pr: 1.4, sh: 'medium', far: 1, near: 26, ol: 1 },
+    { lv: 'medium', pr: 1.4, sh: 'low',    far: 1, near: 26, ol: 1 },
+    { lv: 'low',    pr: 1.4, sh: 'low',    far: 0, near: 26, ol: 1 },
+    { lv: 'low',    pr: 1.4, sh: 'low',    far: 0, near: 14, ol: 0 },
+    { lv: 'low',    pr: 1,   sh: 'low',    far: 0, near: 14, ol: 0 },
+    { lv: 'low',    pr: .8,  sh: 'low',    far: 0, near: 14, ol: 0 },
+  ],
+  guess: { desktop: 0, strong: 1, apple: 1, mid: 3, unknown: 4, weak: 7, bigPx: 3.6e6 },
+  win: 3, settle: 2, gap: 1, probe: 5, probeStep: 8, probeUp: 57,
+  down: 40, up: 55, upAfter: 20, cool: 10, ban: 60,
+  cap: .85, capMs: [30.5, 36],
+  calmR: 25, calmS: 2, fightScale: .8,
+};
 
 // F18 grounded knockback: a captain's killing blow throws a soldier this far (m/s across, m/s up); was 8.5-12 and 9-12
 export const LAUNCH = { push: [6, 8], up: [4, 6] };

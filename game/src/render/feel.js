@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { FEEL } from '../config.js';
 import { G, bus } from '../core/state.js';
 import { scene, camera } from './scene.js';
-import { quality } from './quality.js';
+import { quality, markFight } from './quality.js';
 import { spark, dust, slash, pow } from './effects.js';
 import { cam, camKick, camTarget } from './camera.js';
 import { reel } from './soldiers.js';
@@ -82,6 +82,7 @@ bus.on('fxmsg', d => {
     u.vx = Math.sin(ang) * f; u.vz = Math.cos(ang) * f; if (d.heavy && !u.launch) { u.launch = true; u.vy = F.up[1] * 2; }
   }
   if (!mine && !(t && Math.hypot(u.x - t.x, u.z - t.z) < F.near)) return; // (far off: nobody's watching)
+  markFight(); // (F14: a blow near the camera: no visible graphics step now)
   const name = k === 'fxclash' ? 'clash' : k === 'fxblk' ? 'block' : 'cut';
   feelStats[name]++; feelStats.last = name;
   const ax = a ? a.x : u.x, az = a ? a.z : u.z, ay = a ? a.y : u.y;

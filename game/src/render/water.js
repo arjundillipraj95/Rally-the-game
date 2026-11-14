@@ -6,12 +6,12 @@
 import * as THREE from 'three';
 import { quality } from './quality.js';
 
-export const WATER = { time: { value: 0 } };
+export const WATER = { time: { value: 0 }, detail: { value: 1 } }; // (detail: the fine ripples, F14 switches it with the far scenery)
 
 // opts: foam (0 none, 1 foam fringe at the rim of a round disc, using its uv), opacity, rush (a uniform object the caller can raise: faster, whiter)
 export function waterMaterial({ opacity = .86, foam = 0, side } = {}) {
   const m = new THREE.MeshPhongMaterial({ color: 0x2b6e98, specular: 0xe2f0f8, shininess: 260, transparent: true, opacity, side }); // (F17b: deeper, with tight sun glints off the moving surface)
-  const rush = { value: 0 }, detail = { value: quality.cfg.clouds ? 1 : 0 }; // (clouds on = a phone that can afford the fine ripples)
+  const rush = { value: 0 }, detail = WATER.detail; // (on = a phone that can afford the fine ripples; shared, F14)
   m.userData.rush = rush;
   m.onBeforeCompile = s => {
     s.uniforms.uT = WATER.time; s.uniforms.uRush = rush; s.uniforms.uDetail = detail;

@@ -11,6 +11,7 @@ import { nightLook, dayLook, dayGold, scene, camera, sun, hemi, renderer, lookK,
 import { camTarget } from './camera.js';
 import { spark } from './effects.js';
 import { waterMaterial } from './water.js';
+import { quality } from './quality.js';
 import { c2Garrison, c2Lake } from '../core/sim.js';
 
 let M = null;
@@ -64,7 +65,7 @@ function massifGeo(list) {
 }
 // far things fog more gently than the battlefield, so the range reads through the haze (a scale on the fog distance)
 const softFog = (m, k) => { m.onBeforeCompile = s => { s.fragmentShader = s.fragmentShader.replace('#include <fog_fragment>', `#ifdef USE_FOG\n float fogFactor = smoothstep( fogNear, fogFar, vFogDepth * ${k.toFixed(2)} );\n gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );\n#endif`); }; return m; };
-const cloudU = { lit: { value: new THREE.Color() }, shade: { value: new THREE.Color() }, sunCol: { value: new THREE.Color() }, haze: { value: new THREE.Color() }, sunXZ: { value: new THREE.Vector2(1, 0) }, t: { value: 0 }, near: { value: 150 }, far: { value: 415 } };
+const cloudU = { lit: { value: new THREE.Color() }, shade: { value: new THREE.Color() }, sunCol: { value: new THREE.Color() }, haze: { value: new THREE.Color() }, sunXZ: { value: new THREE.Vector2(1, 0) }, t: { value: 0 }, near: { value: 150 }, far: { value: 415 }, oct: { value: 4 } }; // (oct: the cloud sea's noise layers, 2 when F14 turns the far scenery down)
 const CL = { day: [0xffffff, 0x6d86a8], dusk: [0xffd2a8, 0x8a6d84], night: [0x7f90bc, 0x1e2a4c] }; // (lit tops, shaded hollows)
 function buildRim(grp) {
   const R = W.R, rnd = mulberry(0xf10b), list = [];
@@ -84,10 +85,10 @@ function buildRim(grp) {
     uniforms: cloudU, transparent: true, depthWrite: false, fog: false,
     vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
     fragmentShader: `
-      uniform vec3 lit, shade, sunCol, haze; uniform vec2 sunXZ; uniform float t, near, far; varying vec3 vW;
+      uniform vec3 lit, shade, sunCol, haze; uniform vec2 sunXZ; uniform float t, near, far, oct; varying vec3 vW;
       float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
       float vn(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f); return mix(mix(h2(i),h2(i+vec2(1,0)),f.x), mix(h2(i+vec2(0,1)),h2(i+vec2(1,1)),f.x), f.y); }
-      float fbm(vec2 p){ float s=0., a=.5; for(int i=0;i<4;i++){ s+=a*vn(p); p=p*2.07+vec2(1.7,9.2); a*=.5; } return s; }
+      float fbm(vec2 p){ float s=0., a=.5; for(int i=0;i<4;i++){ if (float(i) >= oct) break; s+=a*vn(p); p=p*2.07+vec2(1.7,9.2); a*=.5; } return s; }
       void main(){
         vec2 p = vW.xz * .011 + vec2(t * .008, t * .003);
         float n = fbm(p + vec2(fbm(p * .35 + 3.1), 0.) * .8), m = fbm(p + sunXZ * .09 + vec2(fbm(p * .35 + 3.1), 0.) * .8);
@@ -130,6 +131,7 @@ const mix3 = (pal, i, k) => k < .5 ? cA.set(pal.day[i]).lerp(cB.set(pal.dusk[i])
 function updateRim(F, dt) {
   F.t += dt; const R = W.R, k = lookK() + dayGold() * .2, tg = camTarget(); // (F13: the far clouds and peaks warm with the morning and evening sun)
   F.cl.position.x = camera.position.x; F.cl.position.z = camera.position.z;
+  const far = quality.cfg.far; cloudU.oct.value = far ? 4 : 2; F.birds.visible = far; // (F14: clouds and far scenery down)
   cloudU.t.value = F.t; cloudU.haze.value.copy(scene.fog.color); cloudU.sunCol.value.copy(sun.color);
   cloudU.lit.value.copy(mix3(CL, 0, k)); cloudU.shade.value.copy(mix3(CL, 1, k));
   const sd = skySunDir(); cloudU.sunXZ.value.set(sd.x, sd.z).normalize();

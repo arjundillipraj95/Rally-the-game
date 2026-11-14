@@ -4,7 +4,7 @@
 // Factions change the look only: Romans (galea, scutum, gladius), Greeks (bronze Corinthian helmet,
 // round hoplon), barbarians (hair and beards, bare chests, round wooden shields, axes).
 import * as THREE from 'three';
-import { TEAMS, CRESTS, EXEC, NEUTRAL, FEEL } from '../config.js';
+import { TEAMS, CRESTS, EXEC, NEUTRAL, FEEL, QUALITY } from '../config.js';
 import { G, isEnemyTi, isFfa, colorOf, bus } from '../core/state.js';
 import { braced } from '../core/sim.js';
 import { lookOf, slotOf, SLOT_IX } from '../core/look.js';
@@ -12,7 +12,7 @@ import { scene, shadowsOn, camera } from './scene.js';
 import { camTarget } from './camera.js';
 import { trail, slash, pow, dust, spark, bladeTrail } from './effects.js';
 import { groundY } from '../core/world.js';
-import { quality } from './quality.js';
+import { quality, fight, markFight } from './quality.js';
 import { drawHero, drawFar, sweepHeroes, heroBlade, heroBlow } from './heroes.js';
 import { loadClipBody } from './rig/cliprig.js';
 import { ANIM } from '../config.js';
@@ -768,7 +768,7 @@ function bones(u, a) {
 // `extra`: more soldiers drawn the same way but not part of the battle (M1: the mountain's neutral garrisons and camps).
 export function drawSoldiers(units, dt, extra = null) {
   for (const b of batches.values()) b.n = 0;
-  const blob = !shadowsOn(), outlines = quality.level !== 'low';
+  const blob = !shadowsOn(), outlines = quality.cfg.outlines;
   powCd -= dt;
   let drawn = 0;
   // Friendly soldiers standing between the camera and your captain step out of the picture, so
@@ -791,6 +791,7 @@ export function drawSoldiers(units, dt, extra = null) {
     }
     if (drawn >= MAX_UNITS) break lists;
     drawn++;
+    if (!fight.seen && u.swing > 0 && !u.dead && nearCam(u, QUALITY.calmR)) markFight(); // (F14: a fight near the camera holds back the visible graphics steps)
     const held = u.fz > 0; if (held && !u.dead) u.fz -= dt; // (F6 hit-stop: the two men in a big moment hold their pose for a beat; a dead man's is counted down as he falls, core/sim.js)
     const a = pose(u, held ? 0 : u.slowT > 0 ? dt * .25 : dt); // (a parry's two men move in slow motion)
     bones(u, a);

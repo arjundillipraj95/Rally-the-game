@@ -12,9 +12,9 @@ import { G, bus, colorOf, rules, matchTime, modeDesc, activeFrom, targetFor, SLO
 import { rideRelease, orderVolley, challenge, canChallenge, startMatch, mkUnit, newTeams, update, endMatch, auraRange, endStep, setOrder, applyFort, c2Points, c2Breakdown, die } from './core/sim.js';
 import { makeLayout, gatePos, groundY, W } from './core/world.js';
 import { buildNav, findPath } from './core/nav.js';
-import { renderer, scene, camera, resize, applyPixelRatio, applyShadowQuality, followSun } from './render/scene.js';
+import { renderer, scene, camera, resize, applyPixelRatio, applyShadowQuality, applyFar, followSun } from './render/scene.js';
 import { ambientTick } from './render/ambient.js';
-import { quality, saveSetting, saveAuto, adaptStep, LEVELS } from './render/quality.js';
+import { quality, saveSetting, keepRung, adaptStep, adaptState, setRung, setScale, battleLevel, fight, LEVELS } from './render/quality.js';
 import { buildWorldView, updateWorldView, grassTime } from './render/world.js';
 import { drawSoldiers, drawCalls, clearProps } from './render/soldiers.js';
 import { neutralFigs } from './render/mountain.js';
@@ -58,7 +58,7 @@ import { bindLobby, showLobby, hostLobbyTick, clientLobbyTick, netLeave, matchHo
 import { ON, online, startOnline, isLeader } from './net/online.js';
 import { crowns, mergeCrowns, titleOf, award, FMT_NAME, setCrowns } from './ui/crowns.js';
 import { lookCode, lookFrom } from './core/look.js';
-import { PARRY, CAPKILL_SLOW, FEEL, ADAPT } from './config.js';
+import { PARRY, CAPKILL_SLOW, FEEL, QUALITY } from './config.js';
 
 const $ = id => document.getElementById(id);
 { const nj = $('nojs'); if (nj) nj.remove(); }
@@ -420,6 +420,7 @@ function endText(w, why) {
 
 // ---------- match start ----------
 function viewForMatch() {
+  battleLevel(); applyShadowQuality(); applyPixelRatio(); // (F14: what is built once follows the rung reached)
   clearMeadow();
   buildWorldView(G.layout);
   clearEffects(); clearFeel(); deathReset(); clearHorses(); clearProps(); clearBanter(); clearFeed(); clearReport(); spawnCritters(G.seed);
@@ -672,8 +673,8 @@ function updateDesc() {
   $('desc').innerHTML = `<strong>${MODES[G.mode].name} · ${rules().name}, about ${Math.round(matchTime() / 60)} min.</strong> ${modeDesc(MODES[G.mode])}<br><strong>${soloMap.name}.</strong> ${soloMap.desc} <strong>Teams:</strong> ${tdesc}`;
 }
 function updateQualityNote() {
-  const lvl = LEVELS[quality.level].name;
-  $('qualityNote').textContent = quality.stepped ? `Lowered to ${lvl}${quality.scale < 1 ? ` (sharpness ${Math.round(quality.scale * 100)}%)` : ''} to keep the game smooth.` : quality.setting === 'auto' ? `Auto picked ${lvl} for this device.` : '';
+  const lvl = LEVELS[quality.rung >= 0 ? QUALITY.rungs[quality.rung].lv : quality.level].name;
+  $('qualityNote').textContent = quality.stepped ? `Auto lowered the graphics to keep the game smooth (now near ${lvl}).` : quality.setting === 'auto' ? `Auto picked ${lvl} for this device.` : '';
   $('segQuality').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === quality.setting)));
 }
 seg('segMode', v => { G.mode = v; G.target = prefs.tgt[G.mode] ?? targetFor(G.mode); renderTargets(); updateDesc(); });
@@ -887,27 +888,31 @@ $('menuBtn').addEventListener('click', () => {
 // F18: ability bursts glow in the caster's team colour
 function teamCss(u) { const t = TEAMS[colorOf(u.ti)]; return (t && t.css) || '#ffd23a'; }
 
-// ---------- frame-rate watchdog (F14): keeps adjusting graphics all battle long, on Auto only ----------
-// Down when slow, back up when smooth for a while; never above the detected level (see ADAPT).
+// ---------- frame-rate watchdog (F14): on Auto, keeps the graphics on the right rung all battle ----------
+// Rule and numbers: adaptStep in render/quality.js, QUALITY in config.js. Mid-fight only the resolution moves.
 const watchdog = {
-  t: 0, frames: 0, total: 0, clock: 0, st: null,
-  reset() { this.t = 0; this.frames = 0; this.total = 0; this.clock = 0; this.st = { level: quality.level, scale: quality.scale, ceil: quality.detected, ups: 0, banned: {}, t: 0 }; },
+  t: 0, frames: 0, capN: 0, total: 0, clock: 0, since: 99, st: null,
+  reset() { this.t = this.frames = this.capN = this.total = this.clock = 0; this.since = 99; fight.seen = false; this.st = quality.rung >= 0 ? adaptState(quality.rung) : null; },
   tick(rawDt) {
-    if (quality.setting !== 'auto' || !this.st) return;
-    if (!(rawDt > 0) || rawDt > ADAPT.gap || document.hidden) { this.t = 0; this.frames = 0; return; } // (a hidden tab or a hitch: start the window again)
+    if (!this.st) return;
+    if (fight.seen) { fight.seen = false; this.since = 0; } else if (rawDt > 0 && rawDt < 1) this.since += rawDt;
+    if (!(rawDt > 0) || rawDt > QUALITY.gap || document.hidden) { this.t = this.frames = this.capN = 0; return; } // (a hidden tab or a stall: start the window again)
     this.total += rawDt; this.clock += rawDt; this.st.t = this.clock;
-    if (this.total < ADAPT.settle) return;
+    if (this.total < QUALITY.settle) return;
     this.t += rawDt; this.frames++;
-    if (this.t < ADAPT.win) return;
-    const fps = this.frames / this.t; this.t = 0; this.frames = 0;
-    const was = quality.level, change = adaptStep(this.st, fps, ADAPT);
-    if (!change) return;
-    quality.level = this.st.level; quality.scale = this.st.scale;
-    if (change === 'down') quality.stepped = true;
-    saveAuto(quality.level);
-    if (was !== quality.level) applyShadowQuality();
+    const ms = rawDt * 1000; if (ms >= QUALITY.capMs[0] && ms <= QUALITY.capMs[1]) this.capN++;
+    if (this.t < (this.st.probed ? QUALITY.win : QUALITY.probe)) return;
+    const w = { fps: this.frames / this.t, dur: this.t, capped: this.capN / this.frames >= QUALITY.cap, calm: this.since >= QUALITY.calmS };
+    this.t = this.frames = this.capN = 0;
+    const was = { ...quality.cfg }, ch = adaptStep(this.st, w, QUALITY);
+    if (!ch) return;
+    setRung(this.st.rung); setScale(this.st.scale); keepRung();
+    if (ch === 'down' || ch === 'scale') quality.stepped = true;
+    const c = quality.cfg;
+    if (c.shadows !== was.shadows || c.softShadows !== was.softShadows) applyShadowQuality(); // (a hitch: only ever when calm)
+    if (c.far !== was.far) applyFar();
     applyPixelRatio(); onResize(); updateQualityNote();
-    this.total = 0; // (settle again after a change)
+    if (ch !== 'scale') this.total = 0; // (settle again after a change)
   },
 };
 
@@ -976,6 +981,7 @@ function loop(now) {
       if (clientIntro && G.player && G.state === 'play') { clientIntro = false; startIntro(G.player); }
       if (intro) introTick(dt);
       if (live && (G.state === 'play' || G.state === 'end')) drawMatch(rdt); else demo(dt);
+      if (live && G.state === 'play') watchdog.tick(raw); // (F14: joined phones adapt too)
     } else if (G.state === 'intro') {
       if (intro) introTick(dt); // (the opening: the sim waits, the camera tells the story)
       if (isHost() && performance.now() - (session.NET.lastSend || 0) > 400) netHostSend(true); // (hosting: the joined phones still hear from us while everyone waits)
@@ -1015,7 +1021,7 @@ window.__fb = {
       teams: G.teams.map(s => ({ p: Math.round(s.points), t: s.tickets, c: s.caps, g: Math.round(s.gold), alive: s.alive, h: s.human ? 1 : 0, plan: s.plan && s.plan.kind, lead: s.leader && { m: s.leader.mounted, dead: s.leader.dead } })),
       kinds: ['foot', 'arch'].map(k => G.units.filter(u => !u.dead && u.kind === k).length),
       flag: G.flag && { s: G.flag.state }, player: p && { x: r1(p.x), z: r1(p.z), hp: Math.round(p.hp), mounted: p.mounted, dead: p.dead, id: p.id },
-      gfx: { level: quality.level, setting: quality.setting, fps: Math.round(fpsAvg), calls: renderer.info.render.calls, tris: renderer.info.render.triangles, batches: drawCalls() } };
+      gfx: { level: quality.level, setting: quality.setting, rung: quality.rung, scale: quality.scale, fps: Math.round(fpsAvg), calls: renderer.info.render.calls, tris: renderer.info.render.triangles, batches: drawCalls() } };
   },
   // drive: also run the player captain with an idle stick (or a given one), so jumps and buffered attacks advance
   step(n, dt = 1 / 30, drive) { const inp = drive ? Object.assign({ wx: 0, wz: 0, mag: 0, block: false, attackHeld: false, camYaw: 0 }, drive === true ? {} : drive) : null; for (let i = 0; i < n && G.state === 'play'; i++) update(dt, inp); },

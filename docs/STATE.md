@@ -2,7 +2,7 @@
 
 Current work: **friends' playtest fixes (F tickets) and lag (Phase 0)**, then Roles & Combat (design and plan in
 Claude Docs, links in CLAUDE.md). Every builder updates this file as the last step of its ticket. Owner: Opus owner chat.
-Last updated: 2026-11-13 (F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
+Last updated: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
 
 ## Live on main
 - P0.1 Dead-code cleanup · P0.2 Lag harness · P0.3 Ping readout · M1 Neutral soldiers look like soldiers
@@ -128,9 +128,13 @@ Last updated: 2026-11-13 (F7 built on `roles`; F15, F12, F13, F16 shipped to mai
   Only seen headless: Arjun judges the feel; the scream is still the placeholder (comic one with the sounds pick).
 
 ## F14 Adapts to any phone (13 Nov; card `docs/tickets/F14.md`). On `roles`, not shipped
-- Auto graphics now adjust all battle: down when slow (level, then render scale to 0.7), back up after 12 s smooth,
-  never above the detected level; the level reached is kept for the next battle. `ADAPT` in config.js.
-- `r_F14.mjs` 12/12 (the rule); `r_F14b.mjs` (slow headless battle). Arjun checks on a weak Android.
+- Rebuilt to Arjun's picks (replaces the first F14 rule): Auto is a ladder in `QUALITY` (config.js). First guess
+  from chip + screen, 5 s probe, then all battle: down in Arjun's order (resolution, shadows, clouds and far
+  scenery, distant soldiers, last-resort resolution), up after 20 s smooth. Mid-fight only resolution moves;
+  visible steps wait for 2 s of calm. Joined phones adapt too. Rung kept per phone (chip + screen).
+- `r_F14.mjs` 37/37 (rule, guess, memory); `r_F14b.mjs` 9/9 (slow headless battle, live switches); crown2sim and
+  crown2online pass roles off and on. Arjun checks feel on his phone and a weak Android.
+- Process: two chats built F14 at once. Owner: mark a ticket "in progress, <chat>" here before handing it out.
 - Next from the visual polish pass (design doc, Changes for the owner): B combat juice extras, C living world, D art pass.
 
 ## F18 + F19 + F20 Visual polish pass B, C, D (13 Nov; cards in docs/tickets). On `roles`, not shipped
@@ -144,7 +148,7 @@ Last updated: 2026-11-13 (F7 built on `roles`; F15, F12, F13, F16 shipped to mai
 | # | Ticket | What | Model | Waits on |
 |---|---|---|---|---|
 | 1 | F7 | No abrupt cuts: built 13 Nov, waiting for Arjun's "ship" | S | Arjun's ship |
-| 5 | F14 | Adapts to any phone: built 13 Nov, waiting for Arjun's "ship" | O | Arjun's ship |
+| 5 | F14 | Adapts to any phone: rebuilt 13 Nov to Arjun's picks, waiting for Arjun's "ship" | S | Arjun's ship |
 | 6 | F4 | Neutral garrisons and camps fight as real soldiers and ambush (today one shared health pool, standing still) | O | card |
 | 7 | F9 | Horse charges: full stop only on Hold and facing; standing men slow it; moving or flanked men are bowled over | O | card |
 | 9 | F2 | One lobby for all 8 or 12 players: lanes (left, right, jungle), ready-up, 10 s versus screen | O | card |
@@ -176,4 +180,5 @@ Last updated: 2026-11-13 (F7 built on `roles`; F15, F12, F13, F16 shipped to mai
 - Budget: 50 dollars, nothing spent.
 
 ## Known bugs
-- High only: a black wedge down the left edge at the Crown start (seen in F1a's test shots, before and after F1a).
+- High only: a black wedge down the left edge at the Crown start. Not reproduced on 13 Nov (F14): F1a's exact
+  seed, 844x390, High, frames 60-420, with and without `?f1=ab`: edges clean. Likely gone with later map work; Arjun says if he sees it.

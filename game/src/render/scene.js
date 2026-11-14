@@ -52,7 +52,7 @@ sky.renderOrder = -10; sky.frustumCulled = false;
 scene.add(sky);
 
 export const view = { W: 0, H: 0, DPR: 1 };
-export function applyPixelRatio() { renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, quality.cfg.pixelRatio) * (quality.scale || 1)); }
+export function applyPixelRatio() { renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, quality.cfg.pixelRatio) * (quality.scale || 1)); } // (F14: scale drops mid-fight while a visible step waits)
 export function resize() {
   view.W = innerWidth; view.H = innerHeight; view.DPR = Math.min(window.devicePixelRatio || 1, 2);
   applyPixelRatio();
@@ -76,10 +76,12 @@ export function applyShadowQuality() {
     if (s.map) { s.map.dispose(); s.map = null; }
   }
   if (changed) scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => m.needsUpdate = true); });
-  skyU.clouds.value = q.clouds ? 1 : 0;
+  applyFar();
   return on;
 }
 export const shadowsOn = () => renderer.shadowMap.enabled;
+// F14: clouds and far scenery, switchable mid-battle (the sky's clouds, the water's fine ripples; the mountain's cloud sea and birds read it each frame)
+export function applyFar() { const on = quality.cfg.far ? 1 : 0; skyU.clouds.value = on; WATER.detail.value = on; }
 
 // Keeps the sun's shadow box centred on what the camera looks at, snapped to shadow texels so edges don't shimmer.
 const tmp = new THREE.Vector3();
