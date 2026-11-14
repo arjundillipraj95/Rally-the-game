@@ -2,7 +2,7 @@
 
 Current work: **friends' playtest fixes (F tickets) and lag (Phase 0)**, then Roles & Combat (design and plan in
 Claude Docs, links in CLAUDE.md). Every builder updates this file as the last step of its ticket. Owner: Opus owner chat.
-Last updated: 2026-11-14 (F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
+Last updated: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
 
 ## Live on main
 - P0.1 Dead-code cleanup · P0.2 Lag harness · P0.3 Ping readout · M1 Neutral soldiers look like soldiers
@@ -181,13 +181,20 @@ Last updated: 2026-11-14 (F2 one lobby built on `roles`; M3 dropped by Arjun). B
   crown2sim and crown2online pass roles off and on. Headless link-up after the versus took ~21 s (slow box).
 - Not done: lanes in the battle (plan only, design 02), role pick in the lobby (P6.3), the private lobby, voice.
 
+## F4 Garrisons and camps are real soldiers (14 Nov; card `docs/tickets/F4.md`). On branch `t/F4`, not shipped
+- 20 posts (12 castles, 8 camps) x 3 footmen + 2 archers = 100 real grey soldiers (ti 12, everyone's enemy). They hold their
+  spots; an army's man within 9 m (or a blow on one) wakes the post; footmen chase inside 14 m, archers shoot to 18 m; 3 s
+  with nobody near and they walk back and heal. Castle untakeable while a guard lives; camp's last kill pays 50, back in 90 s.
+- Numbers: `CROWN2.guards`/`camp`, `NEUTRAL` in config.js. Sleeping men cost ~0.1-0.2 ms a step and no snapshot bytes; draw calls unchanged.
+- `r_F4.mjs` 21/21; crown2sim + crown2online pass roles off and on. Arjun judges the feel on his phone.
+
 ## Build queue (in order; model = best fit; Fable 5.2 available until 15 Nov)
 | # | Ticket | What | Model | Waits on |
 |---|---|---|---|---|
 | 0 | F21 | Music that follows you: built 14 Nov, waiting for Arjun's listen and "ship" | O | Arjun's ship |
 | 1 | F7 | No abrupt cuts: built 13 Nov, waiting for Arjun's "ship" | S | Arjun's ship |
 | 5 | F14 | Adapts to any phone: rebuilt 13 Nov to Arjun's picks, waiting for Arjun's "ship" | S | Arjun's ship |
-| 6 | F4 | Neutral garrisons and camps fight as real soldiers and ambush (today one shared health pool, standing still) | O | card |
+| 6 | F4 | Neutral garrisons and camps fight as real soldiers and ambush: built 14 Nov on `t/F4`, waiting for Arjun's "ship" | O | Arjun's ship |
 | 7 | F9 | Horse charges: full stop only on Hold and facing; standing men slow it; moving or flanked men are bowled over | O | card |
 | 9 | F2 | One lobby: built 14 Nov, waiting for Arjun's "ship" | O | Arjun's ship |
 | 11 | P0.11 | Matchmake by region first (India with India, US with US) | S | |

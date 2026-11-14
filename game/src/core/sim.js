@@ -1,8 +1,8 @@
 // Battle rules: units, combat, horses, the banner, AI and win conditions.
 // Engine-agnostic: talks to the outside world only through G (state) and bus (events).
-import { STAMINA, DUEL_DIR, CROWN2, FEEL , LAUNCH } from '../config.js';
+import { STAMINA, DUEL_DIR, CROWN2, FEEL , LAUNCH, NEUTRAL } from '../config.js';
 import { CROWN, ECON, TEAMS, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, CASTLE_R, CASTLE_REACH, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, HOLDS, EVADE, FORT, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT, DUEL, CHEST, STREAK, BASH, LAST, VCHARGE, RHYTHM, PUSH, ARMOUR } from '../config.js';
-import { G, bus, isEnemy, isEnemyTi, colorOf, activeArmies, activeFrom, gateOff, ARMIES, rules, matchTime, noCastle, capOf, isC2 } from './state.js';
+import { G, bus, isEnemy, isEnemyTi, colorOf, NEUTRAL_TI, activeArmies, activeFrom, gateOff, ARMIES, rules, matchTime, noCastle, capOf, isC2 } from './state.js';
 import { deepWater, groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W, groundSlow, onIce, mountHomeA } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable, setPalSeg } from './nav.js';
 
@@ -38,7 +38,8 @@ export function mkUnit(ti, x, z, kind, human = false) {
     kick: { n: 0, vx: 0, vz: 0, st: 0, dirty: false },
     // player captains: current weapon, jump state, javelin ammo, sword combo, buffered attack press
     weapon: kind === 'captain' && human ? ((G.teams[ti] && G.teams[ti].weapon) || 'sword') : undefined,
-    jy: 0, jvy: 0, jumpCd: 0, javAmmo: CAPTAIN_COMBAT.jav.ammo + tier, javRegen: 0, combo: 0, lastSwingT: -9, atkBuf: 0, st: STAMINA.max, stT: -9 };
+    jy: 0, jvy: 0, jumpCd: 0, javAmmo: CAPTAIN_COMBAT.jav.ammo + tier, javRegen: 0, combo: 0, lastSwingT: -9, atkBuf: 0, st: STAMINA.max, stT: -9,
+    neutral: false, post: null, pk: 0, px: 0, pz: 0, pface: 0, rest: false, tface: 0 }; // (F4: a garrison's man fills these in; every unit has them so they all share one shape)
   G.units.push(u); return u;
 }
 // (F7) Stepping out: a captain back on his feet (and at the start, with his men), or a soldier just raised, walks out
@@ -354,7 +355,7 @@ function horseDamage(r, dmg) {
   spark(r.x, r.y + 1.3, r.z, '#d42a1e', 5); sound('hit', r.x, r.z);
   if (r.horseHp <= 0) dismount(r, true);
 }
-const spearNear = (u, d) => G.units.some(o => !o.dead && isEnemy(o, u) && o.kind === 'foot' && o.tier >= 1 && Math.hypot(o.x - u.x, o.z - u.z) < d);
+const spearNear = (u, d) => G.units.some(o => !o.dead && !o.rest && isEnemy(o, u) && o.kind === 'foot' && o.tier >= 1 && Math.hypot(o.x - u.x, o.z - u.z) < d);
 export const braced = s => s.kind === 'foot' && s.tier >= 1 && s.stun <= 0 && Math.hypot(s.vx, s.vz) < 2.2;
 export function toggleHorseFor(p) {
   if (!p || p.dead) return;
@@ -370,10 +371,10 @@ export function toggleHorseFor(p) {
 // ---------- combat ----------
 // A spatial grid of the living, rebuilt every step (8 m cells): the big battles have hundreds of men,
 // and asking "who's near me?" of every one of them, for every one of them, was most of a step's cost.
-const GC = 8; let grid = null, gridT = -1;
+const GC = 8; let grid = null, gridT = -1; // (F4: a sleeping garrison's men at their spots aren't in it: nobody's target, and their post wakes first)
 function buildGrid() {
   grid = new Map(); gridT = G.T;
-  for (const u of G.units) { if (u.dead) continue; const k = (Math.floor(u.x / GC) + 64) * 256 + (Math.floor(u.z / GC) + 64); let a = grid.get(k); if (!a) grid.set(k, a = []); a.push(u); }
+  for (const u of G.units) { if (u.dead || u.rest) continue; const k = (Math.floor(u.x / GC) + 64) * 256 + (Math.floor(u.z / GC) + 64); let a = grid.get(k); if (!a) grid.set(k, a = []); a.push(u); }
 }
 const gridOk = () => grid && gridT === G.T && G.role !== 'client';
 // every living unit in the cells within r of (x, z)
@@ -382,7 +383,8 @@ function eachNear(x, z, r, fn) {
   for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { const a = grid.get(i * 256 + j); if (a) for (let k = 0; k < a.length; k++) fn(a[k]); }
 }
 // "He's mine!": a soldier of a captain who has claimed an enemy captain leaves that captain alone
-const spared = (u, o) => { if (u.leader || !o.leader) return false; const m = G.teams[u.ti] && G.teams[u.ti].mine; return !!m && m.id === o.id && G.T < m.until; };
+const spared = (u, o) => { if (o.neutral && !o.post.awake && !u.neutral) return true; if (u.leader || !o.leader) return false; // (F4: a sleeping post is nobody's target; it wakes when a man comes close)
+  const m = G.teams[u.ti] && G.teams[u.ti].mine; return !!m && m.id === o.id && G.T < m.until; };
 export function nearestFoe(u, maxD, filter) {
   let best = null, bd = maxD * maxD;
   const ds = G.duels && G.duels.length > 0;
@@ -617,7 +619,7 @@ function hit(a, b, mult = 1, extra) {
     if (a.leader || b.leader) fx('fxmsg', { k: 'fxblk', u: b, a }); // (F6: a blow on a shield with a captain in it is a moment on every phone)
     if (b.isMe) fx('buzz', FEEL.hurt.blockBuzz);
   } else {
-    spark(hx, hy, hz, TEAMS[colorOf(b.ti)].css, 6); sound('hit', hx, hz);
+    spark(hx, hy, hz, b.neutral ? NEUTRAL.css : TEAMS[colorOf(b.ti)].css, 6); sound('hit', hx, hz);
     if (Math.random() < .4) fx('splat', { x: b.x + rnd(-.4, .4), z: b.z + rnd(-.4, .4), s: rnd(.6, 1.1), ti: b.ti });
     if (b.isMe) { fx('shake', FEEL.hurt.shake); fx('buzz', FEEL.hurt.buzz); }
   }
@@ -1109,6 +1111,7 @@ function shoot(u, tg, fromY = 1.6) {
   const tx = tg.x + tg.vx * lead + rnd(-j, j), tz = tg.z + tg.vz * lead + rnd(-j, j);
   const d = Math.hypot(tx - u.x, tz - u.z), y0 = (u.y || 0) + fromY;
   G.arrows.push(makeArrow({ id: ++G.arrowN, x0: u.x, y0, z0: u.z, x1: tx, z1: tz, y1: groundY(tx, tz) + 1.1, dur: .25 + d / 28, peak: Math.min(6, d * .16), ti: u.ti, t: 0, shooter: u, volley: volleying >= 0 }));
+  if (u.neutral) G.arrows[G.arrows.length - 1].neutral = true; // (F4: a garrison's arrow: kills read 'garrison')
   if (!u.tower) u.swing = .38;
   sound('bow', u.x, u.z);
 }
@@ -1152,7 +1155,7 @@ function arrowHit(a, b) {
   }
   if (blocked) { spark(b.x, b.y + 1.3, b.z, '#e8d9b0', 4); sound('thud', b.x, b.z); b.blockT = Math.max(b.blockT, .2); return; }
   if (b.leader && b.armour > 0) dmg = soak(b, dmg, false);
-  b.hp -= dmg; spark(b.x, b.y + 1.3, b.z, TEAMS[colorOf(b.ti)].css, 4); sound('hit', b.x, b.z);
+  b.hp -= dmg; spark(b.x, b.y + 1.3, b.z, b.neutral ? NEUTRAL.css : TEAMS[colorOf(b.ti)].css, 4); sound('hit', b.x, b.z);
   push(b, 0, 0, .12);
   if (b.isMe) { fx('shake', FEEL.hurt.arrowShake); fx('buzz', FEEL.hurt.arrowBuzz); }
   const sh = a.shooter;
@@ -1161,6 +1164,8 @@ function arrowHit(a, b) {
   if (b.hp <= 0) die(b, a.neutral ? null : sh && !sh.dead && !sh.tower ? sh : { ti: a.ti, human: false, leader: false }, Math.atan2(b.x - a.x0, b.z - a.z0));
 }
 export function die(u, killer, ang, launch = 0) {
+  if (killer && killer.neutral) { if (!u.cause) u.cause = 'garrison'; killer = null; } // (F4: cut down by a garrison: nobody's kill)
+  if (u.neutral) { if (!(u.shieldT > G.T)) dieNeutral(u, killer, ang, launch); return; }
   // (F5) what he fell to, for the card on his own phone: a captain's weapon, a captain's men, or the mountain
   const how = u.execBy ? 'exec' : u.cause === 'garrison' || u.cause === 'tower' ? u.cause : u.cause === 'enemy home' ? 'home' : u.cause ? 'fall' : u.howBy || (!killer ? 'fall' : killer.leader ? (killer.mounted ? 'horse' : killer.weapon === 'spear' ? 'spear' : 'sword') : killer.kind === 'arch' ? 'arrow' : 'men');
   u.howBy = null;
@@ -1418,7 +1423,7 @@ function hitWall(u, w) {
 // Owned by an alliance (G.ALLY value), not an army: allies share them. Taken by standing in one with
 // only your side's men there; a fight inside freezes it; empty, a half-taken one slowly reverts.
 export const makeHolds = L => (L.holds || []).map((h, i) => ({ ...h, id: i, owner: -1, prog: 0, cap: -1, tick: 0 }));
-const allianceOf = ti => G.ALLY[colorOf(ti)];
+const allianceOf = ti => ti >= NEUTRAL_TI ? -1 : G.ALLY[colorOf(ti)]; // (F4: the neutral soldiers are on no side)
 // the alliance clearly ahead on castle strength (conquest), or null when it's close
 function leadingSide() {
   const sc = new Map(); for (let c = 0; c < 4; c++) if (G.teams[c].active) sc.set(G.ALLY[c], (sc.get(G.ALLY[c]) || 0) + (G.teams[c].alive ? G.teams[c].points : 0) / G.ALLY.filter(x => x === G.ALLY[c]).length);
@@ -1564,9 +1569,9 @@ const towerInReach = u => (G.wtowers || []).find(w => w.a !== G.ALLY[colorOf(u.t
 const c2Kind = h => h.kind === 'castle' ? 'castle' : 'village';
 const c2Lv = h => h.kind === 'castle' ? Math.min(2, ((G.cgates[h.id] && G.cgates[h.id].lv) | 0)) : 0;
 const c2TakeT = h => h.kind === 'castle' ? CROWN2.take.castle[c2Lv(h)] : h.fort ? CROWN2.take.villageFort : CROWN2.take.village;
-const c2Guard = h => G.c2.breaks.find(b => b.kind === 'guard' && b.hid === h.id && b.hp > 0);
+const c2Guard = h => G.c2.breaks.find(b => b.kind === 'guard' && b.hid === h.id && b.n > 0); // (F4: while one of its guards lives)
 function c2Hold(h, dt) {
-  const n = new Map(), per = new Map(), count = u => { if (u.dead || u.routing || Math.hypot(u.x - h.x, u.z - h.z) > h.r) return; const a = allianceOf(u.ti); n.set(a, (n.get(a) || 0) + 1); per.set(u.ti, (per.get(u.ti) || 0) + 1); };
+  const n = new Map(), per = new Map(), count = u => { if (u.dead || u.neutral || u.routing || Math.hypot(u.x - h.x, u.z - h.z) > h.r) return; const a = allianceOf(u.ti); n.set(a, (n.get(a) || 0) + 1); per.set(u.ti, (per.get(u.ti) || 0) + 1); };
   if (gridOk()) eachNear(h.x, h.z, h.r, count); else for (const u of G.units) count(u);
   h.contested = n.size > 1;
   const v = [...n.entries()].sort((p, q) => q[1] - p[1]), lead = v.length && !(v[1] && v[1][1] === v[0][1]) ? v[0][0] : null;
@@ -1605,27 +1610,126 @@ export function c2Breakdown(a) {
   return o;
 }
 // the things on the mountain you break: a neutral castle's guards, a bandit camp, the war chest, the glacier
-export function c2Begin() {
+export function c2Begin(mk = null) {
   const L = G.layout, K = G.c2 = { kills: {}, chestPts: {}, crownPts: {}, breaks: [], phase: 'shut', said: {}, chest: 0 };
   for (const h of G.holds) if (h.kind === 'castle') {
     if (G.cgates[h.id]) G.cgates[h.id] = freshGates(1); // (neutral: level 2)
-    const cw = L.cwalls.find(c => c.hid === h.id), g = cw ? cw.gate : 0, Q = CROWN2.guards, hp = Q.foot * STATS.foot.hp + Q.arch * STATS.arch.hp;
-    K.breaks.push({ brk: true, kind: 'guard', hid: h.id, x: h.x + Math.cos(g) * 4.5, z: h.z + Math.sin(g) * 4.5, r: 2.4, hp, max: hp, cd: 1, shootCd: [rnd(.5, 2), rnd(.5, 2)], men: Q.foot + Q.arch, foot: Q.foot, arch: Q.arch });
+    const cw = L.cwalls.find(c => c.hid === h.id), g = cw ? cw.gate : 0;
+    K.breaks.push(c2Post({ kind: 'guard', hid: h.id, x: h.x + Math.cos(g) * 4.5, z: h.z + Math.sin(g) * 4.5, r: 2.4 }, CROWN2.guards));
   }
-  for (const c of L.camps) { const Q = CROWN2.camp, hp = Q.foot * STATS.foot.hp + Q.arch * STATS.arch.hp; K.breaks.push({ brk: true, kind: 'camp', id: c.id, x: c.x, z: c.z, r: 2.6, hp, max: hp, cd: 1, shootCd: [rnd(.5, 2), rnd(.5, 2)], back: 0, men: Q.foot + Q.arch, foot: Q.foot, arch: Q.arch }); }
+  for (const c of L.camps) K.breaks.push(c2Post({ kind: 'camp', id: c.id, x: c.x, z: c.z, r: 2.6 }, CROWN2.camp));
+  // (F4) every post's men, real soldiers with fixed ids (a joined phone makes the same ones: `mk` is its maker)
+  let pi = 0; for (const b of K.breaks) if (b.post) { b.pi = pi++; for (let k = 0; k < b.men; k++) c2Man(b, k, mk); }
   K.breaks.push({ brk: true, kind: 'glacier', x: 0, z: 0, r: 2.6, hp: CROWN2.glacierHits, max: CROWN2.glacierHits });
   applyCastleGates();
   G.plazaWall.up = true; G.plazaWall.broken = 15; // (F7: the arena's gates stand open; the lake keeps everyone out)
 }
 const c2CanHit = (u, b) => b.kind === 'glacier' ? u.leader && G.c2.phase === 'night' : b.kind === 'chest' ? G.c2.chest === 1 : true;
-// how many of a garrison still stand: [footmen, archers] (the footmen in front go down first)
+// ---------- (F4) the mountain's neutral soldiers: a castle's guards and a jungle camp's bandits ----------
+// Each post is 3 footmen and 2 archers, real soldiers (ti NEUTRAL_TI, grey) standing at their spots facing out. A man of
+// an army coming within `ambush` m, or a blow or arrow on one of them, wakes the whole post: footmen go for the nearest
+// foe inside the leash, archers shoot from their spots. Nobody inside the leash for `calm` s and they walk back and
+// heal to full at their spots. A joined phone makes the same men (same ids) and is told who lives and where the
+// awake ones are (net/netgame.js).
+const NEU_ID = 900000;
+const postQ = b => b.kind === 'guard' ? CROWN2.guards : CROWN2.camp;
+function c2Post(o, Q) {
+  return Object.assign(o, { brk: true, post: true, foot: Q.foot, arch: Q.arch, men: Q.foot + Q.arch, units: [], n: Q.foot + Q.arch,
+    awake: false, calmT: 0, scanT: 0, back: 0, hp: Q.foot * STATS.foot.hp + Q.arch * STATS.arch.hp, max: Q.foot * STATS.foot.hp + Q.arch * STATS.arch.hp });
+}
+// a man's spot at his post: footmen on the inner ring, archers on the outer, facing out
+export function c2Spot(b, k) {
+  const N = NEUTRAL, archer = k >= b.foot, a = archer ? (k - b.foot) / Math.max(1, b.arch) * Math.PI * 2 + 1.2 : k / b.foot * Math.PI * 2 + .4, rr = archer ? N.ringA : N.ringF;
+  return [b.x + Math.cos(a) * rr, b.z + Math.sin(a) * rr, Math.atan2(Math.cos(a), Math.sin(a))];
+}
+export const c2ManId = (b, k) => NEU_ID + b.pi * 8 + k;
+export function c2Man(b, k, mk = null) {
+  const [x, z, f] = c2Spot(b, k), kind = k < b.foot ? 'foot' : 'arch', id = c2ManId(b, k);
+  const u = mk ? mk(id, kind, NEUTRAL_TI, x, z) : mkUnit(NEUTRAL_TI, x, z, kind);
+  integrate(u, 0, u.z); // (a spot inside a wall or a camp's gear: the nearest clear ground is his spot; the same on every phone)
+  u.id = id; u.neutral = true; u.post = b; u.pk = k; u.px = u.x; u.pz = u.z; u.pface = f; u.face = f; u.tface = f; u.cd = rnd(0, .6); u.rest = true;
+  b.units[k] = u; return u;
+}
+// an army's man (not at home) within r m of the post
+function c2Passer(b, r) {
+  let hit = false; const see = o => { if (hit || o.dead || o.neutral || o.inSafe || o.hidden) return; if ((o.x - b.x) ** 2 + (o.z - b.z) ** 2 < r * r) hit = true; };
+  if (gridOk()) eachNear(b.x, b.z, r, see); else for (const o of G.units) see(o);
+  return hit;
+}
+function c2Wake(b) { b.awake = true; b.calmT = 0; for (const u of b.units) if (u && !u.dead) { u.rt = 0; u.rest = false; } }
+function c2PostTick(b, dt) {
+  const Q = postQ(b), T = G.T; let n = 0, hp = 0, hit = false;
+  for (const u of b.units) if (u && !u.dead) { n++; hp += u.hp; if (T - u.lastHit < .5) hit = true; }
+  b.n = n; b.hp = hp;
+  if (!n) { b.awake = false; if (b.kind === 'camp' && b.back && T >= b.back) c2Restock(b); return; }
+  if (!b.awake) {
+    if (hit) { c2Wake(b); return; } if ((b.scanT -= dt) > 0) return; b.scanT = NEUTRAL.scan;
+    for (const u of b.units) if (u && !u.dead && u.rest && (u.x - u.px) ** 2 + (u.z - u.pz) ** 2 > NEUTRAL.home ** 2) u.rest = false; // (shoved off his spot: he walks back)
+    if (c2Passer(b, Q.ambush)) c2Wake(b); return;
+  }
+  if (hit || c2Passer(b, Math.max(Q.leash, Q.archR))) b.calmT = 0;
+  else if ((b.calmT += dt) >= Q.calm) { b.awake = false; b.scanT = NEUTRAL.scan; for (const u of b.units) if (u) { u.foe = null; u.fd = 1e9; u.aim = false; } }
+}
+// a cleared camp's men come back
+function c2Restock(b) {
+  G.units = G.units.filter(u => !(u.neutral && u.post === b));
+  for (let k = 0; k < b.men; k++) c2Man(b, k);
+  b.back = 0; b.n = b.men; b.scanT = 0; b.awake = false;
+}
+// the last man of a post cut down: a camp pays its gold to the army that did it, and fills again in time
+function c2PostCleared(b, killer) {
+  if (b.kind === 'camp') { b.back = G.T + CROWN2.camp.back; if (killer && G.teams[killer.ti]) G.teams[killer.ti].gold += CROWN2.camp.gold; }
+  if (killer) hl(killer.ti, 'hold');
+}
+// a neutral soldier's death: the fall, the gold (if any) for the man, and his post's tally; no morale, no results line
+function dieNeutral(u, killer, ang, launch) {
+  if (u.dead) return;
+  u.dead = true; u.deadT = 0; u.foe = null;
+  if (launch) { const f = rnd(LAUNCH.push[0], LAUNCH.push[1]); u.vx += Math.sin(ang) * f; u.vz += Math.cos(ang) * f; u.vy = rnd(LAUNCH.up[0], LAUNCH.up[1]); u.launch = true; sound('scream', u.x, u.z); }
+  else { u.vx += Math.sin(ang) * 6; u.vz += Math.cos(ang) * 6; u.vy = rnd(3, 6); }
+  u.fallDir = Math.random() < .5 ? 1 : -1;
+  fx('splat', { x: u.x, z: u.z, s: rnd(1, 1.5), ti: u.ti }); sound('die', u.x, u.z);
+  const b = u.post, Q = postQ(b);
+  if (killer && G.teams[killer.ti]) { G.teams[killer.ti].gold += Q.manGold; gainRally(killer, RALLY.kill); }
+  b.n = b.units.filter(m => m && !m.dead).length;
+  if (!b.n) c2PostCleared(b, killer);
+}
+// a neutral soldier's mind: at his spot while the post sleeps (whole again once there); awake, footmen fight inside the
+// leash and archers shoot from their spots
+function thinkNeutral(u, dt) {
+  const b = u.post, Q = postQ(b); u.aim = false;
+  const back = () => { const d = go(u, u.px, u.pz, speedOf(u), dt, .15); if (d < NEUTRAL.home) { u.face = turn(u.face, u.pface, dt * 6); if (!b.awake) { u.hp = u.max; if (Math.abs(angDiff(u.face, u.pface)) < .05) { u.rest = true; u.vx = u.vz = 0; } } } };
+  if (!b.awake) { back(); return; }
+  const foe = u.foe && !u.foe.dead ? u.foe : null, fd = foe ? Math.hypot(foe.x - u.x, foe.z - u.z) : 1e9;
+  if (u.kind === 'arch') {
+    if (foe && fd < u.r + foe.r + u.reach) { faceTo(u, foe.x, foe.z, dt); moveToward(u, u.x, u.z, 0, dt); startSwing(u, foe); return; }
+    if (foe && fd <= Q.archR) {
+      if (Math.hypot(u.px - u.x, u.pz - u.z) > 1.5) go(u, u.px, u.pz, speedOf(u), dt, .3); else moveToward(u, u.x, u.z, 0, dt);
+      u.aim = true; faceTo(u, foe.x, foe.z, dt, 8);
+      if (u.shootCd <= 0 && u.stun <= 0 && Math.abs(angDiff(u.face, Math.atan2(foe.x - u.x, foe.z - u.z))) < .3) { shoot(u, foe); u.shootCd = u.shootBase * rnd(.85, 1.2); }
+      return;
+    }
+    back(); return;
+  }
+  if (!foe) { back(); return; }
+  go(u, foe.x, foe.z, speedOf(u), dt, u.r + foe.r + u.reach * .7); faceTo(u, foe.x, foe.z, dt);
+  if (fd < u.r + foe.r + u.reach) startSwing(u, foe);
+  const dx = u.x - b.x, dz = u.z - b.z, dd = Math.hypot(dx, dz), lim = Q.leash + 1.5; // (never past the leash)
+  if (dd > lim) { u.x = b.x + dx / dd * lim; u.z = b.z + dz / dd * lim; u.vx = u.vz = 0; }
+}
+// a neutral man picks his foe: an army's man inside his post's leash (archers: their range), none while it sleeps
+function neutralFoe(u) {
+  const b = u.post, Q = postQ(b); if (!b.awake) return [null, 1e9];
+  const r = u.kind === 'arch' ? Math.max(Q.leash, Q.archR) : Q.leash;
+  return nearestFoe(u, r + 8, o => !o.inSafe && (o.x - b.x) ** 2 + (o.z - b.z) ** 2 < r * r);
+}
+// how many of a garrison still stand: [footmen, archers] (F4: its live men)
 export function c2Garrison(b) {
-  if (b.hp <= 0) return [0, 0];
-  const ah = (b.arch || 0) * STATS.arch.hp, f = Math.max(0, Math.min(b.foot || 0, Math.ceil((b.hp - ah) / STATS.foot.hp)));
-  return [f, f > 0 ? b.arch || 0 : Math.min(b.arch || 0, Math.ceil(b.hp / STATS.arch.hp))];
+  let f = 0, a = 0; for (const u of b.units || []) if (u && !u.dead) { if (u.kind === 'arch') a++; else f++; }
+  return [f, a];
 }
 export function c2BreakInReach(u) {
-  for (const b of G.c2.breaks) { if (b.hp <= 0 || !c2CanHit(u, b)) continue; if (Math.hypot(b.x - u.x, b.z - u.z) < u.r + u.reach + b.r) return b; }
+  for (const b of G.c2.breaks) { if (b.post || b.hp <= 0 || !c2CanHit(u, b)) continue; if (Math.hypot(b.x - u.x, b.z - u.z) < u.r + u.reach + b.r) return b; }
   return null;
 }
 function c2Hit(u, b) {
@@ -1634,9 +1738,7 @@ function c2Hit(u, b) {
   sound('wall', b.x, b.z); spark(b.x, groundY(b.x, b.z) + 1.4, b.z, b.kind === 'glacier' ? '#bfe6f5' : b.kind === 'chest' ? '#ffcf3a' : '#b33a2a', 4);
   if (b.hp > 0) return;
   b.hp = 0; const a = allianceOf(u.ti), K = G.c2;
-  if (b.kind === 'camp') { G.teams[u.ti].gold += CROWN2.camp.gold; b.back = G.T + CROWN2.camp.back; hl(u.ti, 'hold'); }
-  else if (b.kind === 'guard') { hl(u.ti, 'hold'); }
-  else if (b.kind === 'chest') { c2ChestTo(a, u.ti); }
+  if (b.kind === 'chest') { c2ChestTo(a, u.ti); }
   else if (b.kind === 'glacier') { K.crownPts[a] = CROWN2.points.crown; hl(u.ti, 'crown'); say('crownTaken', u.ti); fx('netFlush'); c2End('crown'); }
 }
 function c2ChestTo(a, ti = -1) { // (ti: the captain whose blow broke it, if anyone's)
@@ -1726,11 +1828,11 @@ function c2Tick(dt) {
   // F7 the lake: nobody crosses while it's up, the flood carries everyone out, from 8:00 soldiers stay out (c2Water)
   { const W = c2Lake(); for (let k = 0; k < 4; k++) setPalSeg('pg' + k, W.block); // (the pathfinder: no way through the arena under water)
     if (W.count > 0) once('c2flood', Math.round(W.count));
-    for (const u of G.units) if (!u.dead) c2Water(u, dt, !u.remote, true); }
+    for (const u of G.units) if (!u.dead && !u.rest) c2Water(u, dt, !u.remote, true); } // (F4: a sleeping garrison's men stand where no water comes)
   // over the edge into the chasm, "300" style (F7): he teeters at the rim in slow motion, flailing and screaming, then
   // drops out of sight; dead at FEEL.chasm.fall, untouchable throughout (and no home's shield saves him: else he'd fall twice); his body falls on and is gone when it lands
   { const H = CROWN2.h, C = G.layout.chasm; for (const u of G.units) {
-    if (u.dead || u.flood) continue;
+    if (u.dead || u.flood || u.rest) continue;
     if (u.chasmT > 0) { u.chasmT -= dt; if (u.chasmT <= 0) { u.chasmT = 0; u.cause = 'chasm'; u.shieldT = 0; const vy = u.vy; die(u, null, 0); u.fz = 0; u.vx = u.dvx; u.vz = u.dvz; u.vy = Math.min(vy, -2); u.chasmGone = true; } continue; }
     const d = Math.hypot(u.x, u.z);
     if (u.jy > .3 || d >= C.r + C.w + 1 || groundY(u.x, u.z) >= H.top - 4) continue;
@@ -1741,11 +1843,11 @@ function c2Tick(dt) {
   } }
   // the glacier is solid: you stand at its face and hack, not inside it
   { const gl = K.breaks.find(b => b.kind === 'glacier'); if (gl && gl.hp > 0) for (const u of G.units) {
-    if (u.dead) continue; const d = Math.hypot(u.x - gl.x, u.z - gl.z), m = gl.r - .2 + u.r; if (d >= m) continue;
+    if (u.dead || u.rest) continue; const d = Math.hypot(u.x - gl.x, u.z - gl.z), m = gl.r - .2 + u.r; if (d >= m) continue;
     const k = m / (d || 1); u.x = d ? gl.x + (u.x - gl.x) * k : gl.x + m; u.z = d ? gl.z + (u.z - gl.z) * k : gl.z; } }
   // home: enemies burn, yours heal and can't be killed, and leave at a run
   for (const u of G.units) {
-    if (u.dead) continue;
+    if (u.dead || u.neutral) continue; // (F4: no home is a neutral man's)
     const c = colorOf(u.ti); u.inSafe = false;
     for (const h of G.layout.homes) {
       const dx = u.x - h.x, dz = u.z - h.z; if (dx * dx + dz * dz > h.r * h.r) continue;
@@ -1756,35 +1858,9 @@ function c2Tick(dt) {
     if (u.shieldT > T && u.shieldHp != null) u.hp = Math.max(u.hp, Math.min(u.max, u.shieldHp));
     u.shieldHp = u.shieldT > T ? u.hp : null;
   }
-  // the guards and the bandits fight back like any squad (3 footmen, 2 archers); the camps fill again in time
-  for (const b of K.breaks) {
-    if (b.kind === 'camp' && b.hp <= 0 && b.back && T >= b.back) { b.hp = b.max; b.back = 0; }
-    if ((b.kind !== 'guard' && b.kind !== 'camp') || b.hp <= 0) continue;
-    const st = b.kind === 'guard' ? C.guards : C.camp, [nf, na] = c2Garrison(b), near = [];
-    for (const u of G.units) { if (u.dead || u.inSafe) continue; const d = Math.hypot(u.x - b.x, u.z - b.z); if (d < st.roused + 2) near.push([d, u]); }
-    near.sort((p, q) => p[0] - q[0]);
-    // the footmen: each swings at one of the nearest in reach (spread over them), a footman's blow
-    b.cd -= dt;
-    if (b.cd <= 0) { const inReach = near.filter(([d]) => d < b.r + st.reach + .6);
-      if (!inReach.length) b.cd = .3;
-      else { b.cd = STATS.foot.cd * rnd(.85, 1.15); b.swingT = T;
-        for (let k = 0; k < nf; k++) { const v = inReach[k % inReach.length][1]; if (v.dead) continue;
-          let dmg = STATS.foot.dmg * rnd(.8, 1.2) * DIFF[G.diff].dmg; if (v.leader && v.armour > 0) dmg = soak(v, dmg, false);
-          if (v.human && v.blocking) { dmg *= .25; spark(v.x, v.y + 1.3, v.z, '#e8d9b0', 3); }
-          v.hp -= dmg; v.lastHit = T; v.stun = Math.max(v.stun || 0, .15); sound('hit', v.x, v.z);
-          if (v.isMe) fx('shake', .15);
-          if (v.hp <= 0) { v.cause = 'garrison'; die(v, null, Math.atan2(v.x - b.x, v.z - b.z)); } } } }
-    // the archers: real arrows at whoever's close (farther once someone's hit them)
-    const range = T - (b.hitT ?? -99) < st.rouseT ? st.roused : st.near;
-    for (let k = 0; k < na; k++) { b.shootCd[k] -= dt; if (b.shootCd[k] > 0) continue;
-      const tg = near.find(([d, u]) => d < range && !u.dead); if (!tg) { b.shootCd[k] = .4; continue; }
-      b.shootCd[k] = STATS.arch.shoot * rnd(.85, 1.2);
-      const a = b.kind === 'guard' ? (G.layout.cwalls.find(c => c.hid === b.hid) || b) : b, oa = k * 2.4 + 1;
-      const sx = a === b ? b.x + Math.cos(oa) * 1.6 : a.x + Math.cos(oa) * (a.r - 1.6), sz = a === b ? b.z + Math.sin(oa) * 1.6 : a.z + Math.sin(oa) * (a.r - 1.6);
-      shoot({ x: sx, z: sz, y: groundY(sx, sz), vx: 0, vz: 0, ti: -1, tower: true, arrow: STATS.arch.arrow, jitter: STATS.arch.jitter }, tg[1], a === b ? 1.6 : 4.5);
-      G.arrows[G.arrows.length - 1].neutral = true; }
-  }
-  if (!K.clearT && !K.breaks.some(b => b.kind === 'guard' && b.hp > 0)) K.clearT = T; // (every castle's garrison down)
+  // (F4) the guards and the bandits: real men at their posts, roused by passers-by; the camps fill again in time
+  for (const b of K.breaks) if (b.post) c2PostTick(b, dt);
+  if (!K.clearT && !K.breaks.some(b => b.kind === 'guard' && b.n > 0)) K.clearT = T; // (every castle's garrison down)
   if (T >= C.crack) once('c2crack');
   if (T >= matchTime()) c2End('time');
 }
@@ -2620,7 +2696,7 @@ export function update(dt, input) {
   const zeros = () => new Array(ARMIES).fill(0), slotIdx = zeros(), archIdx = zeros(), meleeN = zeros(), archN = zeros(), tIdx = zeros();
   const ords = G.teams.map((_, i) => orderOf(i)), rng = G.teams.map((_, i) => auraRange(i) ** 2);
   for (const u of G.units) {
-    if (u.dead || u.leader) continue;
+    if (u.dead || u.leader || u.neutral) continue;
     if (u.kind !== 'arch') meleeN[u.ti]++; else archN[u.ti]++;
     const L = G.teams[u.ti].leader, dx = L ? L.x - u.x : 0, dz = L ? L.z - u.z : 0;
     u.aura = !!L && !L.dead && dx * dx + dz * dz < rng[u.ti];
@@ -2630,7 +2706,7 @@ export function update(dt, input) {
     const k = u.kind === 'foot' ? 0 : 1;
     u.tkey = G.teams[u.ti].human ? 1 - k : k;
   }
-  for (const k of [0, 1]) for (const u of G.units) if (!u.dead && !u.leader && u.tkey === k) u.tslot = tIdx[u.ti]++;
+  for (const k of [0, 1]) for (const u of G.units) if (!u.dead && !u.leader && !u.neutral && u.tkey === k) u.tslot = tIdx[u.ti]++;
   moraleTick(dt); duelTick(dt);
   // captains locked in single combat on foot: the men round them give them room
   for (const u of G.units) u.duel = null;
@@ -2649,7 +2725,7 @@ export function update(dt, input) {
   });
   const DT = dt;
   for (const u of G.units) {
-    if (u.dead) continue;
+    if (u.dead || u.rest) continue; // (F4: a sleeping garrison's man at his spot: nothing to do)
     // (the two men in a parry live a beat in slow motion; everyone else carries on)
     let dt = DT; if (u.slowT > 0) { u.slowT -= DT; dt = DT * PARRY.slow; }
     u.cd -= u.leader && winded(u) ? dt * STAMINA.cdSlow : dt; u.shootCd -= dt; u.javCd -= dt; u.stun -= dt; u.blockT -= dt; u.rt -= dt; u.trampleT -= dt;
@@ -2660,7 +2736,7 @@ export function update(dt, input) {
     heavyTick(u, dt); if (u.human) braceTick(u, dt); if (!u.leader) shieldTick(u, dt); else execTick(u, dt);
     if (u.swing > 0) u.swing -= dt;
     if (u.pending) { u.pending.t -= dt; if (u.pending.t <= 0) resolveSwing(u); }
-    if (u.rt <= 0) { u.rt = rnd(.25, .4); [u.foe, u.fd] = nearestFoe(u, 50); }
+    if (u.rt <= 0) { u.rt = rnd(.25, .4); [u.foe, u.fd] = u.neutral ? neutralFoe(u) : nearestFoe(u, 50); }
     if (u.foe && u.foe.dead) { u.foe = null; u.fd = 1e9; }
     if (u.foe) u.fd = Math.hypot(u.foe.x - u.x, u.foe.z - u.z);
     if (u.flood) continue; // (F7a: the flood has him)
@@ -2670,6 +2746,7 @@ export function update(dt, input) {
     if (u.execT > 0) continue; // (in an execution, one way or the other: no thinking)
     if (u.dashT > 0) { u.dashT -= dt; stepJump(u, dt); continue; } // (mid-evade: momentum carries him)
     if (u.evadeFollowT > 0) { u.evadeFollowT -= dt; if (u.evadeFollowT <= 0 && u.foe && u.fd < 4 && u.cd <= 0) { u.face = Math.atan2(u.foe.x - u.x, u.foe.z - u.z); captainAttack(u); } }
+    if (u.neutral) { if (u.stun > 0) moveToward(u, u.x, u.z, 0, dt); else thinkNeutral(u, dt); continue; } // (F4: a garrison's man)
     if (u.stun > 0 && !u.mounted) { moveToward(u, u.x, u.z, 0, dt); continue; } // (reeling: he can't turn to face you, so a stagger is the moment to get round him)
     if (u.leader) { stepJump(u, dt); regenJavs(u, dt); thinkLeader(u, G.teams[u.ti], dt);
       if (!u.human && G.plazaWall && G.plazaWall.up && u.cd <= 0 && !(u.fd < 3.5) && !u.mounted && !insidePlaza(u)) { const w = wallInReach(u, 1.9); if (w && w.plazaGate != null) startSwing(u, { wall: w }); }
@@ -2748,9 +2825,9 @@ export function update(dt, input) {
   }
 
   // separation: a simple push apart so crowds never overlap
-  const live = G.units.filter(u => !u.dead), SC = 2.5, sg = new Map();
+  const live = G.units.filter(u => !u.dead && !u.rest), SC = 2.5, sg = new Map(), nMove = live.length; // (F4: a sleeping garrison's men stand apart at their spots; anyone close enough to bump them has woken them)
   live.forEach((u, i) => { u.sepI = i; const k = (Math.floor(u.x / SC) + 128) * 512 + (Math.floor(u.z / SC) + 128); let a = sg.get(k); if (!a) sg.set(k, a = []); a.push(u); });
-  for (let i = 0; i < live.length; i++) {
+  for (let i = 0; i < nMove; i++) {
     const a = live[i], ci = Math.floor(a.x / SC) + 128, cj = Math.floor(a.z / SC) + 128;
     for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) { const cell = sg.get((ci + di) * 512 + cj + dj); if (!cell) continue;
     for (let q = 0; q < cell.length; q++) {
@@ -2771,6 +2848,7 @@ export function update(dt, input) {
     if (u.chasmT > 0) { const Ch = FEEL.chasm; if (Ch.fall - u.chasmT > Ch.teeter) { u.x += u.dvx * dt; u.z += u.dvz * dt; u.vy -= Ch.g * dt; u.y += u.vy * dt; } continue; } // (F7: teetering at the rim, then the drop)
     if (u.flood && !u.remote) continue; // (F7a: the flood moves him, in c2Water)
     if (u.remote) { u.y = groundY(u.x, u.z) + (u.jy || 0); continue; } // moved by their own phone
+    if (u.rest) continue; // (F4: standing still at his spot)
     integrate(u, u.slowT > 0 ? dt * PARRY.slow : dt, u.z);
   }
   G.units = G.units.filter(u => !(u.dead && u.deadT > FEEL.death.body && !(u.y > groundY(u.x, u.z) + .3))); // (F5: the fallen are taken away once they've lain and sunk, never out of the air)
@@ -2844,7 +2922,7 @@ export function arrowsTick(dt, authoritative) {
     if (a.t >= 1) {
       if (authoritative) {
         let best = null, bd = 1.0;
-        for (const o of G.units) { if (o.dead || !(a.neutral || isEnemyTi(o.ti, a.ti)) || (o.duelId && !(a.shooter && a.shooter.duelId === o.duelId))) continue; const d = Math.hypot(o.x - a.x1, o.z - a.z1) - (o.mounted ? .5 : 0); if (d < bd) { bd = d; best = o; } }
+        for (const o of G.units) { if (o.dead || !isEnemyTi(o.ti, a.ti) || (o.duelId && !(a.shooter && a.shooter.duelId === o.duelId))) continue; const d = Math.hypot(o.x - a.x1, o.z - a.z1) - (o.mounted ? .5 : 0); if (d < bd) { bd = d; best = o; } }
         if (a.volley) { const s = G.teams[a.ti]; if (s && G.units.some(o => !o.dead && isEnemyTi(o.ti, a.ti) && Math.hypot(o.x - a.x1, o.z - a.z1) < 6)) { if (!(s.vLandT > G.T - .5) && s.human && s.leader && !s.leader.dead) fx('fxmsg', { k: 'fxvland', u: s.leader }); s.vLandT = G.T; } } // (a volley's come down among them)
         if (best) { arrowHit(a, best); a.done = true; } else { a.stuck = true; a.life = 3; }
       } else { a.stuck = true; a.life = 2.5; }

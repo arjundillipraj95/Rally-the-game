@@ -1,7 +1,7 @@
 // The 2D layer drawn over the 3D view: sparks, floating text, health bars, names,
 // the banner pointer, the joystick and the red tint while you are down. Also the minimap.
 import * as THREE from 'three';
-import { TEAMS, DUEL, STREAK, RHYTHM, ARMOUR, STAMINA, DUEL_DIR, FEEL } from '../config.js';
+import { TEAMS, DUEL, STREAK, RHYTHM, ARMOUR, STAMINA, DUEL_DIR, FEEL, NEUTRAL } from '../config.js';
 import { bus } from '../core/state.js';
 import { G, isEnemyTi, isFfa, colorOf, noCastle } from '../core/state.js';
 import { claimed } from '../ui/messages.js';
@@ -106,7 +106,7 @@ export function drawOverlay(opts) {
       const [sx, sy, ok] = proj(u.x, u.y + (u.leader ? 3.2 : 2.8) + (u.mounted ? 1.2 : 0), u.z); if (!ok) continue;
       const w = u.leader ? 40 : 26;
       ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, sy, w, 4);
-      ctx.fillStyle = TEAMS[colorOf(u.ti)].css; ctx.fillRect(sx - w / 2, sy, w * Math.max(0, u.hp / u.max), 4);
+      ctx.fillStyle = u.neutral ? NEUTRAL.css : TEAMS[colorOf(u.ti)].css; ctx.fillRect(sx - w / 2, sy, w * Math.max(0, u.hp / u.max), 4);
       if (u.leader && (u.st ?? STAMINA.max) < STAMINA.max - 1) { ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, sy + 5, w, 2.5); ctx.fillStyle = u.st < STAMINA.low ? '#e0703a' : '#f2dc8a'; ctx.fillRect(sx - w / 2, sy + 5, w * Math.max(0, u.st) / STAMINA.max, 2.5); } // (stamina, when it's not full)
       if (u.leader && u.armour > .5) { ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, sy - 4, w, 3); ctx.fillStyle = '#c9d2dc'; ctx.fillRect(sx - w / 2, sy - 4, w * Math.min(1, u.armour / ARMOUR.hp), 3); } // (armour: a steel bar over the health)
       if (u.leader && u.ti !== G.myTi && opts.nickFor) { // (every captain's name over his head)
@@ -357,7 +357,7 @@ function drawMini() {
     mctx.beginPath(); mctx.arc(h.x * k, h.z * k, Math.max(6, h.r * k), 0, Math.PI * 2); mctx.stroke();
   }
   if (fogGrid()) drawFogMini(k);
-  for (const u of G.units) { if (u.dead || u.leader || u.fog) continue; mctx.fillStyle = TEAMS[colorOf(u.ti)].css; mctx.fillRect(u.x * k - 1.75, u.z * k - 1.75, 3.5, 3.5); }
+  for (const u of G.units) { if (u.dead || u.leader || u.fog || u.neutral) continue; mctx.fillStyle = TEAMS[colorOf(u.ti)].css; mctx.fillRect(u.x * k - 1.75, u.z * k - 1.75, 3.5, 3.5); }
   // captains stand out: your side's in a white ring (a bigger one for a player), the enemy's in a dark one
   const me = G.player, now = performance.now() / 1000;
   for (const u of G.units) {

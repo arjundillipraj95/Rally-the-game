@@ -179,14 +179,14 @@ splatMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MA
 splatMesh.frustumCulled = false; splatMesh.count = 0;
 scene.add(splatMesh);
 let decals = [], slot = 0;
-const splatCols = TEAMS.map(t => new THREE.Color(t.hex).multiplyScalar(.85));
+const splatCols = TEAMS.map(t => new THREE.Color(t.hex).multiplyScalar(.85)), neutralSplat = new THREE.Color(0x8d939a).multiplyScalar(.85); // (F4: the mountain's neutral men, ti 12)
 const mx = new THREE.Matrix4(), q = new THREE.Quaternion(), eu = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3();
 
 export function splat(x, z, s, ti) {
   if (inRiver(x, z)) return;
   const cap = quality.cfg.splats;
   if (decals.length >= cap) decals.shift();
-  decals.push({ x, z, s, rot: rnd(0, 6), t: 0, c: splatCols[ti == null ? 1 : colorOf(ti)], lift: (slot++ % MAX_SPLATS) * .0004 });
+  decals.push({ x, z, s, rot: rnd(0, 6), t: 0, c: ti >= 4 * 3 ? neutralSplat : splatCols[ti == null ? 1 : colorOf(ti)], lift: (slot++ % MAX_SPLATS) * .0004 });
 }
 
 // ---------- arrows ----------

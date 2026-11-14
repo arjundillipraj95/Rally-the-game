@@ -55,10 +55,14 @@ export const CROWN2 = {
   income: 6, gold: { castle: 2, village: 1 }, startGold: 150,
   bonus: { castle: 200, village: 100 }, steal: { castle: .1, village: .05 },
   take: { village: 7, villageFort: 11, castle: [10, 14, 18] }, villageFort: 80, // (seconds to take: a village; a castle at level 1, 2, 3)
-  // the neutral garrisons: a castle's guards and a jungle camp's bandits are a regular squad, 3 footmen and 2
-  // archers, with their hit points and blows (the footmen go down first); archers shoot anyone close, and farther once roused
-  guards: { foot: 3, arch: 2, reach: 1.7, near: 9, roused: 18, rouseT: 10 },
-  camp: { foot: 3, arch: 2, reach: 1.7, near: 9, roused: 18, rouseT: 10, gold: 50, back: 90 },
+  // the neutral garrisons (F4): a castle's guards and a jungle camp's bandits are real soldiers, 3 footmen and 2 archers,
+  // each fighting and dying on his own. They hold their post until an army's man comes within `ambush` m (or one of them
+  // is struck), then the whole post wakes: footmen go for the nearest foe but never past `leash` m from the post, archers
+  // shoot from it out to `archR` m. With no foe inside the leash for `calm` s they walk back and, at their spots, heal to
+  // full. `manGold`: gold for each man cut down (kept 0: the camp's `gold` is paid for the last one); `back`: s till a
+  // cleared camp's men return. A castle can't be taken while one of its guards lives.
+  guards: { foot: 3, arch: 2, ambush: 9, leash: 14, calm: 3, archR: 18, manGold: 0 },
+  camp: { foot: 3, arch: 2, ambush: 9, leash: 14, calm: 3, archR: 18, manGold: 0, gold: 50, back: 90 },
   points: { castle: 3, village: 2, chest: 4, crown: 7, killCaptain: 2, killArmy: 1 }, // (an enemy captain is worth 2 to the captain who cuts him down, 1 if your men get there first; once only)
   chest: 300, chestWarn: 20, chestShut: 420, chestHp: 250, // (the chest: 250 blows, any blow counts one, a soldier's or a captain's: whole armies swing at it, so it holds about 30 s under a full crowd)
   // (the war chest lands at 5:00 in the arena, armies let in; broken open, or at 7:00, the gates shut)
@@ -368,7 +372,9 @@ export const PING = { every: 2000, keep: 10, bands: [60, 100, 150, 200, 300] };
 // The mountain's neutral soldiers (M1): castle garrisons and jungle camps are drawn with the real soldier model
 // in grey steel, under a grey banner. `hex` is the grey the model's cloth and shield face are tinted to;
 // the banner is a pole (`h` tall) with a cloth (`w` x `ch`) in `cloth`, drawn `off` from the middle of the post.
-export const NEUTRAL = { hex: 0x8d939a, cloth: 0xa4a9b0, pole: 0x5a4632, h: 4.2, w: 1.5, ch: 1, off: 1 };
+// F4: the post's spots, footmen on a ring `ringF` m round its middle and archers on `ringA` m, facing out; `scan`: s between
+// a sleeping post's looks round for passers-by; `home`: m from his spot that counts as back at it.
+export const NEUTRAL = { css: '#9aa0a6', hex: 0x8d939a, cloth: 0xa4a9b0, pole: 0x5a4632, h: 4.2, w: 1.5, ch: 1, off: 1, ringF: 1.3, ringA: 2.5, scan: .25, home: .6 };
 // F1a the map in batches: still scenery folded into one mesh per material per square cell this many metres wide
 export const BATCH = { cell: 120 };
 

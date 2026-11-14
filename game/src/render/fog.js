@@ -25,12 +25,12 @@ export function fogTick(dt) {
   half = W.R + 16; const n = Math.ceil(half * 2 / CELL);
   if (n !== N || !grid) { N = n; grid = new Uint8Array(N * N); } else grid.fill(0);
   const a = G.ALLY[colorOf(G.myTi)];
-  for (const u of G.units) if (!u.dead && G.ALLY[colorOf(u.ti)] === a) mark(u.x, u.z, FOG.unit);
+  for (const u of G.units) if (!u.dead && !u.neutral && G.ALLY[colorOf(u.ti)] === a) mark(u.x, u.z, FOG.unit); // (F4: the neutral men light nobody's way)
   for (const h of G.holds || []) if (h.owner === a) mark(h.x, h.z, h.r + FOG.place);
   for (const w of G.wtowers || []) if (w.a === a && w.build >= 1) mark(w.x, w.z, FOG.tower);
   // the mountain: only the jungle hides anyone; everywhere else is in plain sight
   const J = onMount() && G.layout && G.layout.jungle;
   if (J) for (let j = 0; j < N; j++) { const cz = j * CELL - half + CELL / 2; for (let i = 0; i < N; i++) { const cx = i * CELL - half + CELL / 2, r = Math.hypot(cx, cz); if (r < J.r0 - 1 || r > J.r1 + 1) grid[j * N + i] = 1; } }
   const carrier = G.flag && G.flag.state === 'carried' ? G.flag.carrier : null;
-  for (const u of G.units) u.fog = G.ALLY[colorOf(u.ti)] !== a && u !== carrier && !seenAt(u.x, u.z);
+  for (const u of G.units) u.fog = !u.neutral && G.ALLY[colorOf(u.ti)] !== a && u !== carrier && !seenAt(u.x, u.z);
 }
