@@ -9,6 +9,11 @@ Sound effects in this folder are CC0 (public domain) recordings, trimmed, normal
 - artisticdude "RPG Sound Pack" (CC0) - https://opengameart.org/content/rpg-sound-pack
     swing4-6, draw*
 
-War drums, horns and the distant battle bed are synthesised in src/ui/audio.js.
+mus/*.mp3: single notes and hits from Versilian Studios "VSCO 2 Community Edition" (CC0) -
+https://github.com/sgossner/VSCO-2-CE (horn, cello and viola sections, harp, cello pizzicato, timpani,
+bass drum, frame drum, conga, gong). Trimmed, mono, levelled. The music engine in src/ui/audio.js plays them.
+
+The battle-start horns in sfx.horn and the distant battle bed are still synthesised in src/ui/audio.js
+(with the music off, the war drums are too).
 
 scream1-6 are original: synthesised for Rally by scripts/screams.py (a small source-filter voice model).

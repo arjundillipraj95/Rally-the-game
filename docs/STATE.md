@@ -161,9 +161,18 @@ Last updated: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `
 - F20: warmer mountain palette. Toon shading NOT done: needs its own ticket and Arjun's eye on shots.
 - `r_F18.mjs` 7/7; look shots via `TAG=x node store/r_look.mjs` (/tmp/look). Arjun judges the look and tone on his phone.
 
+## F21 Music that follows you (14 Nov, Arjun's sounds chat; card `docs/tickets/F21.md`). On `roles`, not shipped
+- The score plays recorded orchestra notes (VSCO 2 CE, CC0, 436 KB in `sfx/mus/`) in place of synth tones:
+  calm pad and harp; a hand drum and a quicker tempo on the move; drums, bass and horns in a fight; low health
+  muffles the music behind a heartbeat; night darker. Synth stays as the fallback until the notes load.
+- `r_F21.mjs` 8/8 headless. Arjun judges the mix on his phone.
+- Sound shortlist page (private artifact, Claude's picks for "feel there, subtle humour"): sound effects wait
+  for Arjun to download the first picks from Freesound / OpenGameArt (the workspace can't reach them).
+
 ## Build queue (in order; model = best fit; Fable 5.2 available until 15 Nov)
 | # | Ticket | What | Model | Waits on |
 |---|---|---|---|---|
+| 0 | F21 | Music that follows you: built 14 Nov, waiting for Arjun's listen and "ship" | O | Arjun's ship |
 | 1 | F7 | No abrupt cuts: built 13 Nov, waiting for Arjun's "ship" | S | Arjun's ship |
 | 5 | F14 | Adapts to any phone: rebuilt 13 Nov to Arjun's picks, waiting for Arjun's "ship" | S | Arjun's ship |
 | 6 | F4 | Neutral garrisons and camps fight as real soldiers and ambush (today one shared health pool, standing still) | O | card |
@@ -186,7 +195,7 @@ Last updated: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `
 2. Mixamo animation files (walk, run, sword attack, block, hit, death; FBX), upload to the chat.
 3. Say "ship" for F7 after trying it on his phone.
 4. The battle screen with the designer chat (fresh one from the design doc).
-5. Sound effects: pick from the owner's recommendations (Kenney, Sonniss GDC bundle, Freesound CC0).
+5. Sound effects: Claude picked them (shortlist page). Download the first pick under each sound into one folder; then the wiring ticket. Listen to F21's music on the phone.
 6. A duo battle with a friend to test voice, once V1 is shipped.
 7. Playtest with the friend in India after the lag tickets.
 
