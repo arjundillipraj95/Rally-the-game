@@ -276,7 +276,7 @@ export async function makeP2PRoom(code, host, onStage = () => {}) {
       ping: n => { if (hostConn && hostConn.open) try { hostConn.send({ t: 'ping', n }); } catch (e) {} },
       onPong: f => { pongFn = f; },
       // team voice (V1): audio calls straight to another phone; only works where the direct link works
-      voice: { me: () => myId, call: (id, stream) => peer.call(id, stream), onCall: f => { callFns.push(f); },
+      voice: { me: () => myId, signal: () => !peer.disconnected && !peer.destroyed, call: (id, stream) => peer.call(id, stream), onCall: f => { callFns.push(f); },
         relayed: () => !!(host ? [...conns.values()].some(c => c.relay) : hostConn && hostConn.relay) }, // (this phone's game link goes through the relay: its network let no direct link through)
     };
   });

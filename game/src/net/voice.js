@@ -7,10 +7,11 @@ import { G, bus, colorOf } from '../core/state.js';
 
 const KEY = 'rally.mic';
 const V = { on: true, stream: null, calls: new Map(), audio: new Map(), state: new Map(), timer: null, live: false,
-  starting: false, failed: null, room: null, asked: false, said: new Set() };
+  starting: false, failed: null, room: null, asked: false, said: new Set(),
+  since: new Map(), fail: new Map(), early: new Map(), err: new Map(), dir: new Map() }; // (V1d: when a teammate was first seen, failed-call count, calls that beat the seats, last call error, who started each call)
 try { V.on = localStorage.getItem(KEY) !== 'off'; } catch (e) {}
 // diagnostics (a real-phone test shows where voice stops): my mic's level, whether sound is leaving, and per teammate whether it arrives
-const D = { ac: null, an: null, buf: null, lv: 0, out: new Map(), inn: new Map(), why: '' };
+const D = { ac: null, an: null, buf: null, lv: 0, out: new Map(), inn: new Map(), route: new Map(), turned: 0, why: '' };
 function meter() {
   if (D.an || !V.stream) return;
   try { const AC = window.AudioContext || window.webkitAudioContext; D.ac = new AC(); const src = D.ac.createMediaStreamSource(V.stream); D.an = D.ac.createAnalyser(); D.an.fftSize = 512; D.buf = new Uint8Array(D.an.fftSize); src.connect(D.an); if (D.ac.state === 'suspended') D.ac.resume().catch(() => {}); } catch (e) { D.an = null; }
@@ -22,7 +23,8 @@ function level() { // 0..1 from the mic, 10 times a second
 }
 async function stats() { // once a second: bytes sent to / audio energy from each teammate
   for (const [p, c] of V.calls) { const pc = c.peerConnection; if (!pc) continue;
-    let sent = 0, got = 0; try { (await pc.getStats()).forEach(r => { if (r.type === 'outbound-rtp' && r.kind === 'audio') sent += r.bytesSent || 0; if (r.type === 'inbound-rtp' && r.kind === 'audio') got += r.totalAudioEnergy || 0; }); } catch (e) {}
+    let sent = 0, got = 0, pair = null; const cand = new Map(); try { (await pc.getStats()).forEach(r => { if (r.type === 'outbound-rtp' && r.kind === 'audio') sent += r.bytesSent || 0; if (r.type === 'inbound-rtp' && r.kind === 'audio') got += r.totalAudioEnergy || 0; if (r.type === 'local-candidate') cand.set(r.id, r.candidateType); if (r.type === 'candidate-pair' && (r.selected || (r.nominated && r.state === 'succeeded'))) pair = r; }); } catch (e) {}
+    if (pair) D.route.set(p, cand.get(pair.localCandidateId) === 'relay' ? 'via relay' : 'direct');
     const o = D.out.get(p) || { sent: 0, up: false }, i = D.inn.get(p) || { got: 0, up: false };
     o.up = sent > o.sent + 200; o.sent = sent; i.up = got > i.got + 1e-5; i.got = got; D.out.set(p, o); D.inn.set(p, i); }
 }
@@ -32,10 +34,13 @@ function paintStat() {
   const mates = teammates(), rows = [];
   rows.push(V.live ? `Mic: ${V.on ? 'on' : 'muted'} · you ${'▮'.repeat(Math.round((V.on ? D.lv : 0) * 5)).padEnd(5, '▯')}` : `Mic: ${V.failed === 'denied' ? 'blocked: tap the mic' : V.failed === 'no-mic' ? 'none found' : V.starting ? 'asking…' : D.why || 'not started'}`);
   if (V.live) {
+    const vc = NET.room.voice, me = vc.me(), sid = x => String(x).slice(-4);
+    rows.push(`Signal: ${vc.signal ? (vc.signal() ? 'ok' : 'LOST') : '?'} · you ${sid(me)}${D.turned ? ` · calls turned away ${D.turned}` : ''}`);
     if (!mates.length) rows.push('No teammate phones on your side');
-    mates.forEach((p, n) => { const st = V.state.get(p), o = D.out.get(p), i = D.inn.get(p), r = p.startsWith('r-') ? 'relay' : '';
-      const t = r ? 'on the relay: no sound possible' : !st ? 'not calling yet' : st === 'failed' || st === 'error' ? "can't link" : st === 'calling' ? 'linking…' : `${i && i.up ? 'hearing them' : 'linked, silent'} · ${o && o.up ? 'they hear you' : 'sending nothing'}`;
-      rows.push(`Mate ${n + 1}: ${t}`); });
+    mates.forEach((p, n) => { const st = V.state.get(p), o = D.out.get(p), i = D.inn.get(p), r = p.startsWith('r-') ? 'relay' : '', mine = me < p, f = V.fail.get(p);
+      const w = Math.round((performance.now() - (V.since.get(p) || performance.now())) / 1000), er = V.err.get(p);
+      const t = r ? 'on the relay: no sound possible' : !st ? (er ? `can't start the call: ${er}` : mine ? 'calling…' : `waiting for their call ${w}s`) : st === 'failed' || st === 'error' ? `can't link${f ? ` (try ${f.n})` : ''}` : st === 'calling' ? 'linking…' : `${i && i.up ? 'hearing them' : 'linked, silent'} · ${o && o.up ? 'they hear you' : 'sending nothing'}${D.route.get(p) ? ` · ${D.route.get(p)}` : ''}`;
+      rows.push(`Mate ${n + 1} ${sid(p)} (${mine ? 'I call' : 'they call'}): ${t}`); });
   }
   el.hidden = false; el.textContent = rows.join('\n');
 }
@@ -66,23 +71,24 @@ function play(p, s) {
   });
 }
 function hang(p) {
-  const c = V.calls.get(p); V.calls.delete(p);
+  const c = V.calls.get(p); V.calls.delete(p); V.dir.delete(p);
   if (c) { try { c.close(); } catch (e) {} }
   const a = V.audio.get(p); V.audio.delete(p); if (a) { a.srcObject = null; a.remove(); }
 }
-function attach(call, p) {
-  V.calls.set(p, call); V.state.set(p, 'calling');
+const failedCall = p => { V.state.set(p, 'failed'); V.fail.set(p, { n: ((V.fail.get(p) || {}).n || 0) + 1, at: performance.now() }); }; // (retried a few times, 10 s apart)
+function attach(call, p, dir) {
+  V.calls.set(p, call); V.dir.set(p, dir); V.state.set(p, 'calling');
   call.on('stream', s => { V.state.set(p, 'sound'); play(p, s); });
   call.on('close', () => { if (V.calls.get(p) === call) hang(p); });
-  call.on('error', () => { if (V.calls.get(p) === call) { V.state.set(p, 'error'); hang(p); } });
+  call.on('error', () => { if (V.calls.get(p) === call) { hang(p); failedCall(p); } });
   // the link itself: 'failed' means no road between the two phones (their networks, or no relay got through)
   const t0 = performance.now();
   const watch = setInterval(() => {
     if (V.calls.get(p) !== call) { clearInterval(watch); return; }
     const pc = call.peerConnection, st = pc ? pc.iceConnectionState : 'new';
-    if (st !== 'connected' && st !== 'completed' && performance.now() - t0 > 12000) { clearInterval(watch); V.state.set(p, 'failed'); hang(p); say('nolink', "Voice can't get through to a teammate's phone"); return; }
+    if (st !== 'connected' && st !== 'completed' && performance.now() - t0 > 12000) { clearInterval(watch); hang(p); failedCall(p); say('nolink', "Voice can't get through to a teammate's phone"); return; }
     if (st === 'connected' || st === 'completed') { clearInterval(watch); if (V.state.get(p) !== 'sound') V.state.set(p, 'linked'); }
-    else if (st === 'failed') { clearInterval(watch); V.state.set(p, 'failed'); hang(p);
+    else if (st === 'failed') { clearInterval(watch); hang(p); failedCall(p);
       say('nolink', session.NET.room.voice.relayed() ? "Voice can't get through: your network blocks direct links" : "Voice can't get through to a teammate's phone"); }
   }, 500);
 }
@@ -90,18 +96,36 @@ function link() {
   if (!V.stream) return;
   const room = session.NET && session.NET.room; if (!room || !room.voice) return;
   const me = room.voice.me(), mates = teammates();
+  for (const [p, e] of [...V.early]) { // a call that beat the seats: answer once the caller is known as a teammate, else drop it after 6 s
+    if (mates.includes(p)) { V.early.delete(p); accept(e.call); }
+    else if (performance.now() - e.at > 6000) { V.early.delete(p); try { e.call.close(); } catch (x) {} } }
+  for (const m of [V.since, V.fail, V.err, V.state]) for (const p of [...m.keys()]) if (!mates.includes(p)) m.delete(p);
   if (!mates.length) return;
   // a phone on the game's relay ('r-' names, or me on it) can't take a call: the relay carries game data, not sound
   const off = mates.filter(p => p.startsWith('r-') || me.startsWith('r-'));
   if (off.length) say('relay', "Voice can't reach your team: your phones are linked through the relay");
-  for (const p of mates) if (!off.includes(p) && !V.calls.has(p) && me < p && V.state.get(p) !== 'failed') { try { attach(room.voice.call(p, V.stream), p); } catch (e) {} }
+  for (const p of mates) {
+    if (off.includes(p)) continue;
+    if (!V.since.has(p)) V.since.set(p, performance.now());
+    if (V.calls.has(p)) continue;
+    if (V.state.get(p) === 'failed') { const f = V.fail.get(p); if (f && f.n < 3 && performance.now() - f.at > 10000) { V.state.delete(p); V.since.set(p, performance.now()); } else continue; }
+    // the lower id calls; if no call has come in 8 s the other phone calls instead (one direction can be dropped). __voiceDropUntil: tests only
+    if (me < p ? window.__voiceDropUntil > performance.now() : performance.now() - V.since.get(p) < 8000) continue;
+    try { const c = room.voice.call(p, V.stream); if (!c) throw new Error('no call object'); V.err.delete(p); attach(c, p, 'out'); } catch (e) { V.err.set(p, String((e && e.message) || e).slice(0, 40)); }
+  }
   for (const p of [...V.calls.keys()]) if (!mates.includes(p)) hang(p);
 }
-function onCall(call) { // a teammate is calling: answer; anyone else is turned away
-  if (!V.stream || !teammates().includes(call.peer)) { try { call.close(); } catch (e) {} return; }
-  if (V.calls.has(call.peer)) hang(call.peer);
+function onCall(call) { // a teammate is calling: answer. A caller we don't know as a teammate yet is held a few seconds (seats can arrive after the call), then turned away
+  if (!V.stream) { try { call.close(); } catch (e) {} return; }
+  if (!teammates().includes(call.peer)) { D.turned++; V.early.set(call.peer, { call, at: performance.now() }); return; }
+  accept(call);
+}
+function accept(call) {
+  const p = call.peer, me = session.NET.room.voice.me();
+  // both phones called at once: the lower id's call stays
+  if (V.calls.has(p)) { if (V.dir.get(p) === 'out' && p > me) { try { call.close(); } catch (e) {} return; } hang(p); }
   try { call.answer(V.stream); } catch (e) {}
-  attach(call, call.peer);
+  attach(call, p, 'in');
 }
 function setTrack() { if (V.stream) V.stream.getAudioTracks().forEach(t => { t.enabled = V.on; }); }
 function paint() {
@@ -134,7 +158,8 @@ export async function startVoice(fromTap) {
   setTimeout(() => { if (V.live && !teammates().length) say('alone', 'Voice: no teammates on your side to talk to'); }, 6000);
 }
 export function stopVoice() {
-  V.asked = false; clearInterval(V.timer); V.timer = null; clearInterval(V.lvT); V.lvT = null; try { if (D.ac) D.ac.close(); } catch (e) {} D.ac = D.an = null; D.out.clear(); D.inn.clear(); D.lv = 0; D.why = '';
+  V.asked = false; clearInterval(V.timer); V.timer = null; clearInterval(V.lvT); V.lvT = null; try { if (D.ac) D.ac.close(); } catch (e) {} D.ac = D.an = null; D.out.clear(); D.inn.clear(); D.route.clear(); D.turned = 0; D.lv = 0; D.why = '';
+  for (const e of V.early.values()) { try { e.call.close(); } catch (x) {} } V.early.clear(); V.since.clear(); V.fail.clear(); V.err.clear(); V.dir.clear();
   { const el = document.getElementById('voiceStat'); if (el) el.hidden = true; }
   for (const p of [...V.calls.keys()]) hang(p);
   if (V.stream) V.stream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} });

@@ -88,6 +88,13 @@ Last updated: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `
   shows. V2-diag (built 12 Nov, Arjun's go): the mic button glows with your voice level, and a small status box under it says per
   teammate: no teammate phones / on the relay / linking / can't link / linked, silent / hearing them, and whether they hear you
   (bytes leaving). `r_V1.mjs` checks it. Waiting for a real-phone test; its text says where voice stops.
+- V1d (14 Nov, built on `roles`, card `docs/tickets/V1d.md`): Arjun's host phone showed "Mate 1: not calling yet" = no call ever
+  tried (only the lower id calls; the other phone waited for ever, and a call that beat the seats was dropped silently).
+  Now: the waiting phone says "waiting for their call Ns" and calls back after 8 s; a call from a not-yet-known teammate is held 6 s;
+  failed calls retry (3x, 10 s apart); the box shows ids, who calls, signal ok/LOST, direct vs via relay, calls turned away,
+  call-start errors. `r_V1d.mjs` (lower id never calls) and `r_V1.mjs` pass, crown2sim/online pass roles off+on.
+  Still unknown: the real cause on the phones (need the OTHER phone's box, devices, networks). Next: V1b if it says relay/can't link;
+  then team voice in the lobby, join/leave, carrying on into the battle; all-players channel later.
 
 ## F17 More captain clips (13 Nov, Arjun's animation chat; card `docs/tickets/F17.md`)
 - 11 free Cosindra MotionSmith clips put on the shared skeleton (`tools/models/cosindra_export.py` in Blender, then
