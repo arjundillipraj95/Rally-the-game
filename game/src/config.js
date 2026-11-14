@@ -289,7 +289,11 @@ export const DUEL_DIR = { tell: .34, lat: .42, read: [.35, .55, .75], wrongStun:
 export const CAPTAIN_COMBAT = {
   sword: { cd: .36, finisherCd: .62, window: .85, mult: 1, finisherMult: 1.5, aim: 3.6, step: 2.2, spinN: 3 }, // the third blow of a combo is a spin that cuts all round
   spear: { cd: .8, reachB: 1.1, mult: 1.3, pierce: .8, pierceN: 1, kb: 1.7, stun: .35, lunge: 5, aim: 4.6, shieldDmg: .3,
-    window: 1.15, cd2: .7, // thrust, a quicker second thrust from the hip, then the skewer: a running lunge through the whole line
+    window: 1.15, cd2: .7, // thrust, then a sweep, then the skewer: a running lunge through the whole line
+    // F17d (Arjun): the combo's second blow is a sweep, struck like a sword swing: normal damage, his own reach (none of the
+    // spear's extra), the man in front only, a light knock and a half-step in. (The Defender's Spear sweep ability, Phase 1,
+    // is the big one: more damage, longer range.)
+    sweep: { mult: 1, kb: .25, step: 2.2, aim: 3.6 },
     skewer: { mult: 1.6, reachB: 2.6, pierce: .75, pierceN: 3, kb: 2.4, stun: .6, lunge: 11, dash: .19, aim: 6, cd: 1.05, t: .2, line: .45 } }, // fewer, heavier thrusts: a lunge that shoves and runs through
   jav: { cd: .8, dmg: 30, range: 16, ammo: Infinity, regen: 4 }, // unlimited: the gap between throws is the limit
   jump: { v: 7.6, g: 22, cd: .3 },

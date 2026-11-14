@@ -100,10 +100,13 @@ Last updated: 2026-11-12 (F15, F12, F13, F16 shipped to main at 1018462; voice d
   Each anim file +~350 KB. Arjun judges the feel. On `roles` only: Arjun held main (13 Nov) until V1c is reviewed.
 - Next: horse (Quaternius CC0, Arjun downloads; the app's browser can't) and rider (sitting pose made, lance to make).
 
+## F17d Spear combo hit 2 is a sweep in the rules too (13 Nov; card `docs/tickets/F17d.md`)
+- Struck like a sword swing: 1.0x, his own reach, the man in front, light knock (`CC.spear.sweep`). Poke and lunge unchanged.
+
 ## F17c The spear (13 Nov; card `docs/tickets/F17c.md`)
 - The spear you see never moved: F1b folds gear into one mesh pinned to bones, so F17b aimed a hidden spear. Fixed (the
   fold hangs on the spear's joint). Now: upright when held; 1 poke, 2 sweep, 3 lunge (the rules' thrust, thrust,
-  skewer); braced level. Rules unchanged: hit 2 still lands as a thrust (a wide-hitting sweep is a designer call).
+  skewer); braced level. (F17d: hit 2 now lands as a sweep too.)
 - r_F8's perf check (e) is flaky: its 0.5% triangle margin is inside run-to-run noise (0.7%). Needs a fixed-frame comparison.
 
 ## F17b Strikes go where he faces, swoosh on the real blade, water (13 Nov; card `docs/tickets/F17b.md`)

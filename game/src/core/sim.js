@@ -1931,8 +1931,8 @@ function captainAttack0(p) {
   if (ev) p.evade = null;
   if (ev === 'pounce') { leapSlam(p); p.leapStrike = true; return; } // (the pounce: down on him from the air)
   const spear = p.weapon === 'spear', S = CC.sword;
-  const sCombo = spear ? (G.T - p.lastSwingT < CC.spear.window && p.swingKind >= 3 ? (p.combo + 1) % 3 : 0) : 0, skewer = sCombo === 2, SK = CC.spear.skewer;
-  const best = softAim(p, spear ? (skewer ? SK.aim : CC.spear.aim) : S.aim);
+  const sCombo = spear ? (G.T - p.lastSwingT < CC.spear.window && p.swingKind >= 3 ? (p.combo + 1) % 3 : 0) : 0, skewer = sCombo === 2, SK = CC.spear.skewer, sweep = spear && sCombo === 1, SW = CC.spear.sweep;
+  const best = softAim(p, spear ? (skewer ? SK.aim : sweep ? SW.aim : CC.spear.aim) : S.aim);
   if (p.isMe && G.capStats) { G.capStats.press++; if (!best) G.capStats.noTarget++; }
   let target = best;
   // on the summit: facing the glacier (or the chest) with it in reach, you hit that, whoever's about
@@ -1949,13 +1949,17 @@ function captainAttack0(p) {
     const ang = Math.atan2(best.x - p.x, best.z - p.z), d = Math.hypot(best.x - p.x, best.z - p.z);
     p.face = ang;
     // step into a target at the edge of reach, so a press always connects
-    const edge = p.r + best.r + p.reach + (spear ? CC.spear.reachB : 0) - .2;
+    const edge = p.r + best.r + p.reach + (spear && !sweep ? CC.spear.reachB : 0) - .2;
     if (d > edge && !skewer) { p.vx += Math.sin(ang) * 4; p.vz += Math.cos(ang) * 4; }
   }
   if (spear && skewer) { // the third thrust: a running lunge, the spear level, through everyone in the line
     Object.assign(p.pending, { t: SK.t, mult: SK.mult, reachB: SK.reachB, pierce: SK.pierce, pierceN: SK.pierceN, line: SK.line, kb: SK.kb, stun: SK.stun, shove: true });
     p.vx = Math.sin(p.face) * SK.lunge; p.vz = Math.cos(p.face) * SK.lunge; p.dashT = SK.dash; // (a moment where his feet don't brake: the lunge carries)
     p.cd = SK.cd; p.combo = 2; p.swingKind = 5;
+  } else if (sweep) { // the second blow: a sweep, struck like a sword swing (F17d)
+    Object.assign(p.pending, { mult: SW.mult, kb: SW.kb });
+    p.vx += Math.sin(p.face) * SW.step; p.vz += Math.cos(p.face) * SW.step; // (a half-step into it)
+    p.cd = CC.spear.cd2; p.combo = 1; p.swingKind = 3;
   } else if (spear) {
     Object.assign(p.pending, { mult: CC.spear.mult, reachB: CC.spear.reachB, pierce: CC.spear.pierce, pierceN: CC.spear.pierceN, kb: CC.spear.kb, stun: CC.spear.stun, shove: true });
     p.vx += Math.sin(p.face) * CC.spear.lunge; p.vz += Math.cos(p.face) * CC.spear.lunge; // (the whole body goes into the thrust)
