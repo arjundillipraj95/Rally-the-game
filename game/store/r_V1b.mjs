@@ -1,5 +1,5 @@
 // V1b check: the online service hands out short-lived relay credentials (a stand-in for Metered.ca answers), the
-// phones use them, and without the secrets it says nothing and the game keeps its public relays.
+// phones use them first (public relays kept after them), and without the secrets it says nothing and the game keeps its public relays.
 // Starts its own stand-in (:9100) and a second online service (:8788) with the secrets; needs the game server (:8766).
 import http from 'node:http';
 import { spawn } from 'node:child_process';
@@ -21,7 +21,7 @@ const br = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', 
 const pg = await br.newPage(); await pg.goto('http://127.0.0.1:8766/?online=http://127.0.0.1:8788'); await pg.waitForFunction(() => document.readyState === 'complete'); await sleep(1500);
 const ice = await pg.evaluate(async () => { const m = await import('/src/net/p2p.js'); return m.iceServers(); });
 const flat = JSON.stringify(ice);
-res.gameUsesIt = flat.includes('"username":"u1"') && flat.includes('global.relay.metered.ca') && !flat.includes('openrelay') && !flat.includes('freeturn');
+res.gameUsesIt = flat.includes('"username":"u1"') && flat.indexOf('global.relay.metered.ca') < flat.indexOf('freeturn') && flat.includes('openrelay'); // (private relay first; the public ones stay after it: a new credential can take ~2 min to work)
 // the other online service (no secrets): the game falls back to the public relays
 const pg2 = await br.newPage(); await pg2.goto('http://127.0.0.1:8766/?online=http://127.0.0.1:8787'); await sleep(2500);
 const ice2 = JSON.stringify(await pg2.evaluate(async () => { const m = await import('/src/net/p2p.js'); return m.iceServers(); }));

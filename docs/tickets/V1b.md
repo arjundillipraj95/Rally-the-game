@@ -1,7 +1,7 @@
 # V1b Voice for phones that can't link directly: a private TURN relay
 
 Model: S (Opus review before shipping) · Written 14 Nov from the code
-Status: built (not shipped). Live only after Arjun's 3 steps and a ship (the online service deploys from `main`).
+Status: built and reviewed by Opus (not shipped). Live only after Arjun's 3 steps and a ship (the online service deploys from `main`).
 
 ## What was found
 The game already tries STUN + two public relays (Open Relay, freeturn.net) when a direct link fails. Those are best effort and shared.
@@ -11,7 +11,8 @@ The game already tries STUN + two public relays (Open Relay, freeturn.net) when 
 - `online/src/turn.js` + `GET /turn` in the worker: with secrets `METERED_APP` and `METERED_SECRET_KEY` it creates a 4 h Metered
   credential (key never leaves the worker), answers the list of relay addresses, reused for 1 h (Cache API + browser cache).
   Without the secrets it answers `[]`.
-- `game/src/net/p2p.js` `iceServers()`: asks `<online url>/turn`; if it gets relays it uses only those; else the public ones as before.
+- `game/src/net/p2p.js` `iceServers()`: asks `<online url>/turn`; its relays go first, the public ones stay after them
+  (Opus review, 14 Nov: dropping them left no working relay for ~2 min after each new credential).
   Asked again each hour (credentials last 4 h).
 - `.github/workflows/online.yml`: hands the two secrets to the worker after deploy when they exist; a notice when they don't.
 - `store/r_V1b.mjs`: stand-in for Metered + second worker: list shape, key stays server side, one credential shared, game uses it,
@@ -25,7 +26,7 @@ The game already tries STUN + two public relays (Open Relay, freeturn.net) when 
 
 ## Known limits
 - Anyone who knows the worker address can ask `/turn` and use the relay for up to 4 h (free tier cap 20 GB). Fine for now; watch usage.
-- A new Metered credential can take up to 2 minutes to work everywhere: the first phones after a refresh may use the public relays.
+- A new Metered credential can take up to 2 minutes to work everywhere: meanwhile phones fall through to the public relays.
 
 ## Done when
 `r_V1b.mjs` passes; crown2sim/online pass roles off and on. Real check: two phones on different networks, box says "via relay" and hears.

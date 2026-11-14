@@ -49,10 +49,9 @@ export async function iceServers() {
       if (Array.isArray(extra)) { const turn = extra.filter(s => /turns?:/.test([].concat(s.urls || s.url).join(' '))); list.push(...turn); keyed = turn.length > 0; }
     } catch (e) {}
   }
-  if (!keyed) {
-    try { const r = await openRelay(); if (r) list.push(r); } catch (e) {}
-    list.push(FREETURN); // (a second public relay, no sign-up: if one's down or overloaded, the other may get through)
-  }
+  // the public relays stay after the private one: a new private credential can take ~2 min to work everywhere (V1b)
+  try { const r = await openRelay(); if (r) list.push(r); } catch (e) {}
+  list.push(FREETURN); // (a second public relay, no sign-up: if one's down or overloaded, the other may get through)
   if (keyed) { iceCache = list; iceAt = Date.now(); } // (public relays are not cached: ask for the private one again next time)
   return list;
 }
