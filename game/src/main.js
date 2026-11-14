@@ -13,7 +13,7 @@ import { rideRelease, orderVolley, challenge, canChallenge, startMatch, mkUnit, 
 import { makeLayout, gatePos, groundY, W } from './core/world.js';
 import { buildNav, findPath } from './core/nav.js';
 import { renderer, scene, camera, resize, applyPixelRatio, applyShadowQuality, followSun } from './render/scene.js';
-import { quality, saveSetting, stepDown, LEVELS } from './render/quality.js';
+import { quality, saveSetting, saveAuto, adaptStep, LEVELS } from './render/quality.js';
 import { buildWorldView, updateWorldView, grassTime } from './render/world.js';
 import { drawSoldiers, drawCalls, clearProps } from './render/soldiers.js';
 import { neutralFigs } from './render/mountain.js';
@@ -57,7 +57,7 @@ import { bindLobby, showLobby, hostLobbyTick, clientLobbyTick, netLeave, matchHo
 import { ON, online, startOnline, isLeader } from './net/online.js';
 import { crowns, mergeCrowns, titleOf, award, FMT_NAME, setCrowns } from './ui/crowns.js';
 import { lookCode, lookFrom } from './core/look.js';
-import { PARRY, CAPKILL_SLOW, FEEL } from './config.js';
+import { PARRY, CAPKILL_SLOW, FEEL, ADAPT } from './config.js';
 
 const $ = id => document.getElementById(id);
 { const nj = $('nojs'); if (nj) nj.remove(); }
@@ -672,7 +672,7 @@ function updateDesc() {
 }
 function updateQualityNote() {
   const lvl = LEVELS[quality.level].name;
-  $('qualityNote').textContent = quality.stepped ? `Lowered to ${lvl} to keep the game smooth.` : quality.setting === 'auto' ? `Auto picked ${lvl} for this device.` : '';
+  $('qualityNote').textContent = quality.stepped ? `Lowered to ${lvl}${quality.scale < 1 ? ` (sharpness ${Math.round(quality.scale * 100)}%)` : ''} to keep the game smooth.` : quality.setting === 'auto' ? `Auto picked ${lvl} for this device.` : '';
   $('segQuality').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === quality.setting)));
 }
 seg('segMode', v => { G.mode = v; G.target = prefs.tgt[G.mode] ?? targetFor(G.mode); renderTargets(); updateDesc(); });
@@ -881,16 +881,27 @@ $('menuBtn').addEventListener('click', () => {
   portal.midgameAd(() => { G.state = 'title'; resetSolo(); newTip(); clearCritters(); $('ovEnd').hidden = true; $('hudWrap').hidden = true; $('ovTitle').hidden = false; setHomeView('home'); seedDemo(); });
 });
 
-// ---------- frame-rate watchdog: steps graphics down if the first seconds of a battle run slowly ----------
+// ---------- frame-rate watchdog (F14): keeps adjusting graphics all battle long, on Auto only ----------
+// Down when slow, back up when smooth for a while; never above the detected level (see ADAPT).
 const watchdog = {
-  t: 0, frames: 0, steps: 0,
-  reset() { this.t = 0; this.frames = 0; },
+  t: 0, frames: 0, total: 0, clock: 0, st: null,
+  reset() { this.t = 0; this.frames = 0; this.total = 0; this.clock = 0; this.st = { level: quality.level, scale: quality.scale, ceil: quality.detected, ups: 0, banned: {}, t: 0 }; },
   tick(rawDt) {
-    if (quality.setting !== 'auto' || this.steps >= 2 || this.t > 8) return;
+    if (quality.setting !== 'auto' || !this.st) return;
+    if (!(rawDt > 0) || rawDt > ADAPT.gap || document.hidden) { this.t = 0; this.frames = 0; return; } // (a hidden tab or a hitch: start the window again)
+    this.total += rawDt; this.clock += rawDt; this.st.t = this.clock;
+    if (this.total < ADAPT.settle) return;
     this.t += rawDt; this.frames++;
-    if (this.t < 8) return;
-    const fps = this.frames / this.t;
-    if (fps < 30 && stepDown()) { this.steps++; applyShadowQuality(); applyPixelRatio(); onResize(); updateQualityNote(); this.reset(); }
+    if (this.t < ADAPT.win) return;
+    const fps = this.frames / this.t; this.t = 0; this.frames = 0;
+    const was = quality.level, change = adaptStep(this.st, fps, ADAPT);
+    if (!change) return;
+    quality.level = this.st.level; quality.scale = this.st.scale;
+    if (change === 'down') quality.stepped = true;
+    saveAuto(quality.level);
+    if (was !== quality.level) applyShadowQuality();
+    applyPixelRatio(); onResize(); updateQualityNote();
+    this.total = 0; // (settle again after a change)
   },
 };
 

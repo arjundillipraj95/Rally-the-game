@@ -52,7 +52,7 @@ sky.renderOrder = -10; sky.frustumCulled = false;
 scene.add(sky);
 
 export const view = { W: 0, H: 0, DPR: 1 };
-export function applyPixelRatio() { renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, quality.cfg.pixelRatio)); }
+export function applyPixelRatio() { renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, quality.cfg.pixelRatio) * (quality.scale || 1)); }
 export function resize() {
   view.W = innerWidth; view.H = innerHeight; view.DPR = Math.min(window.devicePixelRatio || 1, 2);
   applyPixelRatio();

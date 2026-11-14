@@ -460,3 +460,11 @@ export const ANIM = {
     sheath: { steps: ['sheath1', 'sheath2'] }, powerUp: { steps: ['powerUp'] }, cast: { steps: ['casting'] },
     knockdown: { steps: ['knockdown'], legs: true }, getUp: { steps: ['getUp'], legs: true } }, // (F17: ready for the roles' knockdowns; nothing sets them yet)
 };
+
+// F14 Adapts to any phone (graphics on Auto only). The frame rate is measured in windows of win s
+// (the first settle s after a battle starts or a change are skipped; a frame longer than gap s (a stall, or
+// the tab hidden) voids the window). Below down fps: one step down: the level (High > Medium > Low) and, at
+// Low, the render scale by scaleStep down to scaleMin. Above up fps for upN windows in a row: one step
+// back up (scale first, then level), never above the level the device was detected at, and not back to
+// a level it fell from within ban s. The level reached is kept for the next battle on this phone.
+export const ADAPT = { win: 4, settle: 2, gap: 2, down: 28, up: 55, upN: 3, ban: 60, scaleStep: .15, scaleMin: .7 };

@@ -6,12 +6,12 @@ export async function open(browser, w, h, opts = {}) {
   const page = await browser.newPage({ viewport: { width: w, height: h } });
   page.on('pageerror', e => console.log('PAGEERROR', e.message)); page.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') console.log('CONSOLE', m.type(), m.text().slice(0, 300)); });
   await page.addInitScript(sheet => { window.__testSheet = sheet; }, !opts.home); // (older tests: start on the Battle the computer sheet, where their buttons live)
-  await page.addInitScript(() => {
-    localStorage.setItem('rally-quality', 'high'); localStorage.setItem('rally-tutorial-done', '1');
+  await page.addInitScript(q => {
+    localStorage.setItem('rally-quality', q); localStorage.setItem('rally-tutorial-done', '1');
     window.__raf = []; window.__t = 0;
     window.requestAnimationFrame = cb => { window.__raf.push(cb); return window.__raf.length; };
     window.__frame = (n = 1, dt = 1000 / 30) => { for (let i = 0; i < n; i++) { window.__t += dt; const q = window.__raf; window.__raf = []; q.forEach(cb => cb(window.__t)); } };
-  });
+  }, opts.quality || 'high'); // (F14: opts.quality 'auto' lets the frame-rate watchdog run)
   await page.goto('http://127.0.0.1:8766/' + (opts.q || ''));
   await page.waitForFunction(() => window.__fb && window.__fb.G);
   await page.evaluate(() => window.__frame(3));

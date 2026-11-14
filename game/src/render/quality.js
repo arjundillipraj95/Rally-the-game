@@ -24,14 +24,23 @@ export function detectLevel() {
   return 'high';
 }
 
+// F14: on Auto, the level the last battle settled on is kept for the next one (never above detected).
+function readAuto() { try { return localStorage.getItem('rally-quality-auto') || ''; } catch (e) { return ''; } }
+export function saveAuto(v) { try { localStorage.setItem('rally-quality-auto', v); } catch (e) {} }
+
 export const quality = {
   setting: readSetting(),
   detected: detectLevel(),
   level: 'medium',
+  scale: 1,        // F14: render scale under Low, 0.7..1 (pixel ratio multiplier)
   stepped: false,
   get cfg() { return LEVELS[this.level]; },
 };
-quality.level = quality.setting === 'auto' ? quality.detected : quality.setting;
+{
+  const a = readAuto();
+  quality.level = quality.setting !== 'auto' ? quality.setting
+    : (ORDER.includes(a) && ORDER.indexOf(a) <= ORDER.indexOf(quality.detected)) ? a : quality.detected;
+}
 
 // Returns the lower level, or null when already at the bottom.
 export function stepDown() {
@@ -39,4 +48,26 @@ export function stepDown() {
   if (i <= 0) return null;
   quality.level = ORDER[i - 1]; quality.stepped = true;
   return quality.level;
+}
+
+// F14: the adapting rule, kept pure so a test can feed it frame rates. st = { level, scale, ceil, ups,
+// banned: { level: until s } , t }; returns { level, scale, change: 'down'|'up'|null }.
+export function adaptStep(st, fps, A) {
+  const i = ORDER.indexOf(st.level);
+  if (fps < A.down) {
+    st.ups = 0;
+    if (i > 0) { st.banned[st.level] = st.t + A.ban; st.level = ORDER[i - 1]; return 'down'; }
+    const s = Math.max(A.scaleMin, +(st.scale - A.scaleStep).toFixed(2));
+    if (s < st.scale) { st.scale = s; return 'down'; }
+    return null;
+  }
+  if (fps > A.up) {
+    if (++st.ups < A.upN) return null;
+    st.ups = 0;
+    if (st.scale < 1) { st.scale = Math.min(1, +(st.scale + A.scaleStep).toFixed(2)); return 'up'; }
+    const n = ORDER[i + 1];
+    if (n && ORDER.indexOf(n) <= ORDER.indexOf(st.ceil) && !((st.banned[n] || 0) > st.t)) { st.level = n; return 'up'; }
+    return null;
+  }
+  st.ups = 0; return null;
 }

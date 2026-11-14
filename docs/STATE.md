@@ -127,11 +127,17 @@ Last updated: 2026-11-13 (F7 built on `roles`; F15, F12, F13, F16 shipped to mai
 - `r_F7.mjs` (host) and `r_F7-join.mjs` (joined phone) pass; crown2sim, crown2online, c2bits pass roles off and on. Walls +2 draw calls.
   Only seen headless: Arjun judges the feel; the scream is still the placeholder (comic one with the sounds pick).
 
+## F14 Adapts to any phone (13 Nov; card `docs/tickets/F14.md`). On `roles`, not shipped
+- Auto graphics now adjust all battle: down when slow (level, then render scale to 0.7), back up after 12 s smooth,
+  never above the detected level; the level reached is kept for the next battle. `ADAPT` in config.js.
+- `r_F14.mjs` 12/12 (the rule); `r_F14b.mjs` (slow headless battle). Arjun checks on a weak Android.
+- Next from the visual polish pass (design doc, Changes for the owner): B combat juice extras, C living world, D art pass.
+
 ## Build queue (in order; model = best fit; Fable 5.2 available until 15 Nov)
 | # | Ticket | What | Model | Waits on |
 |---|---|---|---|---|
 | 1 | F7 | No abrupt cuts: built 13 Nov, waiting for Arjun's "ship" | S | Arjun's ship |
-| 5 | F14 | Adapts to any phone: picks its quality from the first seconds of frame rate and keeps adjusting; targets iPhone 13+, Galaxy S23+, and plays on any Android | S | F1 shipped |
+| 5 | F14 | Adapts to any phone: built 13 Nov, waiting for Arjun's "ship" | O | Arjun's ship |
 | 6 | F4 | Neutral garrisons and camps fight as real soldiers and ambush (today one shared health pool, standing still) | O | card |
 | 7 | F9 | Horse charges: full stop only on Hold and facing; standing men slow it; moving or flanked men are bowled over | O | card |
 | 9 | F2 | One lobby for all 8 or 12 players: lanes (left, right, jungle), ready-up, 10 s versus screen | O | card |

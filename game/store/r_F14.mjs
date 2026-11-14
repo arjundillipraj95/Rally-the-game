@@ -1,0 +1,20 @@
+// F14: the adapting rule fed scripted frame rates (pure; no browser).
+globalThis.matchMedia = () => ({ matches: true }); globalThis.document = { createElement: () => ({ getContext: () => null }) };
+const { adaptStep } = await import('../src/render/quality.js');
+import { ADAPT as A } from '../src/config.js';
+let pass = 0, fail = 0; const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? 'ok   ' : 'FAIL ') + m); };
+const mk = (level, ceil) => ({ level, scale: 1, ceil, ups: 0, banned: {}, t: 0 });
+const feed = (st, fps, n = 1, dt = 1) => { const out = []; for (let i = 0; i < n; i++) { st.t += dt; out.push(adaptStep(st, fps, A)); } return out; };
+let s = mk('high', 'high'); feed(s, 20); ok(s.level === 'medium', 'slow on High steps to Medium');
+feed(s, 20); ok(s.level === 'low' && s.scale === 1, 'still slow: Low');
+feed(s, 20); ok(s.scale === .85, 'still slow at Low: render scale .85');
+feed(s, 20, 5); ok(s.scale === A.scaleMin, 'scale floors at ' + A.scaleMin);
+feed(s, 40, 5); ok(s.level === 'low' && s.scale === A.scaleMin, '40 fps: holds (no change)');
+feed(s, 60, 2); ok(s.scale === A.scaleMin, 'two smooth windows: not yet');
+feed(s, 60, 1); ok(s.scale === .85, 'three smooth windows: scale back up first');
+feed(s, 60, 6); ok(s.scale === 1 && s.level === 'low', 'scale back to 1; Medium still banned (fell from it < 60 s ago)');
+feed(s, 60, 3, 30); ok(s.level === 'medium', 'after the ban: back to Medium');
+feed(s, 60, 9); ok(s.level === 'high', 'up to High (ceiling = detected High)');
+s = mk('medium', 'medium'); feed(s, 60, 12); ok(s.level === 'medium', 'never above the detected level');
+s = mk('medium', 'medium'); feed(s, 60, 2); feed(s, 40, 1); feed(s, 60, 2); ok(s.ups === 2 && s.level === 'medium', 'a middling window resets the smooth count');
+console.log(`r_F14: ${pass} pass, ${fail} fail`); process.exit(fail ? 1 : 0);
