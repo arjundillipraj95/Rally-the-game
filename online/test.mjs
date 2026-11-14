@@ -25,7 +25,7 @@ B.send({ t: 'accept', from: A.me.id }); await sleep(300);
 out.party = A.last('party').members.map(m => m.nick + (m.leader ? '*' : '')).join();
 // a Duo search: the pair takes one side; a stranger joins and gets the other
 A.send({ t: 'queue', fmt: 1 }); await sleep(300); C.send({ t: 'queue', fmt: 1 }); D.send({ t: 'queue', fmt: 1 }); await sleep(300);
-const L = A.last('lobby'); out.lobby = L.sides.map(sd => sd.map(x => x.nick).join('+') || '-').join(' | ') + ` ends in ${Math.round(L.endsIn / 1000)}s`;
+const L = A.last('lobby'); out.lobby = L.sides.map(sd => sd.filter(Boolean).map(x => x.nick).join('+') || '-').join(' | ') + ` ends in ${Math.round(L.endsIn / 1000)}s`;
 console.log(JSON.stringify(out, null, 1));
 console.log('waiting for the lobby timer...'); await sleep(61500);
 const S = A.last('start'); out.start = S && { host: S.host === A.me.id ? 'Arjun' : S.host, seats: Object.entries(S.seats).map(([id, ti]) => ({ [A.me.id]: 'Arjun', [B.me.id]: 'Ravi', [C.me.id]: 'Stranger', [D.me.id]: 'Sam' }[id] + ':' + ti)).join(' ') };

@@ -56,6 +56,7 @@ import { wardrobe } from './ui/wardrobe.js';
 import { actions, netHostReadInputs, netHostTick, netHostSend, clientTick, clientHorses, setNetHooks, C } from './net/netgame.js';
 import { bindLobby, showLobby, hostLobbyTick, clientLobbyTick, netLeave, matchHost, matchJoin } from './net/lobby.js';
 import { ON, online, startOnline, isLeader } from './net/online.js';
+import { mlRender, mlHide, mlOpen, showVersus, hideVersus, endVersus } from './ui/matchlobby.js';
 import { crowns, mergeCrowns, titleOf, award, FMT_NAME, setCrowns } from './ui/crowns.js';
 import { lookCode, lookFrom } from './core/look.js';
 import { PARRY, CAPKILL_SLOW, FEEL, QUALITY } from './config.js';
@@ -419,6 +420,7 @@ function endText(w, why) {
 
 // ---------- match start ----------
 function viewForMatch() {
+  endVersus(); // (F2)
   battleLevel(); applyShadowQuality(); applyPixelRatio(); // (F14: what is built once follows the rung reached)
   clearMeadow();
   buildWorldView(G.layout);
@@ -586,10 +588,13 @@ const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 function renderSearch() {
   const L = ON.lobby, box = $('searchBox');
   box.hidden = !L; $('playBtn').hidden = !!L;
-  if (!L) { renderSearch.seen = null; if (G.warmup) warmupStop(true); return; }
+  if (!L) { renderSearch.seen = null; mlHide(); $('searchLobby').hidden = true; if (G.warmup) warmupStop(true); return; }
   if (!G.warmup && G.state === 'title') warmupStart();
-  const cap = [1, 2, 3][L.fmt], filled = L.sides.flat().length, total = cap * 4, me = ON.me && ON.me.id;
-  $('searchT').textContent = filled === total ? 'Full: starting now' : `Finding players · ${['Solo', 'Duo', 'Trio'][L.fmt]} · ${filled}/${total}`;
+  const v2 = L.v === 2; $('searchLobby').hidden = !v2; // (F2: the lobby is a pop-up over the warm-up; an older service has none)
+  const cap = [1, 2, 3][L.fmt], filled = L.sides.flat().filter(Boolean).length, total = cap * 4, me = ON.me && ON.me.id;
+  const mineX = L.sides.flat().find(x => x && x.id === me);
+  $('searchT').textContent = v2 ? `${['Solo', 'Duo', 'Trio'][L.fmt]} · ${filled}/${total}${mineX && mineX.ready ? ' · Ready' : ''}` : filled === total ? 'Full: starting now' : `Finding players · ${['Solo', 'Duo', 'Trio'][L.fmt]} · ${filled}/${total}`;
+  if (v2) mlRender(L);
   // a small flash as someone takes a seat (the seat list stays out of the way while you warm up)
   const ids = L.sides.flat().filter(x => x && x.id !== me), seen = renderSearch.seen || new Set();
   for (const x of ids) if (!seen.has(x.id) && renderSearch.seen) toast(`${x.nick} joined Army ${'ABCD'[L.sides.findIndex(sd => sd.includes(x))]}`);
@@ -623,15 +628,17 @@ $('friendsPanel').addEventListener('click', e => {
   else if (b.dataset.inv) online.invite(b.dataset.inv); else if (b.dataset.join) online.join(b.dataset.join);
 });
 $('searchCancel').addEventListener('click', () => online.cancel());
+$('searchLobby').addEventListener('click', () => mlOpen());
 // the service paired us up: host it, or join it, in the seat it gave us
 async function startMatchmade(m) {
   if (!ON.me) return;
   if (G.warmup) warmupStop(false);
   renderSearch(); initAudio();
   const mine = m.seats[ON.me.id]; if (mine == null) return;
+  const vsUntil = m.vs && !m.late ? showVersus(m) : 0; // (F2: 10 s of every army before the battle loads; the phones link up meanwhile)
   $('playBtn').hidden = false;
-  if (m.host === ON.me.id) await matchHost(m.code, m.fmt, mine, Object.keys(m.seats).length, t => toast(t));
-  else await matchJoin(m.code, mine, st => { if (st === 'fail') toast("Couldn't link up with the battle's host"); });
+  if (m.host === ON.me.id) { if (!(await matchHost(m.code, m.fmt, mine, Object.keys(m.seats).length, t => toast(t), vsUntil))) hideVersus(); }
+  else if (!(await matchJoin(m.code, mine, st => { if (st === 'fail') toast("Couldn't link up with the battle's host"); }))) hideVersus();
 }
 bus.on('end', () => { if (session.NET && session.NET.match) online.battleOver(); });
 function demo(dt) {

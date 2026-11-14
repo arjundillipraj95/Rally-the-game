@@ -774,3 +774,36 @@ body.deadLow #deathFx .dVig{background:radial-gradient(ellipse at center,rgba(70
 .pvf.talk{box-shadow:0 0 12px 3px rgba(127,210,122,.9);}
 .pvf.muted{opacity:.55;text-decoration:line-through;}
 .pvBar pre{order:-1;flex-basis:100%;margin:0;font:11px/1.3 ui-monospace,monospace;color:rgba(255,255,255,.85);background:rgba(0,0,0,.45);padding:4px 6px;border-radius:6px;white-space:pre-wrap;}
+
+/* F2 One lobby: the pop-up over the warm-up, and the versus screen */
+.mlpop{position:fixed;inset:0;z-index:62;display:grid;place-items:center;background:rgba(10,9,8,.55);padding:max(6px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));}
+.mlpop[hidden],.vsscreen[hidden]{display:none;}
+.mlbox{position:relative;width:min(96vw,820px);max-height:calc(100dvh - 12px);overflow:auto;display:flex;flex-direction:column;gap:6px;background:rgba(20,19,18,.96);border:2px solid var(--gold);border-radius:14px;padding:8px 10px;color:#fff;}
+.mlhead{display:flex;justify-content:space-between;align-items:baseline;font:800 15px var(--body);} .mlhead span{color:var(--gold);font-size:15px;}
+.mlsides{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+.mlside{display:flex;flex-direction:column;gap:4px;background:rgba(255,255,255,.04);border-radius:8px;padding:4px;border-top:3px solid var(--c);}
+.mlside.mine{background:rgba(255,210,58,.08);}
+.mlside h4{margin:0;font:800 10px var(--body);letter-spacing:.1em;text-transform:uppercase;color:var(--c);}
+.mlseat{display:flex;flex-direction:column;justify-content:center;min-height:44px;padding:3px 6px;border-radius:6px;background:rgba(255,255,255,.08);color:#fff;text-align:left;font:700 12px var(--body);border:0;overflow:hidden;}
+.mlseat b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;} .mlseat em{font-style:normal;font-size:10px;color:var(--gold);}
+.mlseat small{font:600 10px var(--body);color:var(--dim);} .mlseat small i{font-style:normal;color:#7fe08a;}
+.mlseat.me{background:rgba(255,210,58,.2);box-shadow:inset 0 0 0 1px var(--gold);}
+.mlseat.cpu{background:none;border:1px dashed rgba(255,255,255,.3);color:var(--dim);cursor:pointer;}
+.mlpick{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font:700 12px var(--body);}
+.mllane{min-height:44px;min-width:76px;padding:4px 12px;border-radius:10px;border:2px solid rgba(255,255,255,.3);background:rgba(255,255,255,.06);color:#fff;font:800 15px var(--body);}
+.mllane.on{border-color:var(--gold);background:rgba(255,210,58,.25);}
+.mldone,.mlcancel{min-height:44px;font-size:17px;padding:4px 16px;} .mldone{margin-left:auto;} .mldone[disabled]{opacity:.45;}
+.mlnote{color:var(--dim);font:600 10px var(--body);}
+.mlask{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:10px;background:rgba(20,19,18,.94);border-radius:12px;font:800 17px var(--body);text-align:center;}
+.mlask p{margin:0;} .mlask .go{min-height:44px;min-width:140px;}
+.vsscreen{position:fixed;inset:0;z-index:64;display:flex;flex-direction:column;justify-content:center;gap:12px;background:radial-gradient(ellipse at center,#2a2622,#0d0c0b);color:#fff;padding:max(8px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));transition:opacity .4s;}
+.vsscreen.out{opacity:0;}
+.vscols{display:flex;align-items:center;gap:6px;justify-content:center;}
+.vscol{flex:1;max-width:200px;display:flex;flex-direction:column;gap:5px;border-top:4px solid var(--c);background:rgba(255,255,255,.05);border-radius:8px;padding:6px;}
+.vscol h3{margin:0;font:400 22px var(--display);font-style:italic;color:var(--c);}
+.vscol p{margin:0;display:flex;flex-direction:column;padding:4px 6px;border-radius:6px;background:rgba(255,255,255,.08);font:800 13px var(--body);}
+.vscol p b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;} .vscol p small{font:700 11px var(--body);color:var(--gold);min-height:13px;}
+.vscol p.me{box-shadow:inset 0 0 0 1px var(--gold);} .vscol p.cpu{color:var(--dim);}
+.vsx{font:400 26px var(--display);font-style:italic;color:var(--gold);}
+.vsfoot{text-align:center;font:400 22px var(--display);font-style:italic;color:var(--paper);}
+#searchLobby{font:800 12px var(--body);padding:4px 10px;border-radius:999px;}

@@ -46,7 +46,9 @@ export const online = {
   nick: n => send({ t: 'nick', nick: n }), look: l => send({ t: 'look', look: l }),
   addFriend: code => send({ t: 'friendAdd', code }), accept: id => send({ t: 'friendAccept', id }), decline: id => send({ t: 'friendDecline', id }), remove: id => send({ t: 'friendRemove', id }),
   invite: id => send({ t: 'invite', id }), acceptInvite: from => send({ t: 'accept', from }), join: id => send({ t: 'join', id }), leaveParty: () => send({ t: 'partyLeave' }), voice: vp => { ON.vp = vp; send({ t: 'voice', vp }); },
-  queue: fmt => send({ t: 'queue', fmt }), cancel: () => send({ t: 'cancel' }), battleOver: () => send({ t: 'battleOver' }), quit: () => send({ t: 'quit' }), crowns: c => send({ t: 'crowns', crowns: c }),
+  queue: fmt => send({ t: 'queue', fmt, wait: window.__testLobbyWait }), // (wait: tests only, a local service honours it)
+  lane: lane => send({ t: 'lane', lane }), ready: r => send({ t: 'ready', ready: !!r }), seat: (c, k, leave) => send({ t: 'seat', c, k, leave: !!leave }), // (F2 lobby picks)
+  cancel: () => send({ t: 'cancel' }), battleOver: () => send({ t: 'battleOver' }), quit: () => send({ t: 'quit' }), crowns: c => send({ t: 'crowns', crowns: c }),
   relay: (to, d) => send({ t: 'relay', to, d }),
   report: d => send({ t: 'report', ...d }), perf: d => send({ t: 'perf', ...d }), // (the admin numbers: a battle's summary, a phone's health)
 };

@@ -2,7 +2,7 @@
 
 Current work: **friends' playtest fixes (F tickets) and lag (Phase 0)**, then Roles & Combat (design and plan in
 Claude Docs, links in CLAUDE.md). Every builder updates this file as the last step of its ticket. Owner: Opus owner chat.
-Last updated: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
+Last updated: 2026-11-14 (F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
 
 ## Live on main
 - P0.1 Dead-code cleanup · P0.2 Lag harness · P0.3 Ping readout · M1 Neutral soldiers look like soldiers
@@ -169,6 +169,18 @@ Last updated: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `
 - Sound shortlist page (private artifact, Claude's picks for "feel there, subtle humour"): sound effects wait
   for Arjun to download the first picks from Freesound / OpenGameArt (the workspace can't reach them).
 
+## F2 One lobby (14 Nov, Arjun's picks; card `docs/tickets/F2.md`). On `roles`, not shipped
+- Matchmade lobby is a pop-up over the warm-up: four armies' seats (name or Computer), your lane (Left/Jungle/Right,
+  only your army sees it), Done = ready; a bar (clock, Lobby button) reopens it. Tap a computer's seat to move; a party
+  member moving to another army is asked "leave the party?". All ready: clock drops to 10 s. Then a 10 s versus screen
+  (every army, names, lanes) while the phones link up; then the battle. Late joins skip both.
+- Service: seats are fixed slots (a leaver's seat is the computer's at once, in the lobby and in a running battle;
+  the next player in takes that exact seat); new messages lane/ready/seat, `start` carries lanes and `vs`.
+  An old service (live until shipped: it deploys from main) gives the old search box, no versus.
+- `r_F2.mjs` (Arjun+Ravi party, Chen, Dev; max 3 phones open at once: 2 CPUs) ALL PASS roles off and on;
+  crown2sim and crown2online pass roles off and on. Headless link-up after the versus took ~21 s (slow box).
+- Not done: lanes in the battle (plan only, design 02), role pick in the lobby (P6.3), the private lobby, voice.
+
 ## Build queue (in order; model = best fit; Fable 5.2 available until 15 Nov)
 | # | Ticket | What | Model | Waits on |
 |---|---|---|---|---|
@@ -177,7 +189,7 @@ Last updated: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `
 | 5 | F14 | Adapts to any phone: rebuilt 13 Nov to Arjun's picks, waiting for Arjun's "ship" | S | Arjun's ship |
 | 6 | F4 | Neutral garrisons and camps fight as real soldiers and ambush (today one shared health pool, standing still) | O | card |
 | 7 | F9 | Horse charges: full stop only on Hold and facing; standing men slow it; moving or flanked men are bowled over | O | card |
-| 9 | F2 | One lobby for all 8 or 12 players: lanes (left, right, jungle), ready-up, 10 s versus screen | O | card |
+| 9 | F2 | One lobby: built 14 Nov, waiting for Arjun's "ship" | O | Arjun's ship |
 | 11 | P0.11 | Matchmake by region first (India with India, US with US) | S | |
 | 12 | P0.7b | Finer positions in snapshots; version check so old and new phones don't mix | S | |
 | 13 | P0.4 | Best host | S | |
@@ -185,7 +197,6 @@ Last updated: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `
 | 15 | Ads | Ad while the match is set up (CrazyGames SDK); never delays the start | S | CrazyGames' ad rules checked |
 | 15b | V1b | Voice for phones on the relay: a TURN relay that works. Free route: Metered.ca free tier (20 GB a month, sign-up, no card), its key kept as a secret in the online service, which hands out short-lived credentials (code slot `TURN_KEY_URL` exists). Helps the game link too | S | Arjun's sign-up and go |
 | 16 | V2 | All-talk voice | O | servers |
-| 17 | M3 | Ramparts for archers | O | |
 | 19 | P0.8 / P0.9 | Fair timing / host hand-over. Cut P0.9 if battles move to servers | O | P0.10 |
 | - | P0.5 | Cloudflare TURN relay | S | **Parked** (needs a card) |
 | - | Phases 1-9 | Roles & Combat behind `?roles=1` | mixed | the list above, Arjun's approval |

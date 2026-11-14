@@ -269,7 +269,7 @@ export function hostStart() {
 // code and starts it the moment every expected player is linked up (or after a short wait: anyone who
 // can't link up has their side played by the computer). Everyone else joins and asks for their seat.
 const MATCH_WAIT = 25e3;
-export async function matchHost(code, fmt, myTi, expect, onNote = () => {}) {
+export async function matchHost(code, fmt, myTi, expect, onNote = () => {}, vsUntil = 0) {
   if (busy) return false; busy = true;
   let gr = null; try { gr = await makeP2PRoom(code, true); } catch (e) { busy = false; onNote('Could not open the battle. Try again.'); return false; }
   busy = false;
@@ -278,7 +278,7 @@ export async function matchHost(code, fmt, myTi, expect, onNote = () => {}) {
   const me = myPeer(gr) || 'me'; NET.me = me; NET.seats[me] = myTi; G.myTi = myTi; G.role = 'host';
   const t0 = performance.now();
   NET.unsub = gr.onPeers(() => { if (G.state === 'lobby') { hostLobbyTick(); check(); } });
-  const check = () => { if (G.state !== 'lobby' || !session.NET || !session.NET.match) return; const n = Object.keys(NET.seats).length; if (n >= expect || performance.now() - t0 > MATCH_WAIT) { clearInterval(iv); hostStart(); } };
+  const check = () => { if (G.state !== 'lobby' || !session.NET || !session.NET.match) return; const n = Object.keys(NET.seats).length; if ((n >= expect && performance.now() >= vsUntil) || performance.now() - t0 > MATCH_WAIT) { clearInterval(iv); hostStart(); } }; // (F2: never before the versus screen's 10 s are up)
   const iv = setInterval(check, 1000);
   showLobby(); $('lobbyStatus').textContent = 'Linking up with everyone… the battle starts by itself';
   return true;

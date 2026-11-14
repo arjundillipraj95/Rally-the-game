@@ -10,7 +10,7 @@ import { adminPage } from './admin.js';
 import { turnResponse } from './turn.js';
 
 const FMT_CAP = [1, 2, 3]; // captains per side: Solo, Duo, Trio
-const LOBBY_WAIT = 60e3, LATE_JOIN = 60e3, QUEUE_JOIN = 110e3, PARTY_MAX = 3; // (searchers drop into a battle in its first 110 s: the game takes late captains for 120) // (a friend can join a running battle in its first minute)
+const LOBBY_WAIT = 60e3, READY_WAIT = 10e3, VERSUS_MS = 10e3, LANES = ['L', 'J', 'R'], LATE_JOIN = 60e3, QUEUE_JOIN = 110e3, PARTY_MAX = 3; // (searchers drop into a battle in its first 110 s: the game takes late captains for 120) // (a friend can join a running battle in its first minute)
 const CODE = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const rid = (n, set = CODE) => { const b = new Uint8Array(n); crypto.getRandomValues(b); return [...b].map(x => set[x % set.length]).join(''); };
 const cleanNick = s => String(s || '').replace(/[^\p{L}\p{N} _.-]/gu, '').trim().slice(0, 16) || 'Captain';
@@ -37,7 +37,7 @@ export class Hub {
     this.state = state; this.env = env;
     this.live = new Map();    // account id -> session {ws, id, nick, look, party, where, room, queued}
     this.parties = new Map(); // party id -> {id, leader, members: [ids]}
-    this.rooms = new Map();   // room id -> {id, fmt, sides: [[ids]], created, started, host, code, startedAt}
+    this.rooms = new Map();   // room id -> {id, fmt, sides: [[id|null per seat]], p: {id: {lane, ready}}, created, deadline, started, host, code, startedAt} (null seat = a computer captain)
     this.timer = null;
     this.quits = new Map(); // account -> when they left battles early (the last hour)
     this.topics = new Map(); // relay topic -> sessions listening (the game's fallback link, see m_sub)
@@ -49,7 +49,7 @@ export class Hub {
     if (req.headers.get('Upgrade') !== 'websocket') return new Response('expected a websocket', { status: 426 });
     const [client, server] = Object.values(new WebSocketPair());
     server.accept();
-    const s = { ws: server, id: null };
+    const s = { ws: server, id: null, dev: /^(127\.0\.0\.1|localhost)(:|$)/.test(u.host) }; // (a local test server: tests may ask for a longer lobby clock)
     server.addEventListener('message', ev => { let m; try { m = JSON.parse(ev.data); } catch (e) { return; } this.onMsg(s, m).catch(err => this.send(s, { t: 'error', msg: String(err && err.message || err) })); });
     server.addEventListener('close', () => this.onClose(s));
     server.addEventListener('error', () => this.onClose(s));
@@ -182,7 +182,7 @@ export class Hub {
   // ---------- matchmaking ----------
   cancelQueue(s) {
     const room = s.room && this.rooms.get(s.room);
-    if (room && !room.started) { for (const side of room.sides) { const i = side.indexOf(s.id); if (i >= 0) side.splice(i, 1); } s.room = null; s.where = s.party ? 'party' : 'home'; this.lobbyUpdate(room); if (!room.sides.some(x => x.length)) this.rooms.delete(room.id); }
+    if (room && !room.started) { this.unseat(room, s.id); s.room = null; s.where = s.party ? 'party' : 'home'; this.lobbyUpdate(room); if (!this.humans(room)) this.rooms.delete(room.id); }
     s.queued = null;
   }
   async m_cancel(s) { const p = this.partyOf(s); for (const id of p ? p.members : [s.id]) { const x = this.live.get(id); if (x) { this.cancelQueue(x); this.send(x, { t: 'lobby', room: null }); } } }
@@ -201,37 +201,67 @@ export class Hub {
     let room = [...this.rooms.values()].find(r => !r.started && r.fmt === fmt && this.fits(r, ids.length));
     if (room) { this.seat(room, ids); this.lobbyUpdate(room); this.arm(); return; }
     const open = [...this.rooms.values()].filter(r => r.started && r.fmt === fmt && now - r.startedAt < QUEUE_JOIN && this.live.has(r.host) && this.fits(r, ids.length))
-      .sort((a, b) => b.sides.flat().length - a.sides.flat().length);
+      .sort((a, b) => this.humans(b) - this.humans(a));
     if (open[0] && this.seat(open[0], ids, null, true)) {
       const room2 = open[0], nicks = Object.fromEntries(Object.keys(room2.seats).filter(i => this.live.has(i)).map(i => [i, this.live.get(i).nick]));
       for (const id of ids) { const x = this.live.get(id); if (!x) continue; this.send(x, { t: 'start', room: room2.id, fmt: room2.fmt, host: room2.host, code: room2.code, seats: room2.seats, nicks, late: true }); this.to(room2.host, { t: 'lateJoin', id, nick: x.nick, ti: room2.seats[id] }); this.notifyFriends(id); }
       return;
     }
-    room = { id: rid(8), fmt, sides: [[], [], [], []], created: now, started: false }; this.rooms.set(room.id, room);
+    const cap = FMT_CAP[fmt];
+    room = { id: rid(8), fmt, sides: [0, 1, 2, 3].map(() => new Array(cap).fill(null)), p: {}, created: now, deadline: now + (s.dev && m.wait > 0 ? Math.min(m.wait, 600e3) : LOBBY_WAIT), started: false }; this.rooms.set(room.id, room);
     this.seat(room, ids); this.lobbyUpdate(room); this.arm();
   }
-  fits(room, n) { const cap = FMT_CAP[room.fmt]; return room.sides.some(sd => cap - sd.length >= n); }
+  // F2: every seat is a fixed slot (an id, or null: a computer captain plays it), so nobody moves when someone
+  // leaves, and the next player in takes that computer's seat. Army = colour + 4 * slot.
+  free(sd) { return sd.filter(x => x == null).length; }
+  humans(room) { return room.sides.flat().filter(x => x != null).length; }
+  fits(room, n) { return room.sides.some(sd => this.free(sd) >= n); }
+  unseat(room, id) { for (const [c, sd] of room.sides.entries()) { const k = sd.indexOf(id); if (k >= 0) { sd[k] = null; (room.freed || (room.freed = [])).push([c, k]); } } if (room.p) delete room.p[id]; if (room.seats) delete room.seats[id]; }
   // Seats: a whole party stays on one side. Fill sides that already have players first (teaming with
   // real people), but a full party takes an empty side, so real teams face each other.
   seat(room, ids, nearId = null, late = false) {
     const cap = FMT_CAP[room.fmt], n = ids.length;
     let side = -1;
-    if (nearId != null) { const fs = room.sides.findIndex(sd => sd.includes(nearId)); if (fs >= 0 && cap - room.sides[fs].length >= n) side = fs; }
+    if (nearId != null) { const fs = room.sides.findIndex(sd => sd.includes(nearId)); if (fs >= 0 && this.free(room.sides[fs]) >= n) side = fs; }
+    let at = -1; // (a seat someone just left goes to the next one in: he takes it from the computer)
+    if (side < 0 && room.freed) for (let i = room.freed.length - 1; i >= 0 && side < 0; i--) { const [c, k] = room.freed[i]; if (room.sides[c][k] == null && this.free(room.sides[c]) >= n) { side = c; at = k; room.freed.splice(i, 1); } }
     if (side < 0) {
-      const opts = room.sides.map((sd, i) => [i, sd.length]).filter(([, l]) => cap - l >= n);
+      const opts = room.sides.map((sd, i) => [i, cap - this.free(sd)]).filter(([i]) => this.free(room.sides[i]) >= n);
       if (!opts.length) return false;
       if (n === cap) side = (opts.find(([, l]) => l === 0) || opts[0])[0];
       else side = opts.sort((a, b) => b[1] - a[1])[0][0];
     }
-    room.sides[side].push(...ids);
+    const sd = room.sides[side];
+    for (const id of ids) { const k = at >= 0 && sd[at] == null ? at : sd.indexOf(null); at = -1; sd[k] = id; if (room.p && !room.p[id]) room.p[id] = { lane: null, ready: false }; if (room.seats) room.seats[id] = side + 4 * k; } // (late: the computer army in that seat)
     for (const id of ids) { const x = this.live.get(id); if (x) { x.room = room.id; x.where = late ? 'battle' : 'lobby'; x.queued = { fmt: room.fmt }; } }
-    if (room.seats) for (const id of ids) room.seats[id] = side + 4 * room.sides[side].indexOf(id); // (late: the next free army of that colour)
     return true;
   }
+  // F2 lobby picks: a lane (a plan only: left, jungle, right), ready (Done), and moving to a computer's seat
+  lobbyOf(s) { const room = s.room && this.rooms.get(s.room); return room && !room.started && room.p ? room : null; }
+  async m_lane(s, m) { const room = this.lobbyOf(s); if (!room || !room.p[s.id]) return; room.p[s.id].lane = LANES.includes(m.lane) ? m.lane : null; this.lobbyUpdate(room); }
+  async m_ready(s, m) {
+    const room = this.lobbyOf(s); if (!room || !room.p[s.id]) return;
+    room.p[s.id].ready = !!m.ready;
+    if (room.sides.flat().every(id => id == null || (room.p[id] && room.p[id].ready))) room.deadline = Math.min(room.deadline, Date.now() + READY_WAIT); // (everyone's ready: 10 s more for anyone still coming)
+    this.lobbyUpdate(room);
+  }
+  async m_seat(s, m) {
+    const room = this.lobbyOf(s); if (!room) return;
+    const c = m.c | 0, k = m.k | 0, sd = room.sides[c]; if (!sd || k < 0 || k >= sd.length || sd[k] != null) return this.lobbyUpdate(room);
+    const from = room.sides.findIndex(x => x.includes(s.id)); if (from < 0) return;
+    const p = this.partyOf(s);
+    if (from !== c && p && p.members.length > 1) { if (!m.leave) return this.send(s, { t: 'note', msg: 'Moving to another army leaves your party' }); this.leaveParty(s); } // (the phone asked "are you sure")
+    room.sides[from][room.sides[from].indexOf(s.id)] = null; sd[k] = s.id;
+    this.lobbyUpdate(room);
+  }
   lobbyUpdate(room) {
-    const sides = room.sides.map(sd => sd.map(id => { const x = this.live.get(id); return { id, nick: x ? x.nick : '?', look: x ? x.look : '' }; }));
-    const endsIn = Math.max(0, room.created + LOBBY_WAIT - Date.now());
-    for (const sd of room.sides) for (const id of sd) this.to(id, { t: 'lobby', room: room.id, fmt: room.fmt, sides, endsIn, me: id });
+    const endsIn = Math.max(0, (room.deadline || room.created + LOBBY_WAIT) - Date.now());
+    for (const [mine, sd0] of room.sides.entries()) for (const id of sd0) {
+      if (id == null) continue;
+      // your own army's lanes only: the enemies' plans stay hidden until the versus screen
+      const sides = room.sides.map((sd, c) => sd.map(x => { if (x == null) return null; const y = this.live.get(x), q = (room.p || {})[x] || {}; return { id: x, nick: y ? y.nick : '?', look: y ? y.look : '', ready: !!q.ready, lane: c === mine ? q.lane || null : null }; }));
+      this.to(id, { t: 'lobby', v: 2, room: room.id, fmt: room.fmt, sides, endsIn, me: id });
+    }
   }
   arm() { if (!this.timer) this.timer = setInterval(() => this.tick(), 1000); }
   tick() {
@@ -239,19 +269,20 @@ export class Hub {
     for (const room of this.rooms.values()) {
       if (room.started) { if (now - room.startedAt > 20 * 60e3) this.rooms.delete(room.id); continue; }
       any = true;
-      const cap = FMT_CAP[room.fmt], full = room.sides.every(sd => sd.length >= cap), humans = room.sides.flat().length;
-      if (!humans) { this.rooms.delete(room.id); continue; }
-      if (full || now - room.created >= LOBBY_WAIT) this.start(room);
+      if (!this.humans(room)) { this.rooms.delete(room.id); continue; }
+      if (now >= room.deadline) this.start(room); // (F2: the clock, cut to 10 s once everyone is ready; computers fill the empty seats)
       else if ((now - room.created) % 10e3 < 1000) this.lobbyUpdate(room);
     }
     if (!any && this.timer) { clearInterval(this.timer); this.timer = null; }
   }
   start(room) {
     room.started = true; room.startedAt = Date.now();
-    const all = room.sides.flat().filter(id => this.live.has(id));
+    for (const sd of room.sides) for (const [k, id] of sd.entries()) if (id != null && !this.live.has(id)) sd[k] = null;
+    const all = room.sides.flat().filter(id => id != null);
     room.host = all[0]; room.code = 'M' + rid(7); // (a battle code for the phones' own link-up)
-    room.seats = {}; room.sides.forEach((sd, c) => sd.forEach((id, k) => { room.seats[id] = c + 4 * k; }));
-    for (const id of all) { const x = this.live.get(id); x.where = 'battle'; this.send(x, { t: 'start', room: room.id, fmt: room.fmt, host: room.host, code: room.code, seats: room.seats, nicks: Object.fromEntries(all.map(i => [i, this.live.get(i).nick])) }); }
+    room.seats = {}; room.sides.forEach((sd, c) => sd.forEach((id, k) => { if (id != null) room.seats[id] = c + 4 * k; }));
+    const lanes = Object.fromEntries(all.map(i => [i, (room.p[i] || {}).lane || null])); // (the versus screen shows every army's plan)
+    for (const id of all) { const x = this.live.get(id); x.where = 'battle'; this.send(x, { t: 'start', room: room.id, fmt: room.fmt, host: room.host, code: room.code, seats: room.seats, nicks: Object.fromEntries(all.map(i => [i, this.live.get(i).nick])), lanes, vs: VERSUS_MS }); }
     for (const id of all) this.notifyFriends(id);
   }
   // leaving a battle before it ends: once is life; again within the hour means a short wait (a minute
@@ -261,7 +292,9 @@ export class Hub {
     return q.length < 2 ? 0 : q[q.length - 1] + (q.length - 1) * 60e3 - now;
   }
   noteQuit(s) { const room = s.room && this.rooms.get(s.room); if (!room || !room.started) return; const q = this.quits.get(s.id) || []; q.push(Date.now()); this.quits.set(s.id, q); try { statQuit(this.sql, s.id); } catch (e) {} }
-  async m_quit(s) { this.noteQuit(s); return this.m_battleOver(s); }
+  async m_quit(s) { this.noteQuit(s); this.freeSeat(s); return this.m_battleOver(s); }
+  // F2: someone leaves a running battle: his army is the computer's now, and the next player in takes it
+  freeSeat(s) { const room = s.room && this.rooms.get(s.room); if (room && room.started) this.unseat(room, s.id); }
   // the numbers: a battle's summary from the phone that ran it, and every phone's health
   async m_report(s, m) { try { noteMatch(this.sql, s.id, m); prune(this.sql); } catch (e) {} }
   async m_perf(s, m) { try { notePerf(this.sql, s.id, m); } catch (e) {} }
@@ -286,7 +319,7 @@ export class Hub {
     if (!s.id || this.live.get(s.id) !== s) return;
     const room = s.room && this.rooms.get(s.room);
     if (room && room.started && room.host === s.id) this.handover(room, s.id);
-    if (s.where === 'battle') this.noteQuit(s);
+    if (s.where === 'battle') { this.noteQuit(s); this.freeSeat(s); }
     this.cancelQueue(s); this.leaveParty(s);
     this.live.delete(s.id); this.notifyFriends(s.id);
   }
