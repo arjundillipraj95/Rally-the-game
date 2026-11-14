@@ -100,7 +100,7 @@ export function clearBanter() { bubbles.length = 0; quietT = 2; marchT = 12; con
 bus.on('end', ({ w }) => {
   const T = camTarget(); if (!T || w < 0) return;
   const near = G.units.filter(o => !o.dead && Math.hypot(o.x - T.x, o.z - T.z) < 22);
-  const winners = near.filter(o => G.ALLY[o.ti % 4] === w), losers = near.filter(o => G.ALLY[o.ti % 4] !== w);
+  const winners = near.filter(o => !o.neutral && G.ALLY[o.ti % 4] === w), losers = near.filter(o => !o.neutral && G.ALLY[o.ti % 4] !== w);
   const one = l => l[(Math.random() * l.length) | 0];
   if (winners.length) { say(one(winners), 'win', true); setTimeout(() => winners.length > 1 && say(one(winners), 'win', true), 700); }
   if (losers.length) setTimeout(() => say(one(losers), 'flee', true), 350);

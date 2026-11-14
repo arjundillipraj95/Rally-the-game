@@ -27,9 +27,9 @@ await sleep(3000);
 await B.click('#friendsBtn'); await sleep(800); await B.waitForSelector('[data-join]'); await B.click('[data-join]');
 await B.waitForFunction(() => window.__fb && window.__fb.G.state === 'play', null, { timeout: 60000 }); await sleep(3000);
 const T = await A.evaluate(() => Math.round(window.__fb.G.T)); console.log('joined at battle time', T);
-const info = async p => p.evaluate(() => { const G = window.__fb.G, K = G.c2; return { role: G.role, map: G.map.id, T: Math.round(G.T), c2: !!K, phase: K && K.phase, guards: K && K.breaks.filter(b => b.kind === 'guard').map(b => Math.round(b.hp)).join('.'),
+const info = async p => p.evaluate(() => { const G = window.__fb.G, K = G.c2; return { role: G.role, map: G.map.id, T: Math.round(G.T), c2: !!K, phase: K && K.phase, guards: K && K.breaks.filter(b => b.post).map(b => b.n).join('.'),
   held: G.holds.map(h => h.owner).join(''), by: G.holds.map(h => h.by ?? '-').join(''), pts: [0, 1, 2, 3].map(a => window.__fb.c2Points(a)).join(','), cap: window.__fb.G.teams[G.myTi] && G.myTi, units: G.units.filter(u => !u.dead).length }; });
-await A.evaluate(() => { const { G } = window.__fb, K = G.c2; K.breaks[0].hp = 50; K.breaks[12].hp = 0; G.holds[0].owner = G.ALLY[0]; G.holds[0].by = 0; G.holds[3].owner = G.ALLY[1]; G.holds[3].by = 1; K.chestPts[G.ALLY[0]] = 4; K.kills[G.ALLY[1]] = { 2: 1, 3: 1 }; K.phase = 'open'; G.plazaWall.broken = 15; });
+await A.evaluate(() => { const { G } = window.__fb, K = G.c2; window.__fb.die(K.breaks[0].units[0], null, 0); window.__fb.die(K.breaks[0].units[1], null, 0); for (const u of K.breaks[12].units) window.__fb.die(u, null, 0); /* (F4: real men) */ G.holds[0].owner = G.ALLY[0]; G.holds[0].by = 0; G.holds[3].owner = G.ALLY[1]; G.holds[3].by = 1; K.chestPts[G.ALLY[0]] = 4; K.kills[G.ALLY[1]] = { 2: 1, 3: 1 }; K.phase = 'open'; G.plazaWall.broken = 15; });
 await sleep(4000);
 for (let k = 0; k < 1; k++) { console.log('A', JSON.stringify(await info(A)), '\nB', JSON.stringify(await info(B))); await sleep(15000); }
 await b1.close(); await b2.close();

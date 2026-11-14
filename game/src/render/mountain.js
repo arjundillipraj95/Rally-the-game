@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { keepLive, batchOn, abOn, abOld, abShow, mergeInto } from './batch.js';
 import { TEAMS, CROWN2, NEUTRAL } from '../config.js';
-import { G, ARMIES } from '../core/state.js';
+import { G } from '../core/state.js';
 import { groundY, terrainMeshY, mountHomeA, mulberry, W } from '../core/world.js';
 import { stoneTex, woodTex } from './look.js';
 import { nightLook, dayLook, dayGold, scene, camera, sun, hemi, renderer, lookK, skySunDir } from './scene.js';
@@ -31,16 +31,6 @@ export function mountGround(c, x, z) {
   for (let k = 0; k < 4; k++) { const a = mountHomeA(k), hx = Math.cos(a) * K.home * R, hz = Math.sin(a) * K.home * R, d = Math.hypot(x - hx, z - hz); if (d < 12) c.lerp(townC, .55 * (1 - d / 12)); }
   return c;
 }
-
-// A neutral soldier (a castle's guard, a camp's fighter), for the real soldier model (render/soldiers.js draws it
-// with the armies' own parts, in grey steel). Only a plain record of what that drawing reads: it is not in
-// G.units, so the battle never sees it. Its number, place and facing are the garrison's, nothing else changes.
-let figN = 0;
-function figure(kind, x, z, face) {
-  return { id: 70000 + ++figN, ti: ARMIES, neutral: true, kind, tier: 0, leader: false, human: false, x, z, y: groundY(x, z), vx: 0, vz: 0, vy: 0, face,
-    hp: 1, max: 1, swing: 0, swingKind: 0, stun: 0, blockT: 0, blocking: false, aim: false, dead: false, mounted: false, shieldwall: false, jy: 0 };
-}
-
 
 // F10b The summit feeling: past the rim the ground breaks into cliffs (core/world.js terrainMeshY) that fall into a
 // sea of clouds below rim level, out to the horizon; a few broad snowy massifs rise out of it, far off and mostly
@@ -188,7 +178,7 @@ export function buildMount(world, L) {
   const grp = new THREE.Group(); world.add(grp);
   const stone = lam(0x9a9384, stoneTex()), wood = lam(0x7a5a3a, woodTex()), woodDark = lam(0x55402a, woodTex());
   const plaster = lam(0xf0e6d0), thatch = lam(0xb8954a), skin = lam(0xd9a77a);
-  M = { grp, guards: [], camps: [], homes: [], live: [], t: 0, rim: buildRim(grp) }; // (live: the neutral soldiers standing now, for drawSoldiers)
+  M = { grp, guards: [], camps: [], homes: [], t: 0, rim: buildRim(grp) };
   // homes: cottages, the colour's banner, a soft ring round the safe ground
   for (const b of L.buildings.filter(b => b.kind === 'cottage')) {
     const g = new THREE.Group(); g.position.set(b.x, terrainMeshY(b.x, b.z) - .1, b.z); g.rotation.y = b.rot;
@@ -284,20 +274,13 @@ export function buildMount(world, L) {
     const lid = new THREE.Mesh(new THREE.CylinderGeometry(.55, .55, 1.6, 12, 1, false, 0, Math.PI), wood); lid.rotation.z = Math.PI / 2; lid.position.y = 1; g.add(lid);
     for (const x of [-.6, .6]) { const band = new THREE.Mesh(new THREE.BoxGeometry(.12, 1.62, 1.16), new THREE.MeshPhongMaterial({ color: 0xffcf3a, emissive: 0x4a3400 })); band.position.set(x, .78, 0); g.add(band); }
     g.visible = false; grp.add(shadowy(g)); keepLive(g); M.chest = g; }
-  // guards and bandits alike (M1): a squad each, 3 footmen in front and 2 archers (bows) behind, dropping one by
-  // one as they're cut down. They are drawn by render/soldiers.js with the real soldier model in neutral grey
-  // steel (see `figure`), under one grey banner each; the banner's pole and cloth are shared by all of them.
+  // guards and bandits alike: one grey banner each over their post (the pole and cloth shared by all of them). The men
+  // are real soldiers in the battle (F4, core/sim.js), drawn with the armies by render/soldiers.js in neutral grey steel.
   const poleGeo = new THREE.CylinderGeometry(.06, .07, NEUTRAL.h, 6), clothGeo = new THREE.PlaneGeometry(NEUTRAL.w, NEUTRAL.ch);
   const poleMat = lam(NEUTRAL.pole), clothMat = lam(NEUTRAL.cloth, null, { side: THREE.DoubleSide });
   for (const b of (G.c2 && G.c2.breaks) || []) {
     if (b.kind !== 'guard' && b.kind !== 'camp') continue;
-    const men = [], nf = b.foot ?? b.men, na = b.arch ?? 0;
-    for (let k = 0; k < nf + na; k++) {
-      const archer = k >= nf;
-      const a = archer ? (k - nf) / Math.max(1, na) * Math.PI * 2 + 1.2 : k / nf * Math.PI * 2 + .4, rr = archer ? 2.5 : 1.3;
-      const x = b.x + Math.cos(a) * rr, z = b.z + Math.sin(a) * rr; // (facing out from the post)
-      men.push({ u: figure(archer ? 'arch' : 'foot', x, z, Math.atan2(Math.cos(a), Math.sin(a))), archer, i: archer ? k - nf : k });
-    }
+    const nf = b.foot ?? b.men;
     // the banner stands between two footmen, clear of a camp's fire in the middle
     const ba = .4 + Math.PI / Math.max(1, nf), bx = b.x + Math.cos(ba) * NEUTRAL.off, bz = b.z + Math.sin(ba) * NEUTRAL.off;
     const banner = new THREE.Group(); banner.position.set(bx, groundY(bx, bz), bz);
@@ -306,8 +289,7 @@ export function buildMount(world, L) {
     const cloth = new THREE.Mesh(clothGeo, clothMat); cloth.position.x = NEUTRAL.w / 2; flap.add(cloth);
     grp.add(shadowy(banner));
     if (b.kind === 'camp') { const fire = new THREE.Mesh(new THREE.ConeGeometry(.45, .9, 6), new THREE.MeshBasicMaterial({ color: 0xff8a2a })); fire.position.set(b.x, groundY(b.x, b.z) + .45, b.z); grp.add(fire); M.camps.push({ b, fire }); keepLive(fire); }
-    keepLive(banner); M.guards.push({ b, men, banner, flap, seen: 0 });
-    for (const m of men) M.live.push(m.u);
+    keepLive(banner); M.guards.push({ b, banner, flap });
   }
   // F1a every garrison's banner (pole, cloth) and every camp's fire in one draw each
   if (batchOn()) {
@@ -334,26 +316,15 @@ function updateGuardBatch() {
   for (const m of [B.poles, B.cloths, B.fires]) { m.instanceMatrix.needsUpdate = true; m.visible = abShow(true); }
 }
 
-// the neutral soldiers standing now, for drawSoldiers to draw beside the armies (null off the mountain)
-export const neutralFigs = () => (M && G.map.id === 'mount' ? M.live : null);
-if (import.meta.env.DEV) window.__neutralFigs = neutralFigs; // (dev: tests count the neutral soldiers)
-
 export function updateMount(dt) {
   if (M && M.rim) updateRim(M.rim, dt);
   if (!M || !G.c2) return;
   M.t += dt; const K = G.c2, T = G.T;
-  M.live.length = 0;
-  for (const g of M.guards) {
-    const { b, men } = g, [nf, na] = c2Garrison(b);
-    const fresh = b.swingT && b.swingT !== g.seen && T - b.swingT < .35; if (fresh) g.seen = b.swingT; // (the garrison struck: its footmen swing)
-    g.banner.userData.on = nf + na > 0; g.banner.visible = abShow(false) && g.banner.userData.on; g.flap.rotation.y = Math.sin(M.t * 1.6 + b.x) * .3;
-    for (const { u, archer, i } of men) {
-      if (i >= (archer ? na : nf)) continue; // (cut down: gone)
-      if (!archer) { if (fresh) u.swing = .38; else if (u.swing > 0) u.swing = Math.max(0, u.swing - dt); }
-      M.live.push(u);
-    }
+  for (const g of M.guards) { // (F4: the banner flies while one man of its post lives)
+    const [nf, na] = c2Garrison(g.b);
+    g.banner.userData.on = nf + na > 0; g.banner.visible = abShow(false) && g.banner.userData.on; g.flap.rotation.y = Math.sin(M.t * 1.6 + g.b.x) * .3;
   }
-  for (const { b, fire } of M.camps) { fire.userData.on = b.hp > 0; fire.visible = abShow(false) && fire.userData.on; fire.scale.y = .8 + Math.sin(M.t * 9 + b.x) * .2; }
+  for (const { b, fire } of M.camps) { fire.userData.on = b.n > 0; fire.visible = abShow(false) && fire.userData.on; fire.scale.y = .8 + Math.sin(M.t * 9 + b.x) * .2; }
   updateGuardBatch();
   for (const p of M.pals) p.inst.visible = !!p.h.fort;
   // dusk from 7:30, night at 8:00: the sky darkens, the torches come up and flicker

@@ -12,7 +12,7 @@ await page.click('#goBtn');
 await frames(page, 2);
 const snap = () => page.evaluate(() => { const { G } = window.__fb; const K = G.c2;
   return { T: +G.T.toFixed(0), state: G.state, map: G.map.id, R: window.__fb.W ? window.__fb.W.R : null, phase: K && K.phase, chest: K && K.chest,
-    held: G.holds.map(h => h.owner).join(''), units: G.units.filter(u => !u.dead).length, guards: K && K.breaks.filter(b => b.kind === 'guard' && b.hp > 0).length,
+    held: G.holds.map(h => h.owner).join(''), units: G.units.filter(u => !u.dead).length, guards: K && K.breaks.filter(b => b.kind === 'guard' && b.n > 0).length, camps: K && K.breaks.filter(b => b.kind === 'camp' && b.n > 0).length, neutral: G.units.filter(u => u.neutral && !u.dead).length,
     glacier: K && K.breaks.find(b => b.kind === 'glacier').hp, end: G.endInfo && JSON.stringify(G.endInfo), pts: [0, 1, 2, 3].map(a => window.__fb.c2Points ? window.__fb.c2Points(a) : '?').join(',') }; });
 console.log(JSON.stringify(await snap()));
 for (let k = 0; k < 24 && (await page.evaluate(() => window.__fb.G.state)) !== 'end'; k++) { await page.evaluate(() => window.__fb.step(900)); console.log(JSON.stringify(await snap())); }

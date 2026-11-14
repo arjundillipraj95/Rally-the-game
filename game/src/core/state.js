@@ -86,8 +86,10 @@ export const rules = () => {
 export const matchTime = () => (TIMES.some(x => x[0] === lenOf()) ? lenOf() : 10) * 60;
 export const targetFor = mode => { const T = TARGETS[mode]; return T ? T.def : null; };
 export const modeDesc = m => (m.desc || '').replace('{tickets}', rules().tickets).replace('{caps}', rules().caps).replace('{win}', rules().win);
-export const isEnemyTi = (a, b) => G.ALLY[colorOf(a)] !== G.ALLY[colorOf(b)];
-export const isEnemy = (a, b) => G.ALLY[colorOf(a.ti)] !== G.ALLY[colorOf(b.ti)];
+// (F4) the mountain's neutral soldiers are one army past the last (ti NEUTRAL_TI): everyone's enemy, not their own
+export const NEUTRAL_TI = ARMIES;
+export const isEnemyTi = (a, b) => a >= ARMIES || b >= ARMIES ? (a >= ARMIES) !== (b >= ARMIES) : G.ALLY[colorOf(a)] !== G.ALLY[colorOf(b)];
+export const isEnemy = (a, b) => isEnemyTi(a.ti, b.ti);
 export const isFfa = () => { const c = castlesIn(); return new Set(c.map(i => G.ALLY[i])).size === c.length; };
 
 // Small event bus: rules announce what happened, presentation decides how it looks and sounds.

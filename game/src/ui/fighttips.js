@@ -1,6 +1,6 @@
 // One-line tips that teach the captain's fighting moves the first couple of times they matter:
 // a heavy blow coming at you, your guard broken, a new weapon in hand. Shown over your captain.
-import { G, bus } from '../core/state.js';
+import { G, bus, isEnemyTi } from '../core/state.js';
 import { floatText } from '../render/effects.js';
 
 const TIPS = {
@@ -44,7 +44,7 @@ setInterval(() => {
   const T = G.teams[G.myTi]; if (T && T.rally >= 100) fightTip('horn');
   if (T && T.order === 'hold') fightTip('attack');
   if (p.mounted) { if ((p.weapon || 'sword') !== 'jav') fightTip('ride'); return; }
-  if (G.units.some(o => !o.dead && o.leader && o !== p && Math.hypot(o.x - p.x, o.z - p.z) < 6 && G.ALLY[o.ti % 4] !== G.ALLY[p.ti % 4])) fightTip('evade');
+  if (G.units.some(o => !o.dead && o.leader && o !== p && Math.hypot(o.x - p.x, o.z - p.z) < 6 && isEnemyTi(o.ti, p.ti))) fightTip('evade');
   if ((p.weapon || 'sword') !== 'sword') return;
-  if (G.units.some(o => !o.dead && o.ti !== p.ti && Math.hypot(o.x - p.x, o.z - p.z) < 5 && G.ALLY[o.ti % 4] !== G.ALLY[p.ti % 4])) fightTip('sword');
+  if (G.units.some(o => !o.dead && o.ti !== p.ti && Math.hypot(o.x - p.x, o.z - p.z) < 5 && isEnemyTi(o.ti, p.ti))) fightTip('sword');
 }, 1500);

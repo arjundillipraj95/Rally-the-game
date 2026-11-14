@@ -10,8 +10,8 @@ page.on('pageerror', e => console.log('ERR', e.message));
 await page.click('#segMode button[data-v="crown"]'); await page.click('#goBtn'); await frames(page, 2);
 const out = await page.evaluate(() => { const F = window.__fb, { G } = F, o = {};
   // keep everyone else out of it
-  for (const u of G.units) { u.x = 200 + u.id; u.z = 200; u.path = null; }
-  const park = () => { for (const u of G.units) if (!u.test) { u.x = 200 + u.id; u.z = 200; u.vx = u.vz = 0; u.path = null; } };
+  for (const u of G.units) if (!u.neutral) { u.x = 200 + u.id; u.z = 200; u.path = null; }
+  const park = () => { for (const u of G.units) if (!u.test && !u.neutral) { u.x = 200 + u.id; u.z = 200; u.vx = u.vz = 0; u.path = null; } };
   // 1. a lone footman walks up to a castle garrison
   const g = G.c2.breaks.find(b => b.kind === 'guard'), m = F.mkUnit(1, g.x + 7, g.z, 'foot'); m.test = true;
   let neutral = 0; for (let i = 0; i < 300 && !m.dead; i++) { park(); m.x = g.x + 7; m.z = g.z; m.vx = m.vz = 0; F.step(1); neutral += G.arrows.filter(a => a.neutral).length ? 1 : 0; }

@@ -2,12 +2,12 @@
 // presses and draws the host's snapshots (a compact text string, roughly 1-4KB depending on
 // how many soldiers are alive — more in a full 12-army Trio match — sent
 // about 12 times a second).
-import { CROWN2, SMOOTH, FEEL } from '../config.js';
+import { CROWN2, SMOOTH, FEEL, NEUTRAL } from '../config.js';
 import { SHOUTS, CROWN, HUMAN_CAPTAIN, ARMOUR, RHYTHM, BASH, EVADE, TEAMS, MAPS, KINDS, STATS, RECRUITS, ORDERS, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT, HOLD_ATK, PARRY } from '../config.js';
 import { G, bus, colorOf, isEnemyTi, activeFrom, ARMIES, duoStr, duoParse } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn, angDiff } from '../core/world.js';
 import { buildNav, syncGates } from '../core/nav.js';
-import { c2Begin, c2Water, startMarch, marchStep, chasmFallY } from '../core/sim.js';
+import { c2Begin, c2Water, startMarch, marchStep, chasmFallY, c2Man } from '../core/sim.js';
 import { adoptBattle, applyCastleGates, applyPlazaWall, volleyCharge, captainBash, duelAct, duelOffer, duelTarget, initForts, applyFort, fortLvl, captainEvade, evadeKind, makeHolds, execTarget, rallyCry, blockPress, attackHold, attackRelease, rideRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
 import { session, isClient, isHost } from './session.js';
 import { makeP2PRoom } from './p2p.js';
@@ -47,12 +47,14 @@ bus.on('fxmsg', d => {
 });
 
 // ---------- host ----------
+if (import.meta.env.DEV) window.__encodeSnap = () => encodeSnap(); // (dev: F4's test weighs a snapshot)
 function encodeSnap() {
   const upPack = s => UPGRADES.reduce((n, u, k) => n + (s.up[u.id] | 0) * 4 ** k, 0);
   const teams = G.teams.map(s => [Math.round(s.points * 10), s.tickets, s.caps, Math.floor(s.gold), s.alive ? 1 : 0, Math.max(0, Math.ceil(s.leaderDeadT)), upPack(s), Math.round(s.morale || 0), Math.floor(s.rally || 0), s.routT > 0 ? 1 : 0].join(',')).join(';');
   const us = [];
   for (const u of G.units) {
     if (u.dead) continue;
+    if (u.neutral && !u.post.awake && u.hp >= u.max && Math.hypot(u.x - u.px, u.z - u.pz) < NEUTRAL.home) continue; // (F4: a sleeping post's men at their spots: the mountain section says they live)
     const kt = KINDS.indexOf(u.kind) * 16 + u.ti;
     const fl = (u.swing > 0 ? 1 : 0) | (u.mounted ? 2 : 0) | ((u.blockT > 0 || (u.human && u.blocking)) ? 4 : 0) | (u.carrying ? 8 : 0) | (u.stun > 0 ? 16 : 0) | (u.aim ? 32 : 0) | (u.shieldwall ? 64 : 0) | (u.weapon === 'spear' ? 128 : u.weapon === 'jav' ? 256 : u.weapon === 'sword' ? 512 : 0) | (u.charge > 0 ? 1024 : 0)
       | (u.windup > 0 ? 2048 : 0) | (u.glint ? 4096 : 0) | (u.heavyCharge > 0 ? 8192 : 0) | (u.bracing ? 16384 : 0) | (u.javDraw > 0 ? 32768 : 0) | (u.couch || u.rideReady ? 65536 : 0) | (u.routing ? 131072 : 0) | (u.rallyT > 0 ? 262144 : 0) | (u.execReady ? 524288 : 0) | (u.execA ? 1048576 : 0) | (u.execV ? 2097152 : 0) | (u.leader && u.swing > 0 ? (u.swingKind & 7) * 4194304 : 0) | (u.dueled ? 33554432 : 0) | (u.armour > 0 ? Math.max(1, Math.round(u.armour / ARMOUR.hp * 7)) * 67108864 : 0) | (u.chasmT > 0 ? 536870912 : 0); // (bit 29, F7: going over the chasm's edge) // (bits 26-28: a captain's armour, in sevenths) // (bits 22-24: which blow a captain is swinging)
@@ -79,7 +81,7 @@ function encodeSnap() {
   const cx = G.units.filter(u => u.leader && !u.dead).map(u => [b36(u.id), Math.round(u.st ?? 100), (u.swingSide | 0) + 1, u.sideN | 0].join(',')).join(';');
   // the mountain: the arena's phase, the war chest, the points that aren't places, and what's left of every guard, camp and the glacier
   const K = G.c2, c2 = K ? (() => { const ch = K.breaks.find(b => b.kind === 'chest'), one = o => { const k = Object.keys(o).find(a => o[a]); return k == null ? -1 : k; };
-    return [['shut', 'open', 'night'].indexOf(K.phase), K.chest, ch ? Math.round(ch.hp) : 0, one(K.chestPts), one(K.crownPts), [0, 1, 2, 3].map(a => Object.values(K.kills[a] || {}).reduce((n, v) => n + v, 0)).join('.'), K.breaks.filter(b => b.kind !== 'chest').map(b => Math.max(0, Math.round(b.hp))).join('.'), K.floodAt == null ? '' : Math.round(K.floodAt * 10), [0, 1, 2, 3].map(a => Object.entries(K.kills[a] || {}).map(([ti, v]) => ti + '_' + v).join('+')).join('.')].join(','); })() : ''; // (F7a: when the lake's countdown began)
+    return [['shut', 'open', 'night'].indexOf(K.phase), K.chest, ch ? Math.round(ch.hp) : 0, one(K.chestPts), one(K.crownPts), [0, 1, 2, 3].map(a => Object.values(K.kills[a] || {}).reduce((n, v) => n + v, 0)).join('.'), K.breaks.filter(b => b.kind !== 'chest').map(b => b.post ? b.units.reduce((m, u, k) => m | (u && !u.dead ? 1 << k : 0), 0) : Math.max(0, Math.round(b.hp))).join('.'), K.floodAt == null ? '' : Math.round(K.floodAt * 10), [0, 1, 2, 3].map(a => Object.entries(K.kills[a] || {}).map(([ti, v]) => ti + '_' + v).join('+')).join('.')].join(','); })() : ''; // (F7a: when the lake's countdown began)
   return [Math.round(G.T * 10), teams, us.join(';'), ars.join(';'), hs.join(';'), fl, pl, G.bounty, hd, cp, fo, du, wt, cx, c2].join('|');
 }
 // a remote player's blow landing (or landing on them) goes out at once rather than waiting for the
@@ -203,9 +205,10 @@ export function clientStart(hp) {
   G.plazaWall = G.crown ? { up: false, hp: [0, 0, 0, 0], broken: 0 } : null; C.wallSig = null; G.cgates = G.crown ? {} : null; G.wtowers = [];
   G.ctrlPoints = G.mode === 'ctrl' ? makeCtrlPoints(G.layout) : null;
   G.holds = makeHolds(G.layout); G.duels = [];
-  G.c2 = null; if (G.mode === 'crown' && G.map.id === 'mount') { G.cgates = {}; for (const cw of (G.layout.cwalls || [])) G.cgates[cw.hid] = { hp: [1, 1, 1], broken: 0, lv: 1 }; c2Begin(); }
+  G.c2 = null; if (G.mode === 'crown' && G.map.id === 'mount') { G.cgates = {}; for (const cw of (G.layout.cwalls || [])) G.cgates[cw.hid] = { hp: [1, 1, 1], broken: 0, lv: 1 }; c2Begin(clientMk); }
   Object.assign(C, { off: null, back: null, snapHt: null, byId: new Map(), lastN: -1, lastMsgN: (hp.m && hp.m.length) ? hp.m[hp.m.length - 1][0] : 0, meId: null, meInit: false, kickN: 0, localCd: 0, lastSnapAt: performance.now(),
     inp: { rb: 0, bsh: 0, dl: 0, dlId: null, atk: 0, ride: 0, vly: 0, chg: 0, evN: 0, evK: '', par: 0, ahN: 0, ahD: 0, ah: false, rly: 0, foc: null, vat: null, rec: [0, 0, 0], up: UPGRADES.map(() => 0), ord: 'follow', hold: null, face: 0 }, sendAt: 0, sendNow: false, pred: null, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
+  for (const u of G.units) if (u.neutral) C.byId.set(u.id, u); // (F4: the mountain's neutral men, made with the battle above)
   G.player = null;
   cam.yaw = Math.atan2(-TEAMS[colorOf(G.myTi)].pos[0], -TEAMS[colorOf(G.myTi)].pos[1]); cam.pitch = CAM_PITCH;
   G.state = 'play';
@@ -213,13 +216,27 @@ export function clientStart(hp) {
   sfx.horn(); showMsg('start', []);
   clientApply(hp);
 }
+// (F4) the mountain's neutral men on a joined phone: made from the layout with the host's ids; the host's mountain
+// section says which of each post live (a bit each). One that lives but isn't in this snapshot stands at his spot, whole.
+const clientMk = (id, kind, ti, x, z) => clientUnit(id, kind, ti, x, z);
+function clientPost(b, mask, seen) {
+  let n = 0;
+  for (let k = 0; k < b.men; k++) {
+    let u = b.units[k]; const alive = (mask >> k) & 1;
+    if (!alive) { if (u && !u.dead) clientKill(u); continue; }
+    n++;
+    if (!u || u.dead) u = c2Man(b, k, clientMk);
+    if (!seen.has(u.id)) { u.tx = u.px; u.tz = u.pz; u.tface = u.pface; u.sq = null; u.hp = u.max; u.aim = false; u.blockT = 0; u.stun = 0; }
+  }
+  b.n = n;
+}
 function clientUnit(id, kind, ti, x, z) {
-  const human = kind === 'captain' && G.teams[ti].human;
+  const human = kind === 'captain' && !!G.teams[ti] && G.teams[ti].human;
   const u = { id, kind, ti, leader: kind === 'captain', human, x, z, y: groundY(x, z), tx: x, tz: z, tface: 0, face: 0, vx: 0, vz: 0, vy: 0,
     hp: STATS[kind].hp, max: STATS[kind].hp, r: STATS[kind].r, swing: 0, stun: 0, blockT: 0, dead: false, deadT: 0, mounted: false, carrying: false, aim: false,
     spd: human ? 6.3 : STATS[kind].spd, horseHp: horseMax(ti), horseCd: 0, summon: false, shieldwall: false, blocking: false, lastHit: -9,
     jy: 0, jyT: 0, jvy: 0, jumpCd: 0, weapon: human && ti === G.myTi ? (G.teams[ti].weapon || 'sword') : undefined, javAmmo: CAPTAIN_COMBAT.jav.ammo, javRegen: 0, combo: 0, lastSwingT: -9 };
-  G.units.push(u); C.byId.set(id, u); return u;
+  G.units.push(u); if (C.byId) C.byId.set(id, u); return u;
 }
 function clientKill(u) {
   if (u.dead) return;
@@ -281,6 +298,7 @@ function clientApply(hp) {
     const x = decX(f[2]), z = decX(f[3]), face = decF(f[4]), hpq = p36(f[5]), fl = p36(f[6]);
     seen.add(id);
     let u = C.byId.get(id);
+    if (u && u.dead && u.neutral) u = c2Man(u.post, u.pk, clientMk); // (F4: a camp's man back after it was cleared)
     if (!u) { u = clientUnit(id, kind, ti, x, z); u.face = face; }
     const oldHp = u.hp;
     u.hp = hpq / 35 * u.max;
@@ -288,7 +306,7 @@ function clientApply(hp) {
     if (u.hp < oldHp - .5 && id !== myId) {
       const shown = performance.now() - (u.predHitAt || 0) < 600; // this client already showed the impact
       u.predHitAt = 0;
-      if (!shown) bus.emit('spark', { x: u.x, y: u.y + 1.2, z: u.z, c: (fl & 4) ? '#fff3b0' : TEAMS[colorOf(u.ti)].css, n: 5 });
+      if (!shown) bus.emit('spark', { x: u.x, y: u.y + 1.2, z: u.z, c: (fl & 4) ? '#fff3b0' : u.neutral ? NEUTRAL.css : TEAMS[colorOf(u.ti)].css, n: 5 });
       if (fl & 4) { if (!shown) sfx.clang(u.x, u.z); }
       else { if (!shown) sfx.hit(u.x, u.z);
         const me = G.player; // a client's own blows landing: the same hit-stop the host gets
@@ -316,7 +334,7 @@ function clientApply(hp) {
       if (C.snapHt != null) { const q = u.sq || (u.sq = []); q.push({ t: C.snapHt, x, z, f: face }); if (q.length > 8) q.shift(); } else u.sq = null;
     } else if (!C.meInit || C.meId !== id || u.execA || u.execV || u.chasmAt) { u.x = x; u.z = z; u.face = face; } // (in an execution, or going over the chasm's edge, the host places you)
   }
-  for (const u of [...C.byId.values()]) if (!seen.has(u.id)) clientKill(u);
+  for (const u of [...C.byId.values()]) if (!seen.has(u.id) && !u.neutral) clientKill(u); // (F4: the neutral men live or die by the mountain section)
   if (secs[12] != null && G.mode === 'crown') G.wtowers = secs[12] ? secs[12].split(';').map(r => { const f = r.split(','); return { id: +f[0], x: decX(f[1]), z: decX(f[2]), a: +f[3], hp: +f[4], build: +f[5] / 99, ti: +f[6] }; }) : [];
   if (secs[14] && G.c2) { // the mountain
     const K = G.c2, f = secs[14].split(','), pts = (a, v) => { const o = {}; if (+a >= 0) o[+a] = v; return o; };
@@ -328,7 +346,7 @@ function clientApply(hp) {
     if (f[8] != null) { // F12: the host's own list of captains each side has cut down, so every phone shows the same +2 markers (a missed message can't leave one out)
       f[8].split('.').forEach((l, a) => { const o = {}; if (l) for (const e of l.split('+')) { const [ti, v] = e.split('_'); if (+v) o[+ti] = +v; } K.kills[a] = o; });
     } else (f[5] || '').split('.').forEach((n, a) => { K.kills[a] = +n ? { pts: +n } : {}; }); // (an older host: the total only; the marker keeps its own list from the messages)
-    const hp = (f[6] || '').split('.'), bs = K.breaks.filter(b => b.kind !== 'chest'); bs.forEach((b, i) => { if (hp[i] != null && hp[i] !== '') { const v = +hp[i]; if (v < b.hp) b.hitT = G.T; b.hp = v; } });
+    const hp = (f[6] || '').split('.'), bs = K.breaks.filter(b => b.kind !== 'chest'); bs.forEach((b, i) => { if (b.post) { if (hp[i] != null && hp[i] !== '') clientPost(b, +hp[i], seen); return; } if (hp[i] != null && hp[i] !== '') { const v = +hp[i]; if (v < b.hp) b.hitT = G.T; b.hp = v; } });
   }
   if (secs[13]) for (const r of secs[13].split(';')) { // captains: stamina, and a duel blow's side
     const f = r.split(','), u = C.byId.get(p36(f[0])); if (!u) continue;
@@ -437,7 +455,7 @@ export function clientTick(dt) {
       if (t && !t.dead && isEnemyTi(t.ti, me.ti) && Math.hypot(t.x - me.x, t.z - me.z) <= me.r + t.r + reach + .9) {
         const hx = (me.x + t.x) / 2, hz = (me.z + t.z) / 2;
         const shield = t.blockT > 0 && Math.abs(angDiff(t.face, Math.atan2(me.x - t.x, me.z - t.z))) < 1.1; // (a raised shield only stops what comes from the front)
-        bus.emit('spark', { x: hx, y: (me.y + t.y) / 2 + 1.2, z: hz, c: shield ? '#fff3b0' : TEAMS[colorOf(t.ti)].css, n: 5 });
+        bus.emit('spark', { x: hx, y: (me.y + t.y) / 2 + 1.2, z: hz, c: shield ? '#fff3b0' : t.neutral ? NEUTRAL.css : TEAMS[colorOf(t.ti)].css, n: 5 });
         if (shield) sfx.clang(hx, hz); else sfx.hit(hx, hz);
         // (a raised shield shows on every phone, so a clang here is the clang the host rolls too)
         { const O = FEEL.own, kind = shield ? 'blocked' : spear ? 'shove' : 'hit'; bus.emit('hitstop', O.stop[kind]); if (!shield) cam.shake = Math.max(cam.shake, O.shake[kind]); if (O.buzz[kind]) buzz(O.buzz[kind]); }

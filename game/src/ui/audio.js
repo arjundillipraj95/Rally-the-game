@@ -3,7 +3,7 @@
 // drums, and the distant roar of battle. Every sound is placed left/right by where it happened
 // relative to the camera, dulled and sent further into a shared outdoor reverb with distance, and
 // the whole mix runs through a limiter so a big melee never clips.
-import { G } from '../core/state.js';
+import { G, isEnemyTi } from '../core/state.js';
 import { clamp } from '../core/world.js';
 import { cam, camTarget } from '../render/camera.js';
 
@@ -258,7 +258,7 @@ export function audioTick(dt) {
   if (amb.t <= 0 && L) { // how hot is the battle, near and far (sampled, not every frame)
     amb.t = .5; let near = 0, far = 0;
     let foes = 0; const me = G.player;
-    for (const u of G.units) { if (u.dead) continue; const d = Math.hypot(u.x - L.x, u.z - L.z); if (me && d < 45 && G.ALLY[u.ti % 4] !== G.ALLY[me.ti % 4]) foes++; if (!(u.swing > 0 || (u.fd != null && u.fd < 2.5))) continue; if (d < 20) near++; else far++; }
+    for (const u of G.units) { if (u.dead) continue; const d = Math.hypot(u.x - L.x, u.z - L.z); if (me && d < 45 && isEnemyTi(u.ti, me.ti) && !(u.neutral && !(u.swing > 0 || u.aim) && Math.hypot(u.x - u.px, u.z - u.pz) < 1)) foes++; /* (F4: a garrison standing quietly at its post isn't a fight) */ if (!(u.swing > 0 || (u.fd != null && u.fd < 2.5))) continue; if (d < 20) near++; else far++; }
     amb.near = near; amb.far = far; amb.foes = foes;
     const heat = clamp((near * 1.5 + far) / 40, 0, 1);
     amb.heat += (heat - amb.heat) * .35;
