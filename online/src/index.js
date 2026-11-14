@@ -87,6 +87,7 @@ export class Hub {
     await this.sendFriends(s); this.notifyFriends(id);
   }
   async m_nick(s, m) { const a = await this.acct(s.id); a.nick = s.nick = cleanNick(m.nick); await this.save(s.id, a); this.notifyFriends(s.id); this.partyUpdate(s.party); }
+  async m_voice(s, m) { s.vp = String(m.vp || '').replace(/[^\w-]/g, '').slice(0, 64); this.partyUpdate(s.party); } // (party voice, V2: this phone's voice link id, shared with its party)
   async m_look(s, m) { s.look = String(m.look || '').slice(0, 12); this.partyUpdate(s.party); }
   async m_crowns(s, m) { const a = await this.acct(s.id); if (Array.isArray(m.crowns)) a.crowns = m.crowns.slice(0, 3).map(n => Math.max(0, Math.min(99999, n | 0))); await this.save(s.id, a); }
 
@@ -133,7 +134,7 @@ export class Hub {
   partyOf(s) { return s.party ? this.parties.get(s.party) : null; }
   partyUpdate(pid) {
     const p = pid && this.parties.get(pid); if (!p) return;
-    const members = p.members.map(id => { const x = this.live.get(id); return { id, nick: x ? x.nick : '?', look: x ? x.look : '', leader: id === p.leader }; });
+    const members = p.members.map(id => { const x = this.live.get(id); return { id, nick: x ? x.nick : '?', look: x ? x.look : '', leader: id === p.leader, vp: (x && x.vp) || '' }; });
     for (const id of p.members) this.to(id, { t: 'party', id: p.id, leader: p.leader, members });
   }
   async m_invite(s, m) {

@@ -98,8 +98,13 @@ Last updated: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `
 - V1b (14 Nov, built on `roles`, card `docs/tickets/V1b.md`): worker `GET /turn` hands phones short-lived Metered relay credentials
   (secrets `METERED_APP`, `METERED_SECRET_KEY`); phones use them for game link and voice, public relays stay the fallback.
   `r_V1b.mjs` + crown2 pass. Needs Arjun's 3 steps (card) and a ship (online deploys from main); needs an Opus review before shipping.
-- Plan agreed with Arjun (14 Nov): order = V1d phone test (needs the OTHER phone's box) > V1b live > party voice that persists
-  main screen > lobby > battle (Opus, new card) > strangers-on-team mic opt-in. All-players channel and a team/all switch: later.
+- V2 Party voice (14 Nov, Opus, built on `roles`, card `docs/tickets/V2.md`): friends in a party hear each other on the main
+  screen, searching, lobby and battle, no hang-up between them. Own voice peer (not the battle link); Hub shares each member's
+  voice id with the party. First time: "Join voice" chip (bar at the bottom of the main screen), then starts by itself. Mute
+  yourself or one friend; a friend's chip glows while they talk. Battle-link voice (V1) removed: non-party teammates not heard.
+  `r_V2.mjs` (3 phones) 12/12; `r_V1.mjs`, `r_V1d.mjs` retired. V1b review fix: public relays kept after the private one.
+- Voice next: Arjun's phone test (party of 2, read the bar's box on BOTH phones), his Metered sign-up + 2 secrets, ship.
+  Then V3: non-party teammates, opt-in with per-person mute (S). All-players channel and a team/all switch: later.
 
 ## F17 More captain clips (13 Nov, Arjun's animation chat; card `docs/tickets/F17.md`)
 - 11 free Cosindra MotionSmith clips put on the shared skeleton (`tools/models/cosindra_export.py` in Blender, then

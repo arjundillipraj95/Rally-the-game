@@ -4,7 +4,7 @@
 import { bus } from '../core/state.js';
 import { session } from './session.js';
 
-export const ON = { url: null, ws: null, up: false, me: null, friends: [], reqs: [], party: null, lobby: null, start: null, tries: 0 };
+export const ON = { url: null, ws: null, up: false, me: null, friends: [], reqs: [], party: null, vp: null, lobby: null, start: null, tries: 0 };
 const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
 let helloExtra = () => ({});
 
@@ -33,7 +33,7 @@ export function send(m) { if (ON.ws && ON.ws.readyState === 1) { ON.ws.send(JSON
 
 function onMsg(m) {
   switch (m.t) {
-    case 'me': ON.me = m; ON.up = true; store.set('rally-acct', m.id); store.set('rally-key', m.key); break;
+    case 'me': ON.me = m; ON.up = true; store.set('rally-acct', m.id); store.set('rally-key', m.key); if (ON.vp) send({ t: 'voice', vp: ON.vp }); break; // (party voice: the Hub forgets it on a reconnect)
     case 'friends': ON.friends = m.list || []; ON.reqs = m.reqs || []; break;
     case 'party': ON.party = m.id ? m : null; break;
     case 'lobby': ON.lobby = m.room ? m : null; break;
@@ -45,7 +45,7 @@ function onMsg(m) {
 export const online = {
   nick: n => send({ t: 'nick', nick: n }), look: l => send({ t: 'look', look: l }),
   addFriend: code => send({ t: 'friendAdd', code }), accept: id => send({ t: 'friendAccept', id }), decline: id => send({ t: 'friendDecline', id }), remove: id => send({ t: 'friendRemove', id }),
-  invite: id => send({ t: 'invite', id }), acceptInvite: from => send({ t: 'accept', from }), join: id => send({ t: 'join', id }), leaveParty: () => send({ t: 'partyLeave' }),
+  invite: id => send({ t: 'invite', id }), acceptInvite: from => send({ t: 'accept', from }), join: id => send({ t: 'join', id }), leaveParty: () => send({ t: 'partyLeave' }), voice: vp => { ON.vp = vp; send({ t: 'voice', vp }); },
   queue: fmt => send({ t: 'queue', fmt }), cancel: () => send({ t: 'cancel' }), battleOver: () => send({ t: 'battleOver' }), quit: () => send({ t: 'quit' }), crowns: c => send({ t: 'crowns', crowns: c }),
   relay: (to, d) => send({ t: 'relay', to, d }),
   report: d => send({ t: 'report', ...d }), perf: d => send({ t: 'perf', ...d }), // (the admin numbers: a battle's summary, a phone's health)

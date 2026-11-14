@@ -42,7 +42,7 @@ import { portal, portalInit, onPortal } from './portal.js';
 import { initOrient } from './ui/orient.js';
 import { showMsg, allyNames, setNamer, glory } from './ui/messages.js';
 import { renderPointsV2, tlTick, tlPack, ledger } from './ui/timeline.js';
-import { voiceBattle, stopVoice, bindVoice, voiceState, voiceLevels } from './net/voice.js';
+import { bindVoice, voiceState, voiceLevels, voiceCalls } from './net/voice.js';
 import { buildHud, showHud, updateHud, banner, fmt } from './ui/hud.js';
 import { bindInput, readMove, trayOpen, upOpen, releaseAll, inp } from './ui/input.js';
 import { startTutorial, stopTutorial, tutorialTick, bindTutorial } from './ui/tutorial.js';
@@ -243,7 +243,6 @@ bus.on('end', ({ w, why }) => {
       const A = G.crownAward; $('myRateT').textContent += ` · ${A.delta >= 0 ? '+' : ''}${A.delta} crowns${A.up ? ` · now ${A.up}!` : ''}`;
     }
     renderCaptains($('endCaps'), rep); renderAwards($('endAw'), rep); };
-  stopVoice(); // (team voice, V1: the mic is off once the battle is over)
   report(); if (isClient()) setTimeout(() => { if (G.state === 'end') report(); }, 1200);
   const pts = () => { if (!G.c2) return; renderPointsV2($('endPts'), w); };
   $('ptsTab').hidden = !G.c2; pts(); if (isClient()) setTimeout(() => { if (G.state === 'end') pts(); }, 1200);
@@ -953,8 +952,8 @@ function drawScene(dt) {
   const tg = camTarget(); followSun(tg ? tg.x : 0, tg ? tg.z : 0, grassTime());
 }
 initFeed({ nickFor: ti => nickFor(ti) }); setNamer(nickFor); initDeath({ nickFor: ti => nickFor(ti) });
-bindVoice(); // (team voice, V1: the mic button, once)
-bus.on('voiceMsg', t => { if (G.state === 'play') toast(t); });
+bindVoice(); // (party voice, V2: the main-screen bar and the battle's mic button, once; it runs on its own from then on)
+bus.on('voiceMsg', t => { if ($('inviteToast').hidden || $('inviteYes').hidden) toast(t); }); // (never over an invite waiting for an answer)
 function nickFor(ti) { const n = playerNick(ti); if (n) return n; const t = G.teams && G.teams[ti]; return t && !t.human && t.active !== false ? botName(ti) : null; } // (players by their nickname, computer captains by theirs)
 function playerNick(ti) {
   const NET = session.NET; if (!NET) return null;
@@ -968,7 +967,6 @@ let hudT = 0, last = performance.now(), fpsAvg = 60;
 // frozen while a games-site ad plays
 let paused = false;
 function loop(now) {
-  voiceBattle(G); // (team voice, V1: starts once per battle, on every phone)
   if (paused) { last = now; requestAnimationFrame(loop); return; }
   const raw = (now - last) / 1000; let dt = Math.min(.05, raw); last = now;
   if (hitstop > 0) { hitstop -= raw; dt *= .06; }
@@ -1011,7 +1009,7 @@ function loop(now) {
 
 // read-only hook for automated play-testing
 const r1 = v => Math.round(v * 10) / 10;
-if (import.meta.env.DEV) window.__on = { ON, bus }; // (dev: tests fake the online party)
+if (import.meta.env.DEV) window.__on = { ON, bus, online }; // (dev: tests fake the online party)
 window.__fb = {
   end() { endMatch(G.ALLY[colorOf(G.myTi)], 'time'); },
   get info() {
@@ -1030,7 +1028,7 @@ window.__fb = {
   attack() { actions.attack(); }, duel() { actions.duel(); }, jump() { actions.jump(); }, weapon(w) { actions.weapon(w); }, upgrade(id) { actions.upgrade(id); },
   fort(c, lv) { G.teams[c].up.fort = lv; applyFort(c); },
   feel: feelStats, death: deathState, nick: ti => nickFor(ti), hitstop: () => hitstopN, slowmo: () => slowmo, camTarget, camera,
-  tlTick, tlPack, ledger, voiceState, voiceLevels, setOrder, rideRelease, findPath, gatePos, orderVolley, mkUnit, challenge, canChallenge, G, W, c2Points, die, cam, scene, renderer, camera, audio: () => audioStats(),
+  tlTick, tlPack, ledger, voiceState, voiceLevels, voiceCalls, setOrder, rideRelease, findPath, gatePos, orderVolley, mkUnit, challenge, canChallenge, G, W, c2Points, die, cam, scene, renderer, camera, audio: () => audioStats(),
 };
 
 function onResize() { resize(); resizeOverlay(); }

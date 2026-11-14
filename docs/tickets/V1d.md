@@ -1,7 +1,7 @@
 # V1d Voice: a phone that waits for a call that never comes
 
 Model: S · Written 14 Nov from the code and Arjun's two screenshots (one phone's box)
-Status: built (not shipped). Step 1 only (the fix above); lobby / join-leave / carry-on-into-battle is the next card.
+Status: built (not shipped); its battle-link voice is replaced by V2 party voice (the call-back logic lives on there, tested in `r_V2.mjs`). Step 1 only (the fix above); lobby / join-leave / carry-on-into-battle is the next card.
 
 ## What the real phones showed
 Host phone (HOSTING · BLUE, co-captain), 1 minute into the battle, twice: `Mic: on · you ▮▮▮▮▮` and
