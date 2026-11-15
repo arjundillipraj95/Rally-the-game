@@ -65,12 +65,10 @@ else's work, stop and tell Arjun. Start every chat with `git checkout roles && g
 - Lag: `LAG=250 LOSS=0.05 DUR=60 node store/lagtest.mjs`
 
 ## Ship
-1. `npm run build` in `game/` as the very last step before committing (it writes `index.html` and
-   `assets/` at the root), then `git checkout -- online.json` (the build rewrites it; never commit it).
-2. `.github/workflows/pages.yml` builds `game/` and deploys to GitHub Pages on push to `main`. Until Arjun switches
-   Pages' source to "GitHub Actions" (Settings > Pages), the build-and-commit step above still applies: the live site serves the root files.
-3. Commit, push `roles`. To ship live (only when told): `git checkout main && git merge --ff-only roles
-   && git push origin main`, then confirm with `gh run list -L 1 --branch main`.
+No built files are committed (`npm run build` in `game/` only writes `game/dist`). `.github/workflows/pages.yml`
+builds `game/` and deploys to GitHub Pages on every push to `main`. Commit and push `roles`. To ship live (only
+when told): `git checkout main && git merge --ff-only roles && git push origin main`, then confirm with
+`gh run list -L 2 --branch main`.
 
 ## graphify (code map)
 A session hook installs graphify and builds `graphify-out/` at start (~10 s, no model tokens; not
