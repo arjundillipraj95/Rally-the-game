@@ -574,6 +574,8 @@ function renderFriends() {
   if (document.activeElement !== $('fNick')) $('fNick').value = session.myNick || (ON.me && ON.me.nick) || '';
   const inParty = id => partyOthers().some(m => m.id === id);
   $('fReqs').innerHTML = ON.reqs.map(r => `<div class="frow req"><i class="on"></i><div><b>${esc(r.nick)}</b><small>wants to be friends</small></div><div class="btns"><button type="button" class="go" data-acc="${r.id}">Accept</button><button type="button" class="go ghost" data-dec="${r.id}">No</button></div></div>`).join('');
+  const pm = partyOthers(), lead = ON.party && ON.me && ON.party.leader === ON.me.id; // (F23: your party, with Remove for the leader and Leave for everyone)
+  $('fParty').innerHTML = pm.length ? `<p class="fhead">Your party${lead ? ' · you lead' : ''}<button type="button" class="go ghost" data-pleave>Leave party</button></p>` + pm.map(m => `<div class="frow"><i class="on"></i><div><b>${esc(m.nick)}</b><small>${m.leader ? 'Party leader' : 'In your party'}</small></div><div class="btns">${lead ? `<button type="button" class="go ghost" data-kick="${esc(m.id)}">Remove</button>` : ''}</div></div>`).join('') : '';
   $('fList').innerHTML = ON.friends.length ? ON.friends.slice().sort((a, b) => b.online - a.online).map(f => `<div class="frow"><i class="${f.online ? 'on' : ''}"></i><div><b>${esc(f.nick)}</b><small>${inParty(f.id) ? 'In your party' : whereText(f)}</small></div><div class="btns">${
     f.online && !inParty(f.id) ? `<button type="button" class="go alt" data-inv="${f.id}">Invite</button>` : ''}${
     f.online && !inParty(f.id) && (f.where !== 'home' || f.party > 1) ? `<button type="button" class="go" data-join="${f.id}">Join</button>` : ''}</div></div>`).join('')
@@ -612,6 +614,7 @@ bus.on('online', ({ k, m }) => {
   if (k === 'note') { $('fNote').textContent = m.msg; if (homeView !== 'friends') toast(m.msg); }
   if (k === 'invite') { toast(`${m.nick} invites you to their party`, true); $('inviteYes').onclick = () => { online.acceptInvite(m.from); $('inviteToast').hidden = true; }; }
   if (k === 'kicked') toast(m.msg);
+  if (k === 'removed') { renderFriends(); toast(`${m.by} removed you from the party`); }
   if (k === 'start') startMatchmade(m);
 });
 $('inviteNo').addEventListener('click', () => { $('inviteToast').hidden = true; });
@@ -625,6 +628,7 @@ $('friendsPanel').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.dataset.acc) online.accept(b.dataset.acc); else if (b.dataset.dec) online.decline(b.dataset.dec);
   else if (b.dataset.inv) online.invite(b.dataset.inv); else if (b.dataset.join) online.join(b.dataset.join);
+  else if (b.dataset.kick) online.kick(b.dataset.kick); else if ('pleave' in b.dataset) online.leaveParty();
 });
 $('searchCancel').addEventListener('click', () => online.cancel());
 $('searchLobby').addEventListener('click', () => mlOpen());
@@ -1021,7 +1025,7 @@ window.__fb = {
   get info() {
     const NET = session.NET, p = G.player;
     return { state: G.state, T: Math.round(G.T), MODE: G.mode, map: G.map.id, myTi: G.myTi, al: G.ALLY.join(''), units: G.units.length, horses: G.horses.length, arrows: G.arrows.length,
-      net: NET && { role: NET.role, seats: NET.seats, size: NET.lastSize, hostPeer: NET.hostPeer },
+      net: NET && { role: NET.role, name: NET.name, seats: NET.seats, size: NET.lastSize, hostPeer: NET.hostPeer },
       teams: G.teams.map(s => ({ p: Math.round(s.points), t: s.tickets, c: s.caps, g: Math.round(s.gold), alive: s.alive, h: s.human ? 1 : 0, plan: s.plan && s.plan.kind, lead: s.leader && { m: s.leader.mounted, dead: s.leader.dead } })),
       kinds: ['foot', 'arch'].map(k => G.units.filter(u => !u.dead && u.kind === k).length),
       flag: G.flag && { s: G.flag.state }, player: p && { x: r1(p.x), z: r1(p.z), hp: Math.round(p.hp), mounted: p.mounted, dead: p.dead, id: p.id },

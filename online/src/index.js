@@ -152,6 +152,17 @@ export class Hub {
     this.send(s, { t: 'party', id: null, members: [] });
   }
   async m_partyLeave(s) { this.cancelQueue(s); this.leaveParty(s); }
+  // (F23) the party leader removes someone: out of the party, and out of its search or lobby (his seat goes to
+  // the computer). Not mid-battle: that waits for the battle's end.
+  async m_partyKick(s, m) {
+    const p = this.partyOf(s); if (!p || p.leader !== s.id) return this.send(s, { t: 'note', msg: 'Only your party leader can remove someone' });
+    const id = String(m.id || ''); if (id === s.id || !p.members.includes(id)) return;
+    const x = this.live.get(id), room = x && x.room && this.rooms.get(x.room);
+    if (room && room.started) return this.send(s, { t: 'note', msg: `${x.nick} is in a battle: remove them after it` });
+    if (x) { this.cancelQueue(x); this.leaveParty(x); this.send(x, { t: 'lobby', room: null }); this.send(x, { t: 'removed', by: s.nick }); this.notifyFriends(x.id); }
+    else { p.members = p.members.filter(k => k !== id); this.partyUpdate(p.id); }
+    this.send(s, { t: 'note', msg: `${x ? x.nick : 'They'} left your party` });
+  }
   joinPartyOf(s, host) {
     if (s.party && host.party === s.party) return true;
     let p = this.partyOf(host);

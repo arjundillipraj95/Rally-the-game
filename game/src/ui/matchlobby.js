@@ -33,6 +33,7 @@ function bind() {
     else if (b.dataset.yes != null) { const a = ML.ask; ML.ask = null; if (a) online.seat(a.c, a.k, true); render(); }
     else if (b.dataset.no != null) { ML.ask = null; render(); }
     else if (b.dataset.cancel != null) online.cancel();
+    else if (b.dataset.kick) online.kick(b.dataset.kick);
   });
 }
 // the lobby message from the service (v: 2). Opens the pop-up for a new lobby until you tap Done.
@@ -51,11 +52,12 @@ function render() {
   pop.hidden = !ML.open;
   const me = mine(L), cap = L.sides[0].length, filled = L.sides.flat().filter(Boolean).length;
   if (!ML.open) return;
-  const lane = me && me.x.lane;
+  const lane = me && me.x.lane, lead = !!(ON.party && ON.me && ON.party.leader === ON.me.id && ON.party.members);
   const seat = (x, c, k) => {
     if (!x) return `<button type="button" class="mlseat cpu" data-seat="${c},${k}"><b>Computer</b><small>Tap to sit here</small></button>`;
     const you = me && x.id === me.x.id;
-    return `<div class="mlseat${you ? ' me' : ''}"><b>${esc(x.nick)}${you ? ' <em>you</em>' : ''}</b><small>${x.lane ? LANE_NAME[x.lane] : c === (me && me.c) ? 'No lane yet' : ''}${x.ready ? ' <i>✓ Ready</i>' : ''}</small></div>`;
+    const kick = !you && lead && ON.party.members.some(m => m.id === x.id) ? `<button type="button" class="mlkick" data-kick="${esc(x.id)}" aria-label="Remove ${esc(x.nick)} from your party">Remove</button>` : ''; // (F23: the party leader can take a party member out)
+    return `<div class="mlseat${you ? ' me' : ''}${kick ? ' haskick' : ''}"><b>${esc(x.nick)}${you ? ' <em>you</em>' : ''}</b><small>${x.lane ? LANE_NAME[x.lane] : c === (me && me.c) ? 'No lane yet' : ''}${x.ready ? ' <i>✓ Ready</i>' : ''}</small>${kick}</div>`;
   };
   const html = `<div class="mlbox">
     <div class="mlhead"><b>${FMT[L.fmt]} · ${filled}/${cap * 4} players</b><span id="mlClock">${ML.clockTxt || ''}</span></div>
