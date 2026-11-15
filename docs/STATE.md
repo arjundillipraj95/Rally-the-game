@@ -127,6 +127,13 @@ Last updated: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 
   4.4 m centre to centre, any angle; now poke 2.4 m / sweep 2.35 m over its crossed arc / thrust 2.7 m, along the line.
   Clips land on the rules' frame (`ANIM.swing.*.hd`). r_F25 17/17. Arjun: feel on the phone (reach is shorter now).
 
+## F26 Spear strikes face the target (15 Nov; card `docs/tickets/F26.md`). On branch `t/F26` (from roles), not shipped
+- Body turned, weapon not bent: per-clip yaw `ANIM.strikeFace` (thrust +0.74 rad, sweep +1.5 rad; the sweep's arc is now the
+  body turning), turn to his facing within 0.1 s, head (then chest past 60 deg) looks along it (`render/rig/strikeface.js`).
+  shaftAim no longer bends the spear in strikes (leap/javelin throw still level it; moved to `render/rig/shaft.js`).
+  Spear reach re-measured: poke 2.65, thrust 2.95. r_F26 + r_F25 ok. Open: the clips' chest stays 55 deg (thrust) / 85 deg
+  (sweep) off the target: the arm hangs from it, so a chest turned to the target turns the spear off. Arjun: accept or new clips.
+
 ## F17d Spear combo hit 2 is a sweep in the rules too (13 Nov; card `docs/tickets/F17d.md`)
 - Struck like a sword swing: 1.0x, his own reach, the man in front, light knock (`CC.spear.sweep`). Poke and lunge unchanged.
 

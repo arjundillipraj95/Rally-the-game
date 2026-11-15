@@ -15,6 +15,8 @@ import { SLOTS, SLOT_IX } from '../core/look.js';
 import { still, facing } from '../core/charge.js';
 import { batchOn, abOn, abOld } from './batch.js';
 import { foldGear, foldShow } from './rig/fold.js';
+import { strikeYaw, lookAlong } from './rig/strikeface.js';
+import { aimShaft } from './rig/shaft.js';
 
 // the warhorse's leg joints, in its own (Z-up) model space: each leg swings from the top of its upper part
 const LEGS = { frontL: [-.34, -.63, 1.2], frontR: [.34, -.63, 1.2], backL: [-.36, .58, 1.2], backR: [.36, .58, 1.2] };
@@ -444,48 +446,14 @@ export function drawHero(u, a, dt) {
   // the blow landing: a white flash through him (his own body's material only: the gear is shared)
   const fl = Math.max(0, Math.min(1, a.flash || 0)); if (R.mesh.material.emissive && fl !== h.fl) { h.fl = fl; R.mesh.material.emissive.setScalar(fl * .55); }
   top.position.set(u.x, (u.y || 0) + (a.lift || 0) - (a.sink || 0) + (h.U ? 0 : .998 * h.sc), u.z);
-  top.rotation.set(0, u.face + (a.yaw || 0) + turn, 0);
+  top.rotation.set(0, (R.clip ? strikeYaw(u, h, G.T) : u.face) + (a.yaw || 0) + turn, 0); // (F26: a spear strike turns him so the clip's strike lands along his facing)
   if (roll) { R.root.rotateZ(roll); R.root.position.y -= .25 * Math.sin(Math.abs(roll) / 2) * h.sc; } // (the side roll: a full turn about his forward axis, tucked low)
   if (R.cape) { const k = R.cape.userData, want = k.base + Math.min(.55, sp * .07) + Math.sin(FRAME * .09 + u.id) * .03 * mv; k.a = k.a === undefined ? want : k.a + (want - k.a) * Math.min(1, dt * 6); R.cape.rotation.x = k.a; } // (C4: lifts behind him as he runs, eased)
   top.visible = true;
   if (h.legs) { const [bob, pitch] = gait(h.legs, sp, dt); top.position.y += bob; top.rotation.order = 'YXZ'; top.rotation.x = pitch; } // (the horse walks, trots or gallops for its speed, the rider going with it)
+  if (R.clip) lookAlong(R, h, top, u.face + (a.yaw || 0)); // (F26: his head, then his chest, toward the target)
   if (R.shaft) aimShaft(u, h, R, dt);
   return true;
-}
-// F17c how a spear or javelin is held (Arjun: "holding, upright; fighting, it hits forward"): upright at his side, butt near
-// the ground, while he stands, walks or runs; level along his facing in a poke or the lunge, and braced behind the shield;
-// out from his chest through his fist in the sweep, so it sweeps; mounted, a lance couched. The way it points is eased in
-// the world (not in his hand, which the clips swing fast), and it slides in his grip to rest on its butt.
-// A code pose (blended in by R.cw) keeps its own hold.
-const _hp = new THREE.Vector3(), _dir = new THREE.Vector3(), _pq = new THREE.Quaternion(), _aq = new THREE.Quaternion(), _ws = new THREE.Vector3(), FWD = new THREE.Vector3(0, 0, 1);
-function shaftMode(u, h) {
-  if (h.U) return 'couch';
-  if (h.swClip && h.swT != null && G.T - h.swT < .38 + ANIM.swingTail) return ANIM.shaftAim.sweep.includes(h.swClip) ? 'sweep' : ANIM.shaftAim.level.includes(h.swClip) ? 'level' : 'upright';
-  if ((u.human && u.blocking) || u.blockT > 0) return 'level';
-  return 'upright';
-}
-function aimShaft(u, h, R, dt) {
-  const A = ANIM.shaftAim, top = h.U || R.root; top.updateMatrixWorld(true);
-  const hs = R.shaft.parent; hs.getWorldPosition(_hp);
-  const fx = Math.sin(u.face), fz = Math.cos(u.face), mode = shaftMode(u, h);
-  if (mode === 'couch') _dir.set(fx, -A.rideDip, fz);
-  else if (mode === 'level') _dir.set(fx, -A.dip, fz);
-  else if (mode === 'sweep') { // an arc from his right, across his front (dead ahead when the blow lands), round to his left
-    const hd = ANIM.swing[h.swClip].hd || ANIM.hitDelay, t = (G.T - h.swT) / hd, S = A.sweepArc, ang = t < 1 ? S[0] * (1 - t) : S[1] * Math.min(1, (t - 1) * hd / S[2]);
-    _dir.set(Math.sin(u.face + ang), 0, Math.cos(u.face + ang)); }
-  else _dir.set(fx * Math.sin(A.lean), Math.cos(A.lean), fz * Math.sin(A.lean));
-  _dir.normalize();
-  const k = mode === 'sweep' && h.shMode === 'sweep' ? 1 : 1 - Math.exp(-A.ease * Math.min(dt || 0, .1)); h.shMode = mode; // (the sweep is driven exactly once it has begun)
-  if (!h.shDir || !dt) h.shDir = _dir.clone(); else h.shDir.lerp(_dir, k).normalize();
-  // the grip: upright, slid down till the butt is near the ground; otherwise held where it was made to be held
-  hs.getWorldScale(_ws); const ws = _ws.z || 1;
-  const want = mode === 'upright' && h.shDir.y > .5 ? Math.min(0, ((u.y || 0) + A.ground - _hp.y) / h.shDir.y / ws - R.butt) : 0;
-  h.shSlide = h.shSlide == null || !dt ? want : h.shSlide + (want - h.shSlide) * (1 - Math.exp(-A.slideEase * Math.min(dt, .1)));
-  R.slide.position.z = h.shSlide * (1 - (R.cw || 0));
-  hs.getWorldQuaternion(_pq).invert();
-  _aq.setFromUnitVectors(FWD, h.shDir).premultiply(_pq);
-  R.shaft.quaternion.slerpQuaternions(_aq, R.shaftQ0, R.cw || 0);
-  R.shaft.updateMatrixWorld(true);
 }
 // which blow his clips are playing (null between blows), for the swoosh
 export const heroBlow = u => { const h = live.get(u); return h && h.swClip && h.swT != null && G.T - h.swT < .38 + ANIM.swingTail ? h.swClip : null; };

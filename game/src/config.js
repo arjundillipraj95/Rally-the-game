@@ -315,7 +315,7 @@ export const CAPTAIN_COMBAT = {
     // the tip this far from his centre (poke, sweep, thrust), a man struck if his body is within it, no more than `width`
     // off the shaft's line; the sweep over the arc it has crossed by then (`arc`, rad from his facing, + to his left).
     // t: when the poke and the sweep land (s after the press); the clips are timed to it (ANIM.swing hd).
-    area: { poke: 2.4, sweep: 2.35, thrust: 2.7, width: .45, arc: [-1.75, .25] }, t: .15,
+    area: { poke: 2.65, sweep: 2.35, thrust: 2.95, width: .45, arc: [-1.75, .25] }, t: .15, // (F26: poke, thrust re-measured with the clip's own hold)
     skewer: { mult: 1.6, reachB: 2.6, pierce: .75, pierceN: 3, kb: 2.4, stun: .6, lunge: 11, dash: .19, aim: 6, cd: 1.05, t: .2, line: .45 } }, // fewer, heavier thrusts: a lunge that shoves and runs through
   jav: { cd: .8, dmg: 30, range: 16, ammo: Infinity, regen: 4 }, // unlimited: the gap between throws is the limit
   jump: { v: 7.6, g: 22, cd: .3 },
@@ -472,9 +472,18 @@ export const ANIM = {
   swingLegs: ['spin', 'leapSmash', 'spearLunge'],
   clipOf: { spearLunge: 'spearThrust' }, // (a blow that plays another's clip, its own timing) // (these play head to toe, even on the run: the spin turns on its feet, the leap tucks its legs)
   // F17c how a spear or javelin is held: upright at his side when he stands, walks or runs (tipped `lean` rad forward, butt
-  // `ground` m off the ground); level along his facing in a poke or lunge (`dip` rad down) and when he braces behind the shield;
-  // the sweep, an arc from his right (`sweepArc[0]` rad) across his front, dead ahead as the blow lands, round to `[1]` over `[2]` s; mounted, couched (dipped `rideDip`); eased at `ease`/s
-  shaftAim: { lean: .17, ground: .06, dip: .04, rideDip: .12, ease: 20, slideEase: 14, sweep: ['slashWide'], sweepArc: [-1.75, 1.2, .22], level: ['spearThrust', 'spearLunge', 'leapSmash', 'javThrow'] },
+  // `ground` m off the ground); level along his facing in the leap and the javelin's throw (`dip` rad down) and when he braces
+  // behind the shield; mounted, couched (dipped `rideDip`); eased at `ease`/s. F26: in the spear's strikes (strikeFace.yaw) it
+  // is held as the clip holds it (along the forearm), reached within ANIM.fast s.
+  shaftAim: { lean: .17, ground: .06, dip: .04, rideDip: .12, ease: 20, slideEase: 14, level: ['leapSmash', 'javThrow'] },
+  // F26 spear strikes face the target (Arjun: animation decides how a move looks, code where it points; never bend the weapon).
+  // yaw: per clip, the whole captain is turned by this (rad, + to his left) through the strike: minus the clip's own yaw at its
+  // hit frame (the tip's direction from the hips; measured by store/r_F26.mjs: thrust -42 deg, sweep -86 deg), so the clip's
+  // strike lands along his facing (the rules turn that to the target on the press, synced to every phone). turn: s to turn into
+  // it from the press (his old facing to the new); out: s to ease it out at the blow's end. arc: the sweep's arc, made by
+  // turning his body (rad from the strike line): from [0] at the press, dead ahead as it lands, on to [1] over [2] s.
+  // head/chest: rad his head, then (past the head's limit) his chest, turn to look along his facing during the strike.
+  strikeFace: { yaw: { spearThrust: .74, spearLunge: .74, slashWide: 1.5 }, turn: .1, out: .2, arc: { slashWide: [-1.75, 1.2, .22] }, head: 1.05, chest: .52 },
   shaftGrip: { spear: .2, jav: .2 }, // (clips: these lie along the forearm, the point lifted this much, radians) // (his upper body while he stands or walks with this weapon)
   turn: { clip: 'turn180', min: 2.3, maxSpeed: 1.5, rate: 2 },
   block: ['block', 'blockIdle'], blockHit: { clip: 'blockImpact', rate: 1.4 },
