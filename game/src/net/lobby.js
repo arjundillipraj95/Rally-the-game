@@ -1,5 +1,6 @@
 // "Play with friends": host or join by code, pick colors and teams, start the battle.
 import { TEAMS, MAPS, PRESETS, AL_LETTER, TARGETS } from '../config.js';
+import { liveMode } from '../ui/maps.js';
 import { G, colorOf, slotOf, activeFrom, ARMIES, SLOT_NAME, targetFor, duoStr, duoParse } from '../core/state.js';
 import { makeP2PRoom as rawRoom, newCode, p2pAvailable } from './p2p.js';
 import { progress } from '../ui/progress.js';
@@ -198,7 +199,7 @@ export function bindLobby(h) {
     busy = false;
     if (!gr) { $('netNote').textContent = 'Could not open a battle. Try again.'; return; }
     $('netNote').textContent = '';
-    const NET = session.NET = { role: 'host', room: gr, name: code, seats: {}, msgs: [], msgN: 0, snapN: 0, inp: {}, lobby: { mode: G.mode, map: G.map.id, diff: G.diff, time: G.time, tgt: G.target, al: hooks.teams(), duo: [0, 0, 0, 0] } };
+    const NET = session.NET = { role: 'host', room: gr, name: code, seats: {}, msgs: [], msgN: 0, snapN: 0, inp: {}, lobby: { mode: liveMode(G.mode), map: G.map.id, diff: G.diff, time: G.time, tgt: G.target, al: hooks.teams(), duo: [0, 0, 0, 0] } };
     const me = myPeer(gr) || 'me';
     NET.me = me; NET.seats[me] = prefs.color; G.myTi = prefs.color; G.role = 'host';
     NET.unsub = gr.onPeers(() => { if (G.state === 'lobby') hostLobbyTick(); });
@@ -246,6 +247,7 @@ export function hostStart() {
     const NET = session.NET; if (!NET || NET.role !== 'host') return;
     initAudio();
     const L = NET.lobby;
+    if (L.mode !== liveMode(L.mode)) { L.mode = 'crown'; L.tgt = null; } // (CL2: a hidden mode or map falls back to the Crown on the Mountain)
     G.mode = L.mode; G.map = L.mode === 'crown' ? MAPS.mount : MAPS[L.map]; G.diff = L.diff; G.time = L.time || 10; G.target = L.tgt ?? targetFor(L.mode); G.ALLY = [...L.al];
     G.myTi = NET.seats[NET.me] ?? 0; G.lms = false;
     G.seed = (Math.random() * 1e9) | 0;

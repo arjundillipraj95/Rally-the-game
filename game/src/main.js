@@ -59,6 +59,7 @@ import { mlRender, mlHide, mlOpen, showVersus, hideVersus, endVersus } from './u
 import { crowns, mergeCrowns, titleOf, award, FMT_NAME, setCrowns } from './ui/crowns.js';
 import { lookCode, lookFrom } from './core/look.js';
 import { PARRY, CAPKILL_SLOW, FEEL, QUALITY } from './config.js';
+import { ALL_MAPS, liveMode, focusMenus } from './ui/maps.js';
 
 const $ = id => document.getElementById(id);
 { const nj = $('nojs'); if (nj) nj.remove(); }
@@ -726,6 +727,7 @@ function resetSolo() { G.role = 'solo'; G.myTi = prefs.color; G.ALLY = soloAl.sl
 function soloStart(o = {}) {
   initAudio(); session.NET = null; resetSolo();
   if (o.al) G.ALLY = o.al.slice();
+  if (!o.map) G.mode = liveMode(G.mode); // (CL2: a hidden mode or map falls back to the Crown; the warm-up names its own)
   G.map = G.mode === 'crown' ? MAPS.mount : (o.map || soloMap); clearMeadow(); // (the Crown is always the mountain)
   if (G.map.id === 'mount') G.time = 10; // (the mountain's phases are set to the minute)
   G.seed = (Math.random() * 1e9) | 0;
@@ -735,6 +737,7 @@ function soloStart(o = {}) {
   beginMatch(TEAMS.map((_, i) => i === G.myTi ? 1 : 0), active);
 }
 const pressSeg = (id, v) => $(id).querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === String(v))));
+if (!ALL_MAPS) { focusMenus($); G.mode = 'crown'; G.target = targetFor('crown'); soloMap = MAPS.mount; pressSeg('segMode', 'crown'); renderTargets(); updateDesc(); } // (CL2: the Mountain is the live map)
 seg('segDiff', v => { G.diff = +v; });
 seg('segMusic', v => { setMusic(v === 'on'); pressSeg('segMusic', v); });
 pressSeg('segMusic', musicEnabled() ? 'on' : 'off');
@@ -768,7 +771,7 @@ $('goBtn').addEventListener('click', () => { lastStart = () => soloStart(); solo
 // difficulty. The menu shows what was picked, so "Fight again" repeats it.
 $('quickBtn').addEventListener('click', () => {
   const pick = a => a[(Math.random() * a.length) | 0];
-  const mode = pick(Object.keys(MODES)), map = pick(['forum', 'valley', 'desert', 'frost']); // the four featured maps
+  const mode = liveMode(pick(Object.keys(MODES))), map = pick(['forum', 'valley', 'desert', 'frost']); // the four featured maps (CL2: the Crown only, unless ?maps=all)
   G.mode = mode; soloMap = MAPS[map]; G.time = 5; G.target = targetFor(mode);
   pressSeg('segMode', mode); pressSeg('segMap', map); pressSeg('segTime', 5); renderTargets();
   updateDesc(); lastStart = () => soloStart(); soloStart();
