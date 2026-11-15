@@ -17,7 +17,7 @@ The source lives in `game/` (Vite + three.js):
 cd game
 npm install
 npm run dev      # local test server
-npm run build    # builds and copies the game to the repo root, which GitHub Pages serves
+npm run build    # builds the game into game/dist (GitHub Pages deploys it from Actions)
 ```
 
 Add `?stress=1` to the URL for 20-soldier squads (performance testing).
