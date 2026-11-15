@@ -12,7 +12,7 @@ import { groundY } from '../core/world.js';
 import { rigCaptain, addArmour, applyPose, moveAt, mixPose, CLIPS, POSES, teamMaterial } from './rig/captainrig.js';
 import { loadClipBody, rigClip, addClipArmour, play, tick, head, ended } from './rig/cliprig.js';
 import { SLOTS, SLOT_IX } from '../core/look.js';
-import { canBrace } from '../core/sim.js';
+import { still, facing } from '../core/charge.js';
 import { batchOn, abOn, abOld } from './batch.js';
 import { foldGear, foldShow } from './rig/fold.js';
 
@@ -265,12 +265,12 @@ function drawFallen(u, a, h, dt) {
 // coming at him fast
 let chFrame = -1, chList = [];
 function chargeAt(u) {
-  if (!canBrace(u)) return false; // (running, or in a blow, or idle: he's bowled over, no brace)
+  if (!still(u)) return false; // (F9: on the move or off balance: he's bowled over, no brace)
   if (chFrame !== FRAME) { chFrame = FRAME; chList = G.units.filter(c => c.mounted && !c.dead && (c.charge > 0 || Math.hypot(c.vx || 0, c.vz || 0) > 9)); }
   for (const c of chList) {
     if (G.ALLY[c.ti % 4] === G.ALLY[u.ti % 4]) continue;
     const dx = u.x - c.x, dz = u.z - c.z, d = Math.hypot(dx, dz); if (d > 10 || d < .5) continue;
-    if (((c.vx || 0) * dx + (c.vz || 0) * dz) / d > 5) return true;
+    if (((c.vx || 0) * dx + (c.vz || 0) * dz) / d > 5 && facing(u, c)) return true; // (F9: from the flank he's bowled over: no brace)
   }
   return false;
 }

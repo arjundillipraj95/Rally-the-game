@@ -3,6 +3,7 @@
 import { STAMINA, DUEL_DIR, CROWN2, FEEL , LAUNCH, NEUTRAL } from '../config.js';
 import { CROWN, ECON, TEAMS, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, CASTLE_R, CASTLE_REACH, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, HOLDS, EVADE, FORT, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT, DUEL, CHEST, STREAK, BASH, LAST, VCHARGE, RHYTHM, PUSH, ARMOUR } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, NEUTRAL_TI, activeArmies, activeFrom, gateOff, ARMIES, rules, matchTime, noCastle, capOf, isC2 } from './state.js';
+import { stance, markBraces } from './charge.js';
 import { deepWater, groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W, groundSlow, onIce, mountHomeA } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable, setPalSeg } from './nav.js';
 
@@ -171,10 +172,8 @@ export function setOrder(ti, o, pt) {
 }
 // ---------- morale, routs and the rally horn ----------
 export const routing = ti => G.teams[ti] && G.teams[ti].routT > 0;
-// Can a footman stop a charge? Holding his place in a line, or marching at a walk, and not in a blow. Standing
-// idle or running at pace, or in the middle of a swing, he's bowled over;
-// a rider who comes in on his flank or from behind hits harder.
-export const canBrace = u => !u.mounted && !u.routing && !u.swing && !(isC2() && inFord(u.x, u.z)) && (u.holding || (Math.hypot(u.vx || 0, u.vz || 0) > .3 && Math.hypot(u.vx || 0, u.vz || 0) < 3.5));
+// F9: is his army on Hold (spearmen on Hold, still and facing, stop a charge: core/charge.js)
+const onHold = u => !!G.teams[u.ti] && orderOf(u.ti) === 'hold';
 const behind = (victim, from) => Math.abs(angDiff(victim.face, Math.atan2(from.x - victim.x, from.z - victim.z))) > MORALE.flankAng;
 function loseHeart(ti, amt) { const s = G.teams[ti]; if (s) s.morale = Math.max(0, s.morale - amt); }
 export function gainRally(u, amt) { if (!u || !u.leader) return; const s = G.teams[u.ti]; if (s) s.rally = Math.min(100, (s.rally || 0) + amt); }
@@ -2776,6 +2775,7 @@ export function update(dt, input) {
   }
   G.horses = G.horses.filter(h => !((h.state === 'leaving' && h.t > 3) || (h.state === 'dead' && h.t > 8)));
 
+  markBraces(G.units, onHold, isEnemy); // (F9: spearmen on Hold set their spears at a rider coming)
   for (const r of G.units) {
     if (r.dead || !r.mounted) continue;
     const sp = Math.hypot(r.vx, r.vz);
@@ -2784,26 +2784,32 @@ export function update(dt, input) {
       if (o.dead || !isEnemy(o, r) || o.mounted || o.execT > 0 || o.duelId) continue;
       const dx = o.x - r.x, dz = o.z - r.z; if (Math.abs(dx) > 4 || Math.abs(dz) > 4) continue;
       const d = Math.hypot(dx, dz);
-      if (o.kind === 'foot' && o.tier >= 1 && d < o.r + r.r + 1.6 && braced(o) && sp > 4 && Math.abs(angDiff(o.face, Math.atan2(r.x - o.x, r.z - o.z))) < 1.0) {
-        horseDamage(r, 55); if (r.mounted) dismount(r, true);
+      const toO = Math.atan2(dx, dz), ahead = Math.abs(angDiff(r.face, toO)) < 1.2, st = ahead && sp > 4 ? stance(o, r, onHold(o)) : 'bowl';
+      // F9 spearmen on Hold, still and facing him: any rider at speed is stopped on the spears and thrown
+      if (st === 'stop' && d < o.r + r.r + 1.6) {
+        r.charge = 0; if (r.remote) r.kick.halt = 1; horseDamage(r, CHARGE.stopHorse); push(r, -Math.sin(r.face) * 6, -Math.cos(r.face) * 6, .5); if (r.mounted) dismount(r, true);
         spark(o.x, o.y + 1.5, o.z, '#fff3b0', 8); sound('clang', o.x, o.z);
         fx('float', { x: o.x, y: o.y + 2.8, z: o.z, text: 'Spear wall!', color: TEAMS[colorOf(o.ti)].css });
-        break;
-      }
-      // a charge into a held line stalls on it: the horse is hurt and pulls up, the line stands
-      if (r.charge > 0 && o.kind !== 'captain' && canBrace(o) && d < o.r + r.r + 1.1 && Math.abs(angDiff(o.face, Math.atan2(r.x - o.x, r.z - o.z))) < 1.1) {
-        r.charge = 0; horseDamage(r, HOLD.horse); push(r, -Math.sin(r.face) * 6, -Math.cos(r.face) * 6, .5);
-        spark(o.x, o.y + 1.5, o.z, '#fff3b0', 8); sound('clang', o.x, o.z);
-        fx('float', { x: o.x, y: o.y + 2.8, z: o.z, text: 'The line holds!', color: TEAMS[colorOf(o.ti)].css });
         if (r.isMe) { fx('shake', .4); fx('buzz', 40); }
         if (r.remote || o.remote) fx('netFlush');
         break;
       }
-      // charging: everyone in front of the horse is bowled over (once each)
-      if (r.charge > 0 && sp > 7 && d < o.r + r.r + 1.1 && Math.abs(angDiff(r.face, Math.atan2(dx, dz))) < 1.2 && !(r.chargeHit && r.chargeHit.has(o))) {
+      if (r.charge > 0 && sp > 7 && ahead && d < o.r + r.r + 1.1 && !(r.chargeHit && r.chargeHit.has(o))) {
         if (r.chargeHit) r.chargeHit.add(o);
         o.trampleT = 1; o.lastHit = G.T;
-        const ang = Math.atan2(dx, dz), side = angDiff(r.face, ang) > 0 ? 1 : -1, out = r.face + side * .9; // thrown forward and out to the side
+        // F9 a man standing still and facing him soaks it up: the charge is spent, the horse checked, he's shoved a step
+        if (st !== 'bowl') {
+          r.charge = 0; if (r.remote) r.kick.halt = 1; push(r, -r.vx * CHARGE.slowBrake, -r.vz * CHARGE.slowBrake, CHARGE.slowStun);
+          push(o, Math.sin(toO) * CHARGE.kb * CHARGE.slowKb, Math.cos(toO) * CHARGE.kb * CHARGE.slowKb, .3);
+          o.hp -= CHARGE.dmg * CHARGE.slowDmg * aiDmg(r.ti);
+          spark(o.x, o.y + 1.2, o.z, '#fff3b0', 6); sound('clang', o.x, o.z); sound('trample', o.x, o.z);
+          if (r.isMe) { fx('shake', .25); fx('buzz', 25); }
+          if (r.remote || o.remote) fx('netFlush');
+          if (o.hp <= 0) die(o, r, toO, 1);
+          break;
+        }
+        // moving, off balance or flanked: bowled over (once each), the charge goes on
+        const side = angDiff(r.face, toO) > 0 ? 1 : -1, out = r.face + side * .9; // thrown forward and out to the side
         push(o, Math.sin(out) * CHARGE.kb + r.vx * .3, Math.cos(out) * CHARGE.kb + r.vz * .3, .9);
         o.hp -= CHARGE.dmg * aiDmg(r.ti) * (!o.leader && behind(o, r) ? MORALE.flankX : 1); // (a flank or the back: the charge bites harder)
         spark(o.x, o.y + 1.2, o.z, TEAMS[colorOf(o.ti)].css, 8); sound('trample', o.x, o.z); sound('hit', o.x, o.z);

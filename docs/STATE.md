@@ -207,7 +207,7 @@ Last updated: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 
 | 1 | F7 | No abrupt cuts: built 13 Nov, waiting for Arjun's "ship" | S | Arjun's ship |
 | 5 | F14 | Adapts to any phone: rebuilt 13 Nov to Arjun's picks, waiting for Arjun's "ship" | S | Arjun's ship |
 | 6 | F4 | Neutral garrisons and camps fight as real soldiers and ambush: built 14 Nov on `t/F4`, waiting for Arjun's "ship" | O | Arjun's ship |
-| 7 | F9 | Horse charges: full stop only on Hold and facing; standing men slow it; moving or flanked men are bowled over | O | card |
+| 7 | F9 | Horse charges: built 15 Nov on `t/F9` (card `docs/tickets/F9.md`; rule in `core/charge.js`, numbers in `CHARGE`), waiting for Arjun's phone check and "ship" | O | Arjun's ship |
 | 9 | F2 | One lobby: built 14 Nov, waiting for Arjun's "ship" | O | Arjun's ship |
 | 11 | P0.11 | Matchmake by region first (India with India, US with US) | S | |
 | 12 | P0.7b | Finer positions in snapshots; version check so old and new phones don't mix | S | |

@@ -274,7 +274,13 @@ export const RALLY = { kill: 9, capKill: 30, parry: 15, ride: 12, guardBreak: 10
 // A held line: footmen in their places take this share of the damage and knockback from the front,
 // and a charge into them stalls, hurting the horse.
 export const HOLD = { dmg: .7, kb: .3, horse: 30 };
-export const CHARGE = { dur: 2.2, cd: 12, spd: 1.45, dmg: 32, kb: 15 };
+export const CHARGE = { dur: 2.2, cd: 12, spd: 1.45, dmg: 32, kb: 15,
+  // F9 what a charge does to each man it meets: spearmen on Hold, still and facing it stop it (the horse hurt
+  // `stopHorse`, the rider thrown); a man standing still and facing it slows it (the charge ends, the horse checked
+  // by `slowBrake` of its speed and `slowStun` s; the man shoved `slowKb` of the knock for `slowDmg` of the damage);
+  // a man moving faster than `still` m/s, or hit outside `front` rad of where he faces, is bowled over.
+  // setR: how near a rider coming at `setSpd`+ m/s has the spearmen set their spears (the brace pose).
+  front: 1.0, still: 1.2, stopHorse: 55, slowDmg: .35, slowKb: .3, slowBrake: .55, slowStun: .25, setR: 10, setSpd: 5 };
 // The player captain's three weapons, switched with one button. The sword chains a 3-hit combo
 // (the 3rd hit cleaves), the spear trades speed for reach and pierces a second man, javelins are
 // a limited, regenerating ranged burst. Attacking in mid-air is a leap slam that hits a whole arc.

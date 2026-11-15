@@ -68,8 +68,8 @@ function encodeSnap() {
   const fl = f ? [f.state === 'home' ? 0 : f.state === 'dropped' ? 1 : f.state === 'cased' ? 3 : 2, encX(f.x), encX(f.z), f.carrier ? b36(f.carrier.id) : '', Math.round((f.casing || 0) * 99)].join(',') : '';
   const pl = G.teams.map((s, i) => {
     if (!s.human || i === G.myTi) return ''; const L = s.leader, k = L.kick;
-    if (k.dirty) { k.n++; k.dirty = false; k.lvx = k.vx; k.lvz = k.vz; k.lst = k.st; k.vx = 0; k.vz = 0; k.st = 0; }
-    return [i, b36(L.id), L.dead ? 1 : 0, Math.round(L.horseHp), Math.ceil(L.horseCd), L.summon ? 1 : 0, k.n, r1(k.lvx || 0), r1(k.lvz || 0), r2(k.lst || 0), Math.round(L.hp), '', L.streak | 0, Math.round(L.armour || 0)].join(','); // (11: unused; 12: the streak)
+    if (k.dirty) { k.n++; k.dirty = false; k.lvx = k.vx; k.lvz = k.vz; k.lst = k.st; k.lh = k.halt; k.vx = 0; k.vz = 0; k.st = 0; k.halt = 0; }
+    return [i, b36(L.id), L.dead ? 1 : 0, Math.round(L.horseHp), Math.ceil(L.horseCd), L.summon ? 1 : 0, k.n, r1(k.lvx || 0), r1(k.lvz || 0), r2(k.lst || 0), Math.round(L.hp), k.lh ? 1 : '', L.streak | 0, Math.round(L.armour || 0)].join(','); // (11: F9 the kick ends his charge; 12: the streak)
   }).filter(Boolean).join(';');
   // the map's holdings, and control mode's points: who has each, and how far a capture has got
   const hd = (G.holds || []).map(h => [h.owner, Math.round(h.prog * 100), h.cap, h.contested ? 1 : 0, h.chest | 0, G.cgates && G.cgates[h.id] ? G.cgates[h.id].broken | 0 : 0, G.cgates && G.cgates[h.id] ? G.cgates[h.id].lv | 0 : 0, h.by ?? -1, h.fort | 0].join(',')).join(';');
@@ -303,7 +303,7 @@ function clientApply(hp) {
   if (secs[9] && G.ctrlPoints) secs[9].split(';').forEach((r, i) => { const p = G.ctrlPoints[i], v = r.split(',').map(Number); if (p) { p.owner = v[0]; p.prog = v[1] / 100; p.capturer = v[2] < 0 ? null : v[2]; } });
   const mine = secs[6] ? secs[6].split(';').map(r => r.split(',')).find(r => +r[0] === myTi) : null;
   let myId = null;
-  if (mine) { myId = p36(mine[1]); C.meInfo = { dead: +mine[2], horseHp: +mine[3], horseCd: +mine[4], summon: +mine[5], kn: +mine[6], kvx: +mine[7], kvz: +mine[8], kst: +mine[9], hp: +mine[10], streak: +mine[12] || 0, armour: +mine[13] || 0 }; }
+  if (mine) { myId = p36(mine[1]); C.meInfo = { dead: +mine[2], horseHp: +mine[3], horseCd: +mine[4], summon: +mine[5], kn: +mine[6], kvx: +mine[7], kvz: +mine[8], kst: +mine[9], hp: +mine[10], halt: mine[11] === '1', streak: +mine[12] || 0, armour: +mine[13] || 0 }; }
   const seen = new Set();
   if (secs[2]) for (const row of secs[2].split(';')) {
     const f = row.split(','), id = p36(f[0]), kt = parseInt(f[1], 16);
@@ -378,6 +378,7 @@ function clientApply(hp) {
     me.horseHp = C.meInfo.horseHp; me.horseCd = C.meInfo.horseCd; me.summon = !!C.meInfo.summon; me.hp = C.meInfo.hp; me.streak = C.meInfo.streak; me.armour = C.meInfo.armour;
     if (C.meInfo.kn !== C.kickN) {
       C.kickN = C.meInfo.kn; me.vx += C.meInfo.kvx; me.vz += C.meInfo.kvz; me.stun = Math.max(me.stun, C.meInfo.kst);
+      if (C.meInfo.halt) me.charge = 0; // (F9: the host checked or stopped your charge on a man: it ends here too)
       if (C.meInfo.kvx || C.meInfo.kvz) { cam.shake = .35; buzz(30); bus.emit('spark', { x: me.x, y: me.y + 1.2, z: me.z, c: TEAMS[colorOf(me.ti)].css, n: 5 }); sfx.hit(me.x, me.z); }
     }
   }
