@@ -35,6 +35,8 @@ designer (Opus, its own chat) owns the design doc. Builders: O tickets = Opus, S
 8. Last step of every ticket: update `docs/STATE.md` (a few lines, not a report) and the card's Status.
    New findings about finished projects become tickets or STATE entries, never edits to `docs/history/`.
 
+9. File size: ~300 lines means the file is nearly done; going past needs a justification Arjun approves; never past 500. One file, one job.
+
 ## Several chats at once
 Other chats may be working on the repo at the same time. Work on a branch named after your ticket,
 or `git pull --rebase origin roles` right before pushing. Never force-push. On a conflict in someone
@@ -65,7 +67,9 @@ else's work, stop and tell Arjun. Start every chat with `git checkout roles && g
 ## Ship
 1. `npm run build` in `game/` as the very last step before committing (it writes `index.html` and
    `assets/` at the root), then `git checkout -- online.json` (the build rewrites it; never commit it).
-2. Commit, push `roles`. To ship live (only when told): `git checkout main && git merge --ff-only roles
+2. `.github/workflows/pages.yml` builds `game/` and deploys to GitHub Pages on push to `main`. Until Arjun switches
+   Pages' source to "GitHub Actions" (Settings > Pages), the build-and-commit step above still applies: the live site serves the root files.
+3. Commit, push `roles`. To ship live (only when told): `git checkout main && git merge --ff-only roles
    && git push origin main`, then confirm with `gh run list -L 1 --branch main`.
 
 ## graphify (code map)
