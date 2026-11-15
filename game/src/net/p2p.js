@@ -166,6 +166,7 @@ export async function makeP2PRoom(code, host, onStage = () => {}) {
     const to = setTimeout(() => { if (!host) { fallback({ type: 'timeout', stage }); return; } try { peer.destroy(); } catch (e) {} done(false, { type: 'timeout', stage }); }, 25000);
     const slowT = setTimeout(() => { if (!settled) onStage('slow'); }, 9000);
     onStage('server');
+    const relayed = new Set(); // (F22, a joined phone: everyone the host's roster lists; the roster is only re-sent when something changes, so any word from the host keeps them listed)
     const alive = p => p === myId || (performance.now() - (seen.get(p) || 0)) < 6000;
     const snap = () => [...peers.entries()].filter(([p]) => alive(p)).map(([p, pr]) => ({ peer: p, sameTab: p === myId, isMe: p === myId, presence: pr }));
     let notifyT = null;
@@ -197,12 +198,12 @@ export async function makeP2PRoom(code, host, onStage = () => {}) {
     function wireHost(hc) {
       hc.on('data', lagged(d => {
         if (!d || typeof d !== 'object') return;
-        seen.set(P2P_PREFIX + code, performance.now());
+        seen.set(P2P_PREFIX + code, performance.now()); for (const k of relayed) seen.set(k, performance.now());
         if (d.t === 'full') { done(false, { type: 'full' }); return; }
         if (d.t === 'pong') { if (pongFn) pongFn(d.n); return; } // (the host's answer to our ping)
         if (d.t === 'all' && d.all && typeof d.all === 'object') {
-          for (const k of [...peers.keys()]) if (k !== myId && !(k in d.all)) peers.delete(k);
-          for (const [k, v] of Object.entries(d.all)) if (k !== myId && v && typeof v === 'object') { peers.set(k, v); seen.set(k, performance.now()); }
+          for (const k of [...peers.keys()]) if (k !== myId && !(k in d.all)) { peers.delete(k); relayed.delete(k); }
+          for (const [k, v] of Object.entries(d.all)) if (k !== myId && v && typeof v === 'object') { peers.set(k, v); seen.set(k, performance.now()); relayed.add(k); }
           notify();
         } else if (d.t === 'h' && typeof d.id === 'string' && d.pr && typeof d.pr === 'object') { peers.set(d.id, d.pr); notify(); }
       }));

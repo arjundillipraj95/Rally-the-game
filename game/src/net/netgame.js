@@ -206,7 +206,7 @@ export function clientStart(hp) {
   G.ctrlPoints = G.mode === 'ctrl' ? makeCtrlPoints(G.layout) : null;
   G.holds = makeHolds(G.layout); G.duels = [];
   G.c2 = null; if (G.mode === 'crown' && G.map.id === 'mount') { G.cgates = {}; for (const cw of (G.layout.cwalls || [])) G.cgates[cw.hid] = { hp: [1, 1, 1], broken: 0, lv: 1 }; c2Begin(clientMk); }
-  Object.assign(C, { off: null, back: null, snapHt: null, byId: new Map(), lastN: -1, lastMsgN: (hp.m && hp.m.length) ? hp.m[hp.m.length - 1][0] : 0, meId: null, meInit: false, kickN: 0, localCd: 0, lastSnapAt: performance.now(),
+  Object.assign(C, { seatSig: "", off: null, back: null, snapHt: null, byId: new Map(), lastN: -1, lastMsgN: (hp.m && hp.m.length) ? hp.m[hp.m.length - 1][0] : 0, meId: null, meInit: false, kickN: 0, localCd: 0, lastSnapAt: performance.now(),
     inp: { rb: 0, bsh: 0, dl: 0, dlId: null, atk: 0, ride: 0, vly: 0, chg: 0, evN: 0, evK: '', par: 0, ahN: 0, ahD: 0, ah: false, rly: 0, foc: null, vat: null, rec: [0, 0, 0], up: UPGRADES.map(() => 0), ord: 'follow', hold: null, face: 0 }, sendAt: 0, sendNow: false, pred: null, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
   for (const u of G.units) if (u.neutral) C.byId.set(u.id, u); // (F4: the mountain's neutral men, made with the battle above)
   G.player = null;
@@ -255,6 +255,13 @@ function clientKill(u) {
   }
   bus.emit('splat', { x: u.x, z: u.z, s: rnd(1, 1.5), ti: u.ti }); sfx.die(u.x, u.z);
   C.byId.delete(u.id);
+}
+// (F22) who is a player and who the computer, kept up with the host's seats all battle: a phone that links up
+// after the start, or leaves, shows as such on every phone, so a player is never given a computer captain's name.
+function seatHumans(seats) {
+  const sig = JSON.stringify(seats); if (C.seatSig === sig || !G.teams) return; C.seatSig = sig;
+  const taken = new Set(Object.values(seats));
+  G.teams.forEach((t, ti) => { if (t) t.human = taken.has(ti); });
 }
 function clientApply(hp) {
   if (hp.n === C.lastN) return;
@@ -410,7 +417,7 @@ export function clientTick(dt) {
   } else {
     NET.hostGoneAt = 0;
     const hp = hostP.presence || {};
-    if (hp.seats && typeof hp.seats === 'object') NET.lastSeats = hp.seats;
+    if (hp.seats && typeof hp.seats === 'object') { NET.lastSeats = hp.seats; seatHumans(hp.seats); }
     if (hp.ph === 'gone') { hooks.onAbort('The host ended the battle.'); return false; } // (the host chose to leave)
     if (hp.ph === 'lobby') { hooks.onLobby(); return false; }
     if (hp.seed === G.seed && (hp.ph === 'play' || hp.ph === 'end')) clientApply(hp);

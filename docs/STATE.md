@@ -163,6 +163,11 @@ Last updated: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 
 - F20: warmer mountain palette. Toon shading NOT done: needs its own ticket and Arjun's eye on shots.
 - `r_F18.mjs` 7/7; look shots via `TAG=x node store/r_look.mjs` (/tmp/look). Arjun judges the look and tone on his phone.
 
+## F22 Players keep their names (14 Nov, card `docs/tickets/F22.md`). On `roles`, not shipped
+- Joined phones keep every player's name all battle and follow the host's seats live. `r_F22.mjs` 14/14
+  (flaky on this machine: pages freeze for seconds); crown2sim and crown2online pass roles off and on.
+- Found: a host silent for 7.5 s splits the battle in two (see the card). Arjun to decide on a fix.
+
 ## F21 Music that follows you (14 Nov, Arjun's sounds chat; card `docs/tickets/F21.md`). On `roles`, not shipped
 - The score plays recorded orchestra notes (VSCO 2 CE, CC0, 436 KB in `sfx/mus/`) in place of synth tones:
   calm pad and harp; a hand drum and a quicker tempo on the move; drums, bass and horns in a fight; low health
