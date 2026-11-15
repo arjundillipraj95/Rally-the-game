@@ -117,7 +117,7 @@ Last updated: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 
   Each anim file +~350 KB. Arjun judges the feel. On `roles` only: Arjun held main (13 Nov) until V1c is reviewed.
 - Next: horse (Quaternius CC0, Arjun downloads; the app's browser can't) and rider (sitting pose made, lance to make).
 
-## CL1b No built copy in the repo (15 Nov). On branch `t/CL1b`, not shipped
+## CL1b No built copy in the repo (15 Nov). Shipped 15 Nov (merged into roles, main fast-forwarded)
 - Removed root index.html, assets/, models/, sfx/, icons, manifest (identical copies live in `game/public/`) and `game/scripts/publish.mjs`; `npm run build` now only writes `game/dist`.
 - Root `online.json` stays (deploy-online writes it; pages.yml copies it into dist). Shipping = ff main + push.
 
@@ -239,7 +239,7 @@ Last updated: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 
 | 16 | V2 | All-talk voice | O | servers |
 | 19 | P0.8 / P0.9 | Fair timing / host hand-over. Cut P0.9 if battles move to servers | O | P0.10 |
 | 20 | CL1 | Repo cleanup | S | built on t/CL1 |
-| 20b | CL1b | Remove built copy from repo | S | built on t/CL1b |
+| 20b | CL1b | Remove built copy from repo | S | shipped 15 Nov |
 | 21 | SPLIT | Split core/sim.js (2.9k) and main.js (1k) by job, behaviour unchanged, tests before/after | O | after F9, F25 |
 | - | P0.5 | Cloudflare TURN relay | S | **Parked** (needs a card) |
 | - | Phases 1-9 | Roles & Combat behind `?roles=1` | mixed | the list above, Arjun's approval |
