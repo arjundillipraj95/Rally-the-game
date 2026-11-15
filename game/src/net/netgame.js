@@ -2,7 +2,7 @@
 // presses and draws the host's snapshots (a compact text string, roughly 1-4KB depending on
 // how many soldiers are alive — more in a full 12-army Trio match — sent
 // about 12 times a second).
-import { CROWN2, SMOOTH, FEEL, NEUTRAL } from '../config.js';
+import { CROWN2, SMOOTH, FEEL, NEUTRAL, HANDOVER } from '../config.js';
 import { SHOUTS, CROWN, HUMAN_CAPTAIN, ARMOUR, RHYTHM, BASH, EVADE, TEAMS, MAPS, KINDS, STATS, RECRUITS, ORDERS, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT, HOLD_ATK, PARRY } from '../config.js';
 import { G, bus, colorOf, isEnemyTi, activeFrom, ARMIES, duoStr, duoParse } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn, angDiff } from '../core/world.js';
@@ -116,14 +116,20 @@ const IDLE_MS = 30e3; // (a player who does nothing this long is played by the c
 export function netHostReadInputs() {
   const NET = session.NET, peers = NET.room.peers();
   const present = new Set(peers.map(p => p.peer));
+  { const now = performance.now(); if (NET.readAt && now - NET.readAt > 2500 && NET.idle) for (const w of Object.values(NET.idle)) w.at = now; NET.readAt = now; } // (F24: back from our own freeze: nobody counts as idle for the time we were away)
   for (const [peer, ti] of Object.entries(NET.seats)) { // players who left: hand their army to the computer
     if (ti === G.myTi) continue;
-    if (!present.has(peer) && G.teams[ti].human) {
-      G.teams[ti].human = false; const L = G.teams[ti].leader;
-      if (L) { L.human = false; L.remote = false; L.dmg = STATS.captain.dmg; L.spd = STATS.captain.spd; }
-      delete NET.seats[peer]; bus.emit('msg', { k: 'left', a: [ti] });
+    if (!present.has(peer)) { // (F24: one marked idle, so already played by the computer, still gives up his seat when he goes)
+      if (G.teams[ti].human) {
+        G.teams[ti].human = false; const L = G.teams[ti].leader;
+        if (L) { L.human = false; L.remote = false; L.dmg = STATS.captain.dmg; L.spd = STATS.captain.spd; }
+        bus.emit('msg', { k: 'left', a: [ti] });
+      }
+      delete NET.seats[peer];
+      if (!Object.keys(NET.seats).some(k => NET.seats[k] !== G.myTi) && G.state === 'play') NET.orphanAt = performance.now(); // (F24: the last player gone)
     }
   }
+  if (NET.orphanAt && !NET.seeking) seekMovedBattle(NET);
   // a matchmade Crown battle in its first minute: a friend who joined late takes over the computer army
   // the service gave them (it's played as theirs from the next moment). After a host handover, the
   // other players come back to their own armies the same way.
@@ -410,7 +416,8 @@ export function clientTick(dt) {
   if (NET.handing) { /* (the battle is changing hands: hold still a moment) */ }
   else if (!hostP) {
     if (!NET.hostGoneAt) NET.hostGoneAt = performance.now();
-    if (performance.now() - NET.hostGoneAt > 1500) {
+    const linkUp = NET.room.hostOpen ? NET.room.hostOpen() : false; // (F24: a silent host whose link is still open is probably frozen for a moment: give it longer)
+    if (performance.now() - NET.hostGoneAt > (linkUp ? HANDOVER.silentMs : HANDOVER.closedMs)) {
       if (G.state === 'play' && NET.lastSeats) { NET.handing = true; handover().then(ok => { if (!ok) hooks.onAbort('The host left the battle.'); }); }
       else { hooks.onAbort('The host left the battle.'); return false; }
     }
@@ -512,6 +519,32 @@ export function clientTick(dt) {
   }
   return true;
 }
+// (F24) A host whose phone froze comes back to find every player gone: they took the battle over under the
+// next code. Look for it for a while; if it's there, join it as a player in our own army (the new host keeps
+// that army for us), so the battle doesn't split in two.
+async function seekMovedBattle(NET) {
+  NET.seeking = true;
+  const base = NET.base || NET.name, code = base + 'H' + ((NET.gen || 0) + 1), t0 = NET.orphanAt;
+  while (session.NET === NET && G.state === 'play' && performance.now() - t0 < HANDOVER.rejoinMs) {
+    if (Object.keys(NET.seats).some(k => NET.seats[k] !== G.myTi)) { NET.orphanAt = 0; NET.seeking = false; return; } // (someone came back to us after all)
+    let room = null; try { room = await makeP2PRoom(code, false); } catch (e) { await new Promise(r => setTimeout(r, 2500)); continue; }
+    if (session.NET !== NET) { room.leave(); return; }
+    room.presence({ role: 'player', want: G.myTi, nick: session.myNick || 'Captain', ph: 'play', seed: G.seed }).catch(() => {});
+    let hp = null, seat;
+    for (const tEnd = performance.now() + 10e3; performance.now() < tEnd && !hp; await new Promise(r => setTimeout(r, 300))) {
+      const h = room.peers().find(p => p.presence && p.presence.role === 'host'), pr = h && h.presence, me = myPeer(room);
+      if (pr && pr.seed === G.seed && pr.seats && me && pr.seats[me] !== undefined) { hp = pr; seat = pr.seats[me]; NET.newHostPeer = h.peer; }
+    }
+    if (!hp || session.NET !== NET) { room.leave(); continue; }
+    try { await NET.room.leave(); } catch (e) {}
+    session.NET = { role: 'client', room, name: code, base, gen: (NET.gen || 0) + 1, seats: {}, hostPeer: NET.newHostPeer, want: seat, match: NET.match };
+    G.role = 'client'; G.myTi = seat;
+    clientStart(hp);
+    bus.emit('msg', { k: 'rejoined', a: [seat] });
+    return;
+  }
+  NET.seeking = false; NET.orphanAt = 0;
+}
 // ---------- host handover ----------
 // The host's phone left mid-battle. The player in the lowest seat that's left takes over: their phone
 // becomes the host (from its last snapshot) and opens the battle again under a new code that every
@@ -531,8 +564,9 @@ async function handover() {
     const gone = (NET.lastSeats || {})[NET.hostPeer]; // (the old host's army: the computer plays it now)
     if (gone != null && G.teams[gone]) { G.teams[gone].human = false; const L = G.teams[gone].leader; if (L) { L.human = false; L.remote = false; L.dmg = STATS.captain.dmg; L.spd = STATS.captain.spd; } }
     const me = myPeer(room) || 'me', tis = left.slice(1).map(x => x[1]);
+    if (gone != null) tis.push(gone); // (F24: the old host, if its phone comes back, rejoins as a player in its own army)
     session.NET = { role: 'host', room, name: code, base, gen, me, seats: { [me]: G.myTi }, msgs: [], msgN: C.lastMsgN + 50, snapN: C.lastN + 1000, inp: {}, match: NET.match,
-      handover: tis.length ? { tis, until: performance.now() + 20e3 } : null,
+      handover: tis.length ? { tis, until: performance.now() + HANDOVER.rejoinMs } : null,
       lobby: { mode: G.mode, map: G.map.id, diff: G.diff, time: G.time, tgt: G.target, al: [...G.ALLY], duo: G.duo } };
     bus.emit('msg', { k: 'newHost', a: [G.myTi] }); netHostSend(true);
     bus.emit('handing', false);

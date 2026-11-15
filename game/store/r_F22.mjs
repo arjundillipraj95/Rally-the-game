@@ -39,6 +39,8 @@ await sleep(12000); // (well past the 6 s a quiet roster used to last)
 clearInterval(watch);
 const view = p => p.evaluate(() => { const F = window.__fb, G = F.G; return { me: G.myTi, role: G.role, names: G.teams.map((t, i) => F.nick(i)), human: G.teams.map(t => !!(t && t.human)) }; });
 for (const [k, P] of pages.entries()) console.log(NICKS[k], 'stalls over 1.5 s [at s, ms]:', JSON.stringify(await P.evaluate(() => window.__long)));
+const stir = async () => { for (const P of pages) { await P.keyboard.down('KeyW'); await sleep(400); await P.keyboard.up('KeyW'); } await sleep(1500); }; // (players who stand still 30 s are handed to the computer until they move)
+await stir();
 const v = [await view(A), await view(B), await view(Cc)];
 v.forEach((x, k) => console.log(NICKS[k], JSON.stringify(x)));
 for (let k = 0; k < 3; k++) for (let j = 0; j < 3; j++) if (j !== k) {
@@ -47,10 +49,10 @@ for (let k = 0; k < 3; k++) for (let j = 0; j < 3; j++) if (j !== k) {
   ok(v[k].human[ti], `${NICKS[k]}'s phone counts ${NICKS[j]} as a player`);
 }
 // a seat the host gives after the battle began (a late link-up): take C's seat away on the host, then give it back
-const hostSeat = (on) => A.evaluate(async on => { const { session } = await import('/src/net/session.js'); const N = session.NET; if (!on) { window.__cs = Object.entries(N.seats).find(([k, t]) => t === window.__cti); delete N.seats[window.__cs[0]]; } else N.seats[window.__cs[0]] = window.__cs[1]; }, on);
+const hostSeat = (on) => A.evaluate(on => { const seats = window.__fb.info.net.seats; if (!on) { window.__cs = Object.entries(seats).find(([k, t]) => t === window.__cti); delete seats[window.__cs[0]]; } else seats[window.__cs[0]] = window.__cs[1]; }, on); // (the host's own seat list, through the test hook)
 await A.evaluate(ti => { window.__cti = ti; }, v[2].me);
 await hostSeat(false); await sleep(2500);
 let b = await view(B); ok(!b.human[v[2].me], `seat taken away on the host: Ravi's phone no longer counts Cara (${b.human[v[2].me]})`);
-await hostSeat(true); await sleep(2500);
+await hostSeat(true); await stir(); await sleep(1000);
 b = await view(B); ok(b.human[v[2].me] && b.names[v[2].me] === 'Cara', `seat given after the start: Ravi's phone counts and names her (${b.names[v[2].me]})`);
 console.log(`${pass}/${pass + fail}`); for (const b of brs) await b.close(); process.exit(fail ? 1 : 0);

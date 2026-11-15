@@ -24,7 +24,7 @@ await A.click('#startBtn'); await A.waitForTimeout(+(process.argv[3] || 6) * 100
 const info = async P => P.evaluate(() => { const G = window.__fb.G, N = window.__fb.info.net; return { ti: G.myTi, role: N && N.role, T: +G.T.toFixed(1), mode: G.mode, units: G.units.filter(u => !u.dead).length, state: G.state, me: G.player ? [+G.player.x.toFixed(1), +G.player.z.toFixed(1)] : null, humans: G.teams.map(s => s.human ? 1 : 0).join('') }; });
 console.log('before', JSON.stringify(await info(A)), JSON.stringify(await info(B)), JSON.stringify(await info(Cc)));
 await bs[0].close(); // the host's phone goes
-await B.waitForTimeout(9000);
+await B.waitForTimeout(16000); // (F24: a host that vanishes without closing its link is given about 12 s before another phone takes over)
 console.log('after ', JSON.stringify(await info(B)), JSON.stringify(await info(Cc)));
 // C walks: does the new host see it move?
 await Cc.evaluate(() => { window.__moveOverride = () => ({ wx: 1, wz: 0, mag: 1 }); });

@@ -20,6 +20,12 @@ export const MODES = {
   crown:    { name: 'The Crown', time: 600, title: 'Places held', desc: 'Four armies, one mountain, ten minutes. Take castles, keeps and villages to grow your army; break the war chest at 5:00; at 8:00 the captains climb for the Crown, frozen in the glacier. Most points at the end wins.' },
 };
 // The Crown: the online mode's ten minutes, in phases. Times in seconds.
+// (F24) when a joined phone takes over from a silent host, and how long the old host may come back
+export const HANDOVER = {
+  closedMs: 1500,  // the host's link closed: take over this long after it drops out of the list (it drops after 6 s of silence)
+  silentMs: 6000,  // the host is silent but its link is still open (a frozen or backgrounded phone, or one that vanished without closing): wait this much longer, about 12 s in all
+  rejoinMs: 40e3,  // the old host, back from a freeze, may rejoin the battle that moved on without it this long
+};
 export const CROWN = {
   breakout: 15, siege: 240, // (the break-out countdown at the start; castles stormable from 4:00)
   castleTake: 2.2, // (a castle takes this much longer to capture than a village)

@@ -107,6 +107,7 @@ export function feedLine(k, a) {
     case 'plazaGate': return `${who(a[1])} broke a plaza gate`;
     case 'castleFort': return `${who(a[0])} fortified ${esc((G.holds && G.holds[a[1]] && G.holds[a[1]].name) || 'a castle')}`;
     case 'castleGate': return `${who(a[1])} broke ${esc((G.holds && G.holds[a[2]] && G.holds[a[2]].name) || 'a castle')}'s ${a[3] ? 'side gate' : 'main gate'}`;
+    case 'rejoined': return `${who(a[0])} rejoined`;
     case 'newHost': return `${who(a[0])} took over hosting`;
     case 'idle': return `${who(a[0])} went idle; the computer leads for now`;
     case 'back': return `${who(a[0])} ${a[0] === G.myTi ? 'are' : 'is'} back`;

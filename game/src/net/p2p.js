@@ -167,7 +167,9 @@ export async function makeP2PRoom(code, host, onStage = () => {}) {
     const slowT = setTimeout(() => { if (!settled) onStage('slow'); }, 9000);
     onStage('server');
     const relayed = new Set(); // (F22, a joined phone: everyone the host's roster lists; the roster is only re-sent when something changes, so any word from the host keeps them listed)
-    const alive = p => p === myId || (performance.now() - (seen.get(p) || 0)) < 6000;
+    let lastBeat = performance.now(); // (F24: this phone's own once-a-second beat; a long gap means this phone was frozen, not the others silent)
+    const frozen = () => performance.now() - lastBeat > 2500;
+    const alive = p => p === myId || frozen() || (performance.now() - (seen.get(p) || 0)) < 6000;
     const snap = () => [...peers.entries()].filter(([p]) => alive(p)).map(([p, pr]) => ({ peer: p, sameTab: p === myId, isMe: p === myId, presence: pr }));
     let notifyT = null;
     const notifyNow = () => { notifyT = null; const sn = snap(); for (const f of listeners) { try { f({ peers: sn }); } catch (e) { console.error(e); } } };
@@ -257,6 +259,8 @@ export async function makeP2PRoom(code, host, onStage = () => {}) {
     let left = false;
     const beat = setInterval(() => {
       if (left || (peer.destroyed && !relaying)) { clearInterval(beat); return; }
+      if (frozen()) { const now = performance.now(); for (const k of seen.keys()) seen.set(k, now); } // (back from a freeze: everyone gets a fresh 6 s to be heard from)
+      lastBeat = performance.now();
       if (performance.now() - lastSent > 1500) sendMine();
       if (host) for (const [p, c] of [...conns]) if (!pending.has(p) && performance.now() - (seen.get(p) || performance.now()) > 8000) { try { c.close(); } catch (e) {} conns.delete(p); peers.delete(p); notify(); relaySoon(); }
       notify();
@@ -273,6 +277,7 @@ export async function makeP2PRoom(code, host, onStage = () => {}) {
       onPeers: f => { listeners.push(f); setTimeout(() => f({ peers: snap() }), 0); return () => { const i = listeners.indexOf(f); if (i >= 0) listeners.splice(i, 1); }; },
       leave: async () => { left = true; clearInterval(beat); try { peer.destroy(); } catch (e) {} if (relayHost) relayHost.end(); if (hostConn && hostConn.relay && hostConn.end) hostConn.end(); },
       relayed: () => !!relaying, // (a joiner on the relay)
+      hostOpen: () => !!(hostConn && (hostConn.open || hostConn.relay)), // (F24, a joiner: is the link to the host still up, even if the host is silent)
       // ping (P0.3): a joiner asks the host to answer at once; the answer comes back with the same stamp
       ping: n => { if (hostConn && hostConn.open) try { hostConn.send({ t: 'ping', n }); } catch (e) {} },
       onPong: f => { pongFn = f; },

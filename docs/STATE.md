@@ -163,10 +163,15 @@ Last updated: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 
 - F20: warmer mountain palette. Toon shading NOT done: needs its own ticket and Arjun's eye on shots.
 - `r_F18.mjs` 7/7; look shots via `TAG=x node store/r_look.mjs` (/tmp/look). Arjun judges the look and tone on his phone.
 
+## F23 Remove from party, leave party, and F24 frozen host doesn't split the battle (14 Nov). On `roles`, not shipped
+- F23: the leader removes a party member (friends panel, lobby pop-up); anyone leaves the party. `r_F23` 10/10.
+- F24: ~12 s before taking over from a silent host; an old host back from a freeze rejoins as a player.
+  `r_F24` 9/9 (flaky on this machine), `handover.mjs` passes. crown2sim and crown2online pass roles off and on.
+
 ## F22 Players keep their names (14 Nov, card `docs/tickets/F22.md`). On `roles`, not shipped
 - Joined phones keep every player's name all battle and follow the host's seats live. `r_F22.mjs` 14/14
   (flaky on this machine: pages freeze for seconds); crown2sim and crown2online pass roles off and on.
-- Found: a host silent for 7.5 s splits the battle in two (see the card). Arjun to decide on a fix.
+- Found: a host silent for 7.5 s split the battle in two: fixed in F24.
 
 ## F21 Music that follows you (14 Nov, Arjun's sounds chat; card `docs/tickets/F21.md`). On `roles`, not shipped
 - The score plays recorded orchestra notes (VSCO 2 CE, CC0, 436 KB in `sfx/mus/`) in place of synth tones:
