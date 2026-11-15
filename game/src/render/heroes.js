@@ -362,7 +362,7 @@ function clipHero(u, a, h, dt, sp, blocking, hurt, P, rate, tag) {
   const R = h.R, T = G.T, C = SRC.cap.clips, kind = u.swingKind | 0;
   // what has just happened
   if (u.swing > (h.swPrev || 0) + .05) { // a blow begun: the sword's combo, thrust and boosted blows have clips
-    h.swN = (h.swN || 0) + 1; h.swT = T;
+    h.swN = (h.swN || 0) + 1; h.swT = T - Math.max(0, .38 - u.swing); // (F25: from the moment the rules began it, so it lands on their frame)
     const boosted = (u.evade && T - u.evade.t < ANIM.boostWithin) || (u.pending && u.pending.leap);
     const set = h.weapon === 'sword' ? ANIM.swingKind : ANIM.weaponSwing[h.weapon]; // (F17: spear and javelins have clips too)
     h.swClip = set && kind < set.length ? (boosted && h.weapon === 'sword' && kind < 2 ? ANIM.boost : h.weapon === 'spear' && kind === 3 && u.combo === 1 ? ANIM.spearSweep : set[kind]) : null; // (F17c: the spear's second press, the sweep)
@@ -400,7 +400,7 @@ function clipHero(u, a, h, dt, sp, blocking, hurt, P, rate, tag) {
   if (h.an) {
     const name = an.steps[an.i], loops = !!an.hold && an.i === an.steps.length - 1, full = an.legs || loco === 'idle', key = an.key + ':' + an.i;
     const S = an.swing, e = play(R, 'up', name, key, { fade: an.i ? ANIM.fast : an.fade || ANIM.fade, loop: loops, at: S ? Math.max(0, S.hit - S.lead) : 0 }); // (a blow is entered a little before it lands, so it lands when the rules say it does)
-    e.act.timeScale = S ? (e.act.time < S.hit ? S.lead / ANIM.hitDelay : S.after) : an.rate || 1;
+    e.act.timeScale = S ? (e.act.time < S.hit ? S.lead / (S.hd || ANIM.hitDelay) : S.after) : an.rate || 1; // (F25 hd: this blow's own landing time)
     if (full) { const l = play(R, 'lo', name, key, { fade: an.i ? ANIM.fast : an.fade || ANIM.fade, loop: loops, at: e.act.time }); l.act.timeScale = e.act.timeScale; l.act.time = e.act.time; }
     else play(R, 'lo', loco, 'L' + loco).act.timeScale = lrate;
     if (an.turn) { const k = clampN(e.act.time / e.C.dur, 0, 1); turn = -h.turn.d * (1 - k * k * (3 - 2 * k)); }
@@ -471,7 +471,7 @@ function aimShaft(u, h, R, dt) {
   if (mode === 'couch') _dir.set(fx, -A.rideDip, fz);
   else if (mode === 'level') _dir.set(fx, -A.dip, fz);
   else if (mode === 'sweep') { // an arc from his right, across his front (dead ahead when the blow lands), round to his left
-    const t = (G.T - h.swT) / ANIM.hitDelay, S = A.sweepArc, ang = t < 1 ? S[0] * (1 - t) : S[1] * Math.min(1, (t - 1) * ANIM.hitDelay / S[2]);
+    const hd = ANIM.swing[h.swClip].hd || ANIM.hitDelay, t = (G.T - h.swT) / hd, S = A.sweepArc, ang = t < 1 ? S[0] * (1 - t) : S[1] * Math.min(1, (t - 1) * hd / S[2]);
     _dir.set(Math.sin(u.face + ang), 0, Math.cos(u.face + ang)); }
   else _dir.set(fx * Math.sin(A.lean), Math.cos(A.lean), fz * Math.sin(A.lean));
   _dir.normalize();

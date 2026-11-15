@@ -8,6 +8,7 @@ import { G, bus, colorOf, isEnemyTi, activeFrom, ARMIES, duoStr, duoParse } from
 import { makeLayout, groundY, clamp, rnd, turn, angDiff } from '../core/world.js';
 import { buildNav, syncGates } from '../core/nav.js';
 import { c2Begin, c2Water, startMarch, marchStep, chasmFallY, c2Man } from '../core/sim.js';
+import { inSpear, spearBlow, spearReach } from '../core/spearhit.js';
 import { adoptBattle, applyCastleGates, applyPlazaWall, volleyCharge, captainBash, duelAct, duelOffer, duelTarget, initForts, applyFort, fortLvl, captainEvade, evadeKind, makeHolds, execTarget, rallyCry, blockPress, attackHold, attackRelease, rideRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
 import { session, isClient, isHost } from './session.js';
 import { makeP2PRoom } from './p2p.js';
@@ -466,8 +467,8 @@ export function clientTick(dt) {
     regenJavs(me, dt); chargeTimers(me, dt);
     if (C.atkBuf > 0) C.atkBuf -= dt;
     if (C.pred && performance.now() >= C.pred.at) {
-      const { tg: t, reach, spear } = C.pred; C.pred = null;
-      if (t && !t.dead && isEnemyTi(t.ti, me.ti) && Math.hypot(t.x - me.x, t.z - me.z) <= me.r + t.r + reach + .9) {
+      const { tg: t, reach, spear, blow } = C.pred; C.pred = null;
+      if (t && !t.dead && isEnemyTi(t.ti, me.ti) && (blow ? inSpear(me, t, blow) : Math.hypot(t.x - me.x, t.z - me.z) <= me.r + t.r + reach + .9)) { // (F25: the spear, where its tip reaches)
         const hx = (me.x + t.x) / 2, hz = (me.z + t.z) / 2;
         const shield = t.blockT > 0 && Math.abs(angDiff(t.face, Math.atan2(me.x - t.x, me.z - t.z))) < 1.1; // (a raised shield only stops what comes from the front)
         bus.emit('spark', { x: hx, y: (me.y + t.y) / 2 + 1.2, z: hz, c: shield ? '#fff3b0' : t.neutral ? NEUTRAL.css : TEAMS[colorOf(t.ti)].css, n: 5 });
@@ -631,11 +632,11 @@ function predictAttack(p) {
   if (best) {
     const ang = Math.atan2(best.x - p.x, best.z - p.z), d = Math.hypot(best.x - p.x, best.z - p.z);
     p.face = ang;
-    if (d > p.r + best.r + 1.3 + (spear ? CC.spear.reachB : 0) - .2 && !skewer) { p.vx += Math.sin(ang) * 4; p.vz += Math.cos(ang) * 4; }
+    if (d > (spear ? spearReach(spearBlow(sCombo), best) : p.r + best.r + 1.3) - .2 && !skewer) { p.vx += Math.sin(ang) * 4; p.vz += Math.cos(ang) * 4; }
   }
   // the host lands the blow ~.12s into the swing; show the impact here at the same moment instead of
   // waiting for the host's word (the damage itself still comes from the host)
-  if (best) C.pred = { at: performance.now() + (skewer ? SK.t * 1000 : 120), tg: best, reach: STATS.captain.reach + (spear ? (skewer ? SK.reachB : CC.spear.reachB) : 0), spear };
+  if (best) C.pred = { at: performance.now() + (skewer ? SK.t * 1000 : spear ? CC.spear.t * 1000 : 120), tg: best, reach: STATS.captain.reach, spear, blow: spear && spearBlow(sCombo) };
   if (spear && skewer) { C.localCd = SK.cd; p.swingKind = 5; p.combo = 2; p.vx = Math.sin(p.face) * SK.lunge; p.vz = Math.cos(p.face) * SK.lunge; p.dashT = SK.dash; } // (the skewer: a running lunge)
   else if (spear) { C.localCd = sCombo === 1 ? CC.spear.cd2 : CC.spear.cd; p.swingKind = 3; p.combo = sCombo; p.vx += Math.sin(p.face) * CC.spear.lunge; p.vz += Math.cos(p.face) * CC.spear.lunge; }
   else {

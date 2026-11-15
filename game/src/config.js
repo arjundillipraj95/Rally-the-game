@@ -311,6 +311,11 @@ export const CAPTAIN_COMBAT = {
     // spear's extra), the man in front only, a light knock and a half-step in. (The Defender's Spear sweep ability, Phase 1,
     // is the big one: more damage, longer range.)
     sweep: { mult: 1, kb: .25, step: 2.2, aim: 3.6 },
+    // F25 the hit area is where the spear you see reaches when the blow lands (measured by store/r_F25.mjs on the clips):
+    // the tip this far from his centre (poke, sweep, thrust), a man struck if his body is within it, no more than `width`
+    // off the shaft's line; the sweep over the arc it has crossed by then (`arc`, rad from his facing, + to his left).
+    // t: when the poke and the sweep land (s after the press); the clips are timed to it (ANIM.swing hd).
+    area: { poke: 2.4, sweep: 2.35, thrust: 2.7, width: .45, arc: [-1.75, .25] }, t: .15,
     skewer: { mult: 1.6, reachB: 2.6, pierce: .75, pierceN: 3, kb: 2.4, stun: .6, lunge: 11, dash: .19, aim: 6, cd: 1.05, t: .2, line: .45 } }, // fewer, heavier thrusts: a lunge that shoves and runs through
   jav: { cd: .8, dmg: 30, range: 16, ammo: Infinity, regen: 4 }, // unlimited: the gap between throws is the limit
   jump: { v: 7.6, g: 22, cd: .3 },
@@ -451,10 +456,11 @@ export const ANIM = {
   shield: { at: [.1, .09, 0] }, // (where the shield is strapped for the clips, from the left elbow: [toward the hand, off the back of the arm, across it], model units)
   swing: { slash1: { hit: .467, lead: .3, after: 1.5 }, slash2: { hit: .467, lead: .3, after: 1.5 }, slash3: { hit: .4, lead: .28, after: 1.5 },
     attack: { hit: .467, lead: .3, after: 1.5 }, attackBoost: { hit: .5, lead: .34, after: 1.5 },
-    // F17 (Cosindra clips, tools/models/extra.py): hit = the moment the hand is fastest, seconds into the clip
+    // F17 (Cosindra clips, tools/models/extra.py): hit = the moment the hand is fastest, seconds into the clip; F25 hd: the
+    // blow's own landing time, from the rules (default hitDelay)
     spin: { hit: 1.33, lead: .6, after: 1.4 }, leapSmash: { hit: .97, lead: .5, after: 1.3 }, overhead: { hit: .7, lead: .45, after: 1.4 },
-    slashWide: { hit: .33, lead: .25, after: 1.4 }, slashBack: { hit: .3, lead: .25, after: 1.4 },
-    spearThrust: { hit: .47, lead: .3, after: 1.4 }, spearLunge: { hit: .47, lead: .45, after: 1.1 }, javThrow: { hit: 1.27, lead: .5, after: 1.4 }, shieldBash: { hit: .33, lead: .25, after: 1.3 } },
+    slashWide: { hit: .33, lead: .25, after: 1.4, hd: CAPTAIN_COMBAT.spear.t }, slashBack: { hit: .3, lead: .25, after: 1.4 },
+    spearThrust: { hit: .47, lead: .3, after: 1.4, hd: CAPTAIN_COMBAT.spear.t }, spearLunge: { hit: .47, lead: .45, after: 1.1, hd: CAPTAIN_COMBAT.spear.skewer.t }, javThrow: { hit: 1.27, lead: .5, after: 1.4 }, shieldBash: { hit: .33, lead: .25, after: 1.3 } },
   // the clip for each swingKind, by weapon: 0-1 combo, 2 leap, 3 spear thrust, 4 sword spin finisher / javelin throw / streak, 5 held heavy blow or skewer, 6 shield bash
   swingKind: ['slash1', 'slash2', 'leapSmash', 'attack', 'spin', 'overhead', 'shieldBash'], boost: 'attackBoost', boostWithin: .7,
   // F17c spear combo (Arjun): 1 poke, 2 sweep, 3 a stronger thrust. The rules send a spear's presses as swingKind 3, 3, then 5

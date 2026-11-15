@@ -117,6 +117,11 @@ Last updated: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 
   Each anim file +~350 KB. Arjun judges the feel. On `roles` only: Arjun held main (13 Nov) until V1c is reviewed.
 - Next: horse (Quaternius CC0, Arjun downloads; the app's browser can't) and rider (sitting pose made, lance to make).
 
+## F25 The spear hits where it looks (15 Nov; card `docs/tickets/F25.md`). On branch `t/F25`, not shipped
+- Hit area = where the drawn spear reaches when the blow lands (`core/spearhit.js`, `CAPTAIN_COMBAT.spear.area`): was
+  4.4 m centre to centre, any angle; now poke 2.4 m / sweep 2.35 m over its crossed arc / thrust 2.7 m, along the line.
+  Clips land on the rules' frame (`ANIM.swing.*.hd`). r_F25 17/17. Arjun: feel on the phone (reach is shorter now).
+
 ## F17d Spear combo hit 2 is a sweep in the rules too (13 Nov; card `docs/tickets/F17d.md`)
 - Struck like a sword swing: 1.0x, his own reach, the man in front, light knock (`CC.spear.sweep`). Poke and lunge unchanged.
 

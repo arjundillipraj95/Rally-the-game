@@ -4,6 +4,7 @@ import { STAMINA, DUEL_DIR, CROWN2, FEEL , LAUNCH, NEUTRAL } from '../config.js'
 import { CROWN, ECON, TEAMS, STATS, DIFF, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, CASTLE_R, CASTLE_REACH, START_SQUAD, FULL_SQUAD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, JAVELIN, VOLLEY, CHARGE, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, HOLDS, EVADE, FORT, HOLD_ATK, GUARD, RIDE, MORALE, RALLY, CAPKILL_SLOW, CTRL, AURA, WEAPONS, CAPTAIN_COMBAT, DUEL, CHEST, STREAK, BASH, LAST, VCHARGE, RHYTHM, PUSH, ARMOUR } from '../config.js';
 import { G, bus, isEnemy, isEnemyTi, colorOf, NEUTRAL_TI, activeArmies, activeFrom, gateOff, ARMIES, rules, matchTime, noCastle, capOf, isC2 } from './state.js';
 import { stance, markBraces } from './charge.js';
+import { inSpear, spearBlow, spearReach } from './spearhit.js';
 import { deepWater, groundY, inFord, inRiver, onBridge, gatePos, makeLayout, clamp, rnd, angDiff, turn, W, groundSlow, onIce, mountHomeA } from './world.js';
 import { buildNav, syncGates, nearObstacles, nearBlockers, gateShut, los, findPath, openGoal, walkable, setPalSeg } from './nav.js';
 
@@ -459,7 +460,7 @@ function shieldTick(u, dt) {
   if (u.guardUp) u.blockT = Math.max(u.blockT, .1);
 }
 function resolveSwing(u) {
-  const pend = u.pending, tg = pend.target; u.pending = null;
+  const pend = u.pending; let tg = pend.target; u.pending = null;
   const mult = (pend.mult || 1) * (pend.tired ? STAMINA.tiredMult : 1);
   if (pend.leap) { resolveLeap(u); return; }
   if (pend.sweep) {
@@ -488,7 +489,9 @@ function resolveSwing(u) {
   const exS = pend.side != null ? Object.assign({}, ex, { side: pend.side }) : ex; // (a duel blow carries its side)
   let landed = false;
   const slack = u.human ? .9 : .5; // (a player's blow at a man who has just stepped back still connects)
-  if (tg && !tg.dead && Math.hypot(tg.x - u.x, tg.z - u.z) <= u.r + tg.r + reach + slack) { if (clash(u, tg, pend)) return; hit(u, tg, mult, exS); landed = true; }
+  const SP = pend.spear, inS = o => !o.dead && isEnemy(o, u) && inSpear(u, o, SP); // (F25: a spear blow strikes where the spear you see reaches)
+  if (SP && tg && tg.x != null && !inS(tg)) { let bd = 1e9, nb = null; for (const o of G.units) { if (o === tg || !inS(o)) continue; const d = Math.hypot(o.x - u.x, o.z - u.z); if (d < bd) { bd = d; nb = o; } } if (nb) pend.target = tg = nb; } // (he stepped out of it: whoever the spear meets instead)
+  if (tg && !tg.dead && (SP ? inS(tg) : Math.hypot(tg.x - u.x, tg.z - u.z) <= u.r + tg.r + reach + slack)) { if (clash(u, tg, pend)) return; hit(u, tg, mult, exS); landed = true; }
   else if (u.isMe && G.capStats && tg && tg.castle === undefined) G.capStats.outOfReach++;
   // sword finisher: the heavy third hit also catches up to two more men beside the target
   if (pend.cleave) {
@@ -505,8 +508,8 @@ function resolveSwing(u) {
   if (pend.pierce && landed) {
     for (const o of G.units) {
       if (o === tg || o.dead || !isEnemy(o, u)) continue;
-      if (Math.hypot(o.x - u.x, o.z - u.z) > u.r + o.r + reach + (pend.line ? 1.2 : 2.4)) continue;
-      if (Math.abs(angDiff(u.face, Math.atan2(o.x - u.x, o.z - u.z))) > (pend.line || .4)) continue;
+      if (SP) { if (!inS(o)) continue; } // (F25: through the men the spear you see reaches)
+      else if (Math.hypot(o.x - u.x, o.z - u.z) > u.r + o.r + reach + (pend.line ? 1.2 : 2.4) || Math.abs(angDiff(u.face, Math.atan2(o.x - u.x, o.z - u.z))) > (pend.line || .4)) continue;
       hit(u, o, mult * pend.pierce, ex); if (++pn >= (pend.pierceN || 1)) break;
     }
   }
@@ -2043,19 +2046,19 @@ function captainAttack0(p) {
     const ang = Math.atan2(best.x - p.x, best.z - p.z), d = Math.hypot(best.x - p.x, best.z - p.z);
     p.face = ang;
     // step into a target at the edge of reach, so a press always connects
-    const edge = p.r + best.r + p.reach + (spear && !sweep ? CC.spear.reachB : 0) - .2;
+    const edge = spear ? spearReach(spearBlow(sCombo), best) - .2 : p.r + best.r + p.reach - .2; // (F25: the spear, to where its tip reaches)
     if (d > edge && !skewer) { p.vx += Math.sin(ang) * 4; p.vz += Math.cos(ang) * 4; }
   }
   if (spear && skewer) { // the third thrust: a running lunge, the spear level, through everyone in the line
     Object.assign(p.pending, { t: SK.t, mult: SK.mult, reachB: SK.reachB, pierce: SK.pierce, pierceN: SK.pierceN, line: SK.line, kb: SK.kb, stun: SK.stun, shove: true });
     p.vx = Math.sin(p.face) * SK.lunge; p.vz = Math.cos(p.face) * SK.lunge; p.dashT = SK.dash; // (a moment where his feet don't brake: the lunge carries)
-    p.cd = SK.cd; p.combo = 2; p.swingKind = 5;
+    p.cd = SK.cd; p.combo = 2; p.swingKind = 5; p.pending.spear = 'thrust';
   } else if (sweep) { // the second blow: a sweep, struck like a sword swing (F17d)
-    Object.assign(p.pending, { mult: SW.mult, kb: SW.kb });
+    Object.assign(p.pending, { mult: SW.mult, kb: SW.kb, spear: 'sweep', t: CC.spear.t });
     p.vx += Math.sin(p.face) * SW.step; p.vz += Math.cos(p.face) * SW.step; // (a half-step into it)
     p.cd = CC.spear.cd2; p.combo = 1; p.swingKind = 3;
   } else if (spear) {
-    Object.assign(p.pending, { mult: CC.spear.mult, reachB: CC.spear.reachB, pierce: CC.spear.pierce, pierceN: CC.spear.pierceN, kb: CC.spear.kb, stun: CC.spear.stun, shove: true });
+    Object.assign(p.pending, { mult: CC.spear.mult, reachB: CC.spear.reachB, pierce: CC.spear.pierce, pierceN: CC.spear.pierceN, kb: CC.spear.kb, stun: CC.spear.stun, shove: true, spear: 'poke', t: CC.spear.t });
     p.vx += Math.sin(p.face) * CC.spear.lunge; p.vz += Math.cos(p.face) * CC.spear.lunge; // (the whole body goes into the thrust)
     p.cd = sCombo === 1 ? CC.spear.cd2 : CC.spear.cd; p.combo = sCombo; p.swingKind = 3;
   } else {
@@ -2350,7 +2353,7 @@ function aiCaptainFight(u, foe, fd, dt) {
       return;
     }
   }
-  const reach = u.r + foe.r + u.reach + (u.weapon === 'spear' ? CAPTAIN_COMBAT.spear.reachB : 0);
+  const reach = u.weapon === 'spear' ? spearReach('poke', foe) : u.r + foe.r + u.reach; // (F25: the spear, to where its tip reaches)
   go(u, foe.x, foe.z, speedOf(u), dt, reach * .7); faceTo(u, foe.x, foe.z, dt);
   // leap slam: into a group of men in front of him
   if (u.jy > 0) { if (u.jvy < 2 && u.cd <= 0) captainAttack(u); return; }
