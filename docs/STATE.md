@@ -27,7 +27,7 @@ Last updated: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 
   mute silences it, unmute brings it back. `NOLINK=1 r_V1.mjs`: no road between the phones, the phone says so.
   Real fix for relayed phones: a TURN relay that works (V1b). Needs an Opus review before shipping.
 
-- F6+F5 Hit feel and the death sequence (card: `docs/tickets/F6.md`, with the decisions made and the sounds needed).
+- F6+F5 Hit feel and the death sequence (card: `docs/history/tickets/F6.md`, with the decisions made and the sounds needed).
   Blades meet (two captains swinging at each other: neither blow lands, both pushed back), a blow on a shield, a
   captain cutting a soldier down: each with flash, sound, hit-stop, camera kick, vibration, same on joined phones.
   Death: camera stays on your body, grey screen, card with who and what with, countdown, fade to black, back at home.
@@ -37,7 +37,7 @@ Last updated: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 
   Found, not fixed: the host's own hit-stop slows the rules for everyone for 30-100 ms (was so before F6).
 
 - F8 Real animation for the captain (Mixamo clips on one shared skeleton, blended; upper body attacks while the legs
-  run). Card: `docs/tickets/F8.md`. r_F8 passes; crown2 tests pass roles off and on; Low draw calls level (1214 vs 1216).
+  run). Card: `docs/history/tickets/F8.md`. r_F8 passes; crown2 tests pass roles off and on; Low draw calls level (1214 vs 1216).
   No spin clip: the combo's spin plays slash3. Heavy blow, bash, war cry, spear stay on the code pose. Soldier clips
   prepared, used by F1. Same commit: helmets cut to three Roman ones (Arjun, 12 Nov). Arjun judges the feel.
 
@@ -48,7 +48,7 @@ Last updated: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 
   - C1 Three Roman helmets free (season locks off); their metal takes the armour finish's colour. `r_C1.mjs`.
   - C4 Capes: the new captain body had none (F8). Now a team-coloured cape on the chest, lifting as he runs: Long, Short,
     No cape (the default). Mantle and ermine hidden. `r_C4.mjs`.
-  - C5 Checked: faces do nothing on the F8 body (the Face tab saves a choice nothing draws). Report in `docs/tickets/C5.md`;
+  - C5 Checked: faces do nothing on the F8 body (the Face tab saves a choice nothing draws). Report in `docs/history/tickets/C5.md`;
     faces become a package later. Arjun decides whether to hide the Face tab meanwhile.
 - F7e/f/g/h (12 Nov): superseded by F7 below (cards kept, tests folded into `r_F7.mjs`).
 
@@ -56,14 +56,14 @@ Last updated: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 
 - F1a + F1b (draw calls ~1,220 -> ~151 at the Crown start, same look) shipped to main 12 Nov (main = roles at 8695d5e).
 
 ## Shipped detail (F1)
-- F1a the map in batches, card `docs/tickets/F1a.md`: on the mountain the still scenery is folded into ~20 batches
+- F1a the map in batches, card `docs/history/tickets/F1a.md`: on the mountain the still scenery is folded into ~20 batches
   (one per look per 120 m cell, colours moved into vertices) and the live pieces batched by their builders (castle
   fort tiers, holds' cloths and rings, garrison banners, camp fires, torches, the glacier's crown). Crown start, same
   frame: Low 1,220 -> 269 draw calls, High 1,226 -> 270; triangles +1%; map pieces 1,283 -> 83 (119 with every castle
   at level III); frames identical (0% pixels differ) at start, mid-battle, night and with castles/camps/holds changed.
   `?f1=0` = the old map for one release. `r_F1a.mjs`, r_F7-water, crown2sim and crown2online (roles off and on) pass.
   Other maps unbatched (same code would apply; not tested). Arjun checks phone fps.
-- F1b the men near the camera, card `docs/tickets/F1b.md`: each man's plain gear folded into one or two skinned
+- F1b the men near the camera, card `docs/history/tickets/F1b.md`: each man's plain gear folded into one or two skinned
   meshes (body and armour stay): men 147 -> 29 draws; with F1a the Crown start is Low 1,220 -> 151 draw calls,
   High 1,225 -> 153; triangles +1%; frames identical (start, a fight, three wardrobe looks). `?f1=0` = old.
   `r_F1b.mjs`, r_F8, crown2sim and crown2online (roles off and on) pass. Next draw-call cuts: the horse (P8.5).
@@ -77,7 +77,7 @@ Last updated: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 
 - F12 Same +2 captain markers on every phone: the host's snapshot now carries which enemy captains each side has cut down
   (new last field of the mountain section; an older host still works as before). `r_F12.mjs`: host and joined phone agree
   even with the joined phone's own list wiped.
-- F13 A day in one battle (card `docs/tickets/F13.md`). `DAY` table in config.js; sun height/direction, tint, brightness, mist, far
+- F13 A day in one battle (card `docs/history/tickets/F13.md`). `DAY` table in config.js; sun height/direction, tint, brightness, mist, far
   clouds and peaks follow the match clock; 7:30 and 8:00 equal today's dusk/night (checked). The Crown is always 10:00 (`matchTime`,
   `rules`) and its length selectors are hidden on home and lobby; sunrise/noon/sunset herald lines. Draw calls unchanged (325/152).
   `r_F13.mjs` ALL PASS, shots in /tmp/f13/. Arjun judges the look on his phone.
@@ -97,10 +97,10 @@ Last updated: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 
   call-start errors. `r_V1d.mjs` (lower id never calls) and `r_V1.mjs` pass, crown2sim/online pass roles off+on.
   Still unknown: the real cause on the phones (need the OTHER phone's box, devices, networks). Next: V1b if it says relay/can't link;
   then team voice in the lobby, join/leave, carrying on into the battle; all-players channel later.
-- V1b (14 Nov, built on `roles`, card `docs/tickets/V1b.md`): worker `GET /turn` hands phones short-lived Metered relay credentials
+- V1b (14 Nov, built on `roles`, card `docs/history/tickets/V1b.md`): worker `GET /turn` hands phones short-lived Metered relay credentials
   (secrets `METERED_APP`, `METERED_SECRET_KEY`); phones use them for game link and voice, public relays stay the fallback.
   `r_V1b.mjs` + crown2 pass. Needs Arjun's 3 steps (card) and a ship (online deploys from main); needs an Opus review before shipping.
-- V2 Party voice (14 Nov, Opus, built on `roles`, card `docs/tickets/V2.md`): friends in a party hear each other on the main
+- V2 Party voice (14 Nov, Opus, built on `roles`, card `docs/history/tickets/V2.md`): friends in a party hear each other on the main
   screen, searching, lobby and battle, no hang-up between them. Own voice peer (not the battle link); Hub shares each member's
   voice id with the party. First time: "Join voice" chip (bar at the bottom of the main screen), then starts by itself. Mute
   yourself or one friend; a friend's chip glows while they talk. Battle-link voice (V1) removed: non-party teammates not heard.
@@ -173,7 +173,7 @@ Last updated: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 
   (flaky on this machine: pages freeze for seconds); crown2sim and crown2online pass roles off and on.
 - Found: a host silent for 7.5 s split the battle in two: fixed in F24.
 
-## F21 Music that follows you (14 Nov, Arjun's sounds chat; card `docs/tickets/F21.md`). On `roles`, not shipped
+## F21 Music that follows you (14 Nov, Arjun's sounds chat; card `docs/history/tickets/F21.md`). On `roles`, not shipped
 - The score plays recorded orchestra notes (VSCO 2 CE, CC0, 436 KB in `sfx/mus/`) in place of synth tones:
   calm pad and harp; a hand drum and a quicker tempo on the move; drums, bass and horns in a fight; low health
   muffles the music behind a heartbeat; night darker. Synth stays as the fallback until the notes load.
@@ -181,7 +181,7 @@ Last updated: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 
 - Sound shortlist page (private artifact, Claude's picks for "feel there, subtle humour"): sound effects wait
   for Arjun to download the first picks from Freesound / OpenGameArt (the workspace can't reach them).
 
-## F2 One lobby (14 Nov, Arjun's picks; card `docs/tickets/F2.md`). On `roles`, not shipped
+## F2 One lobby (14 Nov, Arjun's picks; card `docs/history/tickets/F2.md`). On `roles`, not shipped
 - Matchmade lobby is a pop-up over the warm-up: four armies' seats (name or Computer), your lane (Left/Jungle/Right,
   only your army sees it), Done = ready; a bar (clock, Lobby button) reopens it. Tap a computer's seat to move; a party
   member moving to another army is asked "leave the party?". All ready: clock drops to 10 s. Then a 10 s versus screen
@@ -193,7 +193,7 @@ Last updated: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 
   crown2sim and crown2online pass roles off and on. Headless link-up after the versus took ~21 s (slow box).
 - Not done: lanes in the battle (plan only, design 02), role pick in the lobby (P6.3), the private lobby, voice.
 
-## F4 Garrisons and camps are real soldiers (14 Nov; card `docs/tickets/F4.md`). On branch `t/F4`, not shipped
+## F4 Garrisons and camps are real soldiers (14 Nov; card `docs/history/tickets/F4.md`). On branch `t/F4`, not shipped
 - 20 posts (12 castles, 8 camps) x 3 footmen + 2 archers = 100 real grey soldiers (ti 12, everyone's enemy). They hold their
   spots; an army's man within 9 m (or a blow on one) wakes the post; footmen chase inside 14 m, archers shoot to 18 m; 3 s
   with nobody near and they walk back and heal. Castle untakeable while a guard lives; camp's last kill pays 50, back in 90 s.
@@ -217,6 +217,8 @@ Last updated: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 
 | 15b | V1b | Voice for phones on the relay: a TURN relay that works. Free route: Metered.ca free tier (20 GB a month, sign-up, no card), its key kept as a secret in the online service, which hands out short-lived credentials (code slot `TURN_KEY_URL` exists). Helps the game link too | S | Arjun's sign-up and go |
 | 16 | V2 | All-talk voice | O | servers |
 | 19 | P0.8 / P0.9 | Fair timing / host hand-over. Cut P0.9 if battles move to servers | O | P0.10 |
+| 20 | CL1 | Repo cleanup | S | built on t/CL1 |
+| 21 | SPLIT | Split core/sim.js (2.9k) and main.js (1k) by job, behaviour unchanged, tests before/after | O | after F9, F25 |
 | - | P0.5 | Cloudflare TURN relay | S | **Parked** (needs a card) |
 | - | Phases 1-9 | Roles & Combat behind `?roles=1` | mixed | the list above, Arjun's approval |
 
@@ -228,6 +230,14 @@ Last updated: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 
 5. Sound effects: Claude picked them (shortlist page). Download the first pick under each sound into one folder; then the wiring ticket. Listen to F21's music on the phone.
 6. A duo battle with a friend to test voice, once V1 is shipped.
 7. Playtest with the friend in India after the lag tickets.
+8. Switch GitHub Pages source to GitHub Actions (Settings > Pages); then CL1b removes the built files from the repo.
+
+## Before CrazyGames (must, Arjun 15 Nov)
+- Cheat-proof results before any ranks/rewards: every phone reports and the server compares, or server-hosted battles.
+- Online service: origin allowlist (GitHub Pages + CrazyGames) instead of CORS `*`; per-connection message rate and size caps.
+- Admin page behind Cloudflare Access instead of a key in the URL.
+- Profanity filter on names/chat, plus mute and report for voice.
+- GitHub secret scanning, Dependabot, branch protection on `main`.
 
 ## Open decisions
 - Battles on servers (P0.10 report first). Cloudflare Durable Objects have a free tier; paid is $5 a month.
