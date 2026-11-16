@@ -150,7 +150,8 @@ Last updated: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT bu
 - Watch: start view draw calls rose to Low 194 / High 204 (CAMP1: 179 / 192) with the wider map; trim later.
 - AI1 done: a computer captain at the glacier/chest puts javelins away for his sword; if his blows do nothing for 6 s he turns guard for 20 s and hunts the nearest enemy captain (r_AI1; 0 stalls in 11 runs).
 - SPD1 done: every captain (yours and the computer's) walks 6.2 m/s, x1.8 mounted (11.2); CAPTAIN_SPD in config; the Ride button shows the speed (r_SPD1). Walk times hold (9.7 s border, 29.8 s base to Crown).
-- Next: AI2, NET1, HUD1, PERF1; then castles (nexus breakable: Arjun 08:55).
+- AI2 done: computer captains clear their own side's jungle by day (buff camps first). A side of 2+ captains keeps its last computer captain on it; a lone captain goes for his buff camps about a third of his plans, off a march only for one within 50 m, never off a siege (CROWN26.jungle). Offline, 200 s: 11 camps cleared, 2 buffs (was 1, 0); castles held at 150 s 5/12 (was ~10), by 300 s 10-12 either way.
+- Next: NET1, HUD1, PERF1; then castles (nexus breakable: Arjun 08:55).
 
 ## CL2 Focus the map (15 Nov; card `docs/tickets/CL2.md`). On branch `t/CL2`, not shipped
 - Only the Crown on the Mountain in the menus (home, lobby, Quick); other maps and their modes hidden behind `?maps=all`

@@ -101,6 +101,7 @@ export const CROWN26 = {
   // cutting the mini captain down gives his killer's side the camp's buff for buffs.t s
   campMen: { gold: { foot: 2, arch: 1, boss: 0 }, buff: { foot: 3, arch: 2, boss: 1 } }, boss: { hp: 520, dmg: 20 },
   buffs: { t: 90, drum: { dmg: 1.15 }, swift: { spd: 1.15, cd: .85 } },
+  jungle: { solo: .35, threatR: 70, near: 50 }, // (AI2: a lone computer captain goes for his buff camps about a third of his plans, when no castle of his is under threat)
   allGo: 40, // (seconds before the Crown cracks that every computer captain heads for the glacier: the walk up is longer here)
 };
 // Match length, in minutes: Quick, Standard (the default) or Long. A shorter battle runs hotter: more

@@ -78,6 +78,30 @@ export function holdsTick(dt) {
     }
   }
 }
+// (AI2) the jungle: on the new mountain one computer captain per side clears his side's camps, the buff camps first,
+// then the gold (the nearest of each). A side of two or more captains keeps its last computer captain on it; a lone
+// captain takes only the buff camps, when none of his castles is under threat, about a third of his plans; off a march only for one close by, never off a siege. Only by day: the night is the glacier's.
+function jungleCamp(u, s) {
+  if (!G.layout.map26 || G.c2.phase === 'night') return null;
+  const c = colorOf(u.ti), mates = activeArmies().filter(i => colorOf(i) === c && G.teams[i] && G.teams[i].leader && !G.teams[i].leader.human);
+  const lone = activeArmies().filter(i => colorOf(i) === c).length < 2;
+  if (!lone && mates[mates.length - 1] !== u.ti) return null;
+  const up = G.c2.breaks.filter(b => b.kind === 'camp' && b.n > 0 && G.layout.camps[b.id] && G.layout.camps[b.id].side === c && (!lone || b.buff));
+  if (!up.length) return null;
+  const keep = s.plan && s.plan.camp != null && up.find(b => b.id === s.plan.camp);
+  if (keep) return keep;
+  if (lone) {
+    const a = allianceOf(u.ti), J = CROWN26.jungle, du = b => Math.hypot(b.x - u.x, b.z - u.z);
+    if (s.plan && s.plan.kind === 'hold') { // (off a march only for a buff camp close by and nearer than the castle; never off a siege)
+      const h = G.holds[s.plan.id], b = up.sort((x, y) => du(x) - du(y))[0];
+      if (!h || h.cap >= 0 || h.contested || du(b) > J.near || du(b) > du(h)) return null; return b;
+    }
+    if (G.holds.some(h => h.owner === a && h.side === c && (h.contested || h.cap >= 0) && Math.hypot(h.x - u.x, h.z - u.z) < J.threatR)) return null;
+    if (Math.random() > J.solo) return null;
+  }
+  const d = b => Math.hypot(b.x - u.x, b.z - u.z) + (b.buff ? 0 : 1000);
+  return up.sort((x, y) => d(x) - d(y))[0];
+}
 // A computer captain's eye for the map: a holding his side doesn't have (or one of his side's under
 // attack nearby) is worth a march, more so for some captains than others.
 export function holdPlan(u, s) {
@@ -86,6 +110,7 @@ export function holdPlan(u, s) {
   if (G.c2) { // the mountain: the war chest while it's in the arena, the glacier at night (some go, some hold)
     const K = G.c2, keep = s.plan && s.plan.kind === 'spot' && Math.random() > .1;
     if (K.chest === 1) { const b = K.breaks.find(x => x.kind === 'chest' && x.hp > 0); if (b && (keep || Math.random() < .6)) return { kind: 'spot', x: b.x, z: b.z, stop: 1 }; }
+    { const jc = jungleCamp(u, s); if (jc) return { kind: 'spot', x: jc.x, z: jc.z, stop: 2, camp: jc.id }; } // (AI2)
     if (K.phase === 'night') { s.glacierBias = s.glacierBias ?? Math.random(); if (s.glacierBias < .6 || G.T > CROWN2.crack - (G.layout.map26 ? CROWN26.allGo : 20)) return { kind: 'spot', x: 0, z: 0, stop: 1.5 }; }
   }
   if (s.plan && s.plan.kind === 'hold') { const h = hs[s.plan.id]; if (h && (h.owner !== a || h.contested) && !(G.crown && h.safe && h.owner !== a) && (h.chest === 2 || Math.random() > .12)) return s.plan; }
