@@ -126,8 +126,8 @@ export function buyUpgrade(ti, id) {
   if (id === 'fort' && G.mode === 'crown') {
     if (isC2() && !castleHere(ti)) { const v = villageHere(ti); v.fort = 1; sound('wall', v.x, v.z); say('villageFort', ti, v.id); fx('netFlush'); return true; }
     const cw = castleHere(ti), st = G.cgates[cw.hid];
-    if (st.broken) { st.broken = 0; st.hp = [0, 1, 2].map(gi => gateHp(gi, st.lv)); st.mendT = [0, 0, 0]; applyCastleGates(); say('gateRepaired', ti, cw.hid); }
-    else { st.lv = (st.lv | 0) + 1; st.hp = [0, 1, 2].map(gi => gateHp(gi, st.lv)); say('castleFort', ti, cw.hid, st.lv); }
+    if (st.broken) { st.broken = 0; st.hp = [0, 1, 2, 3].map(gi => gateHp(gi, st.lv)); st.mendT = [0, 0, 0, 0]; applyCastleGates(); say('gateRepaired', ti, cw.hid); }
+    else { st.lv = (st.lv | 0) + 1; st.hp = [0, 1, 2, 3].map(gi => gateHp(gi, st.lv)); say('castleFort', ti, cw.hid, st.lv); }
     sound('wall', cw.x, cw.z); fx('netFlush'); return true;
   }
   if (id === 'fort' && fortLvl(colorOf(ti)) >= UPGRADES.find(u => u.id === 'fort').cost.length) { // mend the broken gates

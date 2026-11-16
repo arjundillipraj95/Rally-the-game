@@ -30,7 +30,10 @@ export function applyFort(c) {
 export const gateHp = (gi, lv = 0) => (gi === 0 ? CROWN.cgateHp : CROWN.cgateSmallHp) * CROWN.fortMult[Math.min(lv | 0, CROWN.fortMult.length - 1)];
 // the side's men inside a castle's yard (a gate mends only while someone of its side is in there)
 const insideYard = (cw, ally) => G.units.some(u => !u.dead && allianceOf(u.ti) === ally && Math.hypot(u.x - cw.x, u.z - cw.z) < cw.r);
-export const freshGates = (lv = 0) => ({ hp: [0, 1, 2].map(gi => gateHp(gi, lv)), broken: 0, mendT: [0, 0, 0], lv, towerT: 0 }); // (broken: one bit a gate)
+export const GATES = [0, 1, 2, 3]; // (GATE1: up to four gates a castle: the middle castle's back gate is the fourth)
+export const freshGates = (lv = 0) => ({ hp: GATES.map(gi => gateHp(gi, lv)), broken: 0, mendT: [0, 0, 0, 0], lv, towerT: 0 }); // (broken: one bit a gate)
+// a gate's health, 0 to 1 (GATE1: its bar)
+export const gatePct = (st, gi) => st.pct ? st.pct[gi] ?? 1 : Math.max(0, Math.min(1, (st.hp[gi] ?? 0) / gateHp(gi, st.lv)));
 // the Crown castle (wall and yard) a captain is standing in, if his side holds it
 // the mountain: the village of his side's a captain stands in (for its palisade)
 export function villageHere(ti) {
@@ -63,7 +66,7 @@ export function applyCastleGates() {
 }
 function hitCastleGate(u, w) {
   const st = G.cgates[w.cgate], h = G.holds[w.cgate], gi = w.gi | 0; if (!st || (st.broken >> gi) & 1 || !h || h.owner < 0 || h.owner === allianceOf(u.ti)) return;
-  st.hp[gi] -= u.dmg * FORT.wallDmg * (u.leader ? FORT.capWall : 1) * aiDmg(u.ti);
+  st.hitT = G.T; st.hp[gi] -= u.dmg * FORT.wallDmg * (u.leader ? FORT.capWall : 1) * aiDmg(u.ti);
   sound('wall', w.x, w.z); spark(w.x, groundY(w.x, w.z) + 1.4, w.z, '#a3825a', 4);
   if (st.hp[gi] <= 0) { st.broken |= 1 << gi; st.mendT[gi] = CROWN.cgateMend; applyCastleGates(); say('castleGate', h.owner, u.ti, w.cgate, gi); fx('fxmsg', { k: 'fxgate', u, ti: -1 }); fx('netFlush'); }
 }
@@ -71,7 +74,7 @@ export function castleGatesTick(dt) {
   for (const id in G.cgates) { const st = G.cgates[id]; if (!st.broken) continue;
     const cw = G.layout.cwalls.find(c => c.hid == id), h = G.holds[id]; if (!cw || !h || h.owner < 0) continue;
     const men = insideYard(cw, h.owner) ? CROWN.fortMend : 0; // (a breach in an empty castle stays open until one of its side comes back)
-    for (let gi = 0; gi < 3; gi++) if ((st.broken >> gi) & 1) { st.mendT[gi] -= dt * men * (1 + .5 * (st.lv | 0)); if (st.mendT[gi] <= 0) { st.broken &= ~(1 << gi); st.hp[gi] = gateHp(gi, st.lv); applyCastleGates(); fx('netFlush'); } } }
+    for (let gi = 0; gi < 4; gi++) if ((st.broken >> gi) & 1) { st.mendT[gi] -= dt * men * (1 + .5 * (st.lv | 0)); if (st.mendT[gi] <= 0) { st.broken &= ~(1 << gi); st.hp[gi] = gateHp(gi, st.lv); applyCastleGates(); fx('netFlush'); } } }
 }
 // The plaza's wall (the Crown, from 9:00): down until it rises; a broken gate lets everyone through.
 export function applyPlazaWall() {

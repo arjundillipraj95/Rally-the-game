@@ -12,6 +12,7 @@ import { cam } from './camera.js';
 import { parts, floats, pows } from './effects.js';
 import { bubbles } from './banter.js';
 import { sideCss } from './holds.js';
+import { gatePct } from '../core/sim/forts.js';
 
 const fx = document.getElementById('fx'), ctx = fx.getContext('2d');
 const mini = document.getElementById('mini'), mctx = mini.getContext('2d');
@@ -130,7 +131,7 @@ export function drawOverlay(opts) {
     drawWindups(); drawDuelSide(); drawDuels(); drawBeat(); drawStars(); drawFinish(); drawStreak();
     drawBubbles();
     if (G.flag) drawFlagPointer();
-    if (G.mode === 'ctrl') drawControlLabels(); drawHoldLabels();
+    if (G.mode === 'ctrl') drawControlLabels(); drawHoldLabels(); drawGateBars();
     if (G.mode === 'dm' && G.bounty === G.myTi && player && !player.dead && (performance.now() / 500 % 1) < .7) {
       ctx.font = 'italic 18px Bangers, Impact, sans-serif'; ctx.fillStyle = '#ffcf3a'; ctx.fillText('BOUNTY ON YOU', W / 2, 118);
     }
@@ -258,6 +259,20 @@ function drawStars() {
   }
 }
 // The map's holdings: a name over each banner in its holder's colour, with a bar while it's being taken.
+// (GATE1) a castle gate that has been hit shows its health over it: green for your side's gate, red for theirs; it
+// fades 6 s after the last blow; a broken gate shows nothing (it's open)
+function drawGateBars() {
+  const L = G.layout; if (!G.cgates || !L || !L.cwalls) return;
+  const myA = G.ALLY[colorOf(G.myTi)];
+  for (const cw of L.cwalls) { const st = G.cgates[cw.hid], h = G.holds && G.holds[cw.hid]; if (!st || !h || h.owner < 0 || !(G.T - (st.hitT ?? -99) < 6)) continue;
+    cw.gates.forEach((ga, gi) => { if ((st.broken >> gi) & 1) return; const p = gatePct(st, gi); if (p >= .999) return;
+      const x = cw.x + Math.cos(ga) * cw.r, z = cw.z + Math.sin(ga) * cw.r;
+      if (Math.hypot(x - camera.position.x, z - camera.position.z) > 75) return;
+      const [sx, sy, ok] = proj(x, groundY(x, z) + 5.2, z); if (!ok) return; const w = 54, hgt = 7;
+      ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillRect(sx - w / 2 - 2, sy - 2, w + 4, hgt + 4);
+      ctx.fillStyle = h.owner === myA ? '#5fd35a' : '#e2483d'; ctx.fillRect(sx - w / 2, sy, w * p, hgt);
+      ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 1; ctx.strokeRect(sx - w / 2 - .5, sy - .5, w + 1, hgt + 1); }); }
+}
 function drawHoldLabels() {
   const hs = G.holds; if (!hs || !hs.length) return;
   for (const h of hs) {
