@@ -64,7 +64,7 @@ function retro(x, c) {
     [x.chest >= 1, 6, 'chest', () => 'Grabbed the war chest. Greed is good.'],
     [x.menK >= 10 && x.menK === c.menK, 6, 'menK', () => `His men took ${x.menK}, the most of anyone. A master of delegation.`],
     [x.capK >= 5 && x.capK >= .8 * c.capK, 5, 'capK2', () => `${x.capK} kills with his own sword. Busy afternoon.`],
-    [x.hold >= 2, 5, 'hold', () => `Helped take ${x.hold} places. Collects villages like fridge magnets.`],
+    [x.hold >= 2, 5, 'hold', () => `Helped take ${x.hold} places. Collects ${G.layout && G.layout.map26 ? 'castles' : 'villages'} like fridge magnets.`],
     [x.falls === 0 && x.kills >= 5, 5, 'nofall', () => 'Never fell once. Suspicious.'],
     [x.falls === c.minFalls && c.n > 2, 4, 'fewfalls', () => `Fell the fewest times (${x.falls}). Self-preservation: an underrated skill.`],
     [x.earned >= .9 * c.earned, 4, 'earned', () => `Earned ${x.earned} gold. Counts it in his sleep.`],

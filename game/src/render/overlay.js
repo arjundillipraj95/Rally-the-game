@@ -350,6 +350,11 @@ function drawMini() {
   if (id === 'mount' && G.layout && G.layout.homes) { // the mountain: the river, the arena, and every side's home
     const L = G.layout; mctx.strokeStyle = 'rgba(63,127,166,.85)'; mctx.lineWidth = Math.max(2, L.river.w * 2 * k); mctx.beginPath(); mctx.arc(0, 0, Math.hypot(L.river.pts[0][0], L.river.pts[0][1]) * k, 0, Math.PI * 2); mctx.stroke();
     mctx.fillStyle = 'rgba(191,230,245,.55)'; mctx.beginPath(); mctx.arc(0, 0, L.arena.r * k, 0, Math.PI * 2); mctx.fill();
+    if (L.map26) { // (MAP4: the border rivers, each King's Road, each nexus)
+      for (const b of L.borders) { mctx.beginPath(); mctx.moveTo(b.pts[0][0] * k, b.pts[0][1] * k); const e = b.pts[b.pts.length - 1]; mctx.lineTo(e[0] * k, e[1] * k); mctx.stroke(); }
+      mctx.strokeStyle = 'rgba(201,191,168,.6)'; mctx.lineWidth = 2; for (const h of L.homes) { mctx.beginPath(); mctx.moveTo(h.x * k, h.z * k); mctx.lineTo(Math.cos(h.a) * L.arena.r * k, Math.sin(h.a) * L.arena.r * k); mctx.stroke(); }
+      for (const n of L.nexus) { mctx.fillStyle = TEAMS[n.c].css; mctx.beginPath(); mctx.moveTo(n.x * k, n.z * k - 6); mctx.lineTo(n.x * k + 5, n.z * k + 4); mctx.lineTo(n.x * k - 5, n.z * k + 4); mctx.fill(); }
+    }
     for (const h of L.homes) { mctx.fillStyle = TEAMS[h.c].css; mctx.fillRect(h.x * k - 8, h.z * k - 8, 16, 16); if (h.c === colorOf(G.myTi)) { mctx.strokeStyle = '#fff'; mctx.lineWidth = 2; mctx.strokeRect(h.x * k - 8, h.z * k - 8, 16, 16); } }
   }
   for (const h of G.holds || []) { // the map's holdings: a ring in the holder's colour

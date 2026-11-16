@@ -1,7 +1,7 @@
 # MAP The new mountain (relaunch step 2)
 
 Model: O · Written by the builder 2026-11-16 from design rev 115 (Map section)
-Status: MAP0-MAP3 built
+Status: MAP0-MAP4 built
 
 Arjun's go (16 Nov, 01:04): build all MAP cards overnight, merge each into `launch26`. His open questions
 were not answered; the builder took these defaults (change any of them and the card says where):
@@ -19,7 +19,7 @@ were not answered; the builder took these defaults (change any of them and the c
 | MAP1 | New layout data behind `?map26=1` | built |
 | MAP2 | Draw it (`render/mount26.js`) | built |
 | MAP3 | The match runs on it (spawns, AI, centre phases) | built |
-| MAP4 | Screens drop villages and keeps | |
+| MAP4 | Screens drop villages and keeps | built |
 | MAP5 | Jungle bushes (hide) | |
 | MAP6 | New map is the default; old mountain layout removed | |
 
@@ -82,3 +82,10 @@ Lag 250 ms, old -> new mountain, 3 runs each: response 141/195/234 -> 397/111/12
 Not in MAP: computer captains never farm camps on purpose (only on the way past): lanes and jungling come with the
 match loop. Found, not fixed (STATE known bugs): now and then a computer captain stands at the glacier without
 striking (about 1 run in 6; r_MAP3 reports it as a note).
+
+## MAP4 (built)
+On the new mountain only: Points panel lists "Castles" (12), no villages block; "Army full" says take castles; the
+herald's castle line has no keep; the report's fridge-magnet line says castles; the lobby's lane note says Left and
+Right build the outer castles, Jungle the middle castle and both jungle halves; the minimap adds the border rivers,
+the King's Roads and each nexus. Left as is (not the map's): the season challenge "Take 4 villages or mines".
+`r_MAP4.mjs`: Points panel, battle screens through a whole battle, end screen and report: no village or keep; no errors.

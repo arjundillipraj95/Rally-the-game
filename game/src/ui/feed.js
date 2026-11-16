@@ -47,7 +47,7 @@ function heraldFor(k, a) {
     if (capKills[by] === 3 || capKills[by] === 6) return herald(by === G.myTi ? 'You are on a rampage!' : `${who(by)} ${pickOne(HERALD.spree)}`);
     return;
   }
-  if (k === 'castleDown') return herald(pickOne(HERALD.castle));
+  if (k === 'castleDown') return herald(pickOne(G.layout && G.layout.map26 ? HERALD.castle.map(l => l.includes('keep') ? 'Another castle falls.' : l) : HERALD.castle)); // (MAP4: no keeps on the new mountain)
   if (k === 'chestSoon') return herald(pickOne(HERALD.chestSoon));
   if (k === 'chestTaken') return herald(pickOne(HERALD.chest));
   if (k === 'duelWon') return herald(pickOne(HERALD.duel));

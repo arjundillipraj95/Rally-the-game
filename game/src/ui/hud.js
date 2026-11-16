@@ -31,8 +31,9 @@ function capList() {
   const caps = foes.map(i => { const c = claimed[own + ':' + i], k = (K.kills[own] || {})[i];
     const who = c ? (c.by === G.myTi ? (c.v >= P.killCaptain ? 'you' : 'your men') : (c.v >= P.killCaptain ? nameOf(c.by) : `${nameOf(c.by)}'s men`)) : '';
     return `<div class="cl"><i style="background:${TEAMS[colorOf(i)].css}"></i><b>${nameOf(i).replace(/[<>&]/g, '')}</b>${c || k ? `<span class="ok">✓ ${who ? who + ' ' : ''}+${c ? c.v : k}</span>` : `<span class="open">+${P.killCaptain} open</span>`}</div>`; }).join('');
-  const html = `<div><h4>Castles &amp; keeps <em>${P.castle} each</em></h4><div class="pls">${cas.map(place).join('')}</div>
-    <h4>Villages <em>${P.village} each</em></h4><div class="pls">${vil.map(place).join('')}</div></div>
+  const m26 = G.layout && G.layout.map26; // (MAP4: the new mountain has castles only, three a side)
+  const html = `<div><h4>${m26 ? 'Castles' : 'Castles &amp; keeps'} <em>${P.castle} each</em></h4><div class="pls">${cas.map(place).join('')}</div>
+    ${m26 ? '' : `<h4>Villages <em>${P.village} each</em></h4><div class="pls">${vil.map(place).join('')}</div>`}</div>
     <div><h4>War chest <em>${P.chest}</em></h4><div class="gl">${chestTxt}</div>
     <h4>The Crown <em>${P.crown}</em></h4><div class="gl">${crownTxt}</div>
     <h4>Enemy captains <em>${P.killCaptain} / ${P.killArmy}</em></h4>${caps}</div>`;
