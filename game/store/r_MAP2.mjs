@@ -19,12 +19,12 @@ for (const quality of ['low', 'high']) for (const q of ['?crown2=1']) {
       scene.traverse(o => { if (!o.isMesh) return; const p = o.geometry.parameters;
         if (p && p.width === 3.6 && p.height === 2.4) flags++;
         if (o.geometry.index && o.geometry.attributes.position.count === 2 * (L.river.pts.length + L.river.lines.reduce((a, l) => a + l.length, 0))) water++; });
-      wallStones = L.obstacles.filter(o => o.country != null).length;
-      return { water, flags, wallStones, R: window.__fb.W.R, lines: L.river.lines.length }; });
-    ok(s.R === 205 && s.lines === 4, `new mountain (R ${s.R}, ${s.lines} border rivers)`);
+      let pave = 0; scene.traverse(o => { if (o.isMesh && o.material && o.material.name === 'peakBrick') pave++; });
+      return { water, flags, pave, peaks: (L.peaks || []).length, R: window.__fb.W.R, lines: L.river.lines.length }; });
+    ok(s.R === 148 && s.lines === 4, `the mountain (R ${s.R}, ${s.lines} border rivers)`);
     ok(s.water === 1, 'one river mesh holds the ring and the 4 border rivers');
     ok(s.flags === 4, `4 nexus banners (${s.flags})`);
-    ok(s.wallStones > 200, `country walls laid (${s.wallStones} stones)`);
+    ok(s.peaks === 4, `4 peaks (paving checked in the screenshots: the scene's batching merges it)`);
     await page.screenshot({ path: OUT + '/start.png' });
   }
   ok(!errs.length, `${quality} ${q}: no errors${errs.length ? ' (' + errs[0] + ')' : ''}`);

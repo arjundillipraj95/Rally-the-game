@@ -20,7 +20,10 @@ async function run(roles) {
   await page.addInitScript(() => {
     window.__testSheet = true;
     localStorage.setItem('rally-quality', 'high'); localStorage.setItem('rally-tutorial-done', '1');
-    let s = 12345; Math.random = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
+    // (MAP11) three.js draws on Math.random for every new mesh's and material's id: those calls get their own stream,
+    // so adding scenery, or a model landing mid-battle, doesn't move the battle's own numbers
+    let s = 12345, q = 777; const own = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; }, ids = () => { q = (Math.imul(q, 22695477) + 1) >>> 0; return q / 4294967296; };
+    Math.random = () => (new Error().stack || '').includes('generateUUID') ? ids() : own();
     window.__raf = []; window.__t = 0;
     performance.now = () => window.__t; const D0 = 1.7e12; Date.now = () => D0 + window.__t;
     window.requestAnimationFrame = cb => { window.__raf.push(cb); return window.__raf.length; };

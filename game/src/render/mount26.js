@@ -13,7 +13,7 @@ const merged = (grp, parts) => { for (const p of parts) { p.castShadow = p.recei
   if (batchOn()) { const one = mergeInto(parts, grp); for (const p of parts) grp.remove(p); for (const m of one) grp.add(m); } };
 
 export function buildMount26(grp, L) {
-  const stone = lam(0x9a9384, stoneTex()), cap = lam(0x7d776a, stoneTex()), wood = lam(0x55402a, woodTex()), H = CROWN26.wallH;
+  const stone = lam(0x9a9384, stoneTex()), cap = lam(0x7d776a, stoneTex()), H = CROWN26.wallH;
   // the country walls: a block of stone and a cap per wall stone the rules placed
   { const parts = [], wallG = new THREE.BoxGeometry(1.25, H + .6, .9), capG = new THREE.BoxGeometry(1.3, .22, 1.1);
     const stones = L.obstacles.filter(o => o.country != null);
@@ -23,14 +23,15 @@ export function buildMount26(grp, L) {
       const w = new THREE.Mesh(wallG, stone); w.position.set(o.x, y + H / 2 - .3, o.z); w.rotation.y = rot; parts.push(w);
       const c = new THREE.Mesh(capG, cap); c.position.set(o.x, y + H + .1, o.z); c.rotation.y = rot; parts.push(c); }
     merged(grp, parts); }
-  // the nexus: a stone plinth, a pole and the side's banner
-  { const parts = [], plinthG = new THREE.CylinderGeometry(2, 2.3, 1.2, 10), poleG = new THREE.CylinderGeometry(.16, .2, 9, 8), flags = [];
-    for (const n of L.nexus) { const y = terrainMeshY(n.x, n.z);
-      const p = new THREE.Mesh(plinthG, stone); p.position.set(n.x, y + .5, n.z); parts.push(p);
-      const pole = new THREE.Mesh(poleG, wood); pole.position.set(n.x, y + 5.4, n.z); parts.push(pole);
-      const flag = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 2.4), lam(TEAMS[n.c].hex, null, { side: THREE.DoubleSide }));
-      flag.position.set(n.x + Math.cos(n.a + Math.PI / 2) * 1.8, y + 8.4, n.z + Math.sin(n.a + Math.PI / 2) * 1.8); flag.rotation.y = -n.a; flag.castShadow = true;
-      grp.add(flag); flags.push(flag); }
+  // (MAP11) the nexus: a shining crystal in the side's colour, standing on a stepped stone plinth with three small
+  // shards leaning round it (the stone the other sides will come to break: its rules come with castles)
+  { const parts = [], plinthG = new THREE.CylinderGeometry(2.1, 2.5, .9, 10), stepG = new THREE.CylinderGeometry(1.5, 1.8, .6, 10), crystalG = new THREE.OctahedronGeometry(1.25, 0).scale(1, 2.3, 1), shardG = new THREE.OctahedronGeometry(.45, 0).scale(1, 2.2, 1), flags = [];
+    for (const n of L.nexus) { const y = terrainMeshY(n.x, n.z), col = new THREE.Color(TEAMS[n.c].hex);
+      const p = new THREE.Mesh(plinthG, stone); p.position.set(n.x, y + .4, n.z); parts.push(p);
+      const st = new THREE.Mesh(stepG, cap); st.position.set(n.x, y + 1.1, n.z); parts.push(st);
+      const glass = new THREE.MeshPhongMaterial({ color: col.clone().lerp(new THREE.Color(0xffffff), .25), emissive: col, emissiveIntensity: .55, specular: 0xffffff, shininess: 110, flatShading: true, transparent: true, opacity: .92 });
+      const c = new THREE.Mesh(crystalG, glass); c.position.set(n.x, y + 4.2, n.z); c.rotation.y = n.a; c.castShadow = true; grp.add(c); flags.push(c);
+      for (let k = 0; k < 3; k++) { const b = n.a + k * 2.09 + .5, s = new THREE.Mesh(shardG, glass); s.position.set(n.x + Math.cos(b) * 1.35, y + 2.1, n.z + Math.sin(b) * 1.35); s.rotation.set(Math.cos(b) * .35, b, Math.sin(b) * .35); s.castShadow = true; grp.add(s); flags.push(s); } }
     merged(grp, parts);
     // (MAP5) the bushes: low leafy clumps filling each bush's circle, every one of them in one draw
     let bushes = null;
@@ -47,7 +48,7 @@ export function buildMount26(grp, L) {
 // It follows the ground a hand above it. Two draws for all four peaks (stone, brick).
 function buildPeaks(grp, L, stoneM) {
   if (!L.peaks || !L.peaks.length) return null;
-  const K = CROWN26.r, R = W.R, brickM = lam(0xb5785a, stoneTex()), stoneP = lam(0xc2b9a7, stoneTex());
+  const K = CROWN26.r, R = W.R, brickM = lam(0xb5785a, stoneTex(), { name: 'peakBrick' }), stoneP = lam(0xc2b9a7, stoneTex());
   const lift = (x, z) => terrainMeshY(x, z) + .07;
   const strip = (a, r0, r1, hw) => { const n = Math.max(2, Math.ceil((r1 - r0) / 1.5)), m = 6, pos = [], uv = [], idx = [], ux = Math.cos(a), uz = Math.sin(a);
     for (let i = 0; i <= n; i++) for (let j = 0; j <= m; j++) { const t = r0 + (r1 - r0) * i / n, s = -hw + 2 * hw * j / m, x = ux * t - uz * s, z = uz * t + ux * s; pos.push(x, lift(x, z), z); uv.push(s / 3, t / 3); }
@@ -59,7 +60,7 @@ function buildPeaks(grp, L, stoneM) {
     for (let k = 1; k < rings; k++) for (let s = 0; s < segs; s++) { const s1 = (s + 1) % segs, a0 = 1 + (k - 1) * segs, a1 = 1 + k * segs; idx.push(a0 + s, a0 + s1, a1 + s, a0 + s1, a1 + s1, a1 + s); }
     return geo(pos, uv, idx); };
   const geo = (pos, uv, idx) => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals(); return g; };
-  const stones = [], bricks = [], kerbG = new THREE.BoxGeometry(1.4, .35, .5);
+  const stones = [], bricks = [], wallG = new THREE.BoxGeometry(1.55, .55, .6), postG = new THREE.BoxGeometry(.8, 1.05, .8), capG = new THREE.BoxGeometry(1.0, .16, 1.0);
   for (const p of L.peaks) {
     const back = K.lane * R + CROWN26.castleR - .5, nx = K.nexus * R, home = K.home * R, yard = CROWN2.yard.r;
     stones.push(new THREE.Mesh(strip(p.a, back, nx - CROWN26.peak.nexus + 1, p.hw - 1), stoneP));
@@ -67,9 +68,29 @@ function buildPeaks(grp, L, stoneM) {
     bricks.push(new THREE.Mesh(strip(p.a, nx + CROWN26.peak.nexus - 1.5, home - yard + .5, p.hw - 1), brickM));
     stones.push(new THREE.Mesh(disc(p.discs[0][0], p.discs[0][1], yard - .4), stoneP));
     const ux = Math.cos(p.a), uz = Math.sin(p.a);
-    for (const [t0, t1] of [[back + 1, nx - CROWN26.peak.nexus], [nx + CROWN26.peak.nexus, home - yard]]) for (let t = t0; t < t1; t += 1.5) for (const s of [-1, 1]) {
-      const sd = s * (p.hw - .6), x = ux * t - uz * sd, z = uz * t + ux * sd, k = new THREE.Mesh(kerbG, stoneM); k.position.set(x, terrainMeshY(x, z) + .15, z); k.rotation.y = -p.a + Math.PI / 2; stones.push(k); }
+    // a low stone parapet along both edges, at the road's own height (the ground falls away past it), a post every 4.5 m
+    for (const [t0, t1] of [[back + 1, nx - CROWN26.peak.nexus], [nx + CROWN26.peak.nexus, home - yard]]) for (let t = t0, i = 0; t < t1; t += 1.5, i++) for (const s of [-1, 1]) {
+      const sd = s * (p.hw - .55), x = ux * t - uz * sd, z = uz * t + ux * sd, y = lift(ux * t, uz * t), post = i % 3 === 0;
+      const k = new THREE.Mesh(post ? postG : wallG, stoneM); k.position.set(x, y + (post ? .5 : .25), z); k.rotation.y = -p.a + Math.PI / 2; stones.push(k);
+      if (post) { const c = new THREE.Mesh(capG, stoneM); c.position.set(x, y + 1.08, z); c.rotation.y = k.rotation.y; stones.push(c); } }
   }
+  // (MAP11) the King's Road paved on the mountain too: from the middle castle's front gate down through the ridge's
+  // opening to the river's bridge, and from the river on to the chasm's bridge (the bridges carry it over the water)
+  { const rw = K.riverW * R, ch = (K.chasm + K.chasmW) * R;
+    for (const p of L.peaks) for (const [r1, r0] of [[K.lane * R - CROWN26.castleR + .5, K.river * R + rw + 2.6], [K.river * R - rw - 2.6, ch + 1.6]]) stones.push(new THREE.Mesh(strip(p.a, r0, r1, 3.2), stoneP)); }
+  // (MAP11) a pair of standing stones at each of the ridge's openings (each King's Road, each border field), so a way
+  // into the jungle reads from the lane
+  { const pillarG = new THREE.CylinderGeometry(.85, 1.15, 4.2, 7), capP = new THREE.CylinderGeometry(1.05, .9, .5, 7), rr = K.ridge * R;
+    for (const p of L.peaks) for (const [b, half] of [[p.a, 6], [p.a + Math.PI / 4, CROWN26.border.open]]) for (const s of [-1, 1]) {
+      const a = b + s * (half + 1.6) / rr, x = Math.cos(a) * (rr + 1.2), z = Math.sin(a) * (rr + 1.2), y = terrainMeshY(x, z);
+      const m = new THREE.Mesh(pillarG, stoneM); m.position.set(x, y + 2, z); m.rotation.y = a * 3; m.castShadow = true; stones.push(m);
+      const c = new THREE.Mesh(capP, stoneM); c.position.set(x, y + 4.3, z); stones.push(c); } }
+  // (MAP11) each buff camp flies its buff's banner: the war drum's red, swift's sky blue
+  { const poleG = new THREE.CylinderGeometry(.09, .12, 5.4, 6), flagG = new THREE.PlaneGeometry(1.5, 2.1), woodM = lam(0x5a4129, woodTex());
+    const cloth = { drum: lam(0xb3261e, null, { side: THREE.DoubleSide }), swift: lam(0x5aa9e6, null, { side: THREE.DoubleSide }) };
+    for (const k of L.camps) if (k.buff) { const a = k.a + 1.05, x = k.x + Math.cos(a) * 3.9, z = k.z + Math.sin(a) * 3.9, y = terrainMeshY(x, z);
+      const pole = new THREE.Mesh(poleG, woodM); pole.position.set(x, y + 2.7, z); pole.castShadow = true; bricks.push(pole);
+      const f = new THREE.Mesh(flagG, cloth[k.buff]); f.position.set(x + Math.cos(k.a) * .78, y + 4.3, z + Math.sin(k.a) * .78); f.rotation.y = -k.a; f.castShadow = true; bricks.push(f); } }
   for (const m of [...stones, ...bricks]) { m.receiveShadow = true; grp.add(m); }
   if (batchOn()) for (const set of [stones, bricks]) { const one = mergeInto(set, grp); for (const m of set) grp.remove(m); for (const m of one) grp.add(m); }
   return true;

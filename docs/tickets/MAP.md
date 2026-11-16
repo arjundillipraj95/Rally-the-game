@@ -1,7 +1,7 @@
 # MAP The new mountain (relaunch step 2)
 
 Model: O · Written by the builder 2026-11-16 from design rev 115 (Map section)
-Status: MAP0-MAP10 built on `launch26`, not shipped; MAP8-MAP10 next (Arjun approved the map 16 Nov 07:38)
+Status: MAP0-MAP11 built on `launch26`, not shipped; MAP8-MAP10 next (Arjun approved the map 16 Nov 07:38)
 
 Arjun's go (16 Nov, 01:04): build all MAP cards overnight, merge each into `launch26`. His open questions
 were not answered; the builder took these defaults (change any of them and the card says where):
@@ -158,3 +158,14 @@ between the summit's ring road and the river's inner bank): 48 bushes in all. `b
 nearest and farthest bush (`L.bushR`) instead of the jungle's ring. r_MAP5 updated (48, the inner 8 placed right).
 r_SPLIT: roles off identical before re-save; roles on drifted at 2 s once (+12 draw calls): the model-load race
 seen in MAP6 is rarer with the 2.5 s settle but not gone (STATE known bugs).
+
+## MAP11 Polish (built)
+Looks only, no rule changed. The King's Road paved in stone from the middle castle's front gate down through the
+ridge to the river, and on to the chasm; a low stone parapet with posts along the peak road (at the road's height);
+a pair of standing stones at every ridge opening; each buff camp flies its buff's banner (drum red, swift blue);
+the nexus is a shining crystal in the side's colour on a stepped plinth with three shards (Arjun, 08:55; breaking
+it comes with castles); castle names show within 70 m (or while a castle is fought over), not all 12 at once.
+`r_SPLIT.mjs`: three.js draws on Math.random for every new mesh's id; those calls now get their own stream, so
+scenery or a model landing mid-battle no longer moves the seeded battle (the drift noted in MAP6/MAP10 is gone:
+identical 3 of 3, and identical with the polish taken out). r_MAP2 updated for the peaks. Start view draw calls
+Low 181, High 192 (CAMP1: 179, 192).

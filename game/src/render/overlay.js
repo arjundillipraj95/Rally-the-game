@@ -263,6 +263,7 @@ function drawHoldLabels() {
   for (const h of hs) {
     const px = h.px ?? h.x, pz = h.pz ?? h.z, [sx, sy, ok] = proj(px, groundY(px, pz) + 7.4, pz); if (!ok) continue;
     const d = Math.hypot(px - camera.position.x, pz - camera.position.z), sz = Math.round(clamp(900 / d, 12, 22));
+    if (G.layout && G.layout.map26 && d > 70 && !h.contested && !(h.cap >= 0 && h.prog > 0) && !h.chest) continue; // (MAP11: the near castles' names, and any being fought over)
     const name = (h.name || (h.kind === 'oasis' ? 'the Oasis' : 'a village')).replace(/^(the|a) /i, '').toUpperCase();
     ctx.textAlign = 'center'; ctx.font = `italic ${sz}px Bangers, Impact, sans-serif`; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.6)';
     ctx.strokeText(name, sx, sy); ctx.fillStyle = h.owner >= 0 ? sideCss(h.owner) : '#efe9d8'; ctx.fillText(name, sx, sy);
