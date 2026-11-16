@@ -16,6 +16,7 @@ import { faceTo, go, moveToward } from './move.js';
 // ---------- AI ----------
 function planLeader(u, s) {
   const t = TEAMS[colorOf(u.ti)], squadN = squadOf(u.ti).length;
+  if (u.guardT > G.T && s.plan && s.plan.kind === 'hunt' && s.plan.target && !s.plan.target.dead) return; // (AI1: on guard: keep hunting)
   if (G.mode === 'conquest') {
     const threat = G.units.some(o => !o.dead && isEnemy(o, u) && Math.hypot(o.x - t.pos[0], o.z - t.pos[1]) < 22);
     // gather a real army at home before marching out (keeps the big clashes big)

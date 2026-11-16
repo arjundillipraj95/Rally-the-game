@@ -74,6 +74,17 @@ export function regenJavs(p, dt) {
 }
 
 // ---------- the main step (solo and host) ----------
+// (AI1) a computer captain puts his javelins away for his sword (to strike something javelins can't harm)
+function swordUp(u) { u.weapon = 'sword'; if (G.teams[u.ti]) G.teams[u.ti].weapon = 'sword'; }
+// (AI1) a computer captain who stands at the glacier or the chest 6 s without its health going down isn't helping:
+// he turns guard for 20 s and hunts the nearest enemy captain (who would come to stop the strikers), then goes back
+function breakWatch(u, dt) {
+  const w = c2BreakInReach(u); if (!w) { u.brkT = 0; u.brkW = null; return; }
+  if (u.brkW !== w || w.hp !== u.brkHp) { u.brkW = w; u.brkHp = w.hp; u.brkT = 0; return; }
+  if ((u.brkT += dt) < 6) return;
+  u.brkT = 0; const [cap] = nearestFoe(u, 120, o => o.leader); if (!cap || !G.teams[u.ti]) return;
+  u.guardT = G.T + 20; G.teams[u.ti].plan = { kind: 'hunt', target: cap }; u.pending = null;
+}
 export function update(dt, input) {
   buildGrid();
   G.T += dt;
@@ -201,7 +212,8 @@ export function update(dt, input) {
     if (u.leader) { stepJump(u, dt); regenJavs(u, dt); thinkLeader(u, G.teams[u.ti], dt);
       if (!u.human && G.plazaWall && G.plazaWall.up && u.cd <= 0 && !(u.fd < 3.5) && !u.mounted && !insidePlaza(u)) { const w = wallInReach(u, 1.9); if (w && w.plazaGate != null) startSwing(u, { wall: w }); }
       if (!u.human && G.crown && u.cd <= 0 && !(u.fd < 3.5) && !u.mounted) { const w = wallInReach(u, 1.9); if (w && w.cgate != null) startSwing(u, { wall: w }); }
-      if (!u.human && G.c2 && u.cd <= 0 && !(u.fd < 3.5) && !u.mounted) { const w = c2BreakInReach(u); if (w) { u.face = Math.atan2(w.x - u.x, w.z - u.z); captainAttack(u); } } }
+      if (!u.human && G.c2) breakWatch(u, dt); // (AI1: stuck at the glacier or the chest? then guard)
+      if (!u.human && G.c2 && u.cd <= 0 && !(u.fd < 3.5) && !u.mounted) { const w = c2BreakInReach(u); if (w) { if (u.weapon === 'jav') swordUp(u); u.face = Math.atan2(w.x - u.x, w.z - u.z); captainAttack(u); } } } // (AI1: javelins don't count as blows on the glacier or the chest: the sword does)
     else {
       u.slot = u.kind === 'arch' ? archIdx[u.ti]++ : slotIdx[u.ti]++; u.meleeN = meleeN[u.ti]; u.archN = archN[u.ti]; thinkSoldier(u, dt);
       // besiegers up against the palisade of the castle they're after (nobody to fight close by) hack at it

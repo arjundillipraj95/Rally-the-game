@@ -148,7 +148,8 @@ Last updated: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT bu
 - MAP15: no walls between the middle castle and the peak (base and nexus reached round it).
 - GATE1: gate health bars; the middle castle's back gate now breaks (it had no health: hit forever).
 - Watch: start view draw calls rose to Low 194 / High 204 (CAMP1: 179 / 192) with the wider map; trim later.
-- Next: SPD1, AI1, AI2, NET1; then castles (nexus breakable: Arjun 08:55), polish, preview link; SPD1, AI1, AI2, NET1; then castles.
+- AI1 done: a computer captain at the glacier/chest puts javelins away for his sword; if his blows do nothing for 6 s he turns guard for 20 s and hunts the nearest enemy captain (r_AI1; 0 stalls in 11 runs).
+- Next: SPD1, AI2, NET1, HUD1, PERF1; then castles (nexus breakable: Arjun 08:55).
 
 ## CL2 Focus the map (15 Nov; card `docs/tickets/CL2.md`). On branch `t/CL2`, not shipped
 - Only the Crown on the Mountain in the menus (home, lobby, Quick); other maps and their modes hidden behind `?maps=all`
@@ -297,6 +298,6 @@ Last updated: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT bu
 - Budget: 50 dollars, nothing spent.
 
 ## Known bugs
-- Now and then a computer captain stands at the glacier at night without striking (about 1 run in 6, seen on the new mountain, MAP3).
+- (fixed in AI1) A computer captain sometimes stood at the glacier at night without striking.
 - High only: a black wedge down the left edge at the Crown start. Not reproduced on 13 Nov (F14): F1a's exact
   seed, 844x390, High, frames 60-420, with and without `?f1=ab`: edges clean. Likely gone with later map work; Arjun says if he sees it.
