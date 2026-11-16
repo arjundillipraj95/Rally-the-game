@@ -135,7 +135,8 @@ Last updated: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT bu
 - MAP4: screens on the new mountain speak of castles only; minimap shows border rivers, King's Roads, nexus (r_MAP4).
 - MAP5: 40 jungle bushes hide men from other sides (not drawn, not picked as a foe) until they strike or a foe steps in (r_MAP5).
 - MAP6: the new mountain is the only mountain (flag and old layout removed); r_SPLIT re-baselined on it and settles 2.5 s first.
-- Next in the relaunch: castles (nexus rules, capture circle, fortify), then champions.
+- CAMP1: camps 3 men (gold) and 5 men + mini captain (buff: drum or swift, 90 s) (card `docs/tickets/CAMP1.md`).
+- Next: MAP7-10 (peak base, border-field jungle openings, rivers, inner bushes), SPD1, AI1, AI2, NET1; then castles.
 
 ## CL2 Focus the map (15 Nov; card `docs/tickets/CL2.md`). On branch `t/CL2`, not shipped
 - Only the Crown on the Mountain in the menus (home, lobby, Quick); other maps and their modes hidden behind `?maps=all`
@@ -277,7 +278,7 @@ Last updated: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT bu
 - GitHub secret scanning, Dependabot, branch protection on `main`.
 
 ## Open decisions
-- Camp size on the new mountain (24 camps x 5 men: +25-30 draw calls, +35% triangles); 3 men a camp brings it to level (MAP card).
+
 - Battles on servers (P0.10 report first). Cloudflare Durable Objects have a free tier; paid is $5 a month.
 - The numbers pass (HP, damage, gold): designer, before Phase 9.
 - Skins and the shop: after the game is done.

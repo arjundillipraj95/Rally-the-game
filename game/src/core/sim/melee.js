@@ -6,6 +6,7 @@ import { groundY, rnd, angDiff } from '../world.js';
 import { fx, sound, spark } from './util.js';
 import { hl } from './match.js';
 import { hiddenFrom } from './bush.js';
+import { drumDmg } from './buffs.js';
 import { auraBonus, behind, gainRally, horseDamage, push, routing } from './army.js';
 import { CC, breach, destroyCastle, die, duelFoe, hitTower, hitWall, lastStand, parry, soak } from './step.js'; // (later files: through the entry, so files still load in the old order)
 
@@ -220,6 +221,7 @@ export function hit(a, b, mult = 1, extra) {
   if (a.y - b.y > .8) dmg *= 1.2; // fighting downhill
   if (!b.leader && (behind(b, a) || routing(b.ti))) dmg *= MORALE.flankX; // caught from the side or behind, or running
   if (a.rallyT > 0) dmg *= RALLY.dmg;
+  dmg *= drumDmg(a.ti); // (CAMP1: the war drum)
   if (!a.leader && G.teams[a.ti] && G.teams[a.ti].vcT > G.T) dmg *= VCHARGE.dmg; // (charging in behind a volley)
   if (G.mode === 'conquest' && G.teams[colorOf(a.ti)].breached && lastStand(a)) dmg *= LAST.dmg; // (backs to the wall)
   b.lastHit = G.T;

@@ -12,6 +12,7 @@ import { throwJavelin } from './missiles.js';
 import { die } from './score.js';
 import { towerInReach, wallInReach } from './forts.js';
 import { c2BreakInReach } from './crown2.js';
+import { swiftCd } from './buffs.js';
 
 // Last Man Standing (a test variant of the Crown): the same battle until 9:00; then nobody comes back,
 // a ring closes on the plaza (outside it hurts) and the last side with a captain standing wins. If it
@@ -36,7 +37,7 @@ export const aimRange = p => (p.weapon === 'spear' ? CC.spear.aim : CC.sword.aim
 // The horse charge: a couple of seconds at full gallop that sends everyone in front flying.
 export function captainCharge(p) {
   if (!p || p.dead || !p.mounted || p.carrying || (p.chargeCd || 0) > 0) return false;
-  p.charge = CHARGE.dur; p.chargeCd = CHARGE.cd; p.chargeHit = new Set(); p.gallop = 1;
+  p.charge = CHARGE.dur; p.chargeCd = CHARGE.cd * swiftCd(p.ti); p.chargeHit = new Set(); p.gallop = 1;
   sound('charge', p.x, p.z); fx('shout', { u: p, kind: 'charge' });
   if (p.isMe) fx('shake', .35);
   return true;
@@ -78,7 +79,7 @@ export function captainEvade(p, kind, remote = false) {
   p.evade = { kind: side ? 'side' : kind, t: G.T };
   p.iframeT = EVADE.iframe + (remote ? EVADE.remote : 0);
   p.evadeN = G.T - (p.lastEvadeT ?? -9) < EVADE.chain ? (p.evadeN || 0) + 1 : 1; p.lastEvadeT = G.T;
-  p.evadeCd = p.evadeN >= 2 ? EVADE.tired : EVADE.cd; // (twice in quick succession and he's winded)
+  p.evadeCd = (p.evadeN >= 2 ? EVADE.tired : EVADE.cd) * swiftCd(p.ti); // (twice in quick succession and he's winded)
   p.pending = null; p.heavyCharge = 0; p.windup = 0; p.blocking = false;
   if (kind === 'pounce') p.vaultT = E.dash + .2; // (clears a low wall or a hedge)
   if (!remote) {
@@ -125,12 +126,12 @@ function throwCaptainJav(p) {
   p.face = Math.atan2(t.x - p.x, t.z - p.z);
   throwJavelin(p, t, CC.jav.dmg);
   p.javAmmo--; if (p.javRegen <= 0) p.javRegen = CC.jav.regen;
-  p.cd = CC.jav.cd; p.swing = .38; p.swingKind = 4;
+  p.cd = CC.jav.cd * swiftCd(p.ti); p.swing = .38; p.swingKind = 4;
   return true;
 }
 function leapSlam(p) {
   p.leaps = (p.leaps || 0) + 1;
-  p.swing = .38; p.cd = CC.leap.cd; p.pending = { t: .1, leap: true }; p.swingKind = 2;
+  p.swing = .38; p.cd = CC.leap.cd * swiftCd(p.ti); p.pending = { t: .1, leap: true }; p.swingKind = 2;
   p.jvy = Math.min(p.jvy, -9);
   p.vx += Math.sin(p.face) * 3; p.vz += Math.cos(p.face) * 3;
   sound('swing', p.x, p.z);

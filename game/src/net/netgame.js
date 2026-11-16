@@ -51,7 +51,7 @@ bus.on('fxmsg', d => {
 if (import.meta.env.DEV) window.__encodeSnap = () => encodeSnap(); // (dev: F4's test weighs a snapshot)
 function encodeSnap() {
   const upPack = s => UPGRADES.reduce((n, u, k) => n + (s.up[u.id] | 0) * 4 ** k, 0);
-  const teams = G.teams.map(s => [Math.round(s.points * 10), s.tickets, s.caps, Math.floor(s.gold), s.alive ? 1 : 0, Math.max(0, Math.ceil(s.leaderDeadT)), upPack(s), Math.round(s.morale || 0), Math.floor(s.rally || 0), s.routT > 0 ? 1 : 0].join(',')).join(';');
+  const teams = G.teams.map(s => [Math.round(s.points * 10), s.tickets, s.caps, Math.floor(s.gold), s.alive ? 1 : 0, Math.max(0, Math.ceil(s.leaderDeadT)), upPack(s), Math.round(s.morale || 0), Math.floor(s.rally || 0), s.routT > 0 ? 1 : 0, s.buff && s.buff.until > G.T ? (s.buff.kind === 'drum' ? 1000 : 2000) + Math.ceil(s.buff.until - G.T) : 0].join(',')).join(';'); // (CAMP1: the side's buff and its seconds left)
   const us = [];
   for (const u of G.units) {
     if (u.dead) continue;
@@ -291,6 +291,7 @@ function clientApply(hp) {
     s.points = v[0] / 10; s.tickets = v[1]; s.caps = v[2]; if (i !== myTi || performance.now() - (C.goldLocalAt || 0) > 700) s.gold = v[3]; s.alive = !!v[4]; s.leaderDeadT = v[5];
     if (v.length > 6 && (i !== myTi || performance.now() - (C.upLocalAt || 0) > 700)) UPGRADES.forEach((u, k) => { s.up[u.id] = Math.floor(v[6] / 4 ** k) % 4; });
     if (v.length > 9) { s.morale = v[7]; s.rally = v[8]; s.routT = v[9] ? 1 : 0; }
+    if (v.length > 10) s.buff = v[10] ? { kind: v[10] >= 2000 ? 'swift' : 'drum', until: G.T + v[10] % 1000 } : null;
   });
   G.bounty = +secs[7];
   if (secs[8] && G.holds) secs[8].split(';').forEach((r, i) => { const h = G.holds[i], v = r.split(',').map(Number); if (h) { h.owner = v[0]; h.prog = v[1] / 100; h.cap = v[2]; h.contested = !!v[3]; h.chest = v[4] | 0; if (v.length > 7) { h.by = v[7] < 0 ? undefined : v[7]; h.fort = v[8] | 0; } if (G.cgates) { if (!G.cgates[i] && G.layout.cwalls && G.layout.cwalls.some(c => c.hid === i)) G.cgates[i] = { hp: [1, 1, 1], broken: 0 }; if (G.cgates[i]) { G.cgates[i].broken = v[5] | 0; G.cgates[i].lv = v[6] | 0; } } } }); if (G.crown) applyCastleGates();

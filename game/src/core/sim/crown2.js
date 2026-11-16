@@ -1,5 +1,5 @@
 // Battle rules: the Crown on the mountain: holds, points, breakables, phases, the lake and the flood.
-import { CROWN2, FEEL, CHEST } from '../../config.js';
+import { CROWN2, CROWN26, FEEL, CHEST } from '../../config.js';
 import { G, colorOf, activeArmies, matchTime } from '../state.js';
 import { groundY, clamp, rnd, angDiff, turn, mountHomeA } from '../world.js';
 import { setPalSeg } from '../nav.js';
@@ -68,7 +68,7 @@ export function c2Begin(mk = null) {
     const cw = L.cwalls.find(c => c.hid === h.id), g = cw ? cw.gate : 0;
     K.breaks.push(c2Post({ kind: 'guard', hid: h.id, x: h.x + Math.cos(g) * 4.5, z: h.z + Math.sin(g) * 4.5, r: 2.4 }, CROWN2.guards));
   }
-  for (const c of L.camps) K.breaks.push(c2Post({ kind: 'camp', id: c.id, x: c.x, z: c.z, r: 2.6 }, CROWN2.camp));
+  for (const c of L.camps) K.breaks.push(c2Post({ kind: 'camp', id: c.id, x: c.x, z: c.z, r: 2.6, camp: c.kind, buff: c.buff || null }, Object.assign({}, CROWN2.camp, CROWN26.campMen[c.kind] || {}))); // (CAMP1: men by the camp's kind)
   // (F4) every post's men, real soldiers with fixed ids (a joined phone makes the same ones: `mk` is its maker)
   let pi = 0; for (const b of K.breaks) if (b.post) { b.pi = pi++; for (let k = 0; k < b.men; k++) c2Man(b, k, mk); }
   K.breaks.push({ brk: true, kind: 'glacier', x: 0, z: 0, r: 2.6, hp: CROWN2.glacierHits, max: CROWN2.glacierHits });

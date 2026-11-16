@@ -96,6 +96,10 @@ export const CROWN26 = {
   castleA: .475, bridgeA: .43, castleR: 10.5, wallH: 3, border: { bridgeHw: 2.2 },
   camps: [[.13, .54, 'gold'], [.27, .46, 'buff'], [.64, .5, 'gold']], buff: { left: 'drum', right: 'swift' },
   bush: { n: 5, r: [3.6, 5.2], reveal: 1.5 }, // (MAP5: bushes per jungle half, their radius range in m, seconds a man stays seen after he attacks)
+  // (CAMP1) each jungle half's camps: 2 gold camps of 3 men, a buff camp of 5 men and a mini captain (boss) at its middle;
+  // cutting the mini captain down gives his killer's side the camp's buff for buffs.t s
+  campMen: { gold: { foot: 2, arch: 1, boss: 0 }, buff: { foot: 3, arch: 2, boss: 1 } }, boss: { hp: 520, dmg: 20 },
+  buffs: { t: 90, drum: { dmg: 1.15 }, swift: { spd: 1.15, cd: .85 } },
   allGo: 40, // (seconds before the Crown cracks that every computer captain heads for the glacier: the walk up is longer here)
 };
 // Match length, in minutes: Quick, Standard (the default) or Long. A shorter battle runs hotter: more

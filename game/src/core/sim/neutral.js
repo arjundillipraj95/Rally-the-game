@@ -1,5 +1,6 @@
 // Battle rules: the Crown's neutral garrisons and camps.
-import { CROWN2, LAUNCH, NEUTRAL, STATS, RALLY } from '../../config.js';
+import { CROWN2, CROWN26, LAUNCH, NEUTRAL, STATS, RALLY } from '../../config.js';
+import { giveBuff } from './buffs.js';
 import { G, NEUTRAL_TI } from '../state.js';
 import { rnd, angDiff, turn } from '../world.js';
 import { fx, sound } from './util.js';
@@ -18,19 +19,22 @@ import { faceTo, go, integrate, moveToward } from './step.js'; // (later files: 
 const NEU_ID = 900000;
 const postQ = b => b.kind === 'guard' ? CROWN2.guards : CROWN2.camp;
 export function c2Post(o, Q) {
-  return Object.assign(o, { brk: true, post: true, foot: Q.foot, arch: Q.arch, men: Q.foot + Q.arch, units: [], n: Q.foot + Q.arch,
-    awake: false, calmT: 0, scanT: 0, back: 0, hp: Q.foot * STATS.foot.hp + Q.arch * STATS.arch.hp, max: Q.foot * STATS.foot.hp + Q.arch * STATS.arch.hp });
+  const boss = Q.boss || 0, men = Q.foot + Q.arch + boss, hp = Q.foot * STATS.foot.hp + Q.arch * STATS.arch.hp + boss * CROWN26.boss.hp; // (CAMP1: a buff camp's mini captain)
+  return Object.assign(o, { brk: true, post: true, foot: Q.foot, arch: Q.arch, boss, men, units: [], n: men,
+    awake: false, calmT: 0, scanT: 0, back: 0, hp, max: hp });
 }
 // a man's spot at his post: footmen on the inner ring, archers on the outer, facing out
 export function c2Spot(b, k) {
+  if (b.boss && k === b.foot + b.arch) return [b.x, b.z, 0]; // (the mini captain stands in the middle)
   const N = NEUTRAL, archer = k >= b.foot, a = archer ? (k - b.foot) / Math.max(1, b.arch) * Math.PI * 2 + 1.2 : k / b.foot * Math.PI * 2 + .4, rr = archer ? N.ringA : N.ringF;
   return [b.x + Math.cos(a) * rr, b.z + Math.sin(a) * rr, Math.atan2(Math.cos(a), Math.sin(a))];
 }
 export const c2ManId = (b, k) => NEU_ID + b.pi * 8 + k;
 export function c2Man(b, k, mk = null) {
-  const [x, z, f] = c2Spot(b, k), kind = k < b.foot ? 'foot' : 'arch', id = c2ManId(b, k);
+  const [x, z, f] = c2Spot(b, k), boss = b.boss && k === b.foot + b.arch, kind = k < b.foot || boss ? 'foot' : 'arch', id = c2ManId(b, k);
   const u = mk ? mk(id, kind, NEUTRAL_TI, x, z) : mkUnit(NEUTRAL_TI, x, z, kind);
   integrate(u, 0, u.z); // (a spot inside a wall or a camp's gear: the nearest clear ground is his spot; the same on every phone)
+  if (boss) { u.boss = true; u.hp = u.max = CROWN26.boss.hp; u.dmg = CROWN26.boss.dmg; }
   u.id = id; u.neutral = true; u.post = b; u.pk = k; u.px = u.x; u.pz = u.z; u.pface = f; u.face = f; u.tface = f; u.cd = rnd(0, .6); u.rest = true;
   b.units[k] = u; return u;
 }
@@ -75,6 +79,7 @@ export function dieNeutral(u, killer, ang, launch) {
   fx('splat', { x: u.x, z: u.z, s: rnd(1, 1.5), ti: u.ti }); sound('die', u.x, u.z);
   const b = u.post, Q = postQ(b);
   if (killer && G.teams[killer.ti]) { G.teams[killer.ti].gold += Q.manGold; gainRally(killer, RALLY.kill); }
+  if (u.boss && killer && G.teams[killer.ti] && b.buff) { giveBuff(killer.ti, b.buff); hl(killer.ti, 'hold'); } // (CAMP1: the camp's buff to his killer's side)
   b.n = b.units.filter(m => m && !m.dead).length;
   if (!b.n) c2PostCleared(b, killer);
 }

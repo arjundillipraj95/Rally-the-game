@@ -5,6 +5,7 @@ import { groundY, clamp, rnd, angDiff, W, groundSlow } from '../world.js';
 import { fx, say, sound, spark } from './util.js';
 import { homeAt, mkUnit, squadOf, startMarch } from './match.js';
 import { applyCastleGates, applyFort, castleHere, fortLvl, gateHp, lastStand, nearestFoe, villageHere, volleyCharge } from './step.js'; // (later files: through the entry, so files still load in the old order)
+import { swiftSpd } from './buffs.js';
 
 // Hold: pt is where the front rank stands and which way it faces ({x, z, face}); without one, the
 // line forms a couple of paces in front of the captain, facing where he faces.
@@ -164,6 +165,7 @@ export function speedOf(u) {
   if (u.windup > 0) s *= .3;
   if (u.execReady) s *= EXEC.beatenSpd; // (beaten: he reels, slow on his feet)
   if (u.rallyT > 0) s *= RALLY.spd;
+  s *= swiftSpd(u.ti); // (CAMP1: swift)
   if (u.routing) s *= 1.1;
   if (u.heavyCharge > 0) s *= .55;
   if (u.bracing) s *= HOLD_ATK.braceSlow;

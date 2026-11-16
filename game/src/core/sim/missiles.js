@@ -9,6 +9,7 @@ import { bowRange, dismount, gainRally, horseDamage, loseHeart, push } from './a
 import { aiDmg, nearestFoe } from './melee.js';
 import { soak } from './duel.js';
 import { die } from './step.js'; // (later files: through the entry, so files still load in the old order)
+import { drumDmg } from './buffs.js';
 
 export function shoot(u, tg, fromY = 1.6) {
   if (G.c2 && u.kind === 'arch' && inFord(u.x, u.z)) return; // (the mountain's river: no bow work up to your knees in it)
@@ -37,11 +38,11 @@ function arrowHit(a, b) {
   const shooter = a.shooter;
   let dmg, loc = 'body';
   if (a.javelin) {
-    dmg = (a.jd || JAVELIN.dmg) * rnd(.85, 1.15) * aiDmg(a.ti);
+    dmg = (a.jd || JAVELIN.dmg) * rnd(.85, 1.15) * aiDmg(a.ti) * drumDmg(a.ti); // (CAMP1: the war drum)
   } else {
     // shooter is missing .arrow/.jitter for a castle tower's arrows (a bare {x,z,ti,tower}
     // placeholder, not a real archer unit), so fall back to the base archer stats for those.
-    dmg = (shooter && shooter.arrow != null ? shooter.arrow : STATS.arch.arrow) * rnd(.8, 1.2) * aiDmg(a.ti);
+    dmg = (shooter && shooter.arrow != null ? shooter.arrow : STATS.arch.arrow) * rnd(.8, 1.2) * aiDmg(a.ti) * drumDmg(a.ti);
     // Skill/tier-based headshots: tighter aim (lower jitter, from the Marksman upgrade) means
     // more of them land on the head for extra damage, or the legs for less.
     const j = shooter && shooter.jitter != null ? shooter.jitter : .8, headChance = .08 + (1 - j) * .22, roll = Math.random();
