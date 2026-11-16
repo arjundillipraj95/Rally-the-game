@@ -12,6 +12,7 @@ import { die } from './step.js'; // (later files: through the entry, so files st
 
 export function shoot(u, tg, fromY = 1.6) {
   if (G.c2 && u.kind === 'arch' && inFord(u.x, u.z)) return; // (the mountain's river: no bow work up to your knees in it)
+  u.atkT = G.T; // (MAP5: seen once he shoots)
   const j = u.jitter || .8;
   const lead = .35 + Math.hypot(tg.x - u.x, tg.z - u.z) / 30;
   const tx = tg.x + tg.vx * lead + rnd(-j, j), tz = tg.z + tg.vz * lead + rnd(-j, j);
@@ -24,6 +25,7 @@ export function shoot(u, tg, fromY = 1.6) {
 // A javelin throw: a foot/captain unit with the javelin ability hurls one at a mid-range foe,
 // reusing the arrow flight/hit pipeline (flat damage, no headshot roll) rather than a new system.
 export function throwJavelin(u, tg, dmg) {
+  u.atkT = G.T; // (MAP5: seen once he throws)
   const d = Math.hypot(tg.x - u.x, tg.z - u.z), y0 = (u.y || 0) + 1.5;
   G.arrows.push(makeArrow({ id: ++G.arrowN, x0: u.x, y0, z0: u.z, x1: tg.x, z1: tg.z, y1: groundY(tg.x, tg.z) + 1.1, dur: .18 + d / 22, peak: Math.min(3.5, d * .09), ti: u.ti, t: 0, shooter: u, javelin: true, jd: dmg, volley: volleying >= 0 }));
   u.javCd = JAVELIN.cd; u.swing = .3;

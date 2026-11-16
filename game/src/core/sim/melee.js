@@ -5,6 +5,7 @@ import { inSpear } from '../spearhit.js';
 import { groundY, rnd, angDiff } from '../world.js';
 import { fx, sound, spark } from './util.js';
 import { hl } from './match.js';
+import { hiddenFrom } from './bush.js';
 import { auraBonus, behind, gainRally, horseDamage, push, routing } from './army.js';
 import { CC, breach, destroyCastle, die, duelFoe, hitTower, hitWall, lastStand, parry, soak } from './step.js'; // (later files: through the entry, so files still load in the old order)
 
@@ -27,12 +28,12 @@ const spared = (u, o) => { if (o.neutral && !o.post.awake && !u.neutral) return 
   const m = G.teams[u.ti] && G.teams[u.ti].mine; return !!m && m.id === o.id && G.T < m.until; };
 export function nearestFoe(u, maxD, filter) {
   let best = null, bd = maxD * maxD;
-  const ds = G.duels && G.duels.length > 0;
+  const ds = G.duels && G.duels.length > 0, bz = !!G.bushOcc; // (MAP5: men hidden in a bush are not picked)
   if (maxD <= 72 && gridOk()) {
-    eachNear(u.x, u.z, maxD, o => { if (o.dead || !isEnemy(o, u) || (filter && !filter(o)) || (ds && !duelFoe(u, o)) || spared(u, o)) return; const dx = o.x - u.x, dz = o.z - u.z, d = dx * dx + dz * dz; if (d < bd) { bd = d; best = o; } });
+    eachNear(u.x, u.z, maxD, o => { if (o.dead || !isEnemy(o, u) || (filter && !filter(o)) || (ds && !duelFoe(u, o)) || spared(u, o) || (bz && hiddenFrom(o, u))) return; const dx = o.x - u.x, dz = o.z - u.z, d = dx * dx + dz * dz; if (d < bd) { bd = d; best = o; } });
     return [best, Math.sqrt(bd)];
   }
-  for (const o of G.units) { if (o.dead || !isEnemy(o, u) || (filter && !filter(o)) || (ds && !duelFoe(u, o)) || spared(u, o)) continue; const dx = o.x - u.x, dz = o.z - u.z, d = dx * dx + dz * dz; if (d < bd) { bd = d; best = o; } }
+  for (const o of G.units) { if (o.dead || !isEnemy(o, u) || (filter && !filter(o)) || (ds && !duelFoe(u, o)) || spared(u, o) || (bz && hiddenFrom(o, u))) continue; const dx = o.x - u.x, dz = o.z - u.z, d = dx * dx + dz * dz; if (d < bd) { bd = d; best = o; } }
   return [best, Math.sqrt(bd)];
 }
 export function nearestEnemyCastle(u) {
@@ -74,6 +75,7 @@ function duelTell(u) {
 const guardMatches = (b, side) => (b.stickSide | 0) === -side;
 export function startSwing(u, target) {
   if (u.cd > 0 || u.stun > 0 || u.dead || u.carrying || u.guardUp) return false;
+  u.atkT = G.T; // (MAP5: a man who attacks is seen, bush or no bush)
   u.swing = .38; u.cd = (u.leader ? (u.mounted ? .8 : .6) : STATS[u.kind].cd) * rnd(.9, 1.15) * (u.execReady ? EXEC.beatenCd : 1); // (a beaten captain swings slowly)
   u.pending = { t: .15, target };
   if (u.leader && !spendSt(u, STAMINA.light)) u.pending.tired = true; // (winded: a softer blow)

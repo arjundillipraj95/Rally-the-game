@@ -9,6 +9,7 @@ import { c2HomePt, homeAt, inwardOf, marchStep, mkUnit, squadOf, startMarch } fr
 import { auraRange, behind, buyUpgrade, canRecruit, canRespawn, dismount, horseDamage, moraleTick, mountUp, onHold, orderOf, push, recruit, speedOf, upgradeCost } from './army.js';
 import { aiDmg, buildGrid, duelFoeOf, eachNear, nearestFoe, resolveSwing, shieldTick, sideToward, staminaTick, startSwing, winded } from './melee.js';
 import { duelTick, execMark, execTick } from './duel.js';
+import { bushTick } from './bush.js';
 import { attackHold, blockPress, braceTick, heavyTick } from './guard.js';
 import { arrowsTick, shoot } from './missiles.js';
 import { checkTime, die, updateControlPoints } from './score.js';
@@ -76,6 +77,7 @@ export function regenJavs(p, dt) {
 export function update(dt, input) {
   buildGrid();
   G.T += dt;
+  bushTick(); // (MAP5: who stands in which bush; nothing without bushes)
   syncGates();
   execMark();
   staminaTick(dt);

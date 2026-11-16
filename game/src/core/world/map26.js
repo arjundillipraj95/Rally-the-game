@@ -94,9 +94,19 @@ export function mount26Places(L, box, trees) {
     L.plazaWall = pw; L.arena = { r: W0 }; }
   // the jungle: one half's stand of trees, mirrored into the other half and turned to every side, clear of the
   // roads, the places, the camps, the rivers and the bridges
+  // (MAP5) the bushes: one half's set mirrored into the other and turned to every side, clear of the roads, the
+  // castles, the camps, the rivers and the bridges; walkable, they only hide (core/sim/bush.js)
+  L.bushes = [];
+  { const Bc = C.bush, spots = [], clearB = (x, z, r) => !L.roads.some(p => distToLine(p, x, z) < r + 3) && !L.camps.some(k => Math.hypot(k.x - x, k.z - z) < r + 7)
+      && !L.borders.some(b => distToLine(b.pts, x, z) < rw + r + 2) && !L.river.bridges.some(b => Math.hypot(b.x - x, b.z - z) < b.len + r + 3) && Math.hypot(x, z) > riverR + rw + r + 2 && Math.hypot(x, z) < ridgeR - r - 4;
+    for (let tries = 0; tries < 3000 && spots.length < Bc.n; tries++) { const da = rr(.04, Math.PI / 4 - .04), d = rr(riverR, ridgeR), r = rr(Bc.r[0], Bc.r[1]);
+      if (![0, 1, 2, 3].every(c => [-1, 1].every(s => { const [x, z] = P(mountHomeA(c) + s * da, d); return clearB(x, z, r); }))) continue;
+      if (spots.some(([a2, d2, r2]) => Math.hypot(Math.cos(da) * d - Math.cos(a2) * d2, Math.sin(da) * d - Math.sin(a2) * d2) < r + r2 + 4)) continue;
+      spots.push([da, d, r]); }
+    for (let c = 0; c < 4; c++) for (const s of [-1, 1]) for (const [da, d, r] of spots) { const [x, z] = P(mountHomeA(c) + s * da, d); L.bushes.push({ id: L.bushes.length, x, z, r, side: c }); } }
   const j0 = riverR + rw + 4, j1 = ridgeR - 5, half = []; for (let i = 0; i < 40; i++) half.push([rr(.05, Math.PI / 4 - .05), rr(j0, j1), rr(.95, 1.4)]);
   const busy = (x, z) => L.holds.some(h => Math.hypot(h.x - x, h.z - z) < 14) || L.camps.some(k => Math.hypot(k.x - x, k.z - z) < 7) || L.roads.some(p => distToLine(p, x, z) < 4)
-    || L.borders.some(b => distToLine(b.pts, x, z) < rw + 3) || L.river.bridges.some(b => Math.hypot(b.x - x, b.z - z) < b.len + 4);
+    || L.borders.some(b => distToLine(b.pts, x, z) < rw + 3) || L.river.bridges.some(b => Math.hypot(b.x - x, b.z - z) < b.len + 4) || (L.bushes || []).some(b => Math.hypot(b.x - x, b.z - z) < b.r + 1.5);
   for (let c = 0; c < 4; c++) for (const s of [-1, 1]) for (const [da, d, sz] of half) { const [x, z] = P(mountHomeA(c) + s * da, d); if (!busy(x, z)) trees(x, z, sz); }
   L.jungle = { r0: riverR + rw + 2, r1: ridgeR - 2 };
   // the border fields and the rim: a few trees and rocks, clear of the bases, the castles, the walls and the lane road

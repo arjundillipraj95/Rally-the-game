@@ -133,6 +133,7 @@ Last updated: 2026-11-16 (MAP cards on `launch26`). Before: 2026-11-16 (SPLIT bu
 - MAP2: drawn (country walls, nexus banners, border rivers). Map itself level on draws; +25-30 draws, +35% triangles from 80 more neutral men (24 camps): Arjun to decide camp size.
 - MAP3: a whole battle runs on it (AI crosses tiers by the new ramps and bridges); crown2sim/online pass with `&map26=1`; lag no worse (r_MAP3).
 - MAP4: screens on the new mountain speak of castles only; minimap shows border rivers, King's Roads, nexus (r_MAP4).
+- MAP5: 40 jungle bushes hide men from other sides (not drawn, not picked as a foe) until they strike or a foe steps in (r_MAP5).
 
 ## CL2 Focus the map (15 Nov; card `docs/tickets/CL2.md`). On branch `t/CL2`, not shipped
 - Only the Crown on the Mountain in the menus (home, lobby, Quick); other maps and their modes hidden behind `?maps=all`

@@ -5,6 +5,7 @@
 import { G, colorOf } from '../core/state.js';
 import { W } from '../core/world.js';
 import { CROWN } from '../config.js';
+import { bushHid, bushTick } from '../core/sim/bush.js';
 
 export const FOG = { unit: 20, place: 16, tower: 36 }; // how far each sees, in metres
 const CELL = 4;
@@ -32,5 +33,6 @@ export function fogTick(dt) {
   const J = onMount() && G.layout && G.layout.jungle;
   if (J) for (let j = 0; j < N; j++) { const cz = j * CELL - half + CELL / 2; for (let i = 0; i < N; i++) { const cx = i * CELL - half + CELL / 2, r = Math.hypot(cx, cz); if (r < J.r0 - 1 || r > J.r1 + 1) grid[j * N + i] = 1; } }
   const carrier = G.flag && G.flag.state === 'carried' ? G.flag.carrier : null;
+  if (G.layout && G.layout.bushes) { bushTick(); grid.fill(1); for (const u of G.units) u.fog = !u.neutral && G.ALLY[colorOf(u.ti)] !== a && u !== carrier && bushHid(u, a); return; } // (MAP5: on the new mountain only the bushes hide)
   for (const u of G.units) u.fog = !u.neutral && G.ALLY[colorOf(u.ti)] !== a && u !== carrier && !seenAt(u.x, u.z);
 }

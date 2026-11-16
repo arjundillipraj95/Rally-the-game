@@ -30,7 +30,16 @@ export function buildMount26(grp, L) {
       const flag = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 2.4), lam(TEAMS[n.c].hex, null, { side: THREE.DoubleSide }));
       flag.position.set(n.x + Math.cos(n.a + Math.PI / 2) * 1.8, y + 8.4, n.z + Math.sin(n.a + Math.PI / 2) * 1.8); flag.rotation.y = -n.a; flag.castShadow = true;
       grp.add(flag); flags.push(flag); }
-    merged(grp, parts); return { flags }; }
+    merged(grp, parts);
+    // (MAP5) the bushes: low leafy clumps filling each bush's circle, every one of them in one draw
+    let bushes = null;
+    if (L.bushes && L.bushes.length) { const blobs = [];
+      for (const b of L.bushes) { const n = Math.round(b.r * 1.9); for (let k = 0; k < n; k++) { const a = k * 2.399 + b.id, d = Math.sqrt((k + .5) / n) * b.r * .85, x = b.x + Math.cos(a) * d, z = b.z + Math.sin(a) * d; blobs.push([x, z, 1 + ((k * 7 + b.id) % 5) * .12]); } }
+      const geo = new THREE.IcosahedronGeometry(1.15, 0), mat = lam(0x3f6b2a), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), v = new THREE.Vector3(), e = new THREE.Euler();
+      bushes = new THREE.InstancedMesh(geo, mat, blobs.length);
+      blobs.forEach(([x, z, k], i) => { e.set(0, i * 1.3, 0); q.setFromEuler(e); m4.compose(v.set(x, terrainMeshY(x, z) + .55 * k, z), q, s.set(1.25 * k, .85 * k, 1.25 * k)); bushes.setMatrixAt(i, m4); });
+      bushes.castShadow = true; bushes.receiveShadow = true; grp.add(bushes); }
+    return { flags, bushes }; }
 }
 // the torch posts on the new mountain: one draw for all of them when batching (there are more bridges to light)
 export function mergePosts(grp, posts) { if (!batchOn()) return; const one = mergeInto(posts, grp); for (const p of posts) grp.remove(p); for (const m of one) grp.add(m); }

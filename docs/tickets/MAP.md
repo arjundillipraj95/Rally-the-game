@@ -1,7 +1,7 @@
 # MAP The new mountain (relaunch step 2)
 
 Model: O · Written by the builder 2026-11-16 from design rev 115 (Map section)
-Status: MAP0-MAP4 built
+Status: MAP0-MAP5 built
 
 Arjun's go (16 Nov, 01:04): build all MAP cards overnight, merge each into `launch26`. His open questions
 were not answered; the builder took these defaults (change any of them and the card says where):
@@ -20,7 +20,7 @@ were not answered; the builder took these defaults (change any of them and the c
 | MAP2 | Draw it (`render/mount26.js`) | built |
 | MAP3 | The match runs on it (spawns, AI, centre phases) | built |
 | MAP4 | Screens drop villages and keeps | built |
-| MAP5 | Jungle bushes (hide) | |
+| MAP5 | Jungle bushes (hide) | built |
 | MAP6 | New map is the default; old mountain layout removed | |
 
 ## Design rules (Map, locked 15 Nov)
@@ -89,3 +89,17 @@ herald's castle line has no keep; the report's fridge-magnet line says castles; 
 Right build the outer castles, Jungle the middle castle and both jungle halves; the minimap adds the border rivers,
 the King's Roads and each nexus. Left as is (not the map's): the season challenge "Take 4 villages or mines".
 `r_MAP4.mjs`: Points panel, battle screens through a whole battle, end screen and report: no village or keep; no errors.
+
+## MAP5 (built)
+40 bushes (`CROWN26.bush`: 5 per jungle half, r 3.6-5.2 m, mirrored and turned like the trees; walkable; trees keep
+out of them). `core/sim/bush.js`: every frame who stands in which bush; a man in a bush is hidden from another side
+unless one of theirs is in the same bush, or he struck in the last 1.5 s (`u.atkT`, set by a swing, a shot, a
+throw); the Crown's carrier never. Hidden = not drawn on their phones (`render/fog.js`: on the new mountain only
+bushes hide; a joined phone works out the bushes itself) and not picked as a foe (`nearestFoe`), so computer
+captains and every army's men don't see him. Drawn: leafy clumps, one instanced draw.
+`r_MAP5.mjs`: 40 bushes in the jungle, walkable; an enemy captain in a bush is hidden (not drawn, not picked);
+seen with one of yours in the same bush, after he strikes, and outside; one draw; a minute of battle with no errors;
+the old mountain has no bush rules. Flag off r_SPLIT identical; crown2sim/online pass both ways; lag 250 ms on the
+new mountain: response 139 ms, position error 0.07 m (same as MAP3).
+Limits: on a joined phone the "seen after he strikes" moment follows the swing animation only (the strike time
+isn't sent). No cue yet for your own men that they are hidden (battle screen step).
