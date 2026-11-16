@@ -97,6 +97,7 @@ export const CROWN26 = {
   r: { home: .925, nexus: .82, lane: .70, ridge: .59, river: .40, riverW: .02, chasm: .175, chasmW: .024, arena: .15 },
   castleA: .475, bridgeA: .43, castleR: 10.5, wallH: 3, border: { bridgeHw: 2.2 },
   camps: [[.13, .54, 'gold'], [.27, .46, 'buff'], [.64, .5, 'gold']], buff: { left: 'drum', right: 'swift' },
+  allGo: 40, // (seconds before the Crown cracks that every computer captain heads for the glacier: the walk up is longer here)
 };
 // Match length, in minutes: Quick, Standard (the default) or Long. A shorter battle runs hotter: more
 // gold, and computer armies march out with smaller squads (gather).

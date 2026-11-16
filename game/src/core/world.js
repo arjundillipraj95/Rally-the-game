@@ -6,6 +6,6 @@ export { mulberry, clamp, rnd, angDiff, turn, inPoly, distToLine } from './world
 export { W, sizeWorld, SIDES, placeCastles, gatePos } from './world/size.js';
 export { FIELDS, fieldAt, PONDS, onPond, onIce, ROAD_SPEED, onRoad, groundSlow, TEMPLES, TEMPLE, DESERT, OASES, VALLEY_HILLS, ARENA, arenaGatesOpen } from './world/features.js';
 export { hill, onBridge, inRiver, inFord, riverCode, deepWater, ridgeH, groundY, terrainMeshY } from './world/ground.js';
-export { mountHomeA, mountY } from './world/mount.js';
+export { mountHomeA, mountY, mountK } from './world/mount.js';
 export { ROUTES } from './world/terrain.js';
 export { makeLayout } from './world/layout.js';

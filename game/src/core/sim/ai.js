@@ -1,8 +1,8 @@
 // Battle rules: computer captains.
-import { CROWN2, TEAMS, CASTLE_REACH, HEAVY, GUARD, CTRL } from '../../config.js';
+import { CROWN26, TEAMS, CASTLE_REACH, HEAVY, GUARD, CTRL } from '../../config.js';
 import { G, isEnemy, isEnemyTi, colorOf, gateOff, rules } from '../state.js';
 import { spearReach } from '../spearhit.js';
-import { gatePos, rnd, angDiff, W } from '../world.js';
+import { gatePos, rnd, angDiff, W, mountK, mountHomeA } from '../world.js';
 import { homeAt, squadOf } from './match.js';
 import { dismount, spearNear, speedOf, summonHorse } from './army.js';
 import { nearestFoe, startSwing } from './melee.js';
@@ -65,15 +65,19 @@ function planLeader(u, s) {
 // it is short enough for the pathfinder (a straight search from the rim to the summit gives up).
 function c2Route(u, g) {
   if (!g || !G.c2) return g;
-  const R = W.R, K = CROWN2.r, rw = K.riverW * R, cw = K.chasmW * R;
+  const R = W.R, K = mountK(), rw = K.riverW * R, cw = K.chasmW * R;
   const tier = r => r > K.ridge * R ? 0 : r > K.river * R - rw ? 1 : r > K.arena * R ? 2 : 3;
   const ru = Math.hypot(u.x, u.z), rg = Math.hypot(g.x, g.z), tu = tier(ru), tg = tier(rg); if (tu === tg) return g;
   const inward = tg > tu, b = inward ? tu : tu - 1; // (the boundary to cross next)
   const step = b === 2 ? Math.PI / 2 : Math.PI / 4, au = Math.atan2(u.z, u.x), ag = Math.atan2(g.z, g.x);
-  let best = 0, bc = 1e9; for (let k = 0; k < Math.round(Math.PI * 2 / step); k++) { const a = -Math.PI / 2 + k * step, c = Math.abs(angDiff(au, a)) * ru + Math.abs(angDiff(a, ag)) * rg * .5; if (c < bc) { bc = c; best = a; } }
+  const cands = G.layout.map26 ? m26Cross(b) : Array.from({ length: Math.round(Math.PI * 2 / step) }, (_, k) => -Math.PI / 2 + k * step); // (MAP3: the new mountain's own ramps and bridges)
+  let best = 0, bc = 1e9; for (const a of cands) { const c = Math.abs(angDiff(au, a)) * ru + Math.abs(angDiff(a, ag)) * rg * .5; if (c < bc) { bc = c; best = a; } }
   const sides = [[K.ridge * R + 6, K.ridge * R - 6], [K.river * R + rw + 3, K.river * R - rw - 6], [K.chasm * R + cw + 2, K.arena * R - 2]][b], d = inward ? sides[1] : sides[0];
   return { x: Math.cos(best) * d, z: Math.sin(best) * d, stop: 1.5 };
 }
+// the new mountain's ways between tiers, as angles: the ridge's gaps (each King's Road and each outer castle's road),
+// the river ring's bridges (each King's Road and one below each outer castle), the chasm's bridges (the King's Roads)
+function m26Cross(b) { const o = b === 0 ? [-CROWN26.castleA, 0, CROWN26.castleA] : b === 1 ? [-CROWN26.bridgeA, 0, CROWN26.bridgeA] : [0]; return [0, 1, 2, 3].flatMap(c => o.map(d => mountHomeA(c) + d)); }
 function planGoal(u, s) { return G.c2 ? c2Route(u, planGoal0(u, s)) : planGoal0(u, s); }
 function planGoal0(u, s) {
   const p = s.plan; if (!p) return null;

@@ -1,7 +1,7 @@
 # MAP The new mountain (relaunch step 2)
 
 Model: O · Written by the builder 2026-11-16 from design rev 115 (Map section)
-Status: MAP0-MAP2 built
+Status: MAP0-MAP3 built
 
 Arjun's go (16 Nov, 01:04): build all MAP cards overnight, merge each into `launch26`. His open questions
 were not answered; the builder took these defaults (change any of them and the card says where):
@@ -18,7 +18,7 @@ were not answered; the builder took these defaults (change any of them and the c
 | MAP0 | Split `core/world.js` (782 lines) into `core/world/` by job; `world.js` passes the same 40 names on | built |
 | MAP1 | New layout data behind `?map26=1` | built |
 | MAP2 | Draw it (`render/mount26.js`) | built |
-| MAP3 | The match runs on it (spawns, AI, centre phases) | |
+| MAP3 | The match runs on it (spawns, AI, centre phases) | built |
 | MAP4 | Screens drop villages and keeps | |
 | MAP5 | Jungle bushes (hide) | |
 | MAP6 | New map is the default; old mountain layout removed | |
@@ -67,3 +67,18 @@ in the river's one mesh (muddy banks, no grass in them). Border rivers end at th
 683k -> 891k. Measured apart: the map itself is level (+6 to +11 draws with every unit hidden; same instanced
 geometry but for rocks and posts). The rest is the neutral men: 24 bandit camps x 5 men + 12 castles' guards = 180
 men vs 100 on the old mountain. Decision for Arjun: fewer men per camp (e.g. 3) brings it back to level.
+
+## MAP3 (built)
+Most of the battle already read the layout (homes, castle walls, camps, chasm, arena), so it ran as it was. Fixed:
+computer captains crossed between tiers at the old mountain's gaps (every 45 degrees); on the new mountain they use
+its own (`m26Cross` in `core/sim/ai.js`: the ridge's gaps, the river ring's bridges, the chasm's bridges), and
+`c2Route` reads `mountK()`. Every computer captain heads for the glacier `CROWN26.allGo` (40) s before the crack,
+not 20 (a longer walk). `store/lagtest.mjs` takes `Q=` for another battle.
+`r_MAP3.mjs` (roles off and on): captains start in their bases; castles taken on every side; the chest broken
+open by an army; computer captains reach the arena at night; the match ends with points; no errors.
+crown2sim and crown2online pass with `&map26=1` (both phones agree: 36 posts, 12 holds).
+Lag 250 ms, old -> new mountain, 3 runs each: response 141/195/234 -> 397/111/122 ms, position error 0.21-0.26 ->
+0.05-0.08 m, jumps 54-106 -> 43-158 (more men on the field). No worse within the noise.
+Not in MAP: computer captains never farm camps on purpose (only on the way past): lanes and jungling come with the
+match loop. Found, not fixed (STATE known bugs): now and then a computer captain stands at the glacier without
+striking (about 1 run in 6; r_MAP3 reports it as a note).
