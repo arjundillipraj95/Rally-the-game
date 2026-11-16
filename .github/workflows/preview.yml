@@ -1,0 +1,31 @@
+# PREV1: every push to launch26 builds the game and deploys it as a test site (Cloudflare worker "rally-preview",
+# static files only) so Arjun can play the relaunch before it ships. main and the live game are not touched.
+# Uses the same repository secrets as the online service (CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID).
+name: Preview launch26
+on:
+  push:
+    branches: [launch26]
+    paths: ['game/**', 'preview/**', '.github/workflows/preview.yml']
+  workflow_dispatch:
+concurrency: preview-deploy
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Build the game
+        working-directory: game
+        run: npm ci && npm run build
+      - name: Deploy the test site
+        working-directory: preview
+        run: |
+          set -eo pipefail
+          npx --yes wrangler@4 deploy 2>&1 | tee deploy.log
+          url=$(grep -oE 'https://[a-zA-Z0-9.-]+\.workers\.dev' deploy.log | head -1)
+          echo "PREVIEW_URL=$url"
+          echo "### Test build: $url" >> "$GITHUB_STEP_SUMMARY"

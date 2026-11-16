@@ -1,0 +1,8 @@
+# PREV1: the relaunch's test build (launch26), served as its own small Cloudflare site. The live game stays on
+# GitHub Pages from main; this never touches it. Deployed by .github/workflows/preview.yml.
+name = "rally-preview"
+compatibility_date = "2024-11-01"
+
+[assets]
+directory = "../game/dist"
+not_found_handling = "single-page-application"
