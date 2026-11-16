@@ -10,8 +10,8 @@ battle game that holds players.
 1. `docs/STATE.md`: what's done, in progress, next, open decisions, known bugs.
 2. Your ticket card: `docs/tickets/<ID>.md` (what to build, done when, design rules, where to start).
 3. Code: `graphify query "<question>"`, `graphify explain "<symbol>"`, `graphify path "<A>" "<B>"`
-   before any grep or file read. Then read only the lines the graph points to (Read with offset/limit;
-   `core/sim.js` is 2.7k lines and `main.js` 1k: never read them whole).
+   before any grep or file read. Then read only the lines the graph points to (Read with offset/limit).
+   The rules are in `core/sim/` (one file per job; `core/sim.js` passes their names on), the app's wiring in `app/`.
 4. Design and plan detail: `docs/spec/design/` and `docs/spec/plan/`, one file per section; start
    from each folder's `index.md`. These mirror the Claude Docs; the Claude Docs decide:
    - Design: https://claude.ai/artifact/SUEvN88JzLE4qJwtmYHdRP
