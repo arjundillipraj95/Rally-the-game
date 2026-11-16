@@ -1,7 +1,7 @@
 # MAP The new mountain (relaunch step 2)
 
 Model: O · Written by the builder 2026-11-16 from design rev 115 (Map section)
-Status: MAP0-MAP7 built on `launch26`, not shipped; MAP8-MAP10 next (Arjun approved the map 16 Nov 07:38)
+Status: MAP0-MAP8 built on `launch26`, not shipped; MAP8-MAP10 next (Arjun approved the map 16 Nov 07:38)
 
 Arjun's go (16 Nov, 01:04): build all MAP cards overnight, merge each into `launch26`. His open questions
 were not answered; the builder took these defaults (change any of them and the card says where):
@@ -123,7 +123,7 @@ crown2sim/online pass roles off and on; lag 250 ms: response 109 ms, position er
 | Card | What | Status |
 |---|---|---|
 | MAP7 | Base on a peak over the clouds: base, brick castle road, nexus, King's Road to the middle castle; no fence | built |
-| MAP8 | Jungle opens only at the King's Road and in the middle of each border field; border rivers end short of the ridge; no outer-castle roads | |
+| MAP8 | Jungle opens only at the King's Road and in the middle of each border field; border rivers end short of the ridge; no outer-castle roads | built |
 | MAP9 | Armies cross rivers only on bridges; archers shoot across | |
 | MAP10 | Bushes on the inner ring (between the river and the chasm) | |
 
@@ -137,3 +137,11 @@ Code: `peakSd()` in `core/world/map26.js` (how far outside a peak a point is); t
 the edges), the road grid and nav grid reach the peaks (`L.ext`), the ground mesh grows to fit (500 m, 254 cells).
 Paving: `buildPeaks` in `render/mount26.js` (2 draws). r_MAP1: base sealed through the cliffs; border 9.5 s; base
 to Crown 28.2 s (199 m) at 6.3 m/s. r_MAP3 passes; crown2sim/online pass; r_SPLIT re-baselined.
+
+## MAP8 (built)
+The ridge opens only at each King's Road and in the middle of each border field (18 m wide, `CROWN26.border.open`),
+with a dirt track from the lane road in through it. Border rivers start at the ring and end 14 m short of the ridge
+(`border.short`), narrowing to their end; past it the two neighbouring jungles meet below the opening, so both
+sides can come out to flank the lane. No roads from the outer castles into the jungle, no border bridges (12
+bridges, all on the river ring). Computer captains cross the ridge at the King's Roads and border fields.
+r_MAP1: with every castle gate shut, both jungles are reached from each border field; 12 bridges; 10 roads.

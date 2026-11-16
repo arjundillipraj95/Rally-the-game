@@ -349,7 +349,8 @@ function buildCrownRiver(world, V) {
     const p = P[i], q = P[Math.min(P.length - 1, i + 1)], o = P[Math.max(0, i - 1)];
     const dx = q[0] - o[0], dz = q[1] - o[1], d = Math.hypot(dx, dz) || 1, nx = -dz / d, nz = dx / d;
     const y = groundY(p[0] + nx * (V.w + 2.5), p[1] + nz * (V.w + 2.5)) - .4; // (a little below the bank)
-    pos.push(p[0] + nx * wd, y, p[1] + nz * wd, p[0] - nx * wd, y, p[1] - nz * wd);
+    const k = P === V.pts ? wd : wd * [.25, .7, .92][Math.min(2, P.length - 1 - i)]; // (MAP8: a border river narrows to its end)
+    pos.push(p[0] + nx * k, y, p[1] + nz * k, p[0] - nx * k, y, p[1] - nz * k);
     if (i) { const b = b0 + (i - 1) * 2; idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2); }
   } }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();

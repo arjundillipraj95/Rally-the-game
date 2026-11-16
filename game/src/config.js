@@ -94,7 +94,7 @@ export const CROWN26 = {
   R: 148, // (MAP7: the mountain's rim, just behind the castles; each base, its nexus and road stand out on a peak over the clouds)
   r: { home: 1.351, nexus: 1.135, lane: .973, ridge: .80, river: .554, riverW: .0277, chasm: .2424, chasmW: .0332, arena: .2078 },
   peak: { hw: 7, base: 14, nexus: 9 }, // (MAP7: the peak road's half-width (3 armies abreast), the base's and the nexus's ground, m)
-  castleA: .475, bridgeA: .43, castleR: 10.5, wallH: 3, border: { bridgeHw: 2.2 },
+  castleA: .475, bridgeA: .43, castleR: 10.5, wallH: 3, border: { open: 9, short: 14 }, // (MAP8: the ridge's opening in each border field, half-width m; how far short of the ridge the border river ends, m)
   camps: [[.13, .73, 'gold'], [.27, .65, 'buff'], [.64, .70, 'gold']], buff: { left: 'drum', right: 'swift' },
   bush: { n: 5, r: [3.6, 5.2], reveal: 1.5 }, // (MAP5: bushes per jungle half, their radius range in m, seconds a man stays seen after he attacks)
   // (CAMP1) each jungle half's camps: 2 gold camps of 3 men, a buff camp of 5 men and a mini captain (boss) at its middle;

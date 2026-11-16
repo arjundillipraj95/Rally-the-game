@@ -137,7 +137,8 @@ Last updated: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT bu
 - MAP6: the new mountain is the only mountain (flag and old layout removed); r_SPLIT re-baselined on it and settles 2.5 s first.
 - CAMP1: camps 3 men (gold) and 5 men + mini captain (buff: drum or swift, 90 s) (card `docs/tickets/CAMP1.md`).
 - MAP7: base, nexus and castle road on a peak over the clouds, joined only through the middle castle; no fence.
-- Next: MAP8-10 (border-field jungle openings, rivers, inner bushes), polish, preview link; SPD1, AI1, AI2, NET1; then castles.
+- MAP8: jungle opens at the King's Road and mid border field only; border rivers end short of the ridge.
+- Next: MAP9-10 (rivers, inner bushes), polish, preview link; SPD1, AI1, AI2, NET1; then castles.
 
 ## CL2 Focus the map (15 Nov; card `docs/tickets/CL2.md`). On branch `t/CL2`, not shipped
 - Only the Crown on the Mountain in the menus (home, lobby, Quick); other maps and their modes hidden behind `?maps=all`

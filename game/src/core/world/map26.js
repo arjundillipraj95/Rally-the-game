@@ -35,8 +35,8 @@ export function mount26Places(L, box, trees) {
     const a = mountHomeA(c);
     // the King's Road: base, nexus, through the middle castle, straight up to the arena gate
     L.roads.push([P(a, K.home * R - 6), P(a, K.arena * R)]);
-    // each outer castle's road down into its jungle half, to its bridge over the river ring
-    for (const s of [-1, 1]) L.roads.push([P(a + s * th, laneR), P(a + s * th, ridgeR - 4), P(a + s * C.bridgeA, riverR)]);
+    // (MAP8) a track from the border field's lane road in through the ridge's opening, to where the two jungles meet
+    L.roads.push([P(a + Math.PI / 4, laneR), P(a + Math.PI / 4, ridgeR - C.border.short + 4)]);
   }
   for (let c = 0; c < 4; c++) {
     const a = mountHomeA(c);
@@ -69,18 +69,18 @@ export function mount26Places(L, box, trees) {
     // the border field toward the next side (clockwise): open ground on the lane tier, the lane road through it
     { const b = a + Math.PI / 4, [x, z] = P(b, laneR); (L.fields = L.fields || []).push({ x, z, a: b }); }
   }
-  // the ridge: the lip of the jungle tier, broken only at the King's Roads and the outer castles' roads (never at a border)
-  { const gap = 6 / ridgeR, cuts = []; for (let c = 0; c < 4; c++) { const a = mountHomeA(c); cuts.push(a - th, a, a + th); }
-    cuts.sort((p, q) => p - q);
-    for (let i = 0; i < cuts.length; i++) { const a0 = cuts[i] + gap, a1 = (i + 1 < cuts.length ? cuts[i + 1] : cuts[0] + Math.PI * 2) - gap, n = Math.max(4, Math.ceil((a1 - a0) * ridgeR / 5)), pts = [];
+  // (MAP8) the ridge: the lip of the jungle tier, open only at the King's Roads and in the middle of each border field
+  { const gap = 6 / ridgeR, cuts = []; for (let c = 0; c < 4; c++) { const a = mountHomeA(c); cuts.push([a, gap], [a + Math.PI / 4, C.border.open / ridgeR]); }
+    cuts.sort((p, q) => p[0] - q[0]);
+    for (let i = 0; i < cuts.length; i++) { const a0 = cuts[i][0] + cuts[i][1], nx = cuts[(i + 1) % cuts.length], a1 = (i + 1 < cuts.length ? nx[0] : nx[0] + Math.PI * 2) - nx[1], n = Math.max(4, Math.ceil((a1 - a0) * ridgeR / 5)), pts = [];
       for (let k = 0; k <= n; k++) pts.push(P(a0 + (a1 - a0) * k / n, ridgeR)); ridge(L, pts, 1.8, 4, 'rock', 2.2, 4); } }
-  // the rivers: the ring toward the summit (bridged at every King's Road and below each outer castle) and one down
-  // each border from the ridge to the ring (bridged halfway), joining the neighbouring jungles. Deep: only the bridges cross.
+  // the rivers: the ring toward the summit (bridged at every King's Road and on each side of it) and one down each
+  // border from the ring, ending short of the ridge (MAP8): past its end the two jungles meet below the border field's
+  // opening, so both sides can come out to flank. Deep: only the bridges cross.
   { const bridges = [], lines = [];
     for (let c = 0; c < 4; c++) { const a = mountHomeA(c);
       for (const da of [0, -C.bridgeA, C.bridgeA]) { const ba = a + da, [x, z] = P(ba, riverR); bridges.push({ x, z, a: ba, hw: CROWN2.bridgeHw, len: rw + 2.5, big: false }); }
-      const b = a + Math.PI / 4, pts = []; for (let k = 0; k <= 8; k++) pts.push(P(b, riverR + (ridgeR - 6 - riverR) * k / 8)); lines.push(pts); // (ends at the ridge's foot: no deep water past it)
-      const [x, z] = P(b, (riverR + ridgeR) / 2); bridges.push({ x, z, a: b + Q, hw: C.border.bridgeHw, len: rw + 2.5, big: false, border: true });
+      const b = a + Math.PI / 4, pts = []; for (let k = 0; k <= 8; k++) pts.push(P(b, riverR + (ridgeR - C.border.short - riverR) * k / 8)); lines.push(pts);
       L.borders.push({ a: b, pts }); }
     L.river = { pts: ring(riverR), lines, w: rw, bridges, fords: [], ring: true }; }
   // the chasm round the summit: impassable but for a bridge on each King's Road

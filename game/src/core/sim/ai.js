@@ -75,9 +75,9 @@ function c2Route(u, g) {
   const sides = [[K.ridge * R + 6, K.ridge * R - 6], [K.river * R + rw + 3, K.river * R - rw - 6], [K.chasm * R + cw + 2, K.arena * R - 2]][b], d = inward ? sides[1] : sides[0];
   return { x: Math.cos(best) * d, z: Math.sin(best) * d, stop: 1.5 };
 }
-// the new mountain's ways between tiers, as angles: the ridge's gaps (each King's Road and each outer castle's road),
+// the mountain's ways between tiers, as angles: the ridge's openings (each King's Road and each border field's middle),
 // the river ring's bridges (each King's Road and one below each outer castle), the chasm's bridges (the King's Roads)
-function m26Cross(b) { const o = b === 0 ? [-CROWN26.castleA, 0, CROWN26.castleA] : b === 1 ? [-CROWN26.bridgeA, 0, CROWN26.bridgeA] : [0]; return [0, 1, 2, 3].flatMap(c => o.map(d => mountHomeA(c) + d)); }
+function m26Cross(b) { const o = b === 0 ? [0, Math.PI / 4] : b === 1 ? [-CROWN26.bridgeA, 0, CROWN26.bridgeA] : [0]; return [0, 1, 2, 3].flatMap(c => o.map(d => mountHomeA(c) + d)); }
 function planGoal(u, s) { return G.c2 ? c2Route(u, planGoal0(u, s)) : planGoal0(u, s); }
 function planGoal0(u, s) {
   const p = s.plan; if (!p) return null;

@@ -30,7 +30,10 @@ ok(L.camps.length === 24, `24 camps (${L.camps.length})`);
 const halves = {}; for (const k of L.camps) { const key = k.side + k.half; (halves[key] = halves[key] || []).push(k); }
 ok(Object.values(halves).length === 8 && Object.values(halves).every(v => v.filter(k => k.kind === 'buff').length === 1 && v.filter(k => k.kind === 'gold').length === 2), 'each jungle half: 1 buff camp, 2 gold camps');
 ok(L.camps.filter(k => k.buff === 'drum').every(k => k.half === 'left') && L.camps.filter(k => k.buff === 'swift').every(k => k.half === 'right') && L.camps.filter(k => k.buff).length === 8, 'buffs: war drum left, swift right');
-ok(L.river.lines.length === 4 && L.river.bridges.length === 16, `river ring + 4 border rivers, 16 bridges (${L.river.bridges.length})`);
+ok(L.river.lines.length === 4 && L.river.bridges.length === 12, `river ring + 4 border rivers, 12 bridges, all on the ring (${L.river.bridges.length})`);
+ok(L.roads.length === 10, `roads: the lane ring, the summit ring, 4 King's Roads, 4 border-field tracks; none from the outer castles (${L.roads.length})`);
+{ const rr = CROWN26.r, gap = rr.ridge * W.R - Math.hypot(...L.borders[0].pts[L.borders[0].pts.length - 1]);
+  ok(Math.abs(gap - CROWN26.border.short) < .5, `border rivers end ${gap.toFixed(1)} m short of the ridge`); }
 
 // ---- the walking grid: flood fill ----
 const CS = 1.5, HALF = Math.ceil((L.ext || W.R) + 6), N = Math.ceil(HALF * 2 / CS), cx = i => -HALF + (i + .5) * CS, ci = x => Math.max(0, Math.min(N - 1, Math.floor((x + HALF) / CS)));
@@ -57,6 +60,11 @@ for (let c = 0; c < 4; c++) {
   ok(!near(seen, ...fieldPt(c)) && !near(seen, 0, CROWN26.r.lane * W.R * .5), `side ${c}: every castle gate shut, the base is cut off`);
   keys.forEach(k => setPalSeg(k, false));
 }
+{ // (MAP8) the jungle opens in the middle of each border field: with every castle gate shut, a camp is reached from it
+  const keys = L.cwalls.flatMap(w => w.gates.map((_, gi) => 'cg' + w.hid + ':' + gi)); keys.forEach(k => setPalSeg(k, true));
+  for (let c = 0; c < 4; c++) { const seen = flood(...fieldPt(c)), next = (c + 1) % 4, mine = L.camps.filter(k => k.side === c && k.half === 'right'), theirs = L.camps.filter(k => k.side === next && k.half === 'left');
+    ok(mine.every(k => near(seen, k.x, k.z, 5)) && theirs.every(k => near(seen, k.x, k.z, 5)), `border field ${c}: both jungles open to it (castle gates shut)`); }
+  keys.forEach(k => setPalSeg(k, false)); }
 { const seen = flood(L.homes[0].x, L.homes[0].z);
   ok(castles.every(h => near(seen, h.x + (h.x / Math.hypot(h.x, h.z)) * -12, h.z + (h.z / Math.hypot(h.x, h.z)) * -12)), 'from a base: every castle reached');
   ok(L.camps.every(k => near(seen, k.x, k.z, 5)), 'from a base: every camp reached');
