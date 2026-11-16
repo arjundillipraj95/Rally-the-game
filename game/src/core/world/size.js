@@ -1,5 +1,6 @@
 // How big the battlefield is and where the castles stand.
-import { TEAMS, CASTLE_R, CROWN2 } from '../../config.js';
+import { TEAMS, CASTLE_R, CROWN2, CROWN26 } from '../../config.js';
+import { MAP26 } from './flag.js';
 import { G, noCastle } from '../state.js';
 import { mulberry, angDiff } from './util.js';
 import { FIELDS, OASES } from './features.js';
@@ -11,7 +12,8 @@ const BIG = new Set(['valley', 'frost', 'desert', 'forum']);
 TEAMS.forEach(t => { t.pos0 = t.pos.slice(); });
 export const W = { R: 91, S: 1 };
 export function sizeWorld(mapId) {
-  if (mapId === 'mount') { const f = Math.max(0, ...[0, 1, 2, 3].map(c => (G.duo && G.duo[c]) | 0)); W.R = Math.round(CROWN2.R * CROWN2.scale[Math.min(2, f)]); W.S = W.R / 91; }
+  if (mapId === 'mount' && MAP26) { W.R = CROWN26.R; W.S = W.R / 91; } // (MAP: one size for every battle)
+  else if (mapId === 'mount') { const f = Math.max(0, ...[0, 1, 2, 3].map(c => (G.duo && G.duo[c]) | 0)); W.R = Math.round(CROWN2.R * CROWN2.scale[Math.min(2, f)]); W.S = W.R / 91; }
   else { W.S = BIG.has(mapId) ? 1.3 : 1; W.R = Math.round(91 * W.S); }
   TEAMS.forEach(t => { t.pos[0] = t.pos0[0] * W.S; t.pos[1] = t.pos0[1] * W.S; });
 }

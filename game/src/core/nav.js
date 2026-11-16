@@ -3,8 +3,8 @@
 import { G } from './state.js';
 import { inRiver, inFord, onBridge, arenaGatesOpen, W, inPoly, deepWater } from './world.js';
 
-const CS = 1.5, HALF = 122, N = Math.ceil(HALF * 2 / CS), INFL = .55; // cell size, half-extent, cells per side, unit radius
-const BS = 6, BN = Math.ceil(HALF * 2 / BS);                         // obstacle buckets
+const CS = 1.5, INFL = .55, BS = 6; // cell size, unit radius, obstacle bucket size
+let HALF = 122, N = Math.ceil(HALF * 2 / CS), BN = Math.ceil(HALF * 2 / BS); // half-extent, cells per side, buckets per side (MAP: the new mountain is bigger)
 let blocked = new Uint8Array(N * N), buckets = [], blockBuckets = [], gateCells = [], gatesOpen = true, palCells = {}, palOn = {};
 
 const ci = x => Math.max(0, Math.min(N - 1, Math.floor((x + HALF) / CS)));
@@ -23,6 +23,7 @@ export function inside(o, x, z, pad) {
 const extent = o => o.box ? Math.hypot(o.hw, o.hd) : o.r;
 
 export function buildNav(L) {
+  sizeNav(L.map26 ? Math.ceil(W.R + 6) : 122);
   blocked = new Uint8Array(N * N);
   buckets = Array.from({ length: BN * BN }, () => []);
   blockBuckets = Array.from({ length: BN * BN }, () => []);
@@ -87,9 +88,15 @@ export function openGoal(gx, gz, fx, fz) {
 }
 
 // ---------- A* over the grid (8 directions), capped so a hopeless search stays cheap ----------
-const gScore = new Float32Array(N * N), came = new Int32Array(N * N), stamp = new Uint32Array(N * N), closedAt = new Uint32Array(N * N);
-let run = 0;
-const heap = { a: new Int32Array(N * N), f: new Float32Array(N * N), n: 0 };
+let gScore, came, stamp, closedAt, run = 0;
+const heap = { a: null, f: null, n: 0 };
+function sizeNav(h) { // (the grid's arrays, made again only when the half-extent changes)
+  if (gScore && h === HALF) return;
+  HALF = h; N = Math.ceil(HALF * 2 / CS); BN = Math.ceil(HALF * 2 / BS);
+  gScore = new Float32Array(N * N); came = new Int32Array(N * N); stamp = new Uint32Array(N * N); closedAt = new Uint32Array(N * N);
+  heap.a = new Int32Array(N * N); heap.f = new Float32Array(N * N); run = 0;
+}
+sizeNav(122);
 function push(c, f) { let i = heap.n++; while (i > 0) { const p = (i - 1) >> 1; if (heap.f[p] <= f) break; heap.a[i] = heap.a[p]; heap.f[i] = heap.f[p]; i = p; } heap.a[i] = c; heap.f[i] = f; }
 function pop() {
   const top = heap.a[0], la = heap.a[--heap.n], lf = heap.f[heap.n]; let i = 0;

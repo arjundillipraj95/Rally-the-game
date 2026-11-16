@@ -30,8 +30,8 @@ export function bakeRiver(L) {
   const V = L.river; if (!V) { RV = null; return; }
   const cs = 1, half = W.R + 20, n = Math.ceil(half * 2 / cs) + 1, code = new Uint8Array(n * n), dep = new Float32Array(n * n), dist = new Float32Array(n * n).fill(1e9);
   const reach = V.w + 2.5;
-  for (let s = 0; s < V.pts.length - 1; s++) {
-    const [ax, az] = V.pts[s], [bx, bz] = V.pts[s + 1];
+  for (const pts of [V.pts, ...(V.lines || [])]) for (let s = 0; s < pts.length - 1; s++) { // (MAP: more than one river)
+    const [ax, az] = pts[s], [bx, bz] = pts[s + 1];
     const i0 = Math.max(0, Math.floor((Math.min(ax, bx) - reach + half) / cs)), i1 = Math.min(n - 1, Math.ceil((Math.max(ax, bx) + reach + half) / cs));
     const j0 = Math.max(0, Math.floor((Math.min(az, bz) - reach + half) / cs)), j1 = Math.min(n - 1, Math.ceil((Math.max(az, bz) + reach + half) / cs));
     const dx = bx - ax, dz = bz - az, L2 = dx * dx + dz * dz || 1;

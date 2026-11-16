@@ -1,5 +1,6 @@
 // The Crown's mountain: heights and places (homes, lane castles, keeps, villages, camps, river, chasm, arena).
-import { CROWN, CROWN2 } from '../../config.js';
+import { CROWN, CROWN2, CROWN26 } from '../../config.js';
+import { MAP26 } from './flag.js';
 import { W } from './size.js';
 import { mulberry, angDiff, distToLine } from './util.js';
 import { ringWall, ridge } from './build.js';
@@ -9,9 +10,10 @@ import { ringWall, ridge } from './build.js';
 // Terraces round the summit: the lanes (lowest), the jungle a step up behind the ridge, the top ring
 // above the river, the arena on the summit behind its chasm. Every quarter the same, turned.
 const sstep = (a, b, t) => { const k = Math.min(1, Math.max(0, (t - a) / (b - a))); return k * k * (3 - 2 * k); };
+export const mountK = () => MAP26 ? CROWN26.r : CROWN2.r; // (the radii of the mountain being played)
 export const mountHomeA = c => -Math.PI / 2 + c * Math.PI / 2; // (where each colour's home stands, as an angle: x = cos, z = sin)
 export function mountY(x, z) {
-  const R = W.R, r = Math.hypot(x, z), K = CROWN2.r, H = CROWN2.h;
+  const R = W.R, r = Math.hypot(x, z), K = mountK(), H = CROWN2.h;
   if (r > K.ridge * R + 5) return H.lane;
   const rin = K.river * R - K.riverW * R - 1.5; // (the river runs level on the jungle tier; its inner bank climbs to the top ring)
   if (r > rin) return H.lane + (H.jungle - H.lane) * sstep(K.ridge * R + 5, K.ridge * R - 5, r);
@@ -29,7 +31,7 @@ const KEEP_NAMES2 = ['the Eagle Keep', 'the Stag Keep', 'the Bear Keep', 'the Wo
 const VILLAGE_NAMES2 = ['Millbrook', 'Applecross', 'Honeydale', 'Bramblewick'];
 // a castle on the mountain: the crown castles' keep, towers and curtain wall (gates at the angles given,
 // the first the wide one), in the same shape the Crown's castle code already knows
-function mountCastle(L, h, gates, R0, wide = [0]) {
+export function mountCastle(L, h, gates, R0, wide = [0]) {
   const { x, z } = h;
   L.towers.push({ x, z, r: 2.6, h: h.keepTower ? 11 : 8, kind: 'keep' }); L.obstacles.push({ x, z, r: 2.9, keep: true }); L.blockers.push({ x, z, r: 2.9, h: 9 });
   for (let t = 0; t < 4; t++) { const b = (h.towerA0 || 0) + t * Math.PI / 2, tx = x + Math.cos(b) * (R0 - 1.6), tz = z + Math.sin(b) * (R0 - 1.6); L.towers.push({ x: tx, z: tz, r: 1, h: 5, kind: 'keep', small: true }); L.obstacles.push({ x: tx, z: tz, r: 1.2, keep: true }); }

@@ -86,6 +86,18 @@ export const CROWN2 = {
   // land: the stagger when he's set down
   lake: { depth: 1.1, drain: 5, cross: .25, count: 10, rush: 14, carry: 9, ramp: .35, out: 2.5, lane: 1.3, spread: 2.4, row: 1.1, land: .3, pool: 4.6, causeW: 3.4, causeH: .22, wait: 3 },
 };
+// MAP the relaunch's mountain (?map26=1 until MAP6): each side a country (base, nexus, 3 castles) on the lane ring,
+// border fields between countries, a King's Road from each middle castle to the summit, the jungle inside split by it.
+// R: one size for every battle (12 champions; no party scaling). r: radii as fractions of R (same keys mountY reads).
+// castleA: the outer castles' angle from the middle one; bridgeA: the river ring's side bridges, angle from the King's Road.
+// camps: each jungle half's camps, [angle from the King's Road, radius, kind]; the buff camp is the war drum on the
+// left half and swift on the right (placed only: their rules come later).
+export const CROWN26 = {
+  R: 205,
+  r: { home: .925, nexus: .82, lane: .70, ridge: .59, river: .40, riverW: .02, chasm: .175, chasmW: .024, arena: .15 },
+  castleA: .475, bridgeA: .43, castleR: 10.5, wallH: 3, border: { bridgeHw: 2.2 },
+  camps: [[.13, .54, 'gold'], [.27, .46, 'buff'], [.64, .5, 'gold']], buff: { left: 'drum', right: 'swift' },
+};
 // Match length, in minutes: Quick, Standard (the default) or Long. A shorter battle runs hotter: more
 // gold, and computer armies march out with smaller squads (gather).
 export const TIMES = [[5, 'Quick'], [10, 'Standard'], [15, 'Long']];
