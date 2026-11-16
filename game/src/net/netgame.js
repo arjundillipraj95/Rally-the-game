@@ -2,7 +2,7 @@
 // presses and draws the host's snapshots (a compact text string, roughly 1-4KB depending on
 // how many soldiers are alive — more in a full 12-army Trio match — sent
 // about 12 times a second).
-import { CROWN2, SMOOTH, FEEL, NEUTRAL, HANDOVER } from '../config.js';
+import { CROWN2, CROWN26, SMOOTH, FEEL, NEUTRAL, HANDOVER } from '../config.js';
 import { SHOUTS, CROWN, HUMAN_CAPTAIN, ARMOUR, RHYTHM, BASH, EVADE, TEAMS, MAPS, KINDS, STATS, RECRUITS, ORDERS, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT, HOLD_ATK, PARRY } from '../config.js';
 import { G, bus, colorOf, isEnemyTi, activeFrom, ARMIES, duoStr, duoParse } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn, angDiff } from '../core/world.js';
@@ -59,7 +59,7 @@ function encodeSnap() {
     if (u.neutral && !u.post.awake && u.hp >= u.max && Math.hypot(u.x - u.px, u.z - u.pz) < NEUTRAL.home) continue; // (F4: a sleeping post's men at their spots: the mountain section says they live)
     const kt = KINDS.indexOf(u.kind) * 16 + u.ti;
     const fl = (u.swing > 0 ? 1 : 0) | (u.mounted ? 2 : 0) | ((u.blockT > 0 || (u.human && u.blocking)) ? 4 : 0) | (u.carrying ? 8 : 0) | (u.stun > 0 ? 16 : 0) | (u.aim ? 32 : 0) | (u.shieldwall ? 64 : 0) | (u.weapon === 'spear' ? 128 : u.weapon === 'jav' ? 256 : u.weapon === 'sword' ? 512 : 0) | (u.charge > 0 ? 1024 : 0)
-      | (u.windup > 0 ? 2048 : 0) | (u.glint ? 4096 : 0) | (u.heavyCharge > 0 ? 8192 : 0) | (u.bracing ? 16384 : 0) | (u.javDraw > 0 ? 32768 : 0) | (u.couch || u.rideReady ? 65536 : 0) | (u.routing ? 131072 : 0) | (u.rallyT > 0 ? 262144 : 0) | (u.execReady ? 524288 : 0) | (u.execA ? 1048576 : 0) | (u.execV ? 2097152 : 0) | (u.leader && u.swing > 0 ? (u.swingKind & 7) * 4194304 : 0) | (u.dueled ? 33554432 : 0) | (u.armour > 0 ? Math.max(1, Math.round(u.armour / ARMOUR.hp * 7)) * 67108864 : 0) | (u.chasmT > 0 ? 536870912 : 0); // (bit 29, F7: going over the chasm's edge) // (bits 26-28: a captain's armour, in sevenths) // (bits 22-24: which blow a captain is swinging)
+      | (u.windup > 0 ? 2048 : 0) | (u.glint ? 4096 : 0) | (u.heavyCharge > 0 ? 8192 : 0) | (u.bracing ? 16384 : 0) | (u.javDraw > 0 ? 32768 : 0) | (u.couch || u.rideReady ? 65536 : 0) | (u.routing ? 131072 : 0) | (u.rallyT > 0 ? 262144 : 0) | (u.execReady ? 524288 : 0) | (u.execA ? 1048576 : 0) | (u.execV ? 2097152 : 0) | (u.leader && u.swing > 0 ? (u.swingKind & 7) * 4194304 : 0) | (u.dueled ? 33554432 : 0) | (u.armour > 0 ? Math.max(1, Math.round(u.armour / ARMOUR.hp * 7)) * 67108864 : 0) | (u.chasmT > 0 ? 536870912 : 0) | (u.bush >= 0 && G.T - (u.atkT ?? -99) < CROWN26.bush.reveal ? 1073741824 : 0); // (bit 30, NET1: in a bush and just struck: seen) // (bit 29, F7: going over the chasm's edge) // (bits 26-28: a captain's armour, in sevenths) // (bits 22-24: which blow a captain is swinging)
     const row = [b36(u.id), kt.toString(16), encX(u.x), encX(u.z), encF(u.face), b36(clamp(u.hp / u.max, 0, 1) * 35), b36(fl)];
     if (u.jy > .05) row.push(b36(u.jy * 10));
     us.push(row.join(','));
@@ -332,7 +332,7 @@ function clientApply(hp) {
     if ((fl & 1) && u.swing <= 0 && id !== myId) { u.swing = .38; sfx.swing(u.x, u.z); if (kind === 'captain') u.swingKind = (fl >> 22) & 7; }
     u.mounted = !!(fl & 2); u.carrying = !!(fl & 8);
     u.shieldwall = !!(fl & 64);
-    u.dueled = !!(fl & 33554432);
+    u.dueled = !!(fl & 33554432); u.netSeen = !!(fl & 1073741824); // (NET1: the host says he just struck from a bush)
     if (id !== myId) u.armour = ((fl / 67108864) & 7) / 7 * ARMOUR.hp; // (others' armour, roughly: for the bar over their heads)
     u.execReady = !!(fl & 524288); u.execA = !!(fl & 1048576); u.execV = !!(fl & 2097152); // (an execution: who's marked, who's doing it, who's kneeling)
     if (fl & 536870912) { if (!u.chasmAt) { u.chasmAt = performance.now() / 1000; u.rimY = u.y; u.edge = { x: u.x, z: u.z, y: u.y, edge: true }; if (id === myId) cam.shake = Math.max(cam.shake, .4); } } else u.chasmAt = 0; // (F7: over the chasm's edge: this phone plays the teeter and the drop from its own clock)

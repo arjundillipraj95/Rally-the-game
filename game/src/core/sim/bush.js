@@ -18,6 +18,6 @@ export function bushTick() {
   }
 }
 // is man o hidden from side a (an alliance; -1: the neutral men)?
-export const bushHid = (o, a) => o.bush >= 0 && !!G.bushOcc && !(a >= 0 && (G.bushOcc[o.bush] & (1 << a))) && !(G.T - (o.atkT ?? -99) < CROWN26.bush.reveal) && !(o.swing > 0) && !o.carrying;
+export const bushHid = (o, a) => o.bush >= 0 && !!G.bushOcc && !(a >= 0 && (G.bushOcc[o.bush] & (1 << a))) && !(G.T - (o.atkT ?? -99) < CROWN26.bush.reveal) && !(o.swing > 0) && !o.carrying && !o.netSeen; // (NET1: on a joined phone the host says who just struck)
 // for the foe search: hidden from the side of man u
 export const hiddenFrom = (o, u) => bushHid(o, sideOf(u.ti));
