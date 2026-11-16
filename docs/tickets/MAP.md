@@ -1,7 +1,7 @@
 # MAP The new mountain (relaunch step 2)
 
 Model: O · Written by the builder 2026-11-16 from design rev 115 (Map section)
-Status: MAP0-MAP8 built on `launch26`, not shipped; MAP8-MAP10 next (Arjun approved the map 16 Nov 07:38)
+Status: MAP0-MAP9 built on `launch26`, not shipped; MAP8-MAP10 next (Arjun approved the map 16 Nov 07:38)
 
 Arjun's go (16 Nov, 01:04): build all MAP cards overnight, merge each into `launch26`. His open questions
 were not answered; the builder took these defaults (change any of them and the card says where):
@@ -124,7 +124,7 @@ crown2sim/online pass roles off and on; lag 250 ms: response 109 ms, position er
 |---|---|---|
 | MAP7 | Base on a peak over the clouds: base, brick castle road, nexus, King's Road to the middle castle; no fence | built |
 | MAP8 | Jungle opens only at the King's Road and in the middle of each border field; border rivers end short of the ridge; no outer-castle roads | built |
-| MAP9 | Armies cross rivers only on bridges; archers shoot across | |
+| MAP9 | Armies cross rivers only on bridges; archers shoot across | built (proof only) |
 | MAP10 | Bushes on the inner ring (between the river and the chasm) | |
 
 ## MAP7 (built)
@@ -145,3 +145,9 @@ with a dirt track from the lane road in through it. Border rivers start at the r
 sides can come out to flank the lane. No roads from the outer castles into the jungle, no border bridges (12
 bridges, all on the river ring). Computer captains cross the ridge at the King's Roads and border fields.
 r_MAP1: with every castle gate shut, both jungles are reached from each border field; 12 bridges; 10 roads.
+
+## MAP9 (built: proof only, no code change)
+Already so since MAP1: no fords, the rivers are deep but for the bridges. `r_MAP9.mjs`: every river point off a
+bridge is deep; over 3 minutes of battle nobody stands in deep water; men walked toward the far bank never wade;
+an archer 13 m across the river ring hits a man on the far bank (18 arrows, 65 damage in 20 s). (An archer told
+to follow keeps within reach of his captain, as before.) No code changed: r_SPLIT and crown2 runs unchanged.
