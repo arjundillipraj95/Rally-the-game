@@ -228,7 +228,7 @@ Last updated: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 
 | 1 | F7 | No abrupt cuts: built 13 Nov, waiting for Arjun's "ship" | S | Arjun's ship |
 | 5 | F14 | Adapts to any phone: rebuilt 13 Nov to Arjun's picks, waiting for Arjun's "ship" | S | Arjun's ship |
 | 6 | F4 | Neutral garrisons and camps fight as real soldiers and ambush: built 14 Nov on `t/F4`, waiting for Arjun's "ship" | O | Arjun's ship |
-| 7 | F9 | Horse charges: built 15 Nov on `t/F9` (card `docs/tickets/F9.md`; rule in `core/charge.js`, numbers in `CHARGE`), waiting for Arjun's phone check and "ship" | O | Arjun's ship |
+| 7 | F9 | Horse charges: live on main (shipped with CL1b on 15 Nov; checked by the owner chat 15 Nov, Arjun's "ship") | O | done |
 | 9 | F2 | One lobby: built 14 Nov, waiting for Arjun's "ship" | O | Arjun's ship |
 | 11 | P0.11 | Matchmake by region first (India with India, US with US) | S | |
 | 12 | P0.7b | Finer positions in snapshots; version check so old and new phones don't mix | S | |
@@ -240,7 +240,7 @@ Last updated: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 
 | 19 | P0.8 / P0.9 | Fair timing / host hand-over. Cut P0.9 if battles move to servers | O | P0.10 |
 | 20 | CL1 | Repo cleanup | S | built on t/CL1 |
 | 20b | CL1b | Remove built copy from repo | S | shipped 15 Nov |
-| 21 | SPLIT | Split core/sim.js (2.9k) and main.js (1k) by job, behaviour unchanged, tests before/after | O | after F9, F25 |
+| 21 | SPLIT | Split core/sim.js (2.9k) and main.js (1k) by job, behaviour unchanged, tests before/after. First step of the relaunch (order: SPLIT, map, castles, champions Titus/Devi/Sigrun, army and gold, match loop, battle screen) | O | Arjun's go on the card (F25/F26 spear fixes parked for Varro) |
 | - | P0.5 | Cloudflare TURN relay | S | **Parked** (needs a card) |
 | - | Phases 1-9 | Roles & Combat behind `?roles=1` | mixed | the list above, Arjun's approval |
 
