@@ -10,10 +10,10 @@ const sideOf = ti => ti >= NEUTRAL_TI ? -1 : G.ALLY[colorOf(ti)];
 export function bushTick() {
   const B = G.layout && G.layout.bushes; if (!B) return;
   if (!G.bushOcc || G.bushOcc.length !== B.length) G.bushOcc = new Uint8Array(B.length); else G.bushOcc.fill(0);
-  const J = G.layout.jungle;
+  const J = G.layout.bushR || [G.layout.jungle.r0, G.layout.jungle.r1]; // (MAP10: the jungle and the inner ring)
   for (const u of G.units) {
     u.bush = -1; if (u.dead) continue;
-    const r = Math.hypot(u.x, u.z); if (r < J.r0 - 6 || r > J.r1 + 6) continue;
+    const r = Math.hypot(u.x, u.z); if (r < J[0] - 1 || r > J[1] + 1) continue;
     for (let i = 0; i < B.length; i++) { const b = B[i], dx = u.x - b.x, dz = u.z - b.z; if (dx * dx + dz * dz < b.r * b.r) { u.bush = i; const a = sideOf(u.ti); if (a >= 0) G.bushOcc[i] |= 1 << a; break; } }
   }
 }

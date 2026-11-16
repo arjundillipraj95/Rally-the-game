@@ -139,7 +139,8 @@ Last updated: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT bu
 - MAP7: base, nexus and castle road on a peak over the clouds, joined only through the middle castle; no fence.
 - MAP8: jungle opens at the King's Road and mid border field only; border rivers end short of the ridge.
 - MAP9: proven: rivers crossed only on bridges, archers shoot across (r_MAP9).
-- Next: MAP10 (inner bushes), polish, preview link; SPD1, AI1, AI2, NET1; then castles.
+- MAP10: 2 bushes a side on the inner ring (48 in all).
+- Next: map polish and a preview link, polish, preview link; SPD1, AI1, AI2, NET1; then castles.
 
 ## CL2 Focus the map (15 Nov; card `docs/tickets/CL2.md`). On branch `t/CL2`, not shipped
 - Only the Crown on the Mountain in the menus (home, lobby, Quick); other maps and their modes hidden behind `?maps=all`
@@ -288,6 +289,7 @@ Last updated: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT bu
 - Budget: 50 dollars, nothing spent.
 
 ## Known bugs
+- r_SPLIT: now and then a run drifts at 2 s with ~12 more draw calls (a model landing mid-battle draws on Math.random); rerun it. The 2.5 s settle made it rarer.
 - Now and then a computer captain stands at the glacier at night without striking (about 1 run in 6, seen on the new mountain, MAP3).
 - High only: a black wedge down the left edge at the Crown start. Not reproduced on 13 Nov (F14): F1a's exact
   seed, 844x390, High, frames 60-420, with and without `?f1=ab`: edges clean. Likely gone with later map work; Arjun says if he sees it.

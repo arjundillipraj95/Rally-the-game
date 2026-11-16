@@ -108,7 +108,11 @@ export function mount26Places(L, box, trees) {
       if (![0, 1, 2, 3].every(c => [-1, 1].every(s => { const [x, z] = P(mountHomeA(c) + s * da, d); return clearB(x, z, r); }))) continue;
       if (spots.some(([a2, d2, r2]) => Math.hypot(Math.cos(da) * d - Math.cos(a2) * d2, Math.sin(da) * d - Math.sin(a2) * d2) < r + r2 + 4)) continue;
       spots.push([da, d, r]); }
-    for (let c = 0; c < 4; c++) for (const s of [-1, 1]) for (const [da, d, r] of spots) { const [x, z] = P(mountHomeA(c) + s * da, d); L.bushes.push({ id: L.bushes.length, x, z, r, side: c }); } }
+    for (let c = 0; c < 4; c++) for (const s of [-1, 1]) for (const [da, d, r] of spots) { const [x, z] = P(mountHomeA(c) + s * da, d); L.bushes.push({ id: L.bushes.length, x, z, r, side: c }); }
+    // (MAP10) and two on the inner ring each side, between the summit's ring road and the river, off the King's Road
+    const inR = (topR + (riverR - rw - 7)) / 2;
+    for (let c = 0; c < 4; c++) for (const s of [-1, 1]) { const [x, z] = P(mountHomeA(c) + s * Bc.inner.a, inR); L.bushes.push({ id: L.bushes.length, x, z, r: Bc.inner.r, side: c, inner: true }); }
+    L.bushR = [Math.min(...L.bushes.map(b => Math.hypot(b.x, b.z) - b.r)), Math.max(...L.bushes.map(b => Math.hypot(b.x, b.z) + b.r))]; }
   const j0 = riverR + rw + 4, j1 = ridgeR - 5, half = []; for (let i = 0; i < 40; i++) half.push([rr(.05, Math.PI / 4 - .05), rr(j0, j1), rr(.95, 1.4)]);
   const busy = (x, z) => L.holds.some(h => Math.hypot(h.x - x, h.z - z) < 14) || L.camps.some(k => Math.hypot(k.x - x, k.z - z) < 7) || L.roads.some(p => distToLine(p, x, z) < 4)
     || L.borders.some(b => distToLine(b.pts, x, z) < rw + 3) || L.river.bridges.some(b => Math.hypot(b.x - x, b.z - z) < b.len + 4) || (L.bushes || []).some(b => Math.hypot(b.x - x, b.z - z) < b.r + 1.5);

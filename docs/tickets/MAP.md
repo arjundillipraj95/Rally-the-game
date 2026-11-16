@@ -1,7 +1,7 @@
 # MAP The new mountain (relaunch step 2)
 
 Model: O · Written by the builder 2026-11-16 from design rev 115 (Map section)
-Status: MAP0-MAP9 built on `launch26`, not shipped; MAP8-MAP10 next (Arjun approved the map 16 Nov 07:38)
+Status: MAP0-MAP10 built on `launch26`, not shipped; MAP8-MAP10 next (Arjun approved the map 16 Nov 07:38)
 
 Arjun's go (16 Nov, 01:04): build all MAP cards overnight, merge each into `launch26`. His open questions
 were not answered; the builder took these defaults (change any of them and the card says where):
@@ -125,7 +125,7 @@ crown2sim/online pass roles off and on; lag 250 ms: response 109 ms, position er
 | MAP7 | Base on a peak over the clouds: base, brick castle road, nexus, King's Road to the middle castle; no fence | built |
 | MAP8 | Jungle opens only at the King's Road and in the middle of each border field; border rivers end short of the ridge; no outer-castle roads | built |
 | MAP9 | Armies cross rivers only on bridges; archers shoot across | built (proof only) |
-| MAP10 | Bushes on the inner ring (between the river and the chasm) | |
+| MAP10 | Bushes on the inner ring (between the river and the chasm) | built |
 
 ## MAP7 (built)
 The mountain's rim is just behind the castles (R 148 m; lane ring 4 m inside it, so every castle's back hangs over
@@ -151,3 +151,10 @@ Already so since MAP1: no fords, the rivers are deep but for the bridges. `r_MAP
 bridge is deep; over 3 minutes of battle nobody stands in deep water; men walked toward the far bank never wade;
 an archer 13 m across the river ring hits a man on the far bank (18 arrows, 65 damage in 20 s). (An archer told
 to follow keeps within reach of his captain, as before.) No code changed: r_SPLIT and crown2 runs unchanged.
+
+## MAP10 (built)
+Two bushes a side on the inner ring (`CROWN26.bush.inner`: 0.3 rad either side of the King's Road, r 4.5 m, halfway
+between the summit's ring road and the river's inner bank): 48 bushes in all. `bushTick` checks men between the
+nearest and farthest bush (`L.bushR`) instead of the jungle's ring. r_MAP5 updated (48, the inner 8 placed right).
+r_SPLIT: roles off identical before re-save; roles on drifted at 2 s once (+12 draw calls): the model-load race
+seen in MAP6 is rarer with the 2.5 s settle but not gone (STATE known bugs).
