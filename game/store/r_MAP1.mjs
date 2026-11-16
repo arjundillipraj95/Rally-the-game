@@ -1,8 +1,7 @@
 // MAP1: the mountain's layout (the relaunch's; the only one since MAP6), checked in Node from the layout data and the walking grid.
 //   counts: 4 bases, 4 nexus, 12 castles (3 per side: left, middle, right), no keeps or villages, 24 camps
 //   (per jungle half a buff camp and 2 gold camps; buffs: war drum left, swift right), rivers bridged
-//   sealed: each base is reached only through its middle castle (flood fill of the walking grid with that castle's
-//   back gate shut: the base can't be reached; open: it can, and every castle, camp and the arena with it)
+//   open: each base and nexus is reached round its middle castle, gates shut or not (MAP15); every castle, camp and the arena
 //   walk times on foot (human captain's speed, quicker on roads): outer castle to the neighbour's 8-10 s,
 //   base to the Crown 25-30 s
 // Usage: node store/r_MAP1.mjs   (SEED=n to try another seed)
@@ -20,7 +19,7 @@ buildNav(L);
 const castles = L.holds.filter(h => h.kind === 'castle');
 ok(L.map26 && W.R === CROWN26.R, `new mountain, one size (R ${W.R})`);
 ok(L.peaks.length === 4 && L.homes.every(h => Math.hypot(h.x, h.z) > W.R + 20), 'each base out on its peak, past the rim');
-ok(L.obstacles.filter(o => o.country != null).every(o => o.curtain), 'no fence: only the middle castles\' curtain walls out to the cliff');
+ok(!L.obstacles.some(o => o.country != null), 'no walls between a castle and its peak');
 ok(L.holds.every(h => W.R - Math.hypot(h.x, h.z) - CROWN26.castleR >= 14.5), `castles back from the edge (${Math.min(...L.holds.map(h => W.R - Math.hypot(h.x, h.z) - CROWN26.castleR)).toFixed(1)} m of ground behind each wall)`);
 ok(L.homes.length === 4 && L.nexus.length === 4, `4 bases, 4 nexus (${L.homes.length}, ${L.nexus.length})`);
 ok(castles.length === 12 && L.holds.length === 12, `12 castles, nothing else held (${castles.length} of ${L.holds.length})`);
@@ -48,19 +47,11 @@ function flood(x, z) {
 const at = (seen, x, z) => !!seen[ci(z) * N + ci(x)];
 const near = (seen, x, z, r = 3) => { for (let dz = -r; dz <= r; dz += 1.5) for (let dx = -r; dx <= r; dx += 1.5) if (at(seen, x + dx, z + dz)) return true; return false; };
 const fieldPt = c => { const b = mountHomeA(c) + Math.PI / 4, d = (CROWN26.r.lane + CROWN26.r.ridge) / 2 * W.R; return [Math.cos(b) * d, Math.sin(b) * d]; };
-for (let c = 0; c < 4; c++) {
-  const mid = castles.find(h => h.side === c && h.mid), cw = L.cwalls.find(w => w.hid === L.holds.indexOf(mid)), home = L.homes[c];
-  const back = 'cg' + cw.hid + ':' + (cw.gates.length - 1);
-  setPalSeg(back, true); let seen = flood(...fieldPt(c));
-  ok(!near(seen, home.x, home.z), `side ${c}: back gate shut, the base can't be reached from the border field`);
-  setPalSeg(back, false); seen = flood(...fieldPt(c));
-  ok(near(seen, home.x, home.z), `side ${c}: back gate open, the base is reached`);
-  // with every castle gate shut, nothing outside reaches the base at all (no way round a castle)
-  const keys = L.cwalls.flatMap(w => w.gates.map((_, gi) => 'cg' + w.hid + ':' + gi));
-  keys.forEach(k => setPalSeg(k, true)); seen = flood(home.x, home.z);
-  ok(!near(seen, ...fieldPt(c)) && !near(seen, 0, CROWN26.r.lane * W.R * .5), `side ${c}: every castle gate shut, the base is cut off`);
-  keys.forEach(k => setPalSeg(k, false));
-}
+// (MAP15) the peak is open: with every castle gate shut, each base and nexus is still reached from the lane, round the castle
+{ const keys = L.cwalls.flatMap(w => w.gates.map((_, gi) => 'cg' + w.hid + ':' + gi)); keys.forEach(k => setPalSeg(k, true));
+  for (let c = 0; c < 4; c++) { const seen = flood(...fieldPt(c)), h = L.homes[c], n = L.nexus[c];
+    ok(near(seen, h.x, h.z) && near(seen, n.x, n.z), `side ${c}: every castle gate shut, the base and nexus are still reached round the castle`); }
+  keys.forEach(k => setPalSeg(k, false)); }
 { // (MAP8) the jungle opens in the middle of each border field: with every castle gate shut, a camp is reached from it
   const keys = L.cwalls.flatMap(w => w.gates.map((_, gi) => 'cg' + w.hid + ':' + gi)); keys.forEach(k => setPalSeg(k, true));
   for (let c = 0; c < 4; c++) { const seen = flood(...fieldPt(c)), next = (c + 1) % 4, mine = L.camps.filter(k => k.side === c && k.half === 'right'), theirs = L.camps.filter(k => k.side === next && k.half === 'left');

@@ -145,6 +145,7 @@ Last updated: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT bu
 - MAP12: rim 15 m behind the castles' walls; middle castle's curtain walls to the cliff.
 - MAP13: natural rivers (ring bends, winding border rivers from spring pools, reeds, stones).
 - MAP14: bushes are League-style swaying tall grass.
+- MAP15: no walls between the middle castle and the peak (base and nexus reached round it).
 - Watch: start view draw calls rose to Low 194 / High 204 (CAMP1: 179 / 192) with the wider map; trim later.
 - Next: SPD1, AI1, AI2, NET1; then castles (nexus breakable: Arjun 08:55), polish, preview link; SPD1, AI1, AI2, NET1; then castles.
 

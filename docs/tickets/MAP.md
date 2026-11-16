@@ -1,7 +1,7 @@
 # MAP The new mountain (relaunch step 2)
 
 Model: O · Written by the builder 2026-11-16 from design rev 115 (Map section)
-Status: MAP0-MAP14 built on `launch26`, not shipped; MAP8-MAP10 next (Arjun approved the map 16 Nov 07:38)
+Status: MAP0-MAP15 built on `launch26`, not shipped; MAP8-MAP10 next (Arjun approved the map 16 Nov 07:38)
 
 Arjun's go (16 Nov, 01:04): build all MAP cards overnight, merge each into `launch26`. His open questions
 were not answered; the builder took these defaults (change any of them and the card says where):
@@ -193,3 +193,8 @@ Bushes look like League's: patches of tall grass about shoulder high, tufts pack
 the edge, so the patch reads as one shape), dark at the foot and light at the tips, swaying in the wind (a time
 uniform the mountain's update moves). One instanced draw for all 48 bushes. Rules unchanged (r_MAP5 passes; r_SPLIT
 identical). Start view draw calls Low 194, High 204.
+
+## MAP15 (built; Arjun 13:01 after playing)
+The middle castle's curtain walls to the peak are gone: a side's base and nexus are reached round the castle too, so
+a side whose middle castle has fallen isn't shut in on its peak. r_MAP1: with every castle gate shut, every base and
+nexus is still reached from the lane. (Replaces MAP7's "only through the middle castle".) Tests pass; r_SPLIT re-baselined.
