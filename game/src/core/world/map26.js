@@ -74,7 +74,7 @@ export function mount26Places(L, box, trees) {
   { const bridges = [], lines = [];
     for (let c = 0; c < 4; c++) { const a = mountHomeA(c);
       for (const da of [0, -C.bridgeA, C.bridgeA]) { const ba = a + da, [x, z] = P(ba, riverR); bridges.push({ x, z, a: ba, hw: CROWN2.bridgeHw, len: rw + 2.5, big: false }); }
-      const b = a + Math.PI / 4, pts = []; for (let k = 0; k <= 8; k++) pts.push(P(b, riverR + (ridgeR - riverR) * k / 8)); lines.push(pts);
+      const b = a + Math.PI / 4, pts = []; for (let k = 0; k <= 8; k++) pts.push(P(b, riverR + (ridgeR - 6 - riverR) * k / 8)); lines.push(pts); // (ends at the ridge's foot: no deep water past it)
       const [x, z] = P(b, (riverR + ridgeR) / 2); bridges.push({ x, z, a: b + Q, hw: C.border.bridgeHw, len: rw + 2.5, big: false, border: true });
       L.borders.push({ a: b, pts }); }
     L.river = { pts: ring(riverR), lines, w: rw, bridges, fords: [], ring: true }; }

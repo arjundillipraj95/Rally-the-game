@@ -130,6 +130,7 @@ Last updated: 2026-11-16 (MAP cards on `launch26`). Before: 2026-11-16 (SPLIT bu
 ## MAP The new mountain (16 Nov; card `docs/tickets/MAP.md`). Cards merge into `launch26` one by one
 - MAP0: `core/world.js` split into `core/world/` (8 files, max 262 lines), same 40 names; r_SPLIT identical.
 - MAP1: new mountain layout behind `?map26=1` (`core/world/map26.js`, `CROWN26`): 4 countries of base, nexus and 3 castles; walks 9.5 s border, 27 s base to Crown (r_MAP1).
+- MAP2: drawn (country walls, nexus banners, border rivers). Map itself level on draws; +25-30 draws, +35% triangles from 80 more neutral men (24 camps): Arjun to decide camp size.
 
 ## CL2 Focus the map (15 Nov; card `docs/tickets/CL2.md`). On branch `t/CL2`, not shipped
 - Only the Crown on the Mountain in the menus (home, lobby, Quick); other maps and their modes hidden behind `?maps=all`

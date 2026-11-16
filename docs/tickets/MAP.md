@@ -1,7 +1,7 @@
 # MAP The new mountain (relaunch step 2)
 
 Model: O · Written by the builder 2026-11-16 from design rev 115 (Map section)
-Status: MAP0, MAP1 built
+Status: MAP0-MAP2 built
 
 Arjun's go (16 Nov, 01:04): build all MAP cards overnight, merge each into `launch26`. His open questions
 were not answered; the builder took these defaults (change any of them and the card says where):
@@ -17,7 +17,7 @@ were not answered; the builder took these defaults (change any of them and the c
 |---|---|---|
 | MAP0 | Split `core/world.js` (782 lines) into `core/world/` by job; `world.js` passes the same 40 names on | built |
 | MAP1 | New layout data behind `?map26=1` | built |
-| MAP2 | Draw it (`render/mount26.js`) | |
+| MAP2 | Draw it (`render/mount26.js`) | built |
 | MAP3 | The match runs on it (spawns, AI, centre phases) | |
 | MAP4 | Screens drop villages and keeps | |
 | MAP5 | Jungle bushes (hide) | |
@@ -56,3 +56,14 @@ nav grid grows to the map (`W.R + 6`) only on the new mountain. Flag off: r_SPLI
 open; every castle, camp, base and the arena reached from a base; on foot (6.3 m/s, roads x1.15) outer castle to the
 neighbour's 9.4-9.6 s, base to the Crown 27.0-27.3 s.
 Risk: online, both phones must have `?map26=1` (the joined phone builds the map itself) until MAP6.
+
+## MAP2 (built)
+`render/mount26.js`: country walls (stone and cap per wall stone, merged) and the nexus (stone plinth, pole, the side's
+banner: a stand-in until castles). `render/mountain.js` reads `mountK()` for the ground's tiers and the chasm
+bridges, and on the new mountain merges all torch posts into one draw. `render/world.js` draws the border rivers
+in the river's one mesh (muddy banks, no grass in them). Border rivers end at the ridge's foot. Flag off: r_SPLIT identical.
+`r_MAP2.mjs`: battle starts with no errors Low and High; one river mesh with the 4 border rivers; 4 nexus banners;
+824 wall stones. Start view, old mountain -> new: Low 150 -> 176 draw calls, 585k -> 796k triangles; High 160 -> 189,
+683k -> 891k. Measured apart: the map itself is level (+6 to +11 draws with every unit hidden; same instanced
+geometry but for rocks and posts). The rest is the neutral men: 24 bandit camps x 5 men + 12 castles' guards = 180
+men vs 100 on the old mountain. Decision for Arjun: fewer men per camp (e.g. 3) brings it back to level.

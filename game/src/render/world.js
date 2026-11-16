@@ -62,7 +62,7 @@ export function buildWorldView(L) {
     const t = (Math.sin(x * .11 + z * .07) + 1) / 2, t2 = (Math.sin(x * .031 - z * .043) + 1) / 2;
     const c = c1.clone().lerp(c2, t * .7 + t2 * .3); if (r > RR + 1) c.lerp(c3, Math.min(1, (r - RR - 1) / 40));
     if (M.id === 'river' && Math.abs(z) < 6.5 && Math.hypot(x, z) >= 7.5) c.lerp(mud, .6);
-    if (L.river) { const d = distToLine(L.river.pts, x, z); if (d < L.river.w + 2.2) c.lerp(mud, Math.min(.7, (L.river.w + 2.2 - d) / 2.2 * .7)); } // (the Crown's river: muddy banks)
+    if (L.river) { const d = riverDist(L.river, x, z); if (d < L.river.w + 2.2) c.lerp(mud, Math.min(.7, (L.river.w + 2.2 - d) / 2.2 * .7)); } // (the Crown's river: muddy banks)
     if (M.id === 'valley') {
       // meadow: sunny and shady drifts, then the dirt road (with worn wheel ruts) and the wheat fields
       const m = Math.sin(x * .045 + 2) * Math.cos(z * .05 - 1) + Math.sin((x + z) * .02) * .6;
@@ -265,7 +265,7 @@ function buildGrass(L, LK) {
   const c1 = new THREE.Color(LK.grassCol[0]), c2 = new THREE.Color(LK.grassCol[1]), col = new THREE.Color();
   const mx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), s = new THREE.Vector3();
   const blocked = (x, z) => TEAMS.some(t => Math.hypot(t.pos[0] - x, t.pos[1] - z) < CASTLE_R + 1.5) || (L.withFort && Math.hypot(x, z) < 7.5)
-    || (G.map.id === 'river' && Math.abs(z) < 6 && Math.hypot(x, z) >= 7) || (L.river && distToLine(L.river.pts, x, z) < L.river.w + 1) || nearObstacles(x, z).some(o => !o.castle && inside(o, x, z, .3)) || (L.round && Math.hypot(x, z) > L.round - 1);
+    || (G.map.id === 'river' && Math.abs(z) < 6 && Math.hypot(x, z) >= 7) || (L.river && riverDist(L.river, x, z) < L.river.w + 1) || nearObstacles(x, z).some(o => !o.castle && inside(o, x, z, .3)) || (L.round && Math.hypot(x, z) > L.round - 1);
   const patch = (x, z) => Math.sin(x * .09 + 1.3) * Math.cos(z * .08 - .7) + Math.sin(x * .031 - z * .027) * .8;
   let k = 0, tries = 0;
   while (k < n && tries < n * 6) {
@@ -339,15 +339,18 @@ export const grassTime = () => grassU.time.value;
 
 // The Crown's river: a ribbon of water along its course a little below the banks, a plank bridge at
 // each bridge (rails either side), and a line of stepping stones across the ford.
+// distance to the nearest river (MAP2: the new mountain has border rivers as well as the ring)
+const riverDist = (V, x, z) => V.lines ? Math.min(distToLine(V.pts, x, z), ...V.lines.map(p => distToLine(p, x, z))) : distToLine(V.pts, x, z);
 function buildCrownRiver(world, V) {
   const pos = [], idx = [], wd = V.w + 1;
-  for (let i = 0; i < V.pts.length; i++) {
-    const p = V.pts[i], q = V.pts[Math.min(V.pts.length - 1, i + 1)], o = V.pts[Math.max(0, i - 1)];
+  for (const P of [V.pts, ...(V.lines || [])]) { const b0 = pos.length / 3; // (MAP2: the border rivers too, in the same draw)
+  for (let i = 0; i < P.length; i++) {
+    const p = P[i], q = P[Math.min(P.length - 1, i + 1)], o = P[Math.max(0, i - 1)];
     const dx = q[0] - o[0], dz = q[1] - o[1], d = Math.hypot(dx, dz) || 1, nx = -dz / d, nz = dx / d;
     const y = groundY(p[0] + nx * (V.w + 2.5), p[1] + nz * (V.w + 2.5)) - .4; // (a little below the bank)
     pos.push(p[0] + nx * wd, y, p[1] + nz * wd, p[0] - nx * wd, y, p[1] - nz * wd);
-    if (i) { const b = (i - 1) * 2; idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2); }
-  }
+    if (i) { const b = b0 + (i - 1) * 2; idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2); }
+  } }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
   const water = new THREE.Mesh(g, waterMaterial({ opacity: .86, side: THREE.DoubleSide }));
   water.receiveShadow = true; world.add(water);

@@ -6,6 +6,8 @@ import { keepLive, batchOn, abOn, abOld, abShow, mergeInto } from './batch.js';
 import { TEAMS, CROWN2, NEUTRAL } from '../config.js';
 import { G } from '../core/state.js';
 import { groundY, terrainMeshY, mountHomeA, mulberry, W } from '../core/world.js';
+import { mountK } from '../core/world/mount.js';
+import { buildMount26, mergePosts } from './mount26.js';
 import { stoneTex, woodTex } from './look.js';
 import { nightLook, dayLook, dayGold, scene, camera, sun, hemi, renderer, lookK, skySunDir } from './scene.js';
 import { camTarget } from './camera.js';
@@ -21,7 +23,7 @@ const shadowy = o => { o.traverse(m => { if (m.isMesh) { m.castShadow = true; m.
 // the ground's colour by tier, for the world builder's per-vertex pass
 const jungleC = new THREE.Color(0x4f7a32), topC = new THREE.Color(0x9cbf62), rockC = new THREE.Color(0x5c5650), paveC = new THREE.Color(0xc9bfa8), townC = new THREE.Color(0xa8916a), cliffC = new THREE.Color(0x857d72);
 export function mountGround(c, x, z) {
-  const R = W.R, K = CROWN2.r, r = Math.hypot(x, z);
+  const R = W.R, K = mountK(), r = Math.hypot(x, z);
   if (r > R - .8 && r <= R + 1) return c.lerp(cliffC, .55); // (the lip: a ragged line of rock where the grass ends)
   if (r > R + 1) { const b = Math.sin(r * .55 + Math.sin(Math.atan2(z, x) * 9) * 2.2); return c.lerp(b > .3 ? cliffC : rockC, Math.min(.95, (r - R - 1) / 3)); } // (F10b: past the rim, banded cliff rock)
   if (r < K.arena * R + 2.5) return c.lerp(paveC, .85);
@@ -179,6 +181,7 @@ export function buildMount(world, L) {
   const stone = lam(0x9a9384, stoneTex()), wood = lam(0x7a5a3a, woodTex()), woodDark = lam(0x55402a, woodTex());
   const plaster = lam(0xf0e6d0), thatch = lam(0xb8954a), skin = lam(0xd9a77a);
   M = { grp, guards: [], camps: [], homes: [], t: 0, rim: buildRim(grp) };
+  if (L.map26) M.m26 = buildMount26(grp, L); // (MAP2: the country walls and the nexus banners)
   // homes: cottages, the colour's banner, a soft ring round the safe ground
   for (const b of L.buildings.filter(b => b.kind === 'cottage')) {
     const g = new THREE.Group(); g.position.set(b.x, terrainMeshY(b.x, b.z) - .1, b.z); g.rotation.y = b.rot;
@@ -209,7 +212,7 @@ export function buildMount(world, L) {
     for (const p of parts) { p.castShadow = p.receiveShadow = true; grp.add(p); }
     if (batchOn()) { const one = mergeInto(parts, grp); for (const p of parts) grp.remove(p); for (const m of one) grp.add(m); } }
   // bridges over the chasm, one in line with each keep
-  const ch = CROWN2.r.chasm * W.R, cw = CROWN2.r.chasmW * W.R, hw = CROWN2.chasmBridgeHw;
+  const ch = mountK().chasm * W.R, cw = mountK().chasmW * W.R, hw = CROWN2.chasmBridgeHw;
   for (let c = 0; c < 4; c++) {
     const a = mountHomeA(c), g = new THREE.Group(), len = cw * 2 + 3;
     const deck = new THREE.Mesh(new THREE.BoxGeometry(len, .4, hw * 2 + .3), stone); g.add(deck);
@@ -265,7 +268,8 @@ export function buildMount(world, L) {
     for (let k = 0; k < 4; k++) { const a = mountHomeA(k); for (const d of [ch - cw - 1, ch + cw + 1]) for (const s2 of [-1, 1]) spots.push([Math.cos(a) * d - Math.sin(a) * s2 * (hw + .5), Math.sin(a) * d + Math.cos(a) * s2 * (hw + .5)]); }
     for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2 + .2, d = L.arena.r + .9; spots.push([Math.cos(a) * d, Math.sin(a) * d]); }
     const postGeo = new THREE.CylinderGeometry(.07, .09, 2.6, 5);
-    for (const [x2, z2] of spots) { const post = new THREE.Mesh(postGeo, woodDark); post.position.set(x2, groundY(x2, z2) + 1.3, z2); grp.add(post); }
+    const posts = []; for (const [x2, z2] of spots) { const post = new THREE.Mesh(postGeo, woodDark); post.position.set(x2, groundY(x2, z2) + 1.3, z2); grp.add(post); posts.push(post); }
+    if (L.map26) mergePosts(grp, posts); // (MAP2: more bridges to light, all their posts in one draw)
     if (batchOn()) { M.torchGlow = torchBatch(spots, mat.map); grp.add(M.torchGlow); } // (F1a: every glow in one draw, hidden while unlit)
     if (!batchOn() || abOn()) M.torches = spots.map(([x2, z2], i) => { const sp = new THREE.Sprite(mat); sp.position.set(x2, groundY(x2, z2) + 3, z2); sp.scale.setScalar(2.4); sp.userData.ph = i * 1.7; grp.add(sp); return sp; });
     M.torchMat = mat; }
