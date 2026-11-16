@@ -136,7 +136,8 @@ Last updated: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT bu
 - MAP5: 40 jungle bushes hide men from other sides (not drawn, not picked as a foe) until they strike or a foe steps in (r_MAP5).
 - MAP6: the new mountain is the only mountain (flag and old layout removed); r_SPLIT re-baselined on it and settles 2.5 s first.
 - CAMP1: camps 3 men (gold) and 5 men + mini captain (buff: drum or swift, 90 s) (card `docs/tickets/CAMP1.md`).
-- Next: MAP7-10 (peak base, border-field jungle openings, rivers, inner bushes), SPD1, AI1, AI2, NET1; then castles.
+- MAP7: base, nexus and castle road on a peak over the clouds, joined only through the middle castle; no fence.
+- Next: MAP8-10 (border-field jungle openings, rivers, inner bushes), polish, preview link; SPD1, AI1, AI2, NET1; then castles.
 
 ## CL2 Focus the map (15 Nov; card `docs/tickets/CL2.md`). On branch `t/CL2`, not shipped
 - Only the Crown on the Mountain in the menus (home, lobby, Quick); other maps and their modes hidden behind `?maps=all`

@@ -2,6 +2,7 @@
 // plus a bucket grid so collision only looks at nearby obstacles. Pure data, no engine code.
 import { G } from './state.js';
 import { inRiver, inFord, onBridge, arenaGatesOpen, W, inPoly, deepWater } from './world.js';
+import { peakSd } from './world/map26.js';
 
 const CS = 1.5, INFL = .55, BS = 6; // cell size, unit radius, obstacle bucket size
 let HALF = 122, N = Math.ceil(HALF * 2 / CS), BN = Math.ceil(HALF * 2 / BS); // half-extent, cells per side, buckets per side (MAP: the new mountain is bigger)
@@ -23,7 +24,7 @@ export function inside(o, x, z, pad) {
 const extent = o => o.box ? Math.hypot(o.hw, o.hd) : o.r;
 
 export function buildNav(L) {
-  sizeNav(L.map26 ? Math.ceil(W.R + 6) : 122);
+  sizeNav(L.map26 ? Math.ceil((L.ext || W.R) + 6) : 122);
   blocked = new Uint8Array(N * N);
   buckets = Array.from({ length: BN * BN }, () => []);
   blockBuckets = Array.from({ length: BN * BN }, () => []);
@@ -49,7 +50,7 @@ export function buildNav(L) {
   if (L.river) for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) if (deepWater(cx(i), cx(j))) blocked[j * N + i]++; // (the Crown's river)
   if (L.mapId === 'river') for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const x = cx(i), z = cx(j); if (inRiver(x, z) && !inFord(x, z) && !onBridge(x) && Math.abs(z) < 4.5) blocked[j * N + i]++; }
   // every battlefield is round (the arena's wall, or the hills at the edge): nothing past it
-  { const R = (L.round || W.R) - 1; for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) if (Math.hypot(cx(i), cx(j)) > R) blocked[j * N + i]++; }
+  { const R = (L.round || W.R) - 1; for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) if (Math.hypot(cx(i), cx(j)) > R && !(L.peaks && peakSd(L, cx(i), cx(j)) < -.6)) blocked[j * N + i]++; } // (MAP7: past the rim, only the peaks)
   gatesOpen = true;
   syncGates();
 }

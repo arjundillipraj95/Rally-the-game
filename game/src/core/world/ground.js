@@ -4,6 +4,7 @@ import { W } from './size.js';
 import { distToLine } from './util.js';
 import { TEMPLES, TEMPLE, DESERT, VALLEY_HILLS } from './features.js';
 import { mountY } from './mount.js';
+import { peakSd } from './map26.js';
 
 // Local frame of a feature whose front faces the centre: u across it, v away from the centre.
 const toLocal = (f, x, z) => { const dx = x - f.x, dz = z - f.z; return [dx * f.vz - dz * f.vx, dx * f.vx + dz * f.vz]; };
@@ -135,7 +136,8 @@ export function terrainMeshY(x, z) {
   const n = Math.sin(x * .07) * Math.cos(z * .05) + Math.sin(x * .023 + z * .031) * 1.4;
   let y = G.map.id === 'river' ? 0 : groundY(x, z);
   if (G.map.id === 'river') { const az = Math.abs(z); if (az < 7 && Math.hypot(x, z) >= 7.5) y = az < 5 ? -.95 : -.95 * (7 - az) / 2; }
-  const e = W.R + 1; if (r > e) y += G.map.id === 'mount' ? mountCliff(x, z, r - e, n) : (r - e) * .25 + Math.max(0, n) * ((r - e) * .18);
+  const e = W.R + 1; if (r > e) { const d = G.map.id === 'mount' && G.layout && G.layout.peaks ? Math.min(r - e, peakSd(G.layout, x, z) + .6) : r - e; // (MAP7: the peaks stand out over the clouds)
+    if (d > 0) y += G.map.id === 'mount' ? mountCliff(x, z, d, n) : (r - e) * .25 + Math.max(0, n) * ((r - e) * .18); }
   return y;
 }
 

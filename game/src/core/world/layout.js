@@ -250,12 +250,12 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
   bakeRiver(L); bakeRidges(L);
   // the roads: a coarse grid of where they run (2 m cells), so the going on them can be quicker
   if (L.roads.length) {
-    const N = Math.ceil(W.R * 2 / 2) + 1, g = new Uint8Array(N * N);
+    const E = L.ext || W.R, N = Math.ceil(E * 2 / 2) + 1, g = new Uint8Array(N * N); // (MAP7: out to the peaks)
     for (const p of L.roads) for (let i = 0; i < p.length - 1; i++) {
       const [ax, az] = p[i], [bx, bz] = p[i + 1], n = Math.ceil(Math.hypot(bx - ax, bz - az) / .7);
-      for (let k = 0; k <= n; k++) { const x = ax + (bx - ax) * k / n, z = az + (bz - az) * k / n; for (const [ox, oz] of [[0, 0], [1.2, 0], [-1.2, 0], [0, 1.2], [0, -1.2]]) { const cx = Math.round((x + ox + W.R) / 2), cz = Math.round((z + oz + W.R) / 2); if (cx >= 0 && cz >= 0 && cx < N && cz < N) g[cz * N + cx] = 1; } }
+      for (let k = 0; k <= n; k++) { const x = ax + (bx - ax) * k / n, z = az + (bz - az) * k / n; for (const [ox, oz] of [[0, 0], [1.2, 0], [-1.2, 0], [0, 1.2], [0, -1.2]]) { const cx = Math.round((x + ox + E) / 2), cz = Math.round((z + oz + E) / 2); if (cx >= 0 && cz >= 0 && cx < N && cz < N) g[cz * N + cx] = 1; } }
     }
-    L.roadGrid = { N, g };
+    L.roadGrid = { N, g, E };
   }
   L.ctrlSpots = withCtrl ? makeCtrlSpots(L) : [];
   return L;

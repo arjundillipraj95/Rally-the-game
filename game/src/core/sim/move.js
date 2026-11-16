@@ -3,6 +3,7 @@ import { G, bus, isEnemyTi, colorOf } from '../state.js';
 import { deepWater, groundY, inRiver, onBridge, clamp, turn, W, onIce } from '../world.js';
 import { nearObstacles, gateShut, los, findPath, openGoal, walkable } from '../nav.js';
 import { duelBounds } from './duel.js';
+import { peakSd } from '../world/map26.js';
 
 // ---------- navigation ----------
 // Where to walk next on the way to (gx,gz): straight there when the way is clear,
@@ -69,7 +70,9 @@ export function integrate(u, dt, pz) {
     if (d < min && d > 0) { u.x = o.x + dx / d * min; u.z = o.z + dz / d * min; }
   }
   // every battlefield is round: just inside where the ground starts rising into the hills at the edge
-  { const d = Math.hypot(u.x, u.z), m = (G.layout.round || W.R) - u.r; if (d > m) { u.x *= m / d; u.z *= m / d; } }
+  { const d = Math.hypot(u.x, u.z), m = (G.layout.round || W.R) - u.r;
+    if (d > m) { const P = G.layout.peaks, on = (x, z) => Math.hypot(x, z) <= m || peakSd(G.layout, x, z) < -u.r; // (MAP7: past the rim, only the peaks hold you; slide along their edges)
+      if (!P || !on(u.x, u.z)) { if (P && on(ox, u.z)) u.x = ox; else if (P && on(u.x, oz)) u.z = oz; else if (P && on(ox, oz)) { u.x = ox; u.z = oz; } else { u.x *= m / d; u.z *= m / d; } } } }
   if (G.layout.river && deepWater(u.x, u.z)) { // (the Crown's river: deep water turns you back; slide along the bank)
     if (!deepWater(ox, u.z)) u.x = ox; else if (!deepWater(u.x, oz)) u.z = oz;
     else if (!deepWater(ox, oz)) { u.x = ox; u.z = oz; }
@@ -80,7 +83,7 @@ export function integrate(u, dt, pz) {
     if (Math.abs(u.z) < 5 && onBridge(u.x) && Math.abs(u.x) > 20) { const bx = u.x < 0 ? -32 : 32; u.x = clamp(u.x, bx - 2.1, bx + 2.1); }
   }
   if (G.duels && G.duels.length) duelBounds(u);
-  u.x = clamp(u.x, -W.R + 3, W.R - 3); u.z = clamp(u.z, -W.R + 3, W.R - 3);
+  { const E = G.layout.ext || W.R; u.x = clamp(u.x, -E + 3, E - 3); u.z = clamp(u.z, -E + 3, E - 3); }
   u.y = groundY(u.x, u.z) + (u.jy || 0);
 }
 // After the whistle: the winners stay put (the renderer has them celebrating) and everyone else

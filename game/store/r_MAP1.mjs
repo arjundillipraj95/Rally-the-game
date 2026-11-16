@@ -19,6 +19,8 @@ buildNav(L);
 // ---- counts ----
 const castles = L.holds.filter(h => h.kind === 'castle');
 ok(L.map26 && W.R === CROWN26.R, `new mountain, one size (R ${W.R})`);
+ok(L.peaks.length === 4 && L.homes.every(h => Math.hypot(h.x, h.z) > W.R + 20), 'each base out on its peak, past the rim');
+ok(!L.obstacles.some(o => o.country != null), 'no country walls (the cliffs keep the peak)');
 ok(L.homes.length === 4 && L.nexus.length === 4, `4 bases, 4 nexus (${L.homes.length}, ${L.nexus.length})`);
 ok(castles.length === 12 && L.holds.length === 12, `12 castles, nothing else held (${castles.length} of ${L.holds.length})`);
 ok(!L.holds.some(h => h.keep || h.kind === 'village'), 'no keeps or villages');
@@ -31,7 +33,7 @@ ok(L.camps.filter(k => k.buff === 'drum').every(k => k.half === 'left') && L.cam
 ok(L.river.lines.length === 4 && L.river.bridges.length === 16, `river ring + 4 border rivers, 16 bridges (${L.river.bridges.length})`);
 
 // ---- the walking grid: flood fill ----
-const CS = 1.5, HALF = Math.ceil(W.R + 6), N = Math.ceil(HALF * 2 / CS), cx = i => -HALF + (i + .5) * CS, ci = x => Math.max(0, Math.min(N - 1, Math.floor((x + HALF) / CS)));
+const CS = 1.5, HALF = Math.ceil((L.ext || W.R) + 6), N = Math.ceil(HALF * 2 / CS), cx = i => -HALF + (i + .5) * CS, ci = x => Math.max(0, Math.min(N - 1, Math.floor((x + HALF) / CS)));
 function flood(x, z) {
   const seen = new Uint8Array(N * N), q = []; let s = ci(z) * N + ci(x);
   if (!walkable(x, z)) return seen; seen[s] = 1; q.push(s);
@@ -41,7 +43,7 @@ function flood(x, z) {
 }
 const at = (seen, x, z) => !!seen[ci(z) * N + ci(x)];
 const near = (seen, x, z, r = 3) => { for (let dz = -r; dz <= r; dz += 1.5) for (let dx = -r; dx <= r; dx += 1.5) if (at(seen, x + dx, z + dz)) return true; return false; };
-const fieldPt = c => { const b = mountHomeA(c) + Math.PI / 4, d = CROWN26.r.lane * W.R + 25; return [Math.cos(b) * d, Math.sin(b) * d]; };
+const fieldPt = c => { const b = mountHomeA(c) + Math.PI / 4, d = (CROWN26.r.lane + CROWN26.r.ridge) / 2 * W.R; return [Math.cos(b) * d, Math.sin(b) * d]; };
 for (let c = 0; c < 4; c++) {
   const mid = castles.find(h => h.side === c && h.mid), cw = L.cwalls.find(w => w.hid === L.holds.indexOf(mid)), home = L.homes[c];
   const back = 'cg' + cw.hid + ':' + (cw.gates.length - 1);

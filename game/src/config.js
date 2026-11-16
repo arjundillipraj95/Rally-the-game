@@ -91,10 +91,11 @@ export const CROWN2 = {
 // camps: each jungle half's camps, [angle from the King's Road, radius, kind]; the buff camp is the war drum on the
 // left half and swift on the right (placed only: their rules come later).
 export const CROWN26 = {
-  R: 205,
-  r: { home: .925, nexus: .82, lane: .70, ridge: .59, river: .40, riverW: .02, chasm: .175, chasmW: .024, arena: .15 },
+  R: 148, // (MAP7: the mountain's rim, just behind the castles; each base, its nexus and road stand out on a peak over the clouds)
+  r: { home: 1.351, nexus: 1.135, lane: .973, ridge: .80, river: .554, riverW: .0277, chasm: .2424, chasmW: .0332, arena: .2078 },
+  peak: { hw: 7, base: 14, nexus: 9 }, // (MAP7: the peak road's half-width (3 armies abreast), the base's and the nexus's ground, m)
   castleA: .475, bridgeA: .43, castleR: 10.5, wallH: 3, border: { bridgeHw: 2.2 },
-  camps: [[.13, .54, 'gold'], [.27, .46, 'buff'], [.64, .5, 'gold']], buff: { left: 'drum', right: 'swift' },
+  camps: [[.13, .73, 'gold'], [.27, .65, 'buff'], [.64, .70, 'gold']], buff: { left: 'drum', right: 'swift' },
   bush: { n: 5, r: [3.6, 5.2], reveal: 1.5 }, // (MAP5: bushes per jungle half, their radius range in m, seconds a man stays seen after he attacks)
   // (CAMP1) each jungle half's camps: 2 gold camps of 3 men, a buff camp of 5 men and a mini captain (boss) at its middle;
   // cutting the mini captain down gives his killer's side the camp's buff for buffs.t s

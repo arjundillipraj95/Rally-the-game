@@ -47,8 +47,9 @@ export function buildWorldView(L) {
   const M = G.map, LK = lookFor(M.id);
   setLook(M);
   // ground: map colors per vertex, fine detail from a tiling texture
-  const seg = W.S > 1 ? 250 : 220; // (finer on the big maps, for the ridges; under 65k vertices keeps 16-bit indices)
-  const g = new THREE.PlaneGeometry(420, 420, seg, seg); g.rotateX(-Math.PI / 2);
+  const seg = L.ext ? 254 : W.S > 1 ? 250 : 220; // (finer on the big maps, for the ridges; under 65k vertices keeps 16-bit indices)
+  const span = L.ext ? Math.max(420, Math.ceil(L.ext + 34) * 2) : 420; // (MAP7: the mountain's peaks reach further out)
+  const g = new THREE.PlaneGeometry(span, span, seg, seg); g.rotateX(-Math.PI / 2);
   uvScale(g, 64, 64);
   const pos = g.attributes.position, cols = [], RR = W.R;
   // roads trace the routes on the big maps: a quick box test first, then the distance to each

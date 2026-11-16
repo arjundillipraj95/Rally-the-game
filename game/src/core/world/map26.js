@@ -7,16 +7,26 @@
 import { CROWN2, CROWN26 } from '../../config.js';
 import { W } from './size.js';
 import { mulberry, angDiff, distToLine, P } from './util.js';
-import { ringWall, ridge, wallLine } from './build.js';
+import { ringWall, ridge } from './build.js';
 import { mountHomeA, mountCastle } from './mount.js';
 
 const NAMES = ['Greywater', 'Highmoor', 'Ravenhold', 'Thornwall', 'Oakhelm', 'Stonebridge', 'Redcliff', 'Wolfden', 'Ashford', 'Kingsmere', 'Frostgate', 'Emberfell'];
 const SLOT = { '-1': 'left', 0: 'middle', 1: 'right' };
 
+// (MAP7) how far (x, z) lies outside its nearest peak (negative: on it), m
+export function peakSd(L, x, z) {
+  let d = 1e9;
+  for (const p of L.peaks || []) {
+    const ux = Math.cos(p.a), uz = Math.sin(p.a), t = x * ux + z * uz, s = Math.abs(-x * uz + z * ux);
+    d = Math.min(d, Math.max(p.r0 - t, t - p.r1, s - p.hw));
+    for (const [cx, cz, r] of p.discs) d = Math.min(d, Math.hypot(x - cx, z - cz) - r);
+  }
+  return d;
+}
 export function mount26Places(L, box, trees) {
   const R = W.R, K = CROWN26.r, C = CROWN26, Q = Math.PI / 2, th = C.castleA, cR = C.castleR;
   const RND = mulberry(26026), rr = (a, b) => a + RND() * (b - a);
-  L.holds.length = 0; L.cwalls = []; L.homes = []; L.camps = []; L.nexus = []; L.borders = []; L.countryWalls = []; L.mount = { R, v26: true };
+  L.holds.length = 0; L.cwalls = []; L.homes = []; L.camps = []; L.nexus = []; L.borders = []; L.peaks = []; L.mount = { R, v26: true }; L.ext = CROWN26.r.home * R + CROWN26.peak.base + 2; // (MAP7: the world reaches out to the peaks)
   const ring = d => { const pts = []; for (let k = 0; k <= 96; k++) pts.push(P(k / 96 * Math.PI * 2, d)); return pts; };
   const laneR = K.lane * R, ridgeR = K.ridge * R, riverR = K.river * R, rw = K.riverW * R, ch = K.chasm * R, cw = K.chasmW * R;
   const topR = ((K.chasm + K.chasmW) + (K.river - K.riverW)) / 2 * R; // (a ring road round the summit, between the chasm and the river)
@@ -30,30 +40,25 @@ export function mount26Places(L, box, trees) {
   }
   for (let c = 0; c < 4; c++) {
     const a = mountHomeA(c);
-    // the base: a walled yard on the rim, untakeable, open only toward its nexus
+    // (MAP7) the peak: out past the rim, over the clouds, the side's base and nexus on one rock joined to the mountain
+    // only at its middle castle's back: a broad brick road (three armies abreast) base to nexus, the King's Road on to
+    // the castle. Cliffs all round, nothing else to cross.
+    L.peaks.push({ c, a, r0: laneR, r1: K.home * R, hw: C.peak.hw, discs: [[...P(a, K.home * R), C.peak.base], [...P(a, K.nexus * R), C.peak.nexus]] });
+    // the base: a walled yard on the peak, untakeable, open only toward its nexus
     const [hx, hz] = P(a, K.home * R); L.homes[c] = { c, x: hx, z: hz, a, r: CROWN2.safeR };
     for (let k = 0; k < 6; k++) { const b = a + (k - 2.5) * .5, bx = hx + Math.cos(b) * 7.5, bz = hz + Math.sin(b) * 7.5; box(L, bx, bz, 1.7, 1.4, -b + Math.PI / 2, 3.2, 'cottage').keep = true; }
     { const Y = CROWN2.yard, front = a + Math.PI;
-      ringWall(L, hx, hz, Y.r, .7, Y.h, b => Math.abs(angDiff(b, front)) * Y.r < Y.open / 2 || Math.hypot(hx + Math.cos(b) * Y.r, hz + Math.sin(b) * Y.r) > R - 1.2, { yard: c, keep: true }); }
+      ringWall(L, hx, hz, Y.r, .7, Y.h, b => Math.abs(angDiff(b, front)) * Y.r < Y.open / 2, { yard: c, keep: true }); }
     // the nexus (the Banner Falls), between the base and the middle castle: placed only, its rules come with castles
     { const [x, z] = P(a, K.nexus * R); L.nexus.push({ c, x, z, r: 2.2, a });
       L.obstacles.push({ x, z, r: 1.4, keep: true, nexus: c }); L.blockers.push({ x, z, r: 1.4, h: 6 }); }
-    // the three castles: lane gates both ways and one toward the summit; the middle one also a small back gate to its nexus
+    // the three castles: lane gates both ways and one toward the summit; the middle one also a broad back gate to its peak
     for (const k of [-1, 0, 1]) {
       const ca = a + k * th, [x, z] = P(ca, laneR), tan = ca + Q;
       const h = { x, z, kind: 'castle', name: `Castle ${NAMES[c * 3 + k + 1]}`, r: 8.5, px: x - Math.cos(ca) * 4, pz: z - Math.sin(ca) * 4, towerA0: ca + Math.PI / 4, lane: true, side: c, slot: SLOT[k], mid: k === 0 };
       L.holds.push(h);
-      mountCastle(L, h, k === 0 ? [ca + Math.PI, tan, tan + Math.PI, ca] : [tan, tan + Math.PI, ca + Math.PI], cR, k === 0 ? [0] : [0]);
+      mountCastle(L, h, k === 0 ? [ca + Math.PI, tan, tan + Math.PI, ca] : [tan, tan + Math.PI, ca + Math.PI], cR, k === 0 ? [0, 3] : [0]);
     }
-    // the country wall: behind the castles from the left one to the right, then out to the cliff at both ends,
-    // so the base is reached only through the middle castle
-    { const wr = laneR + cR - 1, cs = L.holds.slice(-3), pts = [], n = Math.ceil(2 * th * wr / 1.1);
-      for (let i = 0; i <= n; i++) { const b = a - th + 2 * th * i / n, x = Math.cos(b) * wr, z = Math.sin(b) * wr;
-        if (cs.some(h => Math.hypot(h.x - x, h.z - z) < cR + .6)) continue;
-        const o = { x, z, r: .9, keep: true, country: c }; L.obstacles.push(o); L.blockers.push({ x, z, r: .9, h: C.wallH }); pts.push([x, z]); }
-      const ends = [-1, 1].map(s => { const b = a + s * th; return [P(b, laneR + cR - .3), P(b, R + 2)]; });
-      for (const [p0, p1] of ends) wallLine(L, p0[0], p0[1], p1[0], p1[1], .9, C.wallH, { keep: true, country: c });
-      L.countryWalls.push({ c, arc: pts, ends }); }
     // the jungle's camps: in each half a buff camp (left: war drum, right: swift) and two gold camps
     for (const s of [-1, 1]) for (const [da, rf, kind] of C.camps) {
       const ca = a + s * da, [x, z] = P(ca, rf * R), cp = { id: L.camps.length, x, z, a: ca, kind, side: c, half: s < 0 ? 'left' : 'right' };
@@ -109,8 +114,4 @@ export function mount26Places(L, box, trees) {
     || L.borders.some(b => distToLine(b.pts, x, z) < rw + 3) || L.river.bridges.some(b => Math.hypot(b.x - x, b.z - z) < b.len + 4) || (L.bushes || []).some(b => Math.hypot(b.x - x, b.z - z) < b.r + 1.5);
   for (let c = 0; c < 4; c++) for (const s of [-1, 1]) for (const [da, d, sz] of half) { const [x, z] = P(mountHomeA(c) + s * da, d); if (!busy(x, z)) trees(x, z, sz); }
   L.jungle = { r0: riverR + rw + 2, r1: ridgeR - 2 };
-  // the border fields and the rim: a few trees and rocks, clear of the bases, the castles, the walls and the lane road
-  const rim = []; for (let i = 0; i < 10; i++) rim.push([rr(-.22, .22), rr(laneR + 14, R - 4), rr(1, 1.5)]);
-  const nearWall = (x, z) => L.countryWalls.some(w => w.arc.some(([px, pz]) => Math.hypot(px - x, pz - z) < 4) || w.ends.some(e => distToLine(e, x, z) < 4));
-  for (let c = 0; c < 4; c++) for (const [da, d, sz] of rim) { const [x, z] = P(mountHomeA(c) + Math.PI / 4 + da, d); if (!busy(x, z) && !nearWall(x, z) && L.homes.every(h => Math.hypot(h.x - x, h.z - z) > 20)) trees(x, z, sz); }
 }

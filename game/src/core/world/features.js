@@ -19,7 +19,7 @@ export const onPond = (x, z) => PONDS.some(p => Math.hypot(x - p.x, z - p.z) < p
 export const onIce = (x, z) => G.map.id === 'frost' && PONDS.some(p => Math.hypot(x - p.x, z - p.z) < p.r);
 // speed multiplier for the ground at (x, z)
 export const ROAD_SPEED = 1.15;
-export function onRoad(x, z) { const R = G.layout && G.layout.roadGrid; if (!R) return false; const cx = Math.round((x + W.R) / 2), cz = Math.round((z + W.R) / 2); return cx >= 0 && cz >= 0 && cx < R.N && cz < R.N && R.g[cz * R.N + cx] === 1; }
+export function onRoad(x, z) { const R = G.layout && G.layout.roadGrid; if (!R) return false; const E = R.E || W.R, cx = Math.round((x + E) / 2), cz = Math.round((z + E) / 2); return cx >= 0 && cz >= 0 && cx < R.N && cz < R.N && R.g[cz * R.N + cx] === 1; }
 export function groundSlow(x, z) {
   const id = G.map.id;
   if (onRoad(x, z) && !(id === 'valley' && fieldAt(x, z))) return ROAD_SPEED; // (the roads are the quick way in)

@@ -1,7 +1,7 @@
 # MAP The new mountain (relaunch step 2)
 
 Model: O · Written by the builder 2026-11-16 from design rev 115 (Map section)
-Status: built (MAP0-MAP6 on `launch26`, not shipped)
+Status: MAP0-MAP7 built on `launch26`, not shipped; MAP8-MAP10 next (Arjun approved the map 16 Nov 07:38)
 
 Arjun's go (16 Nov, 01:04): build all MAP cards overnight, merge each into `launch26`. His open questions
 were not answered; the builder took these defaults (change any of them and the card says where):
@@ -118,3 +118,22 @@ crown2sim/online pass roles off and on; lag 250 ms: response 109 ms, position er
   3 men a camp brings it back to level. Your call.
 - Walk times measured at 6.3 m/s (today's human captain): border 9.5 s, base to Crown 27 s. If champions get
   another speed, CROWN26.R and castleA retune them.
+
+## Round 2 (Arjun's notes, 16 Nov 07:22 and 07:32; map approved 07:38)
+| Card | What | Status |
+|---|---|---|
+| MAP7 | Base on a peak over the clouds: base, brick castle road, nexus, King's Road to the middle castle; no fence | built |
+| MAP8 | Jungle opens only at the King's Road and in the middle of each border field; border rivers end short of the ridge; no outer-castle roads | |
+| MAP9 | Armies cross rivers only on bridges; archers shoot across | |
+| MAP10 | Bushes on the inner ring (between the river and the chasm) | |
+
+## MAP7 (built)
+The mountain's rim is just behind the castles (R 148 m; lane ring 4 m inside it, so every castle's back hangs over
+the cliff). Each side's peak stands out past the rim over the clouds: a 14 m wide road from the middle castle's
+broad back gate, stone (King's Road) to the nexus plaza, brick (the castle road, 12 m) to the base, the base's yard
+paved; cliffs all round; joined to the mountain only through the middle castle. No country walls.
+Code: `peakSd()` in `core/world/map26.js` (how far outside a peak a point is); the cliff falls from the land's edge
+(`terrainMeshY`), the walking grid and `integrate` let men stand only on the peaks past the rim (they slide along
+the edges), the road grid and nav grid reach the peaks (`L.ext`), the ground mesh grows to fit (500 m, 254 cells).
+Paving: `buildPeaks` in `render/mount26.js` (2 draws). r_MAP1: base sealed through the cliffs; border 9.5 s; base
+to Crown 28.2 s (199 m) at 6.3 m/s. r_MAP3 passes; crown2sim/online pass; r_SPLIT re-baselined.
