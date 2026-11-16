@@ -2,7 +2,7 @@
 
 Current work: **friends' playtest fixes (F tickets) and lag (Phase 0)**, then Roles & Combat (design and plan in
 Claude Docs, links in CLAUDE.md). Every builder updates this file as the last step of its ticket. Owner: Opus owner chat.
-Last updated: 2026-11-16 (SPLIT built on `t/SPLIT`). Before: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
+Last updated: 2026-11-16 (MAP cards on `launch26`). Before: 2026-11-16 (SPLIT built on `t/SPLIT`). Before: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
 
 ## Live on main
 - Shipped 14 Nov (Arjun's "ship whatever is ready"; main = roles at 5b30ce7): V1b (private voice relay; Arjun's 3 secret steps still
@@ -126,6 +126,9 @@ Last updated: 2026-11-16 (SPLIT built on `t/SPLIT`). Before: 2026-11-14 (F4 buil
   Code moved, not rewritten. Shared app values in `S` (`app/state.js`); `setPathBudget` in `core/sim/move.js`.
 - `r_SPLIT.mjs` (seeded 60 s battle, page HTML, names, draw calls) identical roles off and on; crown2sim/online pass; lag same within noise.
 - Found: `core/world.js` is 782 lines (over 500), not part of SPLIT.
+
+## MAP The new mountain (16 Nov; card `docs/tickets/MAP.md`). Cards merge into `launch26` one by one
+- MAP0: `core/world.js` split into `core/world/` (8 files, max 262 lines), same 40 names; r_SPLIT identical.
 
 ## CL2 Focus the map (15 Nov; card `docs/tickets/CL2.md`). On branch `t/CL2`, not shipped
 - Only the Crown on the Mountain in the menus (home, lobby, Quick); other maps and their modes hidden behind `?maps=all`
