@@ -2,10 +2,11 @@
 import { STAMINA, CROWN2, PING } from '../config.js';
 import { CROWN, TEAMS, MODES, STATS, AL_LETTER, ORDER_NAMES, UPGRADES, WEAPON_NAMES, WEAPON_CLASS, STREAK, LAST } from '../config.js';
 import { G, isFfa, colorOf, rules, matchTime, SLOT_NAME, isOut, capOf, isC2 } from '../core/state.js';
-import { c2Lake, colorOut, colorScore, colorHuman, squadOf, canRecruit, horseMax, upgradeCost, javMax, execTarget, castleHere, villageHere } from '../core/sim.js';
+import { mountMul, c2Lake, colorOut, colorScore, colorHuman, squadOf, canRecruit, horseMax, upgradeCost, javMax, execTarget, castleHere, villageHere } from '../core/sim.js';
 import { session, isClient } from '../net/session.js';
 import { pingMedian } from '../net/ping.js';
 import { claimed, nameOf, glory, allyNames } from './messages.js';
+let spdT = null; // (SPD1: the speed shown on the Ride button)
 import { tlTick } from './timeline.js';
 import { sfx } from './audio.js';
 
@@ -144,6 +145,7 @@ export function updateHud(lastSnapAt) {
   });
   // Ride: lit while mounted, a countdown badge while the horse rests
   $('mnt').classList.toggle('on', !!(p && p.mounted));
+  { const sp = p ? (p.mounted ? p.spd * mountMul(p) : p.spd) : 0, st = p ? sp.toFixed(1) + ' m/s' : ''; if (spdT !== st) { spdT = st; $('mntS').textContent = st; } } // (SPD1: speed on foot or mounted)
   $('mntT').textContent = !p ? 'Ride' : p.mounted ? 'Walk' : p.summon ? 'Coming' : p.horseCd > 0 ? Math.ceil(p.horseCd) + 's' : 'Ride';
   $('mnt').setAttribute('aria-label', p && p.mounted ? 'Get off your horse' : 'Call your horse');
   $('mnt').classList.toggle('dim', !p || (!p.mounted && (p.horseCd > 0 || p.carrying || p.dead)));

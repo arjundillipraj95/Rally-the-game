@@ -1,5 +1,5 @@
 // Battle rules: orders, morale and rally, recruiting, upgrades, speed, horses.
-import { CROWN2, CROWN, STATS, HUMAN_CAPTAIN, HORSE_HP, HORSE_CD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, CHARGE, EXEC, FORT, HOLD_ATK, MORALE, RALLY, AURA, LAST, ARMOUR } from '../../config.js';
+import { CROWN2, CROWN, STATS, HUMAN_CAPTAIN, CAPTAIN_SPD, HORSE_HP, HORSE_CD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, CHARGE, EXEC, FORT, HOLD_ATK, MORALE, RALLY, AURA, LAST, ARMOUR } from '../../config.js';
 import { G, isEnemy, colorOf, capOf, isC2 } from '../state.js';
 import { groundY, clamp, rnd, angDiff, W, groundSlow } from '../world.js';
 import { fx, say, sound, spark } from './util.js';
@@ -154,9 +154,11 @@ export function push(u, vx, vz, stun) {
 // ---------- horses ----------
 // an archer's reach: on the mountain, by how far above (or below) his mark he stands; elsewhere high ground adds 30%
 export const bowRange = (u, t) => { if (!G.c2) return u.range * (u.y > 2.2 ? 1.3 : 1); const dy = u.y - (t ? t.y ?? groundY(t.x, t.z) : u.y); return u.range * (1 + clamp(dy * .075, -.15, .25)); };
+// (SPD1) a horse's multiple: the same for every captain, a little more with the horse upgrade
+export const mountMul = u => CAPTAIN_SPD.mount * (1 + .05 * lvl(u.ti, 'horse'));
 export function speedOf(u) {
   let s = u.spd;
-  if (u.mounted) s *= 1.8 * (1 + .05 * lvl(u.ti, 'horse')) * (u.charge > 0 ? CHARGE.spd : 1) * (u.human ? .8 + .35 * (u.gallop || 0) : 1); // (a human rider's gallop builds on the straight)
+  if (u.mounted) s *= mountMul(u) * (u.charge > 0 ? CHARGE.spd : 1) * (u.human ? .8 + .35 * (u.gallop || 0) : 1); // (a human rider's gallop builds on the straight)
   if (!u.leader) { if (u.aura) s *= 1 + auraBonus(u.ti) * .5; if (u.shieldwall) s *= .55; }
   if (u.carrying) s *= G.crown ? CROWN.carrierSlow : .7;
   s *= groundSlow(u.x, u.z); // (a ford, a wheat field, an oasis)

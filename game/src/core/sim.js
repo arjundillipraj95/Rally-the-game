@@ -3,7 +3,7 @@
 // The rules live in core/sim/, one file per job (SPLIT); this file passes on the names the rest of the game uses.
 export { say } from './sim/util.js';
 export { newTeams, mkUnit, startMarch, marchStep, chasmFallY, hl, squadOf, homeAt, c2HomePt, adoptBattle, startMatch } from './sim/match.js';
-export { setOrder, routing, gainRally, rallyCry, canRecruit, recruit, horseMax, horseCooldown, auraRange, auraBonus, footTier, archTier, upgradeCost, buyUpgrade, orderOf, canRespawn, bowRange, speedOf, dismount, braced, toggleHorseFor } from './sim/army.js';
+export { setOrder, routing, gainRally, rallyCry, canRecruit, recruit, horseMax, horseCooldown, auraRange, auraBonus, footTier, archTier, upgradeCost, buyUpgrade, orderOf, canRespawn, bowRange, speedOf, mountMul, dismount, braced, toggleHorseFor } from './sim/army.js';
 export { nearestFoe, nearestEnemyCastle, winded, duelFoeOf, sideToward } from './sim/melee.js';
 export { duelOffer, canChallenge, duelTarget, duelAct, challenge, duelBounds, execMark, execTarget } from './sim/duel.js';
 export { strikeAt, rideLock, rideQuality, rideRelease, blockPress, attackHold, attackRelease } from './sim/guard.js';

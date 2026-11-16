@@ -149,7 +149,8 @@ Last updated: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT bu
 - GATE1: gate health bars; the middle castle's back gate now breaks (it had no health: hit forever).
 - Watch: start view draw calls rose to Low 194 / High 204 (CAMP1: 179 / 192) with the wider map; trim later.
 - AI1 done: a computer captain at the glacier/chest puts javelins away for his sword; if his blows do nothing for 6 s he turns guard for 20 s and hunts the nearest enemy captain (r_AI1; 0 stalls in 11 runs).
-- Next: SPD1, AI2, NET1, HUD1, PERF1; then castles (nexus breakable: Arjun 08:55).
+- SPD1 done: every captain (yours and the computer's) walks 6.2 m/s, x1.8 mounted (11.2); CAPTAIN_SPD in config; the Ride button shows the speed (r_SPD1). Walk times hold (9.7 s border, 29.8 s base to Crown).
+- Next: AI2, NET1, HUD1, PERF1; then castles (nexus breakable: Arjun 08:55).
 
 ## CL2 Focus the map (15 Nov; card `docs/tickets/CL2.md`). On branch `t/CL2`, not shipped
 - Only the Crown on the Mountain in the menus (home, lobby, Quick); other maps and their modes hidden behind `?maps=all`
