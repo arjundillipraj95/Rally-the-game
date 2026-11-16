@@ -20,7 +20,7 @@ const r = await page.evaluate(async () => {
   place(mine, b.x + 1, b.z + .5); out.sameBush = look();
   place(mine, b.x + b.r + 3, b.z); foe.atkT = G.T; out.struck = look();
   foe.atkT = -99; place(foe, b.x + b.r + 6, b.z + b.r + 6); out.outside = look();
-  let draws = 0; window.__fb.scene.traverse(o => { if (o.isInstancedMesh && o.geometry.type === 'IcosahedronGeometry' && o.material.color.getHex() === 0x3f6b2a) draws++; }); out.draws = draws;
+  let draws = 0; window.__fb.scene.traverse(o => { if (o.isInstancedMesh && o.material.vertexColors && o.material.side === 2 && o.count > 1000) draws++; }); out.draws = draws;
   return out; });
 ok(r.n === 48, `48 bushes: 40 in the jungle, 8 on the inner ring (${r.n})`);
 ok(r.inJungle && r.walk, 'every bush in the jungle or on the inner ring, and walkable');

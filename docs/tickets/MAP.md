@@ -1,7 +1,7 @@
 # MAP The new mountain (relaunch step 2)
 
 Model: O · Written by the builder 2026-11-16 from design rev 115 (Map section)
-Status: MAP0-MAP13 built on `launch26`, not shipped; MAP8-MAP10 next (Arjun approved the map 16 Nov 07:38)
+Status: MAP0-MAP14 built on `launch26`, not shipped; MAP8-MAP10 next (Arjun approved the map 16 Nov 07:38)
 
 Arjun's go (16 Nov, 01:04): build all MAP cards overnight, merge each into `launch26`. His open questions
 were not answered; the builder took these defaults (change any of them and the card says where):
@@ -185,5 +185,11 @@ border river winds (3.5 m) from a spring pool by the border field's opening down
 both banks and round the pools (one instanced draw) and mossy stones at the water's edge (one draw). Pools are deep
 water like the rivers (`bakeRiver` takes `V.pools`). Trees and bushes keep off the bends and pools.
 r_MAP9 also checks the pools; r_MAP2 the pools in the river mesh and the nexus crystals. Start view draw calls
-High 192 -> 194. r_SPLIT now runs the battle's own code (src/core/) on its own random stream and everything else
+High 192 -> 206 (MAP12's wider ground in view, reeds and stones). r_SPLIT now runs the battle's own code (src/core/) on its own random stream and everything else
 (three.js, drawing, sounds, menus, late model loads) on another: 3 of 3 identical; the drift is gone.
+
+## MAP14 (built)
+Bushes look like League's: patches of tall grass about shoulder high, tufts packed over each bush's circle (shorter at
+the edge, so the patch reads as one shape), dark at the foot and light at the tips, swaying in the wind (a time
+uniform the mountain's update moves). One instanced draw for all 48 bushes. Rules unchanged (r_MAP5 passes; r_SPLIT
+identical). Start view draw calls Low 194, High 204.

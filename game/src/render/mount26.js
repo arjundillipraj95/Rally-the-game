@@ -33,15 +33,18 @@ export function buildMount26(grp, L) {
       const c = new THREE.Mesh(crystalG, glass); c.position.set(n.x, y + 4.2, n.z); c.rotation.y = n.a; c.castShadow = true; grp.add(c); flags.push(c);
       for (let k = 0; k < 3; k++) { const b = n.a + k * 2.09 + .5, s = new THREE.Mesh(shardG, glass); s.position.set(n.x + Math.cos(b) * 1.35, y + 2.1, n.z + Math.sin(b) * 1.35); s.rotation.set(Math.cos(b) * .35, b, Math.sin(b) * .35); s.castShadow = true; grp.add(s); flags.push(s); } }
     merged(grp, parts);
-    // (MAP5) the bushes: low leafy clumps filling each bush's circle, every one of them in one draw
-    let bushes = null;
-    if (L.bushes && L.bushes.length) { const blobs = [];
-      for (const b of L.bushes) { const n = Math.round(b.r * 1.9); for (let k = 0; k < n; k++) { const a = k * 2.399 + b.id, d = Math.sqrt((k + .5) / n) * b.r * .85, x = b.x + Math.cos(a) * d, z = b.z + Math.sin(a) * d; blobs.push([x, z, 1 + ((k * 7 + b.id) % 5) * .12]); } }
-      const geo = new THREE.IcosahedronGeometry(1.15, 0), mat = lam(0x3f6b2a), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), v = new THREE.Vector3(), e = new THREE.Euler();
-      bushes = new THREE.InstancedMesh(geo, mat, blobs.length);
-      blobs.forEach(([x, z, k], i) => { e.set(0, i * 1.3, 0); q.setFromEuler(e); m4.compose(v.set(x, terrainMeshY(x, z) + .55 * k, z), q, s.set(1.25 * k, .85 * k, 1.25 * k)); bushes.setMatrixAt(i, m4); });
-      bushes.castShadow = true; bushes.receiveShadow = true; grp.add(bushes); }
-    return { flags, bushes, peaks: buildPeaks(grp, L, stone), banks: buildBanks(grp, L) }; }
+    // (MAP14) the bushes, as in League: patches of tall grass, shoulder high, swaying in the wind; tufts packed over
+    // each bush's circle, shorter at its edge so the patch reads as one shape. One instanced draw for every bush.
+    let bushes = null, sway = null;
+    if (L.bushes && L.bushes.length) { const tufts = [];
+      for (const b of L.bushes) { const step = .95; for (let gx = -b.r; gx <= b.r; gx += step) for (let gz = -b.r; gz <= b.r; gz += step) {
+        const jx = gx + Math.sin(gz * 12.9 + b.id) * .3, jz = gz + Math.cos(gx * 7.7 + b.id) * .3, d = Math.hypot(jx, jz); if (d > b.r) continue;
+        tufts.push([b.x + jx, b.z + jz, d > b.r - 1.1 ? .72 : .95 + Math.sin(jx * 3.1 + jz * 2.3) * .12]); } }
+      bushes = new THREE.InstancedMesh(tuftGeo(), tuftMat(s => { sway = s; }), tufts.length);
+      const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3();
+      tufts.forEach(([x, z, k], i) => { e.set(0, i * 2.39, 0); q.setFromEuler(e); m4.compose(v.set(x, terrainMeshY(x, z) - .05, z), q, sc.set(k, k, k)); bushes.setMatrixAt(i, m4); });
+      bushes.receiveShadow = true; bushes.castShadow = true; grp.add(bushes); }
+    return { flags, bushes, sway, peaks: buildPeaks(grp, L, stone), banks: buildBanks(grp, L) }; }
 }
 // (MAP13) the rivers' banks: clumps of reeds along both banks and round the spring pools (one instanced draw), and a
 // scatter of mossy stones at the water's edge (one draw); none on the bridges
@@ -122,3 +125,27 @@ function buildPeaks(grp, L, stoneM) {
 }
 // the torch posts on the new mountain: one draw for all of them when batching (there are more bridges to light)
 export function mergePosts(grp, posts) { if (!batchOn()) return; const one = mergeInto(posts, grp); for (const p of posts) grp.remove(p); for (const m of one) grp.add(m); }
+
+// (MAP14) one tuft of tall grass: six blades leaning out from the root, dark at the foot and light at the tip
+function tuftGeo() {
+  const pos = [], col = [], dark = new THREE.Color(0x1f4a1a), light = new THREE.Color(0x74b83e);
+  for (let k = 0; k < 6; k++) { const a = k * 1.05 + (k % 2) * .4, h = 1.75 + (k % 3) * .22, w = .2, lean = .35 + (k % 2) * .15, cx = Math.cos(a), cz = Math.sin(a);
+    const b1 = [-cz * w, 0, cx * w], b2 = [cz * w, 0, -cx * w], tip = [cx * lean, h, cz * lean];
+    for (const p of [b1, b2, tip]) pos.push(...p);
+    col.push(dark.r, dark.g, dark.b, dark.r, dark.g, dark.b, light.r, light.g, light.b); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.computeVertexNormals(); return g;
+}
+// the grass's material: its tips sway with the wind (a time uniform the mountain's update moves)
+function tuftMat(got) {
+  const m = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+  m.onBeforeCompile = sh => { sh.uniforms.uSway = { value: 0 }; got(sh.uniforms.uSway);
+    sh.vertexShader = 'uniform float uSway;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      #ifdef USE_INSTANCING
+      float ph = instanceMatrix[3].x * .21 + instanceMatrix[3].z * .17;
+      #else
+      float ph = 0.;
+      #endif
+      float k = position.y * position.y * .07;
+      transformed.x += sin(uSway * 1.7 + ph) * k; transformed.z += cos(uSway * 1.3 + ph * 1.3) * k * .7;`); };
+  return m;
+}

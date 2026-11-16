@@ -324,6 +324,7 @@ export function updateMount(dt) {
   if (M && M.rim) updateRim(M.rim, dt);
   if (!M || !G.c2) return;
   M.t += dt; const K = G.c2, T = G.T;
+  if (M.m26 && M.m26.sway) M.m26.sway.value = M.t; // (MAP14: the tall grass sways)
   for (const g of M.guards) { // (F4: the banner flies while one man of its post lives)
     const [nf, na] = c2Garrison(g.b);
     g.banner.userData.on = nf + na > 0; g.banner.visible = abShow(false) && g.banner.userData.on; g.flap.rotation.y = Math.sin(M.t * 1.6 + g.b.x) * .3;
