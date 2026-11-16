@@ -7,7 +7,7 @@
 import { CROWN2, CROWN26 } from '../../config.js';
 import { W } from './size.js';
 import { mulberry, angDiff, distToLine, P } from './util.js';
-import { ringWall, ridge } from './build.js';
+import { ringWall, ridge, wallLine } from './build.js';
 import { mountHomeA, mountCastle } from './mount.js';
 
 const NAMES = ['Greywater', 'Highmoor', 'Ravenhold', 'Thornwall', 'Oakhelm', 'Stonebridge', 'Redcliff', 'Wolfden', 'Ashford', 'Kingsmere', 'Frostgate', 'Emberfell'];
@@ -59,6 +59,10 @@ export function mount26Places(L, box, trees) {
       L.holds.push(h);
       mountCastle(L, h, k === 0 ? [ca + Math.PI, tan, tan + Math.PI, ca] : [tan, tan + Math.PI, ca + Math.PI], cR, k === 0 ? [0, 3] : [0]);
     }
+    // (MAP12) the middle castle's curtain walls: from its sides, along the peak road's edges, out over the cliff, so the
+    // peak is reached only through the castle (the rim is 15 m behind the castles; there is ground all round them)
+    { const ux = Math.cos(a), uz = Math.sin(a), lat = C.peak.hw + .5, t0 = laneR + Math.sqrt(cR * cR - lat * lat) - .4, t1 = R + 3;
+      for (const s of [-1, 1]) { const px = -uz * s * lat, pz = ux * s * lat; wallLine(L, ux * t0 + px, uz * t0 + pz, ux * t1 + px, uz * t1 + pz, .9, C.wallH, { keep: true, country: c, curtain: true }); } }
     // the jungle's camps: in each half a buff camp (left: war drum, right: swift) and two gold camps
     for (const s of [-1, 1]) for (const [da, rf, kind] of C.camps) {
       const ca = a + s * da, [x, z] = P(ca, rf * R), cp = { id: L.camps.length, x, z, a: ca, kind, side: c, half: s < 0 ? 'left' : 'right' };

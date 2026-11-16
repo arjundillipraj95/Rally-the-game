@@ -1,7 +1,7 @@
 # MAP The new mountain (relaunch step 2)
 
 Model: O · Written by the builder 2026-11-16 from design rev 115 (Map section)
-Status: MAP0-MAP11 built on `launch26`, not shipped; MAP8-MAP10 next (Arjun approved the map 16 Nov 07:38)
+Status: MAP0-MAP12 built on `launch26`, not shipped; MAP8-MAP10 next (Arjun approved the map 16 Nov 07:38)
 
 Arjun's go (16 Nov, 01:04): build all MAP cards overnight, merge each into `launch26`. His open questions
 were not answered; the builder took these defaults (change any of them and the card says where):
@@ -169,3 +169,12 @@ it comes with castles); castle names show within 70 m (or while a castle is foug
 scenery or a model landing mid-battle no longer moves the seeded battle (the drift noted in MAP6/MAP10 is gone:
 identical 3 of 3, and identical with the polish taken out). r_MAP2 updated for the peaks. Start view draw calls
 Low 181, High 192 (CAMP1: 179, 192).
+
+## Round 3 (Arjun 10:04, go 10:12): MAP12 castles off the edge, MAP13 natural rivers, MAP14 League-style bushes
+## MAP12 (built)
+The rim moved out to 15 m past the castles' walls (R 170; every place keeps its metres: lane 144, ridge 118, river
+82; the peak's nexus 179 and base 208, out past the rim). The middle castle's curtain walls run from its sides along
+the peak road's edges out over the cliff, so the peak is still reached only through the castle; no fence elsewhere.
+r_MAP1: castles have 15 m of ground behind their walls; base sealed; border 9.4 s; base to Crown 29.3 s (207 m).
+r_MAP3, crown2sim/online pass; r_SPLIT re-baselined (one roles-on run drifted at 2 s, 2 reruns identical: some async
+load still draws on Math.random now and then).
