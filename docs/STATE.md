@@ -155,7 +155,8 @@ Last updated: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT bu
   a 160-soldier crowd 13 -> ~8 fps CPU, 615 -> 800 draws. Cost: ~70 men within 14 m as full models. Recommended: full models
   for the nearest ~24 only, plus the 320-man cap keeping the nearest (348 to draw in a crowd today). Arjun to pick.
 - NET1 done: a man in a bush who just struck is seen on joined phones too (host sends bit 30 of the unit flags; r_NET1, online). Lag 250 ms: response 113 vs 107 ms, position error .07 vs .10 m (noise).
-- Next: HUD1, PERF1c (Arjun's pick); then castles (nexus breakable: Arjun 08:55).
+- HUD1 done: your side's camp buff shows under the phase (War drum +15% damage / Swift +15% speed, seconds left, in the banner's colour); a buff camp's mini captain stands captain-sized with his buff's name over his bar (r_HUD1).
+- Next: PERF1c (Arjun's pick); then castles (nexus breakable: Arjun 08:55).
 
 ## CL2 Focus the map (15 Nov; card `docs/tickets/CL2.md`). On branch `t/CL2`, not shipped
 - Only the Crown on the Mountain in the menus (home, lobby, Quick); other maps and their modes hidden behind `?maps=all`

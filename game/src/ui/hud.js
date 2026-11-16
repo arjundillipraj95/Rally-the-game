@@ -1,5 +1,5 @@
 // Scoreboard, clock, health, gold, squad count and button labels.
-import { STAMINA, CROWN2, PING } from '../config.js';
+import { STAMINA, CROWN2, CROWN26, PING } from '../config.js';
 import { CROWN, TEAMS, MODES, STATS, AL_LETTER, ORDER_NAMES, UPGRADES, WEAPON_NAMES, WEAPON_CLASS, STREAK, LAST } from '../config.js';
 import { G, isFfa, colorOf, rules, matchTime, SLOT_NAME, isOut, capOf, isC2 } from '../core/state.js';
 import { mountMul, c2Lake, colorOut, colorScore, colorHuman, squadOf, canRecruit, horseMax, upgradeCost, javMax, execTarget, castleHere, villageHere } from '../core/sim.js';
@@ -115,6 +115,11 @@ export function updateHud(lastSnapAt) {
       if (box && box.hidden === on) box.hidden = !on;
       if (box && on) { box.classList.toggle('chest', !!ch); const lbl = ch ? 'The War Chest' : 'The Glacier'; if (box.firstChild.textContent !== lbl) box.firstChild.textContent = lbl;
         const n = `${Math.ceil(b.hp)} / ${b.max}`; $('glacierBar').style.transform = `scaleX(${b.hp / b.max})`; if ($('glacierN').textContent !== n) { $('glacierN').textContent = n; box.classList.remove('hit'); void box.offsetWidth; box.classList.add('hit'); } box.classList.toggle('crack', !ch && T >= C.crack); } }
+    { // (HUD1) your side's buff from a camp's mini captain, with its seconds left
+      const t = G.teams[G.myTi], b = t && t.buff && t.buff.until > T ? t.buff : null, B = CROWN26.buffs, el = $('buffTag');
+      const txt = !b ? '' : b.kind === 'drum' ? `War drum · +${Math.round((B.drum.dmg - 1) * 100)}% damage · ${Math.ceil(b.until - T)}s` : `Swift · +${Math.round((B.swift.spd - 1) * 100)}% speed · ${Math.ceil(b.until - T)}s`;
+      if (el && el.textContent !== txt) { el.textContent = txt; el.hidden = !b; el.className = b ? b.kind : ''; }
+    }
     const el = $('phaseTag'); if (el && el.textContent !== ph) { el.textContent = ph; el.classList.toggle('hot', K && (K.phase === 'open' || K.phase === 'night')); }
   } else if ($('phaseTag').textContent) $('phaseTag').textContent = '';
   if (!isC2() && $('glacier') && !$('glacier').hidden) $('glacier').hidden = true;

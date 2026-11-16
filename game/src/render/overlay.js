@@ -102,14 +102,18 @@ export function drawOverlay(opts) {
   }
   if (G.state === 'play') {
     for (const u of G.units) {
-      if (u.dead || u.fog || u === player || (u.hp >= u.max - .5 && !u.leader)) continue;
+      if (u.dead || u.fog || u === player || (u.hp >= u.max - .5 && !u.leader && !u.boss)) continue;
       const d = Math.hypot(u.x - camera.position.x, u.z - camera.position.z); if (d > 34) continue;
       const [sx, sy, ok] = proj(u.x, u.y + (u.leader ? 3.2 : 2.8) + (u.mounted ? 1.2 : 0), u.z); if (!ok) continue;
-      const w = u.leader ? 40 : 26;
+      const w = u.leader || u.boss ? 40 : 26;
       ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, sy, w, 4);
       ctx.fillStyle = u.neutral ? NEUTRAL.css : TEAMS[colorOf(u.ti)].css; ctx.fillRect(sx - w / 2, sy, w * Math.max(0, u.hp / u.max), 4);
       if (u.leader && (u.st ?? STAMINA.max) < STAMINA.max - 1) { ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, sy + 5, w, 2.5); ctx.fillStyle = u.st < STAMINA.low ? '#e0703a' : '#f2dc8a'; ctx.fillRect(sx - w / 2, sy + 5, w * Math.max(0, u.st) / STAMINA.max, 2.5); } // (stamina, when it's not full)
       if (u.leader && u.armour > .5) { ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, sy - 4, w, 3); ctx.fillStyle = '#c9d2dc'; ctx.fillRect(sx - w / 2, sy - 4, w * Math.min(1, u.armour / ARMOUR.hp), 3); } // (armour: a steel bar over the health)
+      if (u.boss && u.post && u.post.buff) { // (HUD1: a buff camp's mini captain: his buff's name over his bar, in its colour)
+        ctx.font = '800 11px "Barlow Semi Condensed", sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.65)';
+        const t = u.post.buff === 'drum' ? 'WAR DRUM' : 'SWIFT'; ctx.strokeText(t, sx, sy - 5); ctx.fillStyle = u.post.buff === 'drum' ? '#ff6a5c' : '#7cc4ff'; ctx.fillText(t, sx, sy - 5);
+      }
       if (u.leader && u.ti !== G.myTi && opts.nickFor) { // (every captain's name over his head)
         const nick = opts.nickFor(u.ti);
         if (nick) { ctx.font = '800 12px "Barlow Semi Condensed", sans-serif'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.strokeText(nick, sx, sy - 6); ctx.fillStyle = '#fff'; ctx.fillText(nick, sx, sy - 6);

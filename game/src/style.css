@@ -525,6 +525,12 @@
 /* the Crown's phase under the clock */
 #phaseTag{position:absolute;left:50%;top:90px;transform:translateX(-50%);font:800 11px var(--body);letter-spacing:.08em;text-transform:uppercase;color:#fff;background:rgba(20,19,18,.6);padding:3px 10px;border-radius:999px;pointer-events:none;white-space:nowrap;}
 #phaseTag:empty{display:none;}
+/* (HUD1) your side's camp buff, under the phase: the war drum's red, swift's blue (as their banners) */
+#buffTag{position:absolute;left:50%;top:114px;transform:translateX(-50%);font:800 10px var(--body);letter-spacing:.06em;text-transform:uppercase;color:#fff;padding:2px 9px;border-radius:999px;pointer-events:none;white-space:nowrap;box-shadow:0 1px 3px #0008;}
+#buffTag.drum{background:#b3261e;} #buffTag.swift{background:#3d8fd0;}
+@media (max-height:430px){ #buffTag{top:86px;font-size:9px;} }
+body:has(#glacier:not([hidden])) #buffTag{top:120px;}
+@media (max-height:430px){ body:has(#glacier:not([hidden])) #buffTag{top:98px;} }
 #phaseTag.hot{color:#141312;background:var(--gold);}
 @media (max-height:430px){ #phaseTag{top:66px;font-size:10px;} }
 

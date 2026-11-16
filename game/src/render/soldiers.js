@@ -744,7 +744,7 @@ const flashC = new THREE.Color(), WHITE = new THREE.Color(1, 1, 1), wearC = new 
 const tmp = new THREE.Matrix4(), slashM = new THREE.Matrix4(), out = new THREE.Matrix4(), eu = new THREE.Euler(), qq = new THREE.Quaternion(), vp = new THREE.Vector3(), vs = new THREE.Vector3(), tipV = new THREE.Vector3(), baseV = new THREE.Vector3();
 function local(x, y, z, rx, ry, rz) { eu.set(rx, ry, rz); qq.setFromEuler(eu); return tmp.compose(vp.set(x, y, z), qq, vs.set(1, 1, 1)); }
 function bones(u, a) {
-  const s = u.kind === 'captain' ? 1.18 : 1;
+  const s = u.kind === 'captain' || u.boss ? 1.18 : 1; // (HUD1: a buff camp's mini captain stands as tall as a captain)
   eu.set(0, u.face + a.yaw, 0); qq.setFromEuler(eu);
   M.root.compose(vp.set(u.x, u.y + a.lift - a.sink, u.z), qq, vs.set(s, s, s));
   M.body.multiplyMatrices(M.root, local(0, a.bodyY, 0, a.bodyRX, a.bodyRY || 0, a.bodyRZ));
