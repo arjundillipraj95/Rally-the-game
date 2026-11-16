@@ -1,7 +1,7 @@
 # MAP The new mountain (relaunch step 2)
 
 Model: O · Written by the builder 2026-11-16 from design rev 115 (Map section)
-Status: MAP0-MAP12 built on `launch26`, not shipped; MAP8-MAP10 next (Arjun approved the map 16 Nov 07:38)
+Status: MAP0-MAP13 built on `launch26`, not shipped; MAP8-MAP10 next (Arjun approved the map 16 Nov 07:38)
 
 Arjun's go (16 Nov, 01:04): build all MAP cards overnight, merge each into `launch26`. His open questions
 were not answered; the builder took these defaults (change any of them and the card says where):
@@ -178,3 +178,12 @@ the peak road's edges out over the cliff, so the peak is still reached only thro
 r_MAP1: castles have 15 m of ground behind their walls; base sealed; border 9.4 s; base to Crown 29.3 s (207 m).
 r_MAP3, crown2sim/online pass; r_SPLIT re-baselined (one roles-on run drifted at 2 s, 2 reruns identical: some async
 load still draws on Math.random now and then).
+
+## MAP13 (built)
+Rivers look natural: the ring bends gently between its bridges (up to 3 m, outward, straight at every bridge); each
+border river winds (3.5 m) from a spring pool by the border field's opening down to the ring; reed clumps along
+both banks and round the pools (one instanced draw) and mossy stones at the water's edge (one draw). Pools are deep
+water like the rivers (`bakeRiver` takes `V.pools`). Trees and bushes keep off the bends and pools.
+r_MAP9 also checks the pools; r_MAP2 the pools in the river mesh and the nexus crystals. Start view draw calls
+High 192 -> 194. r_SPLIT now runs the battle's own code (src/core/) on its own random stream and everything else
+(three.js, drawing, sounds, menus, late model loads) on another: 3 of 3 identical; the drift is gone.

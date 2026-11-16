@@ -341,7 +341,7 @@ export const grassTime = () => grassU.time.value;
 // The Crown's river: a ribbon of water along its course a little below the banks, a plank bridge at
 // each bridge (rails either side), and a line of stepping stones across the ford.
 // distance to the nearest river (MAP2: the new mountain has border rivers as well as the ring)
-const riverDist = (V, x, z) => V.lines ? Math.min(distToLine(V.pts, x, z), ...V.lines.map(p => distToLine(p, x, z))) : distToLine(V.pts, x, z);
+const riverDist = (V, x, z) => V.lines ? Math.min(distToLine(V.pts, x, z), ...V.lines.map(p => distToLine(p, x, z)), ...(V.pools || []).map(q => Math.max(0, Math.hypot(x - q.x, z - q.z) - (q.r - V.w)))) : distToLine(V.pts, x, z);
 function buildCrownRiver(world, V) {
   const pos = [], idx = [], wd = V.w + 1;
   for (const P of [V.pts, ...(V.lines || [])]) { const b0 = pos.length / 3; // (MAP2: the border rivers too, in the same draw)
@@ -349,10 +349,15 @@ function buildCrownRiver(world, V) {
     const p = P[i], q = P[Math.min(P.length - 1, i + 1)], o = P[Math.max(0, i - 1)];
     const dx = q[0] - o[0], dz = q[1] - o[1], d = Math.hypot(dx, dz) || 1, nx = -dz / d, nz = dx / d;
     const y = groundY(p[0] + nx * (V.w + 2.5), p[1] + nz * (V.w + 2.5)) - .4; // (a little below the bank)
-    const k = P === V.pts ? wd : wd * [.25, .7, .92][Math.min(2, P.length - 1 - i)]; // (MAP8: a border river narrows to its end)
+    const k = wd; // (MAP13: a border river runs into its spring pool)
     pos.push(p[0] + nx * k, y, p[1] + nz * k, p[0] - nx * k, y, p[1] - nz * k);
     if (i) { const b = b0 + (i - 1) * 2; idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2); }
   } }
+  for (const q of V.pools || []) { // (MAP13: the spring pools, in the same draw)
+    const b0 = pos.length / 3, y = groundY(q.x + q.r + 2.5, q.z) - .4, segs = 20, r = q.r + 1; pos.push(q.x, y, q.z);
+    for (let s = 0; s < segs; s++) { const a = s / segs * Math.PI * 2, w = r * (1 + .12 * Math.sin(a * 3 + q.x)); pos.push(q.x + Math.cos(a) * w, y, q.z + Math.sin(a) * w); }
+    for (let s = 0; s < segs; s++) idx.push(b0, b0 + 1 + (s + 1) % segs, b0 + 1 + s);
+  }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
   const water = new THREE.Mesh(g, waterMaterial({ opacity: .86, side: THREE.DoubleSide }));
   water.receiveShadow = true; world.add(water);

@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { batchOn, mergeInto } from './batch.js';
 import { TEAMS, CROWN2, CROWN26 } from '../config.js';
-import { W } from '../core/world.js';
+import { W, mulberry } from '../core/world.js';
 import { terrainMeshY } from '../core/world.js';
 import { stoneTex, woodTex } from './look.js';
 
@@ -41,8 +41,33 @@ export function buildMount26(grp, L) {
       bushes = new THREE.InstancedMesh(geo, mat, blobs.length);
       blobs.forEach(([x, z, k], i) => { e.set(0, i * 1.3, 0); q.setFromEuler(e); m4.compose(v.set(x, terrainMeshY(x, z) + .55 * k, z), q, s.set(1.25 * k, .85 * k, 1.25 * k)); bushes.setMatrixAt(i, m4); });
       bushes.castShadow = true; bushes.receiveShadow = true; grp.add(bushes); }
-    return { flags, bushes, peaks: buildPeaks(grp, L, stone) }; }
+    return { flags, bushes, peaks: buildPeaks(grp, L, stone), banks: buildBanks(grp, L) }; }
 }
+// (MAP13) the rivers' banks: clumps of reeds along both banks and round the spring pools (one instanced draw), and a
+// scatter of mossy stones at the water's edge (one draw); none on the bridges
+function buildBanks(grp, L) {
+  const V = L.river; if (!V) return null;
+  const spots = [], stones = [], R = mulberry(4413), off = (V.w + 1.1);
+  const clear = (x, z) => !V.bridges.some(b => Math.hypot(b.x - x, b.z - z) < b.len + 2.5);
+  for (const P of [V.pts, ...(V.lines || [])]) for (let i = 0; i < P.length - 1; i++) {
+    const [ax, az] = P[i], [bx, bz] = P[i + 1], d = Math.hypot(bx - ax, bz - az), nx = -(bz - az) / d, nz = (bx - ax) / d;
+    for (let t = 0; t < d; t += 2.2) for (const s of [-1, 1]) { if (R() < .35) continue; const o = off + R() * 1.2, x = ax + (bx - ax) * t / d + nx * o * s, z = az + (bz - az) * t / d + nz * o * s; if (!clear(x, z)) continue;
+      spots.push([x, z, .8 + R() * .6]); if (R() < .12) stones.push([x + nx * s * .6, z + nz * s * .6, .5 + R() * .7]); }
+  }
+  for (const q of V.pools || []) for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2 + R() * .3, o = q.r + 1.3 + R(); spots.push([q.x + Math.cos(a) * o, q.z + Math.sin(a) * o, .9 + R() * .6]); if (k % 4 === 0) stones.push([q.x + Math.cos(a + .2) * (o - .3), q.z + Math.sin(a + .2) * (o - .3), .7 + R() * .6]); }
+  // a reed clump: five thin blades leaning out from one root
+  const blade = new THREE.ConeGeometry(.07, 1.7, 3, 1).translate(0, .85, 0), parts = [], m4 = new THREE.Matrix4();
+  for (let k = 0; k < 5; k++) { const a = k * 1.26, g = blade.clone(); m4.makeRotationFromEuler(new THREE.Euler(Math.sin(a) * .22, 0, Math.cos(a) * .22)); m4.setPosition(Math.cos(a) * .18, 0, Math.sin(a) * .18); g.applyMatrix4(m4); parts.push(g); }
+  const clump = mergeGeos(parts), reeds = new THREE.InstancedMesh(clump, lam(0x7d8f45), spots.length), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3();
+  spots.forEach(([x, z, s], i) => { e.set(0, i * 2.4, 0); q.setFromEuler(e); m4.compose(v.set(x, terrainMeshY(x, z) - .05, z), q, sc.set(s, s * (.8 + (i % 5) * .1), s)); reeds.setMatrixAt(i, m4); });
+  reeds.receiveShadow = true; grp.add(reeds);
+  const rockG = new THREE.DodecahedronGeometry(.6, 0), rockM = lam(0x8a8a7a), rocks = stones.map(([x, z, s], i) => { const m = new THREE.Mesh(rockG, rockM); m.position.set(x, terrainMeshY(x, z) + .1, z); m.scale.set(s, s * .6, s * 1.1); m.rotation.y = i; m.castShadow = m.receiveShadow = true; return m; });
+  merged(grp, rocks);
+  return { reeds: spots.length, rocks: stones.length };
+}
+// (one geometry from several, positions and normals only)
+function mergeGeos(gs) { const pos = [], nor = []; for (const g of gs) { const n = g.toNonIndexed(); pos.push(...n.attributes.position.array); nor.push(...n.attributes.normal.array); }
+  const out = new THREE.BufferGeometry(); out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); return out; }
 // (MAP7) the peaks' paving: the King's Road in stone from the middle castle's back gate to the nexus, a stone plaza
 // round the nexus, the broad brick castle road on to the base, the base's yard paved; low kerbs along the road's edges.
 // It follows the ground a hand above it. Two draws for all four peaks (stone, brick).

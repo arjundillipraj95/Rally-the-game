@@ -41,6 +41,10 @@ export function bakeRiver(L) {
       const d = Math.hypot(x - ax - dx * t, z - az - dz * t), k = j * n + i; if (d < dist[k]) dist[k] = d;
     }
   }
+  for (const q of V.pools || []) { // (MAP13: a border river's spring pool: deep within its radius, banks round it)
+    const i0 = Math.max(0, Math.floor((q.x - q.r - reach + half) / cs)), i1 = Math.min(n - 1, Math.ceil((q.x + q.r + reach + half) / cs)), j0 = Math.max(0, Math.floor((q.z - q.r - reach + half) / cs)), j1 = Math.min(n - 1, Math.ceil((q.z + q.r + reach + half) / cs));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const x = -half + i * cs, z = -half + j * cs, d = Math.max(0, Math.hypot(x - q.x, z - q.z) - (q.r - V.w)), k = j * n + i; if (d < dist[k]) dist[k] = d; }
+  }
   for (let k = 0; k < n * n; k++) {
     const d = dist[k]; if (d >= reach) continue;
     const x = -half + (k % n) * cs, z = -half + Math.floor(k / n) * cs;

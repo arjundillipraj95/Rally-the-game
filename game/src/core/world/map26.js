@@ -81,12 +81,20 @@ export function mount26Places(L, box, trees) {
   // the rivers: the ring toward the summit (bridged at every King's Road and on each side of it) and one down each
   // border from the ring, ending short of the ridge (MAP8): past its end the two jungles meet below the border field's
   // opening, so both sides can come out to flank. Deep: only the bridges cross.
-  { const bridges = [], lines = [];
+  { const bridges = [], lines = [], pools = [], Rv = C.river;
     for (let c = 0; c < 4; c++) { const a = mountHomeA(c);
       for (const da of [0, -C.bridgeA, C.bridgeA]) { const ba = a + da, [x, z] = P(ba, riverR); bridges.push({ x, z, a: ba, hw: CROWN2.bridgeHw, len: rw + 2.5, big: false }); }
-      const b = a + Math.PI / 4, pts = []; for (let k = 0; k <= 8; k++) pts.push(P(b, riverR + (ridgeR - C.border.short - riverR) * k / 8)); lines.push(pts);
+      // (MAP13) a border river winds down from its spring pool by the border field's opening to the ring
+      const b = a + Math.PI / 4, re = ridgeR - C.border.short, n = 14, ph = c * 1.7, pts = [];
+      for (let k = 0; k <= n; k++) { const t = k / n, d = riverR + (re - riverR) * t, off = Rv.wind * Math.sin(t * Math.PI * 1.6 + ph) * Math.sin(t * Math.PI) * (k === n ? 0 : 1);
+        pts.push([Math.cos(b) * d - Math.sin(b) * off, Math.sin(b) * d + Math.cos(b) * off]); }
+      lines.push(pts); const [px, pz] = pts[n]; pools.push({ x: px, z: pz, r: Rv.pool });
       L.borders.push({ a: b, pts }); }
-    L.river = { pts: ring(riverR), lines, w: rw, bridges, fords: [], ring: true }; }
+    // (MAP13) the ring bends gently between its bridges (outward only, so it stays on the jungle's tier), straight at each bridge
+    const ba = bridges.map(q => q.a), rpts = [];
+    for (let k = 0; k <= 192; k++) { const t = k / 192 * Math.PI * 2, nb = Math.min(...ba.map(q => Math.abs(angDiff(t, q)))) * riverR, f = Math.min(1, Math.max(0, (nb - 4) / 10));
+      rpts.push(P(t, riverR + Rv.bend * f * (.5 + .5 * Math.sin(t * 7 + 1.3)))); }
+    L.river = { pts: rpts, lines, pools, w: rw, bridges, fords: [], ring: true }; }
   // the chasm round the summit: impassable but for a bridge on each King's Road
   { for (const [d, gp] of [[ch - cw * .5, CROWN2.chasmBridgeHw + 1.9], [ch + cw + .5, CROWN2.chasmBridgeHw + .9]]) ringWall(L, 0, 0, d, 1.6, 0, a => [0, 1, 2, 3].some(c => Math.abs(angDiff(a, mountHomeA(c))) * d < gp), { chasm: true });
     for (let c = 0; c < 4; c++) { const a = mountHomeA(c), ux = Math.cos(a), uz = Math.sin(a), off = CROWN2.chasmBridgeHw + .35;
@@ -107,7 +115,7 @@ export function mount26Places(L, box, trees) {
   // castles, the camps, the rivers and the bridges; walkable, they only hide (core/sim/bush.js)
   L.bushes = [];
   { const Bc = C.bush, spots = [], clearB = (x, z, r) => !L.roads.some(p => distToLine(p, x, z) < r + 3) && !L.camps.some(k => Math.hypot(k.x - x, k.z - z) < r + 7)
-      && !L.borders.some(b => distToLine(b.pts, x, z) < rw + r + 2) && !L.river.bridges.some(b => Math.hypot(b.x - x, b.z - z) < b.len + r + 3) && Math.hypot(x, z) > riverR + rw + r + 2 && Math.hypot(x, z) < ridgeR - r - 4;
+      && !L.borders.some(b => distToLine(b.pts, x, z) < rw + r + 2) && distToLine(L.river.pts, x, z) > rw + r + 2 && !L.river.pools.some(q => Math.hypot(q.x - x, q.z - z) < q.r + r + 3) && !L.river.bridges.some(b => Math.hypot(b.x - x, b.z - z) < b.len + r + 3) && Math.hypot(x, z) > riverR + rw + r + 2 && Math.hypot(x, z) < ridgeR - r - 4;
     for (let tries = 0; tries < 3000 && spots.length < Bc.n; tries++) { const da = rr(.04, Math.PI / 4 - .04), d = rr(riverR, ridgeR), r = rr(Bc.r[0], Bc.r[1]);
       if (![0, 1, 2, 3].every(c => [-1, 1].every(s => { const [x, z] = P(mountHomeA(c) + s * da, d); return clearB(x, z, r); }))) continue;
       if (spots.some(([a2, d2, r2]) => Math.hypot(Math.cos(da) * d - Math.cos(a2) * d2, Math.sin(da) * d - Math.sin(a2) * d2) < r + r2 + 4)) continue;
@@ -119,7 +127,7 @@ export function mount26Places(L, box, trees) {
     L.bushR = [Math.min(...L.bushes.map(b => Math.hypot(b.x, b.z) - b.r)), Math.max(...L.bushes.map(b => Math.hypot(b.x, b.z) + b.r))]; }
   const j0 = riverR + rw + 4, j1 = ridgeR - 5, half = []; for (let i = 0; i < 40; i++) half.push([rr(.05, Math.PI / 4 - .05), rr(j0, j1), rr(.95, 1.4)]);
   const busy = (x, z) => L.holds.some(h => Math.hypot(h.x - x, h.z - z) < 14) || L.camps.some(k => Math.hypot(k.x - x, k.z - z) < 7) || L.roads.some(p => distToLine(p, x, z) < 4)
-    || L.borders.some(b => distToLine(b.pts, x, z) < rw + 3) || L.river.bridges.some(b => Math.hypot(b.x - x, b.z - z) < b.len + 4) || (L.bushes || []).some(b => Math.hypot(b.x - x, b.z - z) < b.r + 1.5);
+    || L.borders.some(b => distToLine(b.pts, x, z) < rw + 3) || distToLine(L.river.pts, x, z) < rw + 3.5 || L.river.pools.some(q => Math.hypot(q.x - x, q.z - z) < q.r + 3) || L.river.bridges.some(b => Math.hypot(b.x - x, b.z - z) < b.len + 4) || (L.bushes || []).some(b => Math.hypot(b.x - x, b.z - z) < b.r + 1.5);
   for (let c = 0; c < 4; c++) for (const s of [-1, 1]) for (const [da, d, sz] of half) { const [x, z] = P(mountHomeA(c) + s * da, d); if (!busy(x, z)) trees(x, z, sz); }
   L.jungle = { r0: riverR + rw + 2, r1: ridgeR - 2 };
 }

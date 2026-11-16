@@ -12,6 +12,7 @@ await page.click('#segMode button[data-v="crown"]'); await page.click('#goBtn');
 const water = await page.evaluate(async () => {
   const { G } = window.__fb, w = await import('/src/core/world.js'), L = G.layout, V = L.river;
   let wet = 0, dry = 0, onBr = 0;
+  for (const q of V.pools || []) { const ok2 = w.deepWater(q.x, q.z); if (ok2) wet++; else dry++; }
   for (const P of [V.pts, ...V.lines]) for (let i = 0; i < P.length - 1; i++) for (let k = 0; k < 6; k++) { const t = k / 6, x = P[i][0] + (P[i + 1][0] - P[i][0]) * t, z = P[i][1] + (P[i + 1][1] - P[i][1]) * t;
     const br = V.bridges.some(b => Math.hypot(b.x - x, b.z - z) < b.hw + .5); if (br) { onBr++; continue; } if (w.deepWater(x, z)) wet++; else dry++; }
   return { wet, dry, onBr, fords: V.fords.length };

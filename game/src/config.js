@@ -94,7 +94,7 @@ export const CROWN26 = {
   R: 170, // (MAP12: the mountain's rim, 15 m behind the castles' walls; each base, its nexus and road stand out on a peak over the clouds)
   r: { home: 1.2235, nexus: 1.0529, lane: 0.8471, ridge: 0.6965, river: 0.4824, riverW: 0.0241, chasm: 0.2111, chasmW: 0.0289, arena: 0.1809 }, // (metres: base 208, nexus 179, lane 144, ridge 118, river 82)
   peak: { hw: 7, base: 14, nexus: 9 }, // (MAP7: the peak road's half-width (3 armies abreast), the base's and the nexus's ground, m)
-  castleA: .475, bridgeA: .43, castleR: 10.5, wallH: 3, border: { open: 9, short: 14 }, // (MAP8: the ridge's opening in each border field, half-width m; how far short of the ridge the border river ends, m)
+  castleA: .475, bridgeA: .43, castleR: 10.5, wallH: 3, border: { open: 9, short: 14 }, river: { bend: 3, wind: 3.5, pool: 3.2 }, // (MAP13: the ring's bends between its bridges, the border rivers' winding, their spring pools, m) // (MAP8: the ridge's opening in each border field, half-width m; how far short of the ridge the border river ends, m)
   camps: [[.13, 0.6353, 'gold'], [.27, 0.5659, 'buff'], [.64, 0.6094, 'gold']], buff: { left: 'drum', right: 'swift' },
   bush: { n: 5, r: [3.6, 5.2], reveal: 1.5, inner: { a: .3, r: 4.5 } }, // (MAP10: two on the inner ring each side: angle from the King's Road, radius m) // (MAP5: bushes per jungle half, their radius range in m, seconds a man stays seen after he attacks)
   // (CAMP1) each jungle half's camps: 2 gold camps of 3 men, a buff camp of 5 men and a mini captain (boss) at its middle;
