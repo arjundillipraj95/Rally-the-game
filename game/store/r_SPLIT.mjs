@@ -45,7 +45,7 @@ async function run(roles) {
   });
   await page.click('#segMode button[data-v="crown"]');
   await page.click('#goBtn');
-  await page.evaluate(() => window.__frame(2)); await page.waitForLoadState('networkidle'); await page.waitForTimeout(500);
+  await page.evaluate(() => window.__frame(2)); await page.waitForLoadState('networkidle'); await page.waitForTimeout(+(process.env.WAIT || 2500)); await page.waitForLoadState('networkidle'); // (MAP6: the bigger mountain's models can still be landing at 500 ms; one landing mid-battle draws on Math.random)
   const prints = [], t0 = Date.now();
   for (let s = 0; s < SECS && (await page.evaluate(() => window.__fb.G.state)) !== 'end'; s++) {
     prints.push(await page.evaluate(() => { window.__fb.step(30); const G = window.__fb.G;

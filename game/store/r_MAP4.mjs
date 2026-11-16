@@ -1,11 +1,11 @@
-// MAP4: on the new mountain (?map26=1) the screens speak of castles only: no village or keep in the Points panel,
+// MAP4: on the new mountain the screens speak of castles only: no village or keep in the Points panel,
 // the battle feed, the end screen and the report; the minimap draws the border rivers, King's Roads and nexus
 // (no errors drawing it). A whole battle, headless, then the end screen.
 import { chromium } from 'playwright';
 import { open, frames } from './stage.mjs';
 let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); if (!c) fails++; };
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
-const page = await open(browser, 844, 390, { q: '?crown2=1&map26=1' }), errs = [];
+const page = await open(browser, 844, 390, { q: '?crown2=1' }), errs = [];
 page.on('pageerror', e => errs.push(e.message));
 await page.click('#segMode button[data-v="crown"]'); await page.click('#goBtn'); await frames(page, 30);
 await page.evaluate(() => document.getElementById('points').click()); await frames(page, 4); await page.waitForTimeout(600); await frames(page, 4);

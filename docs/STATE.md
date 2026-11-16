@@ -2,7 +2,7 @@
 
 Current work: **friends' playtest fixes (F tickets) and lag (Phase 0)**, then Roles & Combat (design and plan in
 Claude Docs, links in CLAUDE.md). Every builder updates this file as the last step of its ticket. Owner: Opus owner chat.
-Last updated: 2026-11-16 (MAP cards on `launch26`). Before: 2026-11-16 (SPLIT built on `t/SPLIT`). Before: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
+Last updated: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT built on `t/SPLIT`). Before: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
 
 ## Live on main
 - Shipped 14 Nov (Arjun's "ship whatever is ready"; main = roles at 5b30ce7): V1b (private voice relay; Arjun's 3 secret steps still
@@ -127,13 +127,15 @@ Last updated: 2026-11-16 (MAP cards on `launch26`). Before: 2026-11-16 (SPLIT bu
 - `r_SPLIT.mjs` (seeded 60 s battle, page HTML, names, draw calls) identical roles off and on; crown2sim/online pass; lag same within noise.
 - Found: `core/world.js` is 782 lines (over 500), not part of SPLIT.
 
-## MAP The new mountain (16 Nov; card `docs/tickets/MAP.md`). Cards merge into `launch26` one by one
+## MAP The new mountain (16 Nov; card `docs/tickets/MAP.md`). Built on `launch26` (MAP0-MAP6), not shipped
 - MAP0: `core/world.js` split into `core/world/` (8 files, max 262 lines), same 40 names; r_SPLIT identical.
 - MAP1: new mountain layout behind `?map26=1` (`core/world/map26.js`, `CROWN26`): 4 countries of base, nexus and 3 castles; walks 9.5 s border, 27 s base to Crown (r_MAP1).
 - MAP2: drawn (country walls, nexus banners, border rivers). Map itself level on draws; +25-30 draws, +35% triangles from 80 more neutral men (24 camps): Arjun to decide camp size.
 - MAP3: a whole battle runs on it (AI crosses tiers by the new ramps and bridges); crown2sim/online pass with `&map26=1`; lag no worse (r_MAP3).
 - MAP4: screens on the new mountain speak of castles only; minimap shows border rivers, King's Roads, nexus (r_MAP4).
 - MAP5: 40 jungle bushes hide men from other sides (not drawn, not picked as a foe) until they strike or a foe steps in (r_MAP5).
+- MAP6: the new mountain is the only mountain (flag and old layout removed); r_SPLIT re-baselined on it and settles 2.5 s first.
+- Next in the relaunch: castles (nexus rules, capture circle, fortify), then champions.
 
 ## CL2 Focus the map (15 Nov; card `docs/tickets/CL2.md`). On branch `t/CL2`, not shipped
 - Only the Crown on the Mountain in the menus (home, lobby, Quick); other maps and their modes hidden behind `?maps=all`
@@ -275,6 +277,7 @@ Last updated: 2026-11-16 (MAP cards on `launch26`). Before: 2026-11-16 (SPLIT bu
 - GitHub secret scanning, Dependabot, branch protection on `main`.
 
 ## Open decisions
+- Camp size on the new mountain (24 camps x 5 men: +25-30 draw calls, +35% triangles); 3 men a camp brings it to level (MAP card).
 - Battles on servers (P0.10 report first). Cloudflare Durable Objects have a free tier; paid is $5 a month.
 - The numbers pass (HP, damage, gold): designer, before Phase 9.
 - Skins and the shop: after the game is done.

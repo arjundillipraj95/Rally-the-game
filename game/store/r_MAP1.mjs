@@ -1,4 +1,4 @@
-// MAP1: the relaunch's mountain layout (?map26=1), checked in Node from the layout data and the walking grid.
+// MAP1: the mountain's layout (the relaunch's; the only one since MAP6), checked in Node from the layout data and the walking grid.
 //   counts: 4 bases, 4 nexus, 12 castles (3 per side: left, middle, right), no keeps or villages, 24 camps
 //   (per jungle half a buff camp and 2 gold camps; buffs: war drum left, swift right), rivers bridged
 //   sealed: each base is reached only through its middle castle (flood fill of the walking grid with that castle's
@@ -6,14 +6,12 @@
 //   walk times on foot (human captain's speed, quicker on roads): outer castle to the neighbour's 8-10 s,
 //   base to the Crown 25-30 s
 // Usage: node store/r_MAP1.mjs   (SEED=n to try another seed)
-import { setMap26 } from '../src/core/world/flag.js';
 import { G } from '../src/core/state.js';
 import { makeLayout, groundSlow, W, mountHomeA } from '../src/core/world.js';
 import { buildNav, setPalSeg, walkable, findPath } from '../src/core/nav.js';
 import { HUMAN_CAPTAIN, CROWN26 } from '../src/config.js';
 
 let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); if (!c) fails++; };
-setMap26(true);
 G.mode = 'crown'; G.map = { id: 'mount' };
 const L = makeLayout('mount', false, false, +(process.env.SEED || 7)); G.layout = L;
 buildNav(L);

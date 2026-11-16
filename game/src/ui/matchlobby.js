@@ -4,7 +4,6 @@
 import { TEAMS } from '../config.js';
 import { ON, online } from '../net/online.js';
 import { G } from '../core/state.js';
-import { MAP26 } from '../core/world/flag.js';
 
 const $ = id => document.getElementById(id);
 export const LANE_NAME = { L: 'Left', J: 'Jungle', R: 'Right' };
@@ -66,7 +65,7 @@ function render() {
     <div class="mlpick"><span>Your lane</span>${['L', 'J', 'R'].map(l => `<button type="button" class="mllane${lane === l ? ' on' : ''}" data-lane="${l}" aria-pressed="${lane === l}">${LANE_NAME[l]}</button>`).join('')}
       <button type="button" class="go mldone" data-done ${lane ? '' : 'disabled'}>Done</button>
       <button type="button" class="go ghost mlcancel" data-cancel>Leave</button></div>
-    <small class="mlnote">${lane ? (MAP26 ? 'Left and Right build your outer castles; Jungle builds the middle castle and farms both jungle halves. Only your army sees your lane.' : 'Left and Right are your two castles as your screen shows them; Jungle is the village behind. Only your army sees your lane.') : 'Pick a lane, then Done. You can warm up and come back here to change it.'}</small>
+    <small class="mlnote">${lane ? 'Left and Right build your outer castles; Jungle builds the middle castle and farms both jungle halves. Only your army sees your lane.' : 'Pick a lane, then Done. You can warm up and come back here to change it.'}</small>
     ${ML.ask ? `<div class="mlask"><p>Are you sure you want to leave the party?</p><button type="button" class="go" data-yes>Yes, move</button><button type="button" class="go ghost" data-no>No</button></div>` : ''}
   </div>`;
   if (html !== ML.html) { ML.html = html; pop.innerHTML = html; } // (only when something changed: a rebuild under a finger loses the tap)

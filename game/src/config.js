@@ -51,10 +51,8 @@ export const DAY = [
   { t: 450, el: null, sky: null, az: 0,   gold: 0,   sunI: 1,   hemiI: 1,   mist: 1 },
 ];
 export const CROWN2 = {
-  R: 150, scale: [.7, .85, 1], // (field radius for a trio; a duo's is .85 of it, a solo's .7)
-  r: { home: .92, lane: .835, ridge: .705, village: .59, camp: .575, river: .443, riverW: .022, keep: .32, top: .42, chasm: .19, chasmW: .028, arena: .165 },
+  // (MAP6: the mountain's size and radii are CROWN26's)
   h: { lane: 0, jungle: 3.4, top: 6.8, chasm: -9 }, // (ground heights of the tiers)
-  castleA: [Math.PI / 6, Math.PI / 3], fieldA: Math.PI / 4, campA: [.4, 1.17], // (angles from a home, toward the next one clockwise)
   safeR: 9.6, safe: { dmg: 45, heal: 18, shield: 3, boost: 1.3, boostT: 4 }, // (home: enemies inside burn, yours heal; after you step out you're untouchable shield s and quicker for boostT s. F7: safeR is the yard inside the walls, was 15)
   yard: { r: 10.5, open: 10, h: 2.5, post: 3.6 }, // (F7: each home is a courtyard, walls r m round its middle, open at the front `open` m wide toward the keep; h: wall height, post: the two posts at the opening)
   base: 5, perCastle: 5, perVillage: 3, startSquad: ['foot', 'foot', 'foot', 'arch', 'arch'],
@@ -86,7 +84,7 @@ export const CROWN2 = {
   // land: the stagger when he's set down
   lake: { depth: 1.1, drain: 5, cross: .25, count: 10, rush: 14, carry: 9, ramp: .35, out: 2.5, lane: 1.3, spread: 2.4, row: 1.1, land: .3, pool: 4.6, causeW: 3.4, causeH: .22, wait: 3 },
 };
-// MAP the relaunch's mountain (?map26=1 until MAP6): each side a country (base, nexus, 3 castles) on the lane ring,
+// MAP the mountain (the relaunch's, MAP6: the only one): each side a country (base, nexus, 3 castles) on the lane ring,
 // border fields between countries, a King's Road from each middle castle to the summit, the jungle inside split by it.
 // R: one size for every battle (12 champions; no party scaling). r: radii as fractions of R (same keys mountY reads).
 // castleA: the outer castles' angle from the middle one; bridgeA: the river ring's side bridges, angle from the King's Road.

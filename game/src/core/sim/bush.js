@@ -1,4 +1,4 @@
-// Battle rules: MAP5 the new mountain's bushes (?map26=1). Inside a bush a man is hidden from the other sides until
+// Battle rules: MAP5 the mountain's bushes. Inside a bush a man is hidden from the other sides until
 // he attacks (seen for CROWN26.bush.reveal s after his last blow, shot or throw) or one of theirs stands in the same
 // bush. Hidden means not drawn on their phones (render/fog.js) and not picked as a foe by anyone's men or computer
 // captains (melee.js nearestFoe). The Crown's carrier is never hidden. Nothing here runs without bushes in the layout.

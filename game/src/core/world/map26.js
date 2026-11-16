@@ -1,4 +1,4 @@
-// MAP the relaunch's mountain (?map26=1). Each side is a country: a safe base out on the rim, its nexus, and three
+// MAP the relaunch's mountain (the only one since MAP6). Each side is a country: a safe base out on the rim, its nexus, and three
 // castles in one clump on the lane ring (left, middle, right). The only way into a base is through its middle
 // castle (a wall runs round the country behind the castles, out to the cliff). Between countries a border field
 // with the lane road through it. From each middle castle the King's Road runs straight up to the summit; the

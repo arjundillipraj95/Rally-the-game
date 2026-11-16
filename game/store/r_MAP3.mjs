@@ -1,15 +1,15 @@
-// MAP3: a whole Crown battle runs on the new mountain (?map26=1), headless, no errors. Every captain starts in his
+// MAP3: a whole Crown battle runs on the new mountain, headless, no errors. Every captain starts in his
 // side's base; computer captains find their way between the tiers by the new map's own ramps and bridges: castles
 // change hands on every side, the war chest is broken open by an army (not shut on time), computer captains reach
 // the arena at night (and hit the glacier: reported, see the known bug in STATE.md); the match ends with points.
-// Roles off and on. Q= another address (e.g. Q='?crown2=1' for the old mountain).
+// Roles off and on. Q= another address.
 import { chromium } from 'playwright';
 import { open, frames } from './stage.mjs';
 let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); if (!c) fails++; };
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 for (const roles of [0, 1]) {
   const tag = roles ? 'roles on ' : 'roles off', errs = [];
-  const page = await open(browser, 640, 360, { q: (process.env.Q ?? '?crown2=1&map26=1') + (roles ? '&roles=1' : '') });
+  const page = await open(browser, 640, 360, { q: (process.env.Q ?? '?crown2=1') + (roles ? '&roles=1' : '') });
   page.on('pageerror', e => errs.push(e.message));
   await page.evaluate(() => { window.__noRender = true; });
   await page.click('#segMode button[data-v="crown"]'); await page.click('#goBtn'); await frames(page, 2);

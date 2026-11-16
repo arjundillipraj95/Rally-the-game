@@ -1,4 +1,4 @@
-// MAP2 the relaunch's mountain (?map26=1): what render/mountain.js doesn't already draw. The country walls (stone,
+// MAP2 the relaunch's mountain: what render/mountain.js doesn't already draw. The country walls (stone,
 // behind each side's castles and out to the cliff) and each side's nexus (a stand-in banner on a stone plinth, in the
 // side's colour; its look comes with the castles step). Merged into as few draws as the batching allows.
 import * as THREE from 'three';

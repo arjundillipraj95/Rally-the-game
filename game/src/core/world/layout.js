@@ -6,9 +6,7 @@ import { W, SIDES, placeCastles, gatePos } from './size.js';
 import { TEMPLES, TEMPLE, DESERT, OASES, ARENA } from './features.js';
 import { resetRiver, bakeRiver, bakeRidges } from './ground.js';
 import { wallLine, ringWall, box, palisades } from './build.js';
-import { mountPlaces } from './mount.js';
 import { mount26Places } from './map26.js';
-import { MAP26 } from './flag.js';
 import { canyons, fieldBounds, carveRoutes, ROUTES } from './terrain.js';
 
 
@@ -236,8 +234,7 @@ export function makeLayout(mapId, withFort, withCtrl, seed) {
   }
 
   // the prize in the middle (desert has its oasis; capture-the-fort and control have their own middles)
-  if (G.mode === 'crown') (MAP26 ? mount26Places : mountPlaces)(L, box, trees);
-  if (G.mode === 'crown' && MAP26) L.map26 = true;
+  if (G.mode === 'crown') { mount26Places(L, box, trees); L.map26 = true; } // (MAP6: the relaunch's mountain is the mountain)
   const C = G.mode === 'crown' ? null : CENTRES[mapId];
   if (C && !withFort && !withCtrl) L.holds.unshift({ x: 0, z: 0, kind: C[0], name: C[1], r: HOLDS[C[0]].r, px: 4.8, pz: 0, centre: true });
   for (const h of L.holds) { if (!h.name) h.name = h.kind === 'oasis' ? 'the Oasis' : 'a village'; if (!h.x && !h.z) h.centre = true; }

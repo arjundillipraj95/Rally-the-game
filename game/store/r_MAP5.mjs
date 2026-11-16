@@ -1,12 +1,11 @@
-// MAP5: the new mountain's bushes (?map26=1). 40 bushes (5 per jungle half), in the jungle, walkable, off the roads.
+// MAP5: the new mountain's bushes. 40 bushes (5 per jungle half), in the jungle, walkable, off the roads.
 // An enemy captain standing in a bush is hidden from your side (not drawn: u.fog; not picked as a foe by your men);
 // seen again when one of yours steps into the same bush, or for a moment after he strikes. Drawn in one draw.
-// The old mountain has no bushes and its fog is as before.
 import { chromium } from 'playwright';
 import { open, frames } from './stage.mjs';
 let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); if (!c) fails++; };
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
-const page = await open(browser, 844, 390, { q: '?crown2=1&map26=1' }), errs = [];
+const page = await open(browser, 844, 390, { q: '?crown2=1' }), errs = [];
 page.on('pageerror', e => errs.push(e.message));
 await page.click('#segMode button[data-v="crown"]'); await page.click('#goBtn'); await frames(page, 30);
 const r = await page.evaluate(async () => {
@@ -33,10 +32,5 @@ ok(r.draws === 1, `bushes drawn in one draw (${r.draws})`);
 for (let k = 0; k < 8; k++) { await page.evaluate(() => window.__fb.step(300)); await frames(page, 2); }
 ok(!errs.length, `a minute of battle, no errors${errs.length ? ' (' + errs[0] + ')' : ''}`);
 await page.close();
-// the old mountain: no bushes, nobody hidden by them
-const old = await open(browser, 844, 390, { q: '?crown2=1' });
-await old.click('#segMode button[data-v="crown"]'); await old.click('#goBtn'); await frames(old, 30);
-const o = await old.evaluate(() => { const { G } = window.__fb; return { bushes: G.layout.bushes, occ: G.bushOcc }; });
-ok(!o.bushes && !o.occ, 'old mountain: no bushes, no bush rules');
 await browser.close();
 console.log(fails ? `${fails} FAILED` : 'ALL PASS'); process.exit(fails ? 1 : 0);

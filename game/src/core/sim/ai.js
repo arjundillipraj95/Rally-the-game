@@ -69,8 +69,8 @@ function c2Route(u, g) {
   const tier = r => r > K.ridge * R ? 0 : r > K.river * R - rw ? 1 : r > K.arena * R ? 2 : 3;
   const ru = Math.hypot(u.x, u.z), rg = Math.hypot(g.x, g.z), tu = tier(ru), tg = tier(rg); if (tu === tg) return g;
   const inward = tg > tu, b = inward ? tu : tu - 1; // (the boundary to cross next)
-  const step = b === 2 ? Math.PI / 2 : Math.PI / 4, au = Math.atan2(u.z, u.x), ag = Math.atan2(g.z, g.x);
-  const cands = G.layout.map26 ? m26Cross(b) : Array.from({ length: Math.round(Math.PI * 2 / step) }, (_, k) => -Math.PI / 2 + k * step); // (MAP3: the new mountain's own ramps and bridges)
+  const au = Math.atan2(u.z, u.x), ag = Math.atan2(g.z, g.x);
+  const cands = m26Cross(b); // (MAP3: the mountain's own ramps and bridges)
   let best = 0, bc = 1e9; for (const a of cands) { const c = Math.abs(angDiff(au, a)) * ru + Math.abs(angDiff(a, ag)) * rg * .5; if (c < bc) { bc = c; best = a; } }
   const sides = [[K.ridge * R + 6, K.ridge * R - 6], [K.river * R + rw + 3, K.river * R - rw - 6], [K.chasm * R + cw + 2, K.arena * R - 2]][b], d = inward ? sides[1] : sides[0];
   return { x: Math.cos(best) * d, z: Math.sin(best) * d, stop: 1.5 };

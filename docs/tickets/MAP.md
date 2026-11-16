@@ -1,7 +1,7 @@
 # MAP The new mountain (relaunch step 2)
 
 Model: O · Written by the builder 2026-11-16 from design rev 115 (Map section)
-Status: MAP0-MAP5 built
+Status: built (MAP0-MAP6 on `launch26`, not shipped)
 
 Arjun's go (16 Nov, 01:04): build all MAP cards overnight, merge each into `launch26`. His open questions
 were not answered; the builder took these defaults (change any of them and the card says where):
@@ -21,7 +21,7 @@ were not answered; the builder took these defaults (change any of them and the c
 | MAP3 | The match runs on it (spawns, AI, centre phases) | built |
 | MAP4 | Screens drop villages and keeps | built |
 | MAP5 | Jungle bushes (hide) | built |
-| MAP6 | New map is the default; old mountain layout removed | |
+| MAP6 | New map is the default; old mountain layout removed | built |
 
 ## Design rules (Map, locked 15 Nov)
 - Each base sits outside the lane ring, safe, reached by one path through its nexus to its middle castle.
@@ -103,3 +103,18 @@ the old mountain has no bush rules. Flag off r_SPLIT identical; crown2sim/online
 new mountain: response 139 ms, position error 0.07 m (same as MAP3).
 Limits: on a joined phone the "seen after he strikes" moment follows the swing animation only (the strike time
 isn't sent). No cue yet for your own men that they are hidden (battle screen step).
+
+## MAP6 (built)
+The relaunch's mountain is the mountain: `?map26` and `core/world/flag.js` are gone, `mountPlaces` (keeps, villages,
+8 lane castles), its names and `CROWN2.R/scale/r/castleA/fieldA/campA` removed; `mountK()` is `CROWN26.r`; the AI's
+old 45-degree crossings removed. Village code stays for the other maps (Grass Valley). r_SPLIT baseline re-saved
+on the new mountain (the battle changed on purpose; names, page and errors the same; draw calls 110 -> 108).
+`r_SPLIT.mjs` now settles 2.5 s after the battle starts (`WAIT=`): on the bigger mountain a model could land
+mid-battle and draw on Math.random, so 1 run in 3 drifted; 8 of 8 identical since. r_MAP1-5 pass (no flag);
+crown2sim/online pass roles off and on; lag 250 ms: response 109 ms, position error 0.05 m.
+
+## For Arjun
+- Camp size: 24 camps x 5 men = 180 neutral men (100 before): +25-30 draw calls, +35% triangles at the start view.
+  3 men a camp brings it back to level. Your call.
+- Walk times measured at 6.3 m/s (today's human captain): border 9.5 s, base to Crown 27 s. If champions get
+  another speed, CROWN26.R and castleA retune them.
