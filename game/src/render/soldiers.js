@@ -14,6 +14,7 @@ import { trail, slash, pow, dust, spark, bladeTrail } from './effects.js';
 import { groundY } from '../core/world.js';
 import { quality, fight, markFight } from './quality.js';
 import { drawHero, drawFar, sweepHeroes, heroBlade, heroBlow } from './heroes.js';
+import { crowdPlan, isFull } from './crowd.js';
 import { loadClipBody } from './rig/cliprig.js';
 import { ANIM } from '../config.js';
 // F8: the soldier's painted body on the shared skeleton, with its clips, for the batched soldiers (F1).
@@ -743,10 +744,11 @@ const M = { root: new THREE.Matrix4(), hips: new THREE.Matrix4(), body: new THRE
 const flashC = new THREE.Color(), WHITE = new THREE.Color(1, 1, 1), wearC = new THREE.Color(), SOOT = new THREE.Color(0x2e2a26);
 const tmp = new THREE.Matrix4(), slashM = new THREE.Matrix4(), out = new THREE.Matrix4(), eu = new THREE.Euler(), qq = new THREE.Quaternion(), vp = new THREE.Vector3(), vs = new THREE.Vector3(), tipV = new THREE.Vector3(), baseV = new THREE.Vector3();
 function local(x, y, z, rx, ry, rz) { eu.set(rx, ry, rz); qq.setFromEuler(eu); return tmp.compose(vp.set(x, y, z), qq, vs.set(1, 1, 1)); }
-function bones(u, a) {
+function bones(u, a, rootOnly) {
   const s = u.kind === 'captain' || u.boss ? 1.18 : 1; // (HUD1: a buff camp's mini captain stands as tall as a captain)
   eu.set(0, u.face + a.yaw, 0); qq.setFromEuler(eu);
   M.root.compose(vp.set(u.x, u.y + a.lift - a.sink, u.z), qq, vs.set(s, s, s));
+  if (rootOnly) return; // (PERF1c: a man drawn as a model needs only his shadow and ring placed)
   M.body.multiplyMatrices(M.root, local(0, a.bodyY, 0, a.bodyRX, a.bodyRY || 0, a.bodyRZ));
   // legs hang from the hips, which lean a little with the body but don't twist with the shoulders
   M.hips.multiplyMatrices(M.root, local(0, a.bodyY, 0, a.bodyRX * (u.dead ? 1 : .35), 0, a.bodyRZ));
@@ -776,8 +778,8 @@ export function drawSoldiers(units, dt, extra = null) {
   const tg = camTarget(), cp = camera.position;
   let lx = 0, ly = 0, lz = 0, l2 = 0;
   if (tg && !tg.dead) { lx = tg.x - cp.x; ly = tg.y + 1.3 - cp.y; lz = tg.z - cp.z; l2 = lx * lx + ly * ly + lz * lz; }
-  lists: for (const list of extra && extra.length ? [units, extra] : [units]) for (const u of list) {
-    if (u.hidden || u.fog) continue; // (fog of war: an enemy your side can't see)
+  const plan = crowdPlan(extra && extra.length ? [units, extra] : [units], tg, quality.cfg.near || 26, MAX_UNITS); // (PERF1c: hidden and fogged men left out; the nearest kept)
+  lists: for (const u of plan) {
     if (l2 > 0 && u !== tg && !u.dead) {
       const a = stateOf(u);
       if (!u.neutral && !isEnemyTi(u.ti, G.myTi)) { // (neutral soldiers are never hidden: they're nobody's friends)
@@ -794,8 +796,8 @@ export function drawSoldiers(units, dt, extra = null) {
     if (!fight.seen && u.swing > 0 && !u.dead && nearCam(u, QUALITY.calmR)) markFight(); // (F14: a fight near the camera holds back the visible graphics steps)
     const held = u.fz > 0; if (held && !u.dead) u.fz -= dt; // (F6 hit-stop: the two men in a big moment hold their pose for a beat; a dead man's is counted down as he falls, core/sim.js)
     const a = pose(u, held ? 0 : u.slowT > 0 ? dt * .25 : dt); // (a parry's two men move in slow motion)
-    bones(u, a);
-    const hero = ((u.kind === 'captain' || nearCam(u, quality.cfg.near || 26)) && drawHero(u, a, held ? 0 : dt)) || drawFar(u, a); // (the new 3D captain, and the soldiers, archers and mounts near the camera: only their shadow and ring come from the parts below)
+    const hero = (isFull(u) && drawHero(u, a, held ? 0 : dt)) || drawFar(u, a); // (PERF1c: full models for the nearest few, crowd.js)
+    bones(u, a, hero && !(u.swing > 0)); // (the new 3D captain, and the soldiers, archers and mounts near the camera: only their shadow and ring come from the parts below)
     if (u.mounted && u.charge > 0 && Math.random() < dt * 16) dust(u.x - Math.sin(u.face) * 1.4, u.z - Math.cos(u.face) * 1.4); // a charge kicks up a trail
     // a brief streak off the blade/spear tip while mid-swing, so a fast hit reads as motion
     const real = hero && u.swing > 0 && !u.dead && heroBlade(u, baseV, tipV); // (F17b: drawn on the clip skeleton: the swoosh is traced by his real blade)

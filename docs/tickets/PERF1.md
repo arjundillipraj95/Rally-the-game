@@ -1,7 +1,7 @@
 # PERF1 Performance check of the new mountain (tracker S1-1)
 
 Model: O · Written by the builder 2026-11-16 from the code on `launch26` (f4154d1)
-Status: PERF1a and PERF1b built (16 Nov); PERF1c waits for Arjun's pick
+Status: built (16 Nov), on launch26, not shipped
 
 ## What to build
 Measure the new mountain against the old one on a low-end Android profile, at the start and in a mid-battle crowd
@@ -60,6 +60,17 @@ Lighter soldiers, by count not distance: full models for the nearest ~24 men (Lo
 everyone else the light far figure, and skip the skeleton work for men drawn light or off screen. Same commit: the
 320 cap keeps the nearest men, so nobody near you vanishes. Not a soldier cap (hides armies, saves least) and not
 trimming camps (small saving, changes the jungle).
+
+## PERF1c built (Arjun's go, 16 Nov: the nearest-24 fix)
+`render/crowd.js` (new): each frame, the nearest `QUALITY.full` men (Low 24, Medium 32, High 40; captains aside)
+within the near ring are full models, the rest the light far figure; a man already full ranks 2 m nearer
+(`fullKeep`) so the edge doesn't flicker; a corpse keeps the look it fell with. Over the 320-man cap the nearest are
+drawn (was list order). Men drawn as a model get only their root placed (`bones(u, a, rootOnly)`).
+`r_PERF1c.mjs`: 24 full, the nearest; 348 to draw, 320 drawn, the first left out 254 m away; 0 flips in 1 s; no errors.
+r_PERF1 against launch26 before the fix, same session: crowd 72 -> 61 ms CPU (draw 60 -> 48), 682 -> 590 calls,
+1.97M -> 1.50M triangles; start 27 -> 22 ms. crown2sim and crown2online pass roles off and on; lag 250 ms: response 131 ms
+(113 before, network untouched: noise), position error .13 m.
+Next lever if a phone still stutters: pose far men less often (every man is still posed every frame).
 
 ## Arjun's phone checklist (preview site, a cheap Android, Low)
 1. Start a Crown battle: smooth from the march out? Note the Settings fps if shown.

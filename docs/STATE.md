@@ -153,10 +153,12 @@ Last updated: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT bu
 - AI2 done: computer captains clear their own side's jungle by day (buff camps first). A side of 2+ captains keeps its last computer captain on it; a lone captain goes for his buff camps about a third of his plans, off a march only for one within 50 m, never off a siege (CROWN26.jungle). Offline, 200 s: 11 camps cleared, 2 buffs (was 1, 0); castles held at 150 s 5/12 (was ~10), by 300 s 10-12 either way.
 - PERF1 (card `docs/tickets/PERF1.md`): `r_PERF1.mjs` measures old vs new mountain, CPU 4x, Low. Start level (~45 fps CPU);
   a 160-soldier crowd 13 -> ~8 fps CPU, 615 -> 800 draws. Cost: ~70 men within 14 m as full models. Recommended: full models
-  for the nearest ~24 only, plus the 320-man cap keeping the nearest (348 to draw in a crowd today). Arjun to pick.
+  for the nearest ~24 only, plus the 320-man cap keeping the nearest (348 to draw in a crowd today).
+- PERF1c done (Arjun's pick): `render/crowd.js`, `QUALITY.full` 24/32/40; crowd 72 -> 61 ms CPU, 682 -> 590 draws, -24% triangles;
+  the cap keeps the nearest (r_PERF1c). Arjun: phone checklist in the card.
 - NET1 done: a man in a bush who just struck is seen on joined phones too (host sends bit 30 of the unit flags; r_NET1, online). Lag 250 ms: response 113 vs 107 ms, position error .07 vs .10 m (noise).
 - HUD1 done: your side's camp buff shows under the phase (War drum +15% damage / Swift +15% speed, seconds left, in the banner's colour); a buff camp's mini captain stands captain-sized with his buff's name over his bar (r_HUD1).
-- Next: PERF1c (Arjun's pick); then castles (nexus breakable: Arjun 08:55).
+- Next: castles (nexus breakable: Arjun 08:55).
 
 ## CL2 Focus the map (15 Nov; card `docs/tickets/CL2.md`). On branch `t/CL2`, not shipped
 - Only the Crown on the Mountain in the menus (home, lobby, Quick); other maps and their modes hidden behind `?maps=all`

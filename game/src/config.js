@@ -545,6 +545,9 @@ export const QUALITY = {
   down: 40, up: 55, upAfter: 20, cool: 10, ban: 60,
   cap: .85, capMs: [30.5, 36],
   calmR: 25, calmS: 2, fightScale: .8,
+  // PERF1c: full models for at most this many men near the camera (by level; the rest are the light far figure),
+  // and how many m nearer a man already full ranks, so the edge doesn't flicker (render/crowd.js)
+  full: { low: 24, medium: 32, high: 40 }, fullKeep: 2,
 };
 
 // F18 grounded knockback: a captain's killing blow throws a soldier this far (m/s across, m/s up); was 8.5-12 and 9-12
