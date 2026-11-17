@@ -370,6 +370,8 @@ Last updated: 2026-11-17 (C1 champion framework built on launch26, not shipped).
 - Tests: r_C1a (join: champions, weapons, levels, a press), r_C1b, r_C1c, r_C1d, r_C1e, r_C1f; crown2sim/online, r_PERF1c pass;
   lag 250 ms: response 138 ms, error .21 m (was 141 / .2). r_SPLIT's seeded battle changes by design from C1d on.
 - Next: C3 Titus (card waiting for Arjun's go); then C2 units before Devi (C4) and Sigrun (C5).
+- Arjun 17 Nov (for S1-12, designer to fold into the design doc): the lobby is 60 s and picks the champion with the lane: filter
+  by class, then a picture grid like League or Unite. Today's design says 25 s and no grid.
 - Arjun's list for later (17 Nov): sounds too loud; nexus health bar; castle shots (ballista) to be a big visible, felt bolt;
   lobby: two players in the same match, one phone showed only himself (1/12) while the other showed both.
 
