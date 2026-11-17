@@ -370,6 +370,11 @@ Last updated: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pag
 - Tests: r_C1a (join: champions, weapons, levels, a press), r_C1b, r_C1c, r_C1d, r_C1e, r_C1f; crown2sim/online, r_PERF1c pass;
   lag 250 ms: response 138 ms, error .21 m (was 141 / .2). r_SPLIT's seeded battle changes by design from C1d on.
 - Next: C3 Titus (card waiting for Arjun's go); then C2 units before Devi (C4) and Sigrun (C5).
+- C1g base numbers (17 Nov, Arjun "start work on C1g"): infantry 100 (footman hit 20); pages in shown numbers (`hp, dmg, rate,
+  reach, spd`, horse `hp, spd` m/s); a bot's blow 1/rate, a player's combo, beat and spear timings stretched to 3/rate
+  (`paceOf`, also on the joined phone); reach from the page; `CHAMP_BASE`/`CHAMP_LIMITS` + `champions/limits.js`. Legionary =
+  base (400/30/1.4). r_C1g, r_C1a-f (updated to shown numbers), crown2sim/online pass; lag 250 ms: 140 ms, .2 m. r_PERF1c fails
+  the same way without C1g in this container (no full models drawn). Next: C1h army shift.
 - Arjun 17 Nov (for S1-12, designer to fold into the design doc): the lobby is 60 s and picks the champion with the lane: filter
   by class, then a picture grid like League or Unite. Today's design says 25 s and no grid.
 - Fixes 17 Nov (Arjun's list), on launch26: FIX1 lobby (not reproduced as reported; made robust: the service resends the

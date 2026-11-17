@@ -21,9 +21,9 @@ export const XPGAIN = { soldier: 6, champ: 60, champAbove: 10, camp: 40, buffCam
 // (C1d) health as a share of one infantryman (`inf` hp); a hit as a share of an infantryman's health. A blow from
 // behind lands `behind` times harder. Champion and horse shares are each champion's own (its page), these the base.
 export const UNITS = {
-  inf: 95,
+  inf: 100, // (C1g: 100, so the numbers players see are exact)
   hp: { foot: 1, arch: .6, champHorse: 2, champ: 4, cavMan: .8, cavHorse: 1.3, sword: 1, thrower: 3 },
-  hit: { foot: .2, arrow: .1, champ: .34 },
+  hit: { foot: .2, arrow: .1, champ: .3 }, // (C1g: the base champion hits 30)
   behind: 1.5,
 };
 // (C1d) the counter rule: a weapon's edge does `mult` damage. Spears on horses (the horse, not the rider), arrows on
@@ -35,4 +35,15 @@ export const ARMY = {
   vanguard: { start: 5, mid: 5, outer: 3 },
   striker: { start: 3, mid: 3, outer: 3 },
   raider: { start: 3, mid: 3, outer: 3 },
+};
+
+// (C1g) the base champion in shown numbers (design "Base champion, budget and guardrails"): health, damage a hit, hits a
+// second (over his 3-hit combo; the spin finisher's x1.5 is the combo's reward on top), reach (melee, ranged), m/s on
+// foot and riding. A page's stats are these numbers, its own.
+export const CHAMP_BASE = { hp: 400, dmg: 30, rate: 1.4, reach: 1.3, rangedReach: 14, spd: 6.2, horse: 11.2 };
+// (C1g) hard floors and ceilings; dps = damage x rate. budget: a page's pluses and minuses (health, damage per second,
+// foot, horse; ranged reach counts `ranged`) add up to 0 within this. shift: a soldier stat's limit, total within budget.
+export const CHAMP_LIMITS = {
+  hp: [280, 560], dmg: [20, 45], rate: [1, 2.2], dps: [34, 52], reach: [1.1, 2], rangedReach: [10, 16], spd: [5.6, 7.2], horse: [10, 12.5],
+  budget: .05, ranged: .3, shift: .2,
 };

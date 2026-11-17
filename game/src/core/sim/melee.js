@@ -12,6 +12,7 @@ import { champHit } from './turret.js'; // (CASTLE3)
 import { auraBonus, behind, gainRally, horseDamage, push, routing } from './army.js';
 import { CC, breach, destroyCastle, die, duelFoe, hitTower, hitWall, lastStand, parry, soak } from './step.js'; // (later files: through the entry, so files still load in the old order)
 import { inflDmg, inflTaken } from '../../champions/influence.js';
+import { blowGap } from '../../champions/stats.js';
 
 // ---------- combat ----------
 // A spatial grid of the living, rebuilt every step (8 m cells): the big battles have hundreds of men,
@@ -80,7 +81,7 @@ const guardMatches = (b, side) => (b.stickSide | 0) === -side;
 export function startSwing(u, target) {
   if (u.cd > 0 || u.stun > 0 || u.dead || u.carrying || u.guardUp) return false;
   u.atkT = G.T; // (MAP5: a man who attacks is seen, bush or no bush)
-  u.swing = .38; u.cd = (u.leader ? (u.mounted ? .8 : .6) : STATS[u.kind].cd) * rnd(.9, 1.15) * (u.execReady ? EXEC.beatenCd : 1); // (a beaten captain swings slowly)
+  u.swing = .38; u.cd = (u.leader ? (u.mounted ? .8 : blowGap(u.ti)) : STATS[u.kind].cd) * rnd(.9, 1.15) * (u.execReady ? EXEC.beatenCd : 1); // (a beaten captain swings slowly)
   u.pending = { t: .15, target };
   if (u.leader && !spendSt(u, STAMINA.light)) u.pending.tired = true; // (winded: a softer blow)
   duelTell(u);

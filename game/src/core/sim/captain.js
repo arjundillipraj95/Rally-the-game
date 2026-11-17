@@ -14,6 +14,7 @@ import { towerInReach, wallInReach } from './forts.js';
 import { c2BreakInReach } from './crown2.js';
 import { swiftCd } from './buffs.js';
 import { champOf } from '../../champions/index.js';
+import { paceOf } from '../../champions/stats.js';
 
 // Last Man Standing (a test variant of the Crown): the same battle until 9:00; then nobody comes back,
 // a ring closes on the plaza (outside it hurts) and the last side with a captain standing wins. If it
@@ -170,8 +171,8 @@ function captainAttack0(p) {
   const ev = p.evade && G.T - p.evade.t < (EVADE[p.evade.kind] ? EVADE[p.evade.kind].dash : .2) + EVADE.follow ? p.evade.kind : null;
   if (ev) p.evade = null;
   if (ev === 'pounce') { leapSlam(p); p.leapStrike = true; return; } // (the pounce: down on him from the air)
-  const spear = p.weapon === 'spear', S = CC.sword;
-  const sCombo = spear ? (G.T - p.lastSwingT < CC.spear.window && p.swingKind >= 3 ? (p.combo + 1) % 3 : 0) : 0, skewer = sCombo === 2, SK = CC.spear.skewer, sweep = spear && sCombo === 1, SW = CC.spear.sweep;
+  const spear = p.weapon === 'spear', S = CC.sword, k = paceOf(p.ti); // (C1g: his pace stretches the combo to his rate)
+  const sCombo = spear ? (G.T - p.lastSwingT < CC.spear.window * k && p.swingKind >= 3 ? (p.combo + 1) % 3 : 0) : 0, skewer = sCombo === 2, SK = CC.spear.skewer, sweep = spear && sCombo === 1, SW = CC.spear.sweep;
   const best = softAim(p, spear ? (skewer ? SK.aim : sweep ? SW.aim : CC.spear.aim) : S.aim);
   if (p.isMe && G.capStats) { G.capStats.press++; if (!best) G.capStats.noTarget++; }
   let target = best;
@@ -195,19 +196,19 @@ function captainAttack0(p) {
   if (spear && skewer) { // the third thrust: a running lunge, the spear level, through everyone in the line
     Object.assign(p.pending, { t: SK.t, mult: SK.mult, reachB: SK.reachB, pierce: SK.pierce, pierceN: SK.pierceN, line: SK.line, kb: SK.kb, stun: SK.stun, shove: true });
     p.vx = Math.sin(p.face) * SK.lunge; p.vz = Math.cos(p.face) * SK.lunge; p.dashT = SK.dash; // (a moment where his feet don't brake: the lunge carries)
-    p.cd = SK.cd; p.combo = 2; p.swingKind = 5; p.pending.spear = 'thrust';
+    p.cd = SK.cd * k; p.combo = 2; p.swingKind = 5; p.pending.spear = 'thrust';
   } else if (sweep) { // the second blow: a sweep, struck like a sword swing (F17d)
     Object.assign(p.pending, { mult: SW.mult, kb: SW.kb, spear: 'sweep', t: CC.spear.t });
     p.vx += Math.sin(p.face) * SW.step; p.vz += Math.cos(p.face) * SW.step; // (a half-step into it)
-    p.cd = CC.spear.cd2; p.combo = 1; p.swingKind = 3;
+    p.cd = CC.spear.cd2 * k; p.combo = 1; p.swingKind = 3;
   } else if (spear) {
     Object.assign(p.pending, { mult: CC.spear.mult, reachB: CC.spear.reachB, pierce: CC.spear.pierce, pierceN: CC.spear.pierceN, kb: CC.spear.kb, stun: CC.spear.stun, shove: true, spear: 'poke', t: CC.spear.t });
     p.vx += Math.sin(p.face) * CC.spear.lunge; p.vz += Math.cos(p.face) * CC.spear.lunge; // (the whole body goes into the thrust)
-    p.cd = sCombo === 1 ? CC.spear.cd2 : CC.spear.cd; p.combo = sCombo; p.swingKind = 3;
+    p.cd = (sCombo === 1 ? CC.spear.cd2 : CC.spear.cd) * k; p.combo = sCombo; p.swingKind = 3;
   } else {
-    const combo = G.T - p.lastSwingT < S.window ? (p.combo + 1) % 3 : 0, fin = combo === 2;
+    const combo = G.T - p.lastSwingT < S.window * k ? (p.combo + 1) % 3 : 0, fin = combo === 2;
     // the rhythm: presses on the beat (a joiner's phone judges its own, network hiccups aside)
-    const onBeat = Math.abs(G.T - p.lastSwingT - RHYTHM.at) <= RHYTHM.w;
+    const onBeat = Math.abs(G.T - p.lastSwingT - RHYTHM.at * k) <= RHYTHM.w * k;
     p.beats = combo === 0 ? 0 : p.remote && p.rbIn != null ? p.rbIn : onBeat ? (p.beats || 0) + 1 : 0; p.rbIn = null;
     Object.assign(p.pending, { mult: fin ? S.finisherMult : S.mult, cleave: fin, spin: fin, kb: fin ? 1.25 : .25 }); // light hits keep him in reach, the finisher spins and launches
     if (fin && p.human && p.beats >= 2) { // on the beat all the way: the rhythm finisher
@@ -215,7 +216,7 @@ function captainAttack0(p) {
       fx('fxmsg', { k: 'fxrhythm', u: p }); hl(p.ti, 'rhythm'); if (p.remote) fx('netFlush');
     }
     if (!fin) { p.vx += Math.sin(p.face) * S.step; p.vz += Math.cos(p.face) * S.step; } // (a half-step into each blow)
-    p.cd = fin ? S.finisherCd : S.cd; p.combo = combo; p.swingKind = fin ? 4 : combo; // (4: the spin)
+    p.cd = (fin ? S.finisherCd : S.cd) * k; p.combo = combo; p.swingKind = fin ? 4 : combo; // (4: the spin)
   }
   if ((ev === 'side' || ev === 'back') && p.pending) {
     if (ev === 'side') { Object.assign(p.pending, { mult: (p.pending.mult || 1) * EVADE.flank.mult, stun: Math.max(p.pending.stun || 0, EVADE.flank.stun) }); p.swingKind = spear ? 3 : 1; } // the flank cut: hard enough to break a wind-up; from behind, a backstab too

@@ -10,7 +10,7 @@ const pages = [];
 for (const [b, nick, q] of [[b1, 'Arjun', '&botchamp=tester'], [b2, 'Ravi', '']]) {
   const ctx = await b.newContext({ viewport: { width: 844, height: 390 } });
   await ctx.addInitScript(nick => { window.__testSheet = null; window.__PEER_OPTS = { host: '127.0.0.1', port: 9000, path: '/', secure: false, config: { iceServers: [] } }; localStorage.setItem('rally-tutorial-done', '1'); localStorage.setItem('rally-quality', 'low'); localStorage.setItem('fb-nick', nick);
-    window.__champs = [{ id: 'tester', name: 'Tester', cls: 'striker', stats: { hp: 4, hit: .34, spd: 6.2 }, weapons: ['spear'], mount: { kind: 'horse', hp: 2, spd: 1 }, recruits: ['foot', 'arch'], influence: null, sp1: { name: 'Lunge', short: 'Lunge', cd: 6, range: 8, run(u) { u.n1 = (u.n1 || 0) + 1; } }, sp2: null, ult: null, armyUlt: null }]; }, nick);
+    window.__champs = [{ id: 'tester', name: 'Tester', cls: 'striker', stats: { hp: 400, dmg: 30, rate: 1.4, reach: 1.3, spd: 6.2 }, weapons: ['spear'], mount: { kind: 'horse', hp: 200, spd: 11.2 }, recruits: ['foot', 'arch'], influence: null, sp1: { name: 'Lunge', short: 'Lunge', cd: 6, range: 8, run(u) { u.n1 = (u.n1 || 0) + 1; } }, sp2: null, ult: null, armyUlt: null }]; }, nick);
   const p = await ctx.newPage(); p.on('pageerror', e => console.log(nick, 'ERR', e.message)); pages.push(p);
   await p.goto('http://127.0.0.1:8766/?online=http://127.0.0.1:8787&crown2=1' + q);
 }

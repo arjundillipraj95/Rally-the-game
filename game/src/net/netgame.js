@@ -24,7 +24,7 @@ import { floatText } from '../render/effects.js';
 import { cam, CAM_PITCH } from '../render/camera.js';
 import { pingTick, pingPong } from './ping.js';
 import { freshGates } from '../core/sim/forts.js';
-import { applyChamp, champHp } from '../champions/stats.js';
+import { applyChamp, champHp, champReach, paceOf } from '../champions/stats.js';
 import { SLOTS, useAbility } from '../core/sim/abilities.js';
 
 export const C = {}; // client-side state
@@ -644,16 +644,17 @@ function predictAttack(p) {
   if (best) {
     const ang = Math.atan2(best.x - p.x, best.z - p.z), d = Math.hypot(best.x - p.x, best.z - p.z);
     p.face = ang;
-    if (d > (spear ? spearReach(spearBlow(sCombo), best) : p.r + best.r + 1.3) - .2 && !skewer) { p.vx += Math.sin(ang) * 4; p.vz += Math.cos(ang) * 4; }
+    if (d > (spear ? spearReach(spearBlow(sCombo), best) : p.r + best.r + champReach(p.ti)) - .2 && !skewer) { p.vx += Math.sin(ang) * 4; p.vz += Math.cos(ang) * 4; }
   }
   // the host lands the blow ~.12s into the swing; show the impact here at the same moment instead of
   // waiting for the host's word (the damage itself still comes from the host)
-  if (best) C.pred = { at: performance.now() + (skewer ? SK.t * 1000 : spear ? CC.spear.t * 1000 : 120), tg: best, reach: STATS.captain.reach, spear, blow: spear && spearBlow(sCombo) };
-  if (spear && skewer) { C.localCd = SK.cd; p.swingKind = 5; p.combo = 2; p.vx = Math.sin(p.face) * SK.lunge; p.vz = Math.cos(p.face) * SK.lunge; p.dashT = SK.dash; } // (the skewer: a running lunge)
-  else if (spear) { C.localCd = sCombo === 1 ? CC.spear.cd2 : CC.spear.cd; p.swingKind = 3; p.combo = sCombo; p.vx += Math.sin(p.face) * CC.spear.lunge; p.vz += Math.cos(p.face) * CC.spear.lunge; }
+  if (best) C.pred = { at: performance.now() + (skewer ? SK.t * 1000 : spear ? CC.spear.t * 1000 : 120), tg: best, reach: champReach(p.ti), spear, blow: spear && spearBlow(sCombo) };
+  const k = paceOf(p.ti); // (C1g: his pace, as on the host)
+  if (spear && skewer) { C.localCd = SK.cd * k; p.swingKind = 5; p.combo = 2; p.vx = Math.sin(p.face) * SK.lunge; p.vz = Math.cos(p.face) * SK.lunge; p.dashT = SK.dash; } // (the skewer: a running lunge)
+  else if (spear) { C.localCd = (sCombo === 1 ? CC.spear.cd2 : CC.spear.cd) * k; p.swingKind = 3; p.combo = sCombo; p.vx += Math.sin(p.face) * CC.spear.lunge; p.vz += Math.cos(p.face) * CC.spear.lunge; }
   else {
-    const combo = performance.now() / 1000 - p.lastSwingT < CC.sword.window ? (p.combo + 1) % 3 : 0;
-    p.combo = combo; p.swingKind = combo === 2 ? 4 : combo; C.localCd = combo === 2 ? CC.sword.finisherCd : CC.sword.cd;
+    const combo = performance.now() / 1000 - p.lastSwingT < CC.sword.window * k ? (p.combo + 1) % 3 : 0;
+    p.combo = combo; p.swingKind = combo === 2 ? 4 : combo; C.localCd = (combo === 2 ? CC.sword.finisherCd : CC.sword.cd) * k;
     if (combo !== 2) { p.vx += Math.sin(p.face) * CC.sword.step; p.vz += Math.cos(p.face) * CC.sword.step; } // (the half-step, as on the host)
   }
   p.lastSwingT = now;
@@ -678,7 +679,7 @@ export const actions = {
       if (bashing) { C.blkAt = -1e9; p.swing = .38; p.swingKind = 6; p.blockT = .3; sfx.thud(p.x, p.z); C.inp.bsh++; }
       else {
         const gap = (performance.now() - (p.pressAt || -1e9)) / 1000; // (the beat, judged here where the press happened)
-        C.beats = gap > CAPTAIN_COMBAT.sword.window || (C.beats || 0) >= 2 ? 0 : Math.abs(gap - RHYTHM.at) <= RHYTHM.w ? (C.beats || 0) + 1 : 0; C.inp.rb = C.beats;
+        const k = paceOf(p.ti); C.beats = gap > CAPTAIN_COMBAT.sword.window * k || (C.beats || 0) >= 2 ? 0 : Math.abs(gap - RHYTHM.at * k) <= RHYTHM.w * k ? (C.beats || 0) + 1 : 0; C.inp.rb = C.beats;
         predictAttack(p); p.swing = .38; sfx.swing(p.x, p.z); C.inp.atk++;
       }
       p.pressAt = performance.now();

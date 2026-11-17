@@ -1,4 +1,4 @@
-// C1d: health as shares of an infantryman and the counter rule. Hits to kill, counted with the rules' own hit()
+// C1d: health as shares of an infantryman and the counter rule. Hits to kill, counted with the rules' own hit() (C1g: a champion hits 30 of a man's 100: footman 4, 3 from behind; champion 14, 9 from behind)
 // and arrow code (random spread pinned to the middle), against the design's table; and castle gates still fall as
 // fast as before (a blow's damage on a gate, old numbers vs new).
 import { chromium } from 'playwright';
@@ -41,7 +41,7 @@ const out = await page.evaluate(async () => {
 });
 let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); if (!c) fails++; };
 console.log(JSON.stringify(out.hp));
-const want = [['footFoot', 5], ['champFoot', 3], ['champFootBack', 2], ['footArch', 3], ['champArch', 2], ['footChamp', 20], ['champChamp', 12], ['champChampBack', 8], ['footHorse', 10], ['spearHorse', 8], ['champHorse', 6], ['arrowFoot', 9], ['arrowArch', 6]];
+const want = [['footFoot', 5], ['champFoot', 4], ['champFootBack', 3], ['footArch', 3], ['champArch', 2], ['footChamp', 20], ['champChamp', 14], ['champChampBack', 9], ['footHorse', 10], ['spearHorse', 8], ['champHorse', 7], ['arrowFoot', 9], ['arrowArch', 6]];
 for (const [k, n] of want) ok(out[k] === n, `${k}: ${out[k]} hits (design ${n})`);
 // before C1d: a footman 13 x .7 on a gate, a player captain 30 x .7 x 1.4
 ok(Math.abs(out.gate.soldier / (13 * .7) - 1) < .1, `a soldier's blow on a gate ${out.gate.soldier.toFixed(1)} (was 9.1)`);

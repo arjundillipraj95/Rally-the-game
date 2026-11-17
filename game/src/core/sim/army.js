@@ -7,7 +7,7 @@ import { fx, say, sound, spark } from './util.js';
 import { homeAt, mkUnit, squadOf, startMarch } from './match.js';
 import { applyFort, castleHere, fortLvl, fortifyGates, lastStand, nearestFoe, villageHere, volleyCharge, ditchSlow } from './step.js'; // (later files: through the entry, so files still load in the old order)
 import { swiftSpd } from './buffs.js';
-import { applyChamp } from '../../champions/stats.js';
+import { applyChamp, champSpd } from '../../champions/stats.js';
 import { champOf } from '../../champions/index.js';
 import { UNITS } from '../../config.js';
 import { inflHp, inflSpd } from '../../champions/influence.js';
@@ -71,7 +71,7 @@ export function recruit(ti, kind) {
 }
 // ---------- upgrades and the captain's aura ----------
 const lvl = (ti, id) => (G.teams[ti] && G.teams[ti].up) ? G.teams[ti].up[id] | 0 : 0;
-export const horseMax = ti => HORSE_HP * champOf(ti).mount.hp / UNITS.hp.champHorse + 30 * lvl(ti, 'horse'); // (C1d: his page's horse)
+export const horseMax = ti => (champOf(ti).mount.hp || HORSE_HP) + 30 * lvl(ti, 'horse'); // (C1g: his page's horse, in health)
 export const horseCooldown = ti => HORSE_CD - 4 * lvl(ti, 'horse');
 export const auraRange = ti => AURA.range + AURA.perRange * lvl(ti, 'aura');
 export const auraBonus = ti => AURA.bonus + AURA.perBonus * lvl(ti, 'aura');
@@ -106,7 +106,7 @@ function applyFootTier(ti) {
       u.dmg = t.dmg; u.reach = t.reach; u.block = t.block; u.spd = t.spd; u.javelin = t.javelin; u.tier = tier;
     } else if (u.leader) {
       applyChamp(u); // (C1d: a champion's health and blow are his page's and his level's, not his footmen's)
-      u.reach = STATS.captain.reach + cb.reachB; u.javelin = cb.javelin; u.tier = tier;
+      u.javelin = cb.javelin; // (C1g: his reach is his page's, set by applyChamp) u.tier = tier;
     }
   }
 }
@@ -162,7 +162,7 @@ export function push(u, vx, vz, stun) {
 // an archer's reach: on the mountain, by how far above (or below) his mark he stands; elsewhere high ground adds 30%
 export const bowRange = (u, t) => { if (!G.c2) return u.range * (u.y > 2.2 ? 1.3 : 1); const dy = u.y - (t ? t.y ?? groundY(t.x, t.z) : u.y); return u.range * (1 + clamp(dy * .075, -.15, .25)); };
 // (SPD1) a horse's multiple: the same for every captain, a little more with the horse upgrade
-export const mountMul = u => CAPTAIN_SPD.mount * (champOf(u.ti).mount.spd || 1) * (1 + .05 * lvl(u.ti, 'horse')); // (C1f: his page's mount)
+export const mountMul = u => (champOf(u.ti).mount.spd ? champOf(u.ti).mount.spd / champSpd(u.ti) : CAPTAIN_SPD.mount) * (1 + .05 * lvl(u.ti, 'horse')); // (C1g: his page's horse, m/s)
 export function speedOf(u) {
   let s = u.spd;
   if (u.mounted) s *= mountMul(u) * (u.charge > 0 ? CHARGE.spd : 1) * (u.human ? .8 + .35 * (u.gallop || 0) : 1); // (a human rider's gallop builds on the straight)

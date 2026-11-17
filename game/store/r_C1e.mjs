@@ -4,7 +4,7 @@
 import { chromium } from 'playwright';
 import { open, frames } from './stage.mjs';
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
-const base = { stats: { hp: 4, hit: .34, spd: 6.2 }, weapons: ['sword'], mount: { kind: 'horse', hp: 2, spd: 1 }, sp1: null, sp2: null, ult: null, armyUlt: null };
+const base = { stats: { hp: 400, dmg: 30, rate: 1.4, reach: 1.3, spd: 6.2 }, weapons: ['sword'], mount: { kind: 'horse', hp: 200, spd: 11.2 }, sp1: null, sp2: null, ult: null, armyUlt: null };
 const champs = [{ ...base, id: 'bows', name: 'Bows', cls: 'striker', recruits: ['arch'], influence: { dmg: .15, hp: -.1 } },
   { ...base, id: 'shield', name: 'Shield', cls: 'vanguard', recruits: ['foot', 'arch'], influence: { r: 15, front: .15 } },
   { ...base, id: 'fast', name: 'Fast', cls: 'raider', recruits: ['foot'], influence: { spd: .1 } }];
@@ -36,7 +36,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); 
 ok(o.mine === 'arch,arch,arch', `a striker starts with 3 men, all his champion's soldiers (${o.mine})`);
 ok(o.tray === 'foot-,arch+', `recruit tray: only archers (${o.tray})`);
 ok(!o.footOk && o.archOk, `recruiting a footman refused, an archer taken`);
-ok(Math.abs(o.archHp - 57 * .9) < .2 && Math.abs(o.archDmg - 1.15) < 1e-6, `influence: his archers ${o.archHp} health, x${o.archDmg} damage`);
+ok(Math.abs(o.archHp - 60 * .9) < .2 && Math.abs(o.archDmg - 1.15) < 1e-6, `influence: his archers ${o.archHp} health, x${o.archDmg} damage`);
 ok(Math.abs(o.near - .85) < 1e-6 && o.side === 1 && o.far === 1, `shield discipline: x${o.near} from the front within 15 m, x${o.side} from the side, x${o.far} 40 m away`);
 ok(Math.abs(o.spd - 1.1) < 1e-3, `the raider's men move x${o.spd}`);
 ok(o.cap0 === 3 && o.cap2 === 9 && o.capV === 13, `army size: striker 3, +middle +outer = ${o.cap2}; vanguard ${o.capV} (want 3, 9, 13)`);

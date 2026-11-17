@@ -17,6 +17,7 @@ import { drawTurretRange } from './turretring.js';
 import { drawCaptureCircles } from './captring.js';
 import { drawCastleAlerts, drawNexus } from './castlefx.js';
 import { drawLevel, xpShare } from './levelbadge.js';
+import { paceOf } from '../champions/stats.js';
 
 const fx = document.getElementById('fx'), ctx = fx.getContext('2d');
 const mini = document.getElementById('mini'), mctx = mini.getContext('2d');
@@ -235,8 +236,9 @@ function drawDuels() {
 // (it flashes gold) and the blow's on the beat. Two on the beat, and the third is the rhythm finisher.
 function drawBeat() {
   const p = G.player; if (!p || p.dead || p.mounted || (p.weapon || 'sword') !== 'sword' || !p.pressAt) return;
-  const t = (performance.now() - p.pressAt) / 1000; if (t > RHYTHM.at + RHYTHM.w + .1 || p.swingKind === 4) return;
-  const k = Math.min(1, t / RHYTHM.at), r = 2.6 - 1.7 * k, hot = Math.abs(t - RHYTHM.at) <= RHYTHM.w;
+  const q = paceOf(p.ti), at = RHYTHM.at * q, w = RHYTHM.w * q; // (C1g: the beat at his pace)
+  const t = (performance.now() - p.pressAt) / 1000; if (t > at + w + .1 || p.swingKind === 4) return;
+  const k = Math.min(1, t / at), r = 2.6 - 1.7 * k, hot = Math.abs(t - at) <= w;
   ctx.beginPath(); let pen = false;
   for (let i = 0; i <= 28; i++) {
     const a = i / 28 * Math.PI * 2, x = p.x + Math.sin(a) * r, z = p.z + Math.cos(a) * r, [sx, sy, ok] = proj(x, groundY(x, z) + .12, z);

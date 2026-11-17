@@ -4,7 +4,7 @@
 // saddle it drops him to his feet; locked in a duel; a bot fires its slots. The joined phone's press is r_C1a.
 import { chromium } from 'playwright';
 import { open, frames } from './stage.mjs';
-const init = `window.__champs = [{ id: 'tester', name: 'Tester', cls: 'vanguard', stats: { hp: 4, hit: .34, spd: 6.2 }, weapons: ['sword'], mount: { kind: 'horse', hp: 2, spd: 1 }, recruits: ['foot', 'arch'], influence: null,
+const init = `window.__champs = [{ id: 'tester', name: 'Tester', cls: 'vanguard', stats: { hp: 400, dmg: 30, rate: 1.4, reach: 1.3, spd: 6.2 }, weapons: ['sword'], mount: { kind: 'horse', hp: 200, spd: 11.2 }, recruits: ['foot', 'arch'], influence: null,
   sp1: { name: 'Lunge', short: 'Lunge', cd: 6, range: 8, run(u, at, B) { u.n1 = (u.n1 || 0) + 1; B.dash(u, 5, .25); for (const o of B.line(u, 5, 1)) B.strike(u, o, .5); } },
   sp2: { name: 'Guard', short: 'Guard', cd: 10, run(u, at, B) { u.n2 = (u.n2 || 0) + 1; B.buff(u, 'guard', 4); } },
   ult: { name: 'Quake', short: 'Ult', cd: 30, range: 10, run(u, at, B) { u.n3 = (u.n3 || 0) + 1; u.hitN = B.circle(u, at.x, at.z, 4).length; } },
