@@ -87,6 +87,7 @@ export function msgText(k, a) {
     case 'castleFort': { const nmC = (G.holds && G.holds[a[1]] && G.holds[a[1]].name) || 'The castle'; return !isEnemyTi(a[0], myTi) ? [`${nmC} fortified`, a[2] >= 3 ? 'An iron layer on every gate' : a[2] === 2 ? 'A stone layer on every gate, more archers' : 'Gates shut, archers on the walls', '#ffcf3a'] : null; }
     case 'nexusBroken': { const mine = G.ALLY[colorOf(myTi)], own = G.ALLY[a[0]]; // (CASTLE8) a[0]: whose nexus (colour), a[1]: the side that broke it
       return own === mine ? ['Your banner has fallen!', 'Your armies lose heart for a while', '#e0352b'] : a[1] === mine ? ['Their banner falls!', `+${a[3]} points`, '#ffcf3a'] : [`${TEAMS[a[0]].name}'s banner has fallen`, `${allyNames(a[1])} broke it`, '#efe9d8']; }
+    case 'shardTaken': return a[0] === G.ALLY[colorOf(myTi)] ? ['A Crown shard is yours', 'It charges your armies\' horns', '#7fd8ff'] : null; // (CASTLE6)
     case 'castleAttacked': { const nmC = (G.holds && G.holds[a[1]] && G.holds[a[1]].name) || 'A castle'; return a[0] === G.ALLY[colorOf(myTi)] ? [`${nmC} is under attack!`, `${allyNames(a[2])} at the walls`, '#e0352b'] : null; } // (CASTLE5)
     case 'castleHeld': { const nmC = (G.holds && G.holds[a[1]] && G.holds[a[1]].name) || 'The castle'; return a[0] === G.ALLY[colorOf(myTi)] ? [`Held! ${nmC} stands`, `+${a[2]} gold for every army`, '#ffcf3a'] : null; }
     case 'castleGate': { // a[0]: the side holding it, a[1]: who broke it, a[2]: the castle

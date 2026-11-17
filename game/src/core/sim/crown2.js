@@ -14,6 +14,7 @@ import { castle3Tick } from './castle3.js';
 import { captureTick } from './capture.js';
 import { siegeTick } from './siege.js';
 import { nexusBreaks, nexusOpen, nexusBroken } from './nexus.js';
+import { castlePts, holdingTick, shardOnTake } from './holding.js';
 import { c2Man, c2Post, c2PostTick } from './step.js'; // (later files: through the entry, so files still load in the old order)
 
 // ---------- the new Crown: the mountain's rules ----------
@@ -45,7 +46,7 @@ export function c2Take(h, a, per) {
   let gain = CROWN2.bonus[k];
   if (h.owner >= 0 && was != null && G.teams[was]) { const v = G.teams[was], take = Math.max(0, v.gold) * CROWN2.steal[k]; v.gold -= take; gain = Math.max(gain, take); }
   G.teams[by].gold += gain; if (k === 'castle') for (const i of sideArmies(a)) if (i !== by) G.teams[i].gold += CASTLE26.moment.side; // (CASTLE5: gold for the whole side)
-  h.siege = null;
+  h.siege = null; if (k === 'castle') shardOnTake(h, a); // (CASTLE6)
   h.owner = a; h.by = by; h.prog = 0; h.cap = -1; h.tick = 0; h.fort = 0; // (a palisade doesn't change hands)
   say('holdTaken', a, h.kind, h.id); hl(by, h.kind === 'castle' ? 'castle' : 'hold');
   for (const s of G.teams) s.homeSpot = null; for (const u of G.units) u.runTo = null;
@@ -56,16 +57,16 @@ export function c2Take(h, a, per) {
 // points: places held now, the war chest, the Crown, and each enemy captain the side has cut down once
 export function c2Points(a) {
   const K = G.c2; if (!K) return 0; let p = 0;
-  for (const h of G.holds || []) if (h.owner === a) p += CROWN2.points[c2Kind(h)];
+  for (const h of G.holds || []) if (h.owner === a) p += h.kind === 'castle' ? castlePts(h) : CROWN2.points[c2Kind(h)]; // (CASTLE6: middle 5, outer 3)
   return p + (K.chestPts[a] || 0) + (K.crownPts[a] || 0) + ((K.nexusPts && K.nexusPts[a]) || 0) + Object.values(K.kills[a] || {}).reduce((n, v) => n + v, 0);
 }
 // where a side's points came from (the results screen): places held at the end, the chest, the Crown, captains cut down
 export function c2Breakdown(a) {
   const K = G.c2, P = CROWN2.points, o = { castles: 0, villages: 0, chest: 0, crown: 0, caps: 0, nexus: 0, total: 0 }; if (!K) return o;
-  for (const h of G.holds || []) if (h.owner === a) { if (c2Kind(h) === 'castle') o.castles++; else o.villages++; }
+  o.castlePts = 0; for (const h of G.holds || []) if (h.owner === a) { if (c2Kind(h) === 'castle') { o.castles++; o.castlePts += castlePts(h); } else o.villages++; }
   o.chest = K.chestPts[a] || 0; o.crown = K.crownPts[a] || 0; o.caps = Object.values(K.kills[a] || {}).reduce((n, v) => n + v, 0);
   o.nexus = (K.nexusPts && K.nexusPts[a]) || 0;
-  o.total = o.castles * P.castle + o.villages * P.village + o.chest + o.crown + o.caps + o.nexus;
+  o.total = o.castlePts + o.villages * P.village + o.chest + o.crown + o.caps + o.nexus;
   return o;
 }
 // the things on the mountain you break: a neutral castle's guards, a bandit camp, the war chest, the glacier
@@ -178,7 +179,7 @@ function floodStep(u, dt, own, ar) {
   return true;
 }
 export function c2Tick(dt) {
-  towersTick(dt); castleTowersTick(dt); castle3Tick(dt); siegeTick(); // (CASTLE1: no gate mends by itself; CASTLE2: level III)
+  towersTick(dt); castleTowersTick(dt); castle3Tick(dt); siegeTick(); holdingTick(dt); // (CASTLE1: no gate mends by itself; CASTLE2: level III)
   const K = G.c2, T = G.T, C = CROWN2, once = (k, ...a) => { if (!K.said[k]) { K.said[k] = 1; say(k, ...a); } };
   if (T >= C.chest - C.chestWarn) once('c2chestSoon', C.chestWarn);
   if (T >= C.chest && K.chest === 0) { K.chest = 1; const r = G.layout.arena.r * .5; K.breaks.push({ brk: true, kind: 'chest', x: r, z: 0, r: 1.6, hp: C.chestHp, max: C.chestHp }); once('c2chestUp'); c2Phase('open'); G.teams.forEach(s => { if (!s.human) s.thinkT = Math.min(s.thinkT, rnd(.2, 1.5)); }); }

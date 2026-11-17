@@ -195,6 +195,9 @@ Last updated: 2026-11-16 (CASTLE4 built on `launch26`; main = launch26 at NETX).
   theirs, never by its own side or while its side holds the Crown; +5 to the breaker (points, results, snapshot field 9), owners'
   morale -30 and capped 50 for 60 s; crystal gone, bar when hit. Crown = 8 points, no longer ends the battle (bot battles end at
   10:00 on points), its side's morale floor 50; bots leave the glacier once taken. r_CASTLE8 8/8 + regression pass.
+- CASTLE6 done (card `docs/tickets/CASTLE6.md`, `core/sim/holding.js`, `CASTLE26.hold`): castle points middle 5 / outer 3; +8 health
+  per 3 s in the yard (none with an enemy in it); Crown shard to the first side to take a castle (+25 to each army's horn; a diamond
+  after the name while unclaimed); a nexus broken moves 2 shards. Snapshot: mountain field 10, holds field 12. r_CASTLE6 6/6.
 
 ## CL2 Focus the map (15 Nov; card `docs/tickets/CL2.md`). On branch `t/CL2`, not shipped
 - Only the Crown on the Mountain in the menus (home, lobby, Quick); other maps and their modes hidden behind `?maps=all`

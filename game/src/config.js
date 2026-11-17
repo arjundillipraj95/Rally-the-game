@@ -134,6 +134,10 @@ export const CASTLE26 = {
   // 20 s late, Arjun 16 Nov); he comes back at his side's castle nearest where he fell unless it was attacked in `calm` s
   // (CASTLE8) the nexus: health; points to the side that breaks it; its owners' morale -morale at once and no higher than
   // `low` for lowT s; the Crown's side's morale never under crownFloor (its armies can't rout)
+  // (CASTLE6) holding a castle: points at the end (middle, outer); +heal health every healEvery s for its side's men in
+  // its yard while no enemy is in it; a Crown shard (the first side to take it) adds shardRally to each army's horn;
+  // breaking a nexus takes up to nexusShards of its side's shards
+  hold: { pts: { mid: 5, outer: 3 }, heal: 8, healEvery: 3, shardRally: 25, nexusShards: 2 },
   nexus: { hp: 3000, pts: 5, morale: 30, low: 50, lowT: 60, crownFloor: 50 },
   respawn: { clock: [[0, 6], [180, 8], [360, 13], [480, 17], [600, 20]], calm: 8 },
   circle: { r: 4.5, fill: [10, 6, 4, 3], soldier: .1, soldierMax: .5, drain: 12, cam: .15 }, // (fill[0]: soldiers alone, Arjun 16 Nov; then 1, 2, 3+ champions)
