@@ -375,6 +375,12 @@ Last updated: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pag
   (`paceOf`, also on the joined phone); reach from the page; `CHAMP_BASE`/`CHAMP_LIMITS` + `champions/limits.js`. Legionary =
   base (400/30/1.4). r_C1g, r_C1a-f (updated to shown numbers), crown2sim/online pass; lag 250 ms: 140 ms, .2 m. r_PERF1c fails
   the same way without C1g in this container (no full models drawn). Next: C1h army shift.
+- C3a Titus built on C1g (Arjun's go; card `docs/tickets/C3.md`): `champions/titus.js` (480, 30 at 1.2/s, reach 1.4, 5.9 / 11.2
+  m/s, horse 200); combo slash, slash, shield bash (stagger capped 1 s); spearmen from the start. Arjun 17 Nov 14:36: neutral
+  soldiers are the baseline and a champion's soldiers take every stat by his own share off the base champion (`champions/army.js`
+  `shares`/`unitRow`: Titus's men +20% health, -14% hit rate, -5% pace, +8% reach): this replaces the planned C1h army shift.
+  Fixed on the way: C1g's upgrade path no longer set the captain's tier (`applyFootTier`). r_C3a, r_C3a-join, r_C1a (lists Titus).
+  Next: C3d Eagle's fall (animation first), then C3b, C3c, C3e, C3f.
 - Arjun 17 Nov (for S1-12, designer to fold into the design doc): the lobby is 60 s and picks the champion with the lane: filter
   by class, then a picture grid like League or Unite. Today's design says 25 s and no grid.
 - Fixes 17 Nov (Arjun's list), on launch26: FIX1 lobby (not reproduced as reported; made robust: the service resends the

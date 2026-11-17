@@ -12,6 +12,7 @@ import { champHit } from './turret.js'; // (CASTLE3)
 import { auraBonus, behind, gainRally, horseDamage, push, routing } from './army.js';
 import { CC, breach, destroyCastle, die, duelFoe, hitTower, hitWall, lastStand, parry, soak } from './step.js'; // (later files: through the entry, so files still load in the old order)
 import { inflDmg, inflTaken } from '../../champions/influence.js';
+import { spearman } from '../../champions/army.js';
 import { blowGap } from '../../champions/stats.js';
 
 // ---------- combat ----------
@@ -81,7 +82,7 @@ const guardMatches = (b, side) => (b.stickSide | 0) === -side;
 export function startSwing(u, target) {
   if (u.cd > 0 || u.stun > 0 || u.dead || u.carrying || u.guardUp) return false;
   u.atkT = G.T; // (MAP5: a man who attacks is seen, bush or no bush)
-  u.swing = .38; u.cd = (u.leader ? (u.mounted ? .8 : blowGap(u.ti)) : STATS[u.kind].cd) * rnd(.9, 1.15) * (u.execReady ? EXEC.beatenCd : 1); // (a beaten captain swings slowly)
+  u.swing = .38; u.cd = (u.leader ? (u.mounted ? .8 : blowGap(u.ti)) : (u.gap || STATS[u.kind].cd)) * rnd(.9, 1.15) * (u.execReady ? EXEC.beatenCd : 1); // (a beaten captain swings slowly)
   u.pending = { t: .15, target };
   if (u.leader && !spendSt(u, STAMINA.light)) u.pending.tired = true; // (winded: a softer blow)
   duelTell(u);
@@ -230,7 +231,7 @@ export function hit(a, b, mult = 1, extra) {
   if (!a.leader && G.teams[a.ti] && G.teams[a.ti].vcT > G.T) dmg *= VCHARGE.dmg; // (charging in behind a volley)
   if (G.mode === 'conquest' && G.teams[colorOf(a.ti)].breached && lastStand(a)) dmg *= LAST.dmg; // (backs to the wall)
   b.lastHit = G.T;
-  const spearedHorse = (a.kind === 'foot' && a.tier >= 1) || (a.leader && a.weapon === 'spear');
+  const spearedHorse = spearman(a) || (a.leader && a.weapon === 'spear');
   if (a.mounted && b.kind === 'arch') dmg *= COUNTER.mult; // (C1d the counter rule: cavalry on archers)
   if (b.mounted) { horseDamage(b, dmg * (spearedHorse ? COUNTER.mult : 1)); return; } // (C1d: a mounted champion's horse takes every blow; spears 120%)
   let kb = (a.leader ? (a.mounted ? 10 : 8) : 5) * (extra && extra.kb || 1) * (!a.leader && G.teams[a.ti] && G.teams[a.ti].vcT > G.T ? VCHARGE.kb : 1);
@@ -254,7 +255,7 @@ export function hit(a, b, mult = 1, extra) {
   if (extra && extra.bash) { // the shield bash: through any guard, and knocks it aside
     const guard = frontal && (blocked || b.guardUp || (b.human && b.blocking) || b.guardT > 0 || b.blockT > 0);
     blocked = false; b.guardUp = false; b.gT = SHIELD.open; b.guardT = 0; b.guardCd = Math.max(b.guardCd || 0, 1.2); b.blockT = 0;
-    extra = Object.assign({}, extra, { stun: guard ? BASH.open : BASH.stun });
+    extra = Object.assign({}, extra, { stun: Math.min(guard ? BASH.open : BASH.stun, extra.stunMax ?? 9) }); // (C3a: a champion's cap)
     if (b.windup > 0) { b.windup = 0; b.glint = false; }
     fx('fxmsg', { k: 'fxbash', u: b, a, heavy: guard }); if (guard) hl(a.ti, 'bash');
   }

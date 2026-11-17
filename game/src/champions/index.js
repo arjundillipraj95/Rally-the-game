@@ -4,8 +4,9 @@
 import { CHAMP } from '../config.js';
 import { G, ARMIES } from '../core/state.js';
 import legionary from './legionary.js';
+import titus from './titus.js';
 
-export const CHAMPS = { legionary };
+export const CHAMPS = { legionary, titus };
 // (tests) extra champions a test page sets up before the game loads: window.__champs = [{ id, ... }], dev only
 try { if (import.meta.env.DEV && typeof window !== 'undefined' && Array.isArray(window.__champs)) for (const d of window.__champs) CHAMPS[d.id] = d; } catch (e) { /* none */ }
 export const CHAMP_IDS = Object.keys(CHAMPS);

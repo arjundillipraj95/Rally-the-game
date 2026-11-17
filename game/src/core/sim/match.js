@@ -8,6 +8,7 @@ import { applyCastleGates, applyPlazaWall, archTier, c2Begin, footTier, freshGat
 import { assignChamps, champOf, myChamp } from '../../champions/index.js';
 import { applyChamp } from '../../champions/stats.js';
 import { inflHp } from '../../champions/influence.js';
+import { unitRow } from '../../champions/army.js';
 // (C1a) a champion's weapon: the one asked for if he carries it, else his first
 export const champWeapon = (ti, w) => { const ws = champOf(ti).weapons; return ws.includes(w) ? w : ws[0]; };
 
@@ -23,14 +24,14 @@ export function newTeams(humans, active = activeFrom([0, 0, 0, 0])) {
 export function mkUnit(ti, x, z, kind, human = false) {
   const st = STATS[kind];
   const tier = kind === 'foot' || kind === 'captain' ? footTier(ti) : kind === 'arch' ? archTier(ti) : 0;
-  const base = kind === 'foot' ? FOOT_TIERS[tier] : kind === 'arch' ? ARCH_TIERS[tier] : st;
+  const base = kind === 'foot' || kind === 'arch' ? unitRow(ti, kind, tier) : st; // (C3a: his champion's soldiers)
   const capB = kind === 'captain' ? CAPTAIN_TIERS[tier] : null;
   const u = { id: ++G.uid, ti, kind, leader: kind === 'captain', human, isMe: human && ti === G.myTi && G.role !== 'client', remote: human && ti !== G.myTi,
     x, z, y: groundY(x, z), vx: 0, vz: 0, vy: 0, face: Math.atan2(-x, -z),
     hp: base.hp + (capB ? capB.hpB : 0), max: base.hp + (capB ? capB.hpB : 0),
     dmg: (human ? HUMAN_CAPTAIN.dmg : base.dmg) + (capB ? capB.dmgB : 0), spd: human ? HUMAN_CAPTAIN.spd : base.spd, r: base.r, reach: base.reach + (capB ? capB.reachB : 0),
     block: base.block || 0, range: base.range || 0, shootBase: base.shoot || 0, arrow: base.arrow || 0, jitter: base.jitter || .8,
-    javelin: capB ? capB.javelin : !!base.javelin, javCd: 0, tier,
+    javelin: capB ? capB.javelin : !!base.javelin, javCd: 0, tier, gap: base.cd, // (C3a: his own wait between blows)
     cd: rnd(0, .6), shootCd: rnd(0, 1.5), swing: 0, pending: null, stun: 0, blockT: 0, rt: rnd(0, .3), foe: null, fd: 1e9,
     dead: false, deadT: 0, trampleT: 0, lastHit: -9, blocking: false, aim: false,
     mounted: false, horse: null, summon: null, horseHp: horseMax(ti), horseCd: 0, carrying: false, aura: false, shieldwall: false,
