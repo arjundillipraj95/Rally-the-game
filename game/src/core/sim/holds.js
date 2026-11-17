@@ -1,4 +1,5 @@
 // Battle rules: holds, the chest, the flag.
+import { castlePlan, castleThreat, castleReady } from './ai26.js'; // (CASTLE9)
 import { CROWN2, CROWN26, CROWN, TEAMS, CASTLE_R, HOLDS, CHEST } from '../../config.js';
 import { G, colorOf, NEUTRAL_TI, activeArmies, matchTime } from '../state.js';
 import { rnd, W } from '../world.js';
@@ -113,16 +114,17 @@ export function holdPlan(u, s) {
     { const jc = jungleCamp(u, s); if (jc) return { kind: 'spot', x: jc.x, z: jc.z, stop: 2, camp: jc.id }; } // (AI2)
     if (K.phase === 'night' && K.breaks.some(b => b.kind === 'glacier' && b.hp > 0)) { s.glacierBias = s.glacierBias ?? Math.random(); if (s.glacierBias < .6 || G.T > CROWN2.crack - (G.layout.map26 ? CROWN26.allGo : 20)) return { kind: 'spot', x: 0, z: 0, stop: 1.5 }; }
   }
+  { const cp = castlePlan(u, s); if (cp && !(s.plan && s.plan.kind === 'hold' && hs[s.plan.id] && hs[s.plan.id].owner === a && castleThreat(hs[s.plan.id]))) return cp; } // (CASTLE9: an open nexus, a castle to fortify)
   if (s.plan && s.plan.kind === 'hold') { const h = hs[s.plan.id]; if (h && (h.owner !== a || h.contested) && !(G.crown && h.safe && h.owner !== a) && (h.chest === 2 || Math.random() > .12)) return s.plan; }
   s.holdBias = s.holdBias ?? rnd(.3, .7);
   const d = h => Math.hypot(h.x - u.x, h.z - u.z);
   // the war chest: everyone wants it (warned: most start that way; landed: nearly all)
   const chest = hs.find(h => h.chest);
   if (chest && chest.owner !== a && Math.random() < (chest.chest === 2 ? .85 : .55)) return { kind: 'hold', id: chest.id };
-  const threatened = hs.filter(h => h.owner === a && (h.contested || h.cap >= 0) && d(h) < 70).sort((x, y) => d(x) - d(y))[0];
+  const threatened = hs.filter(h => h.owner === a && (h.contested || h.cap >= 0 || castleThreat(h)) && d(h) < 70).sort((x, y) => d(x) - d(y))[0];
   if (threatened && Math.random() < .7) return { kind: 'hold', id: threatened.id };
   const pull = h => d(h) - (h.centre ? 40 : 0) - (G.crown ? (h.kind === 'castle' ? 25 : h.kind === 'mine' ? 8 : 0) - (h.owner >= 0 ? 15 : 0) : 0); // (the middle draws them; in the Crown, castles first, empty places before held ones)
-  const can = h => !G.crown || ((h.kind !== 'plaza' || h.chest) && !(h.kind === 'castle' && h.owner >= 0 && G.T < CROWN.siege));
+  const can = h => (!G.crown || ((h.kind !== 'plaza' || h.chest) && !(h.kind === 'castle' && h.owner >= 0 && G.T < CROWN.siege))) && castleReady(u, h); // (CASTLE9)
   const want = hs.filter(h => h.owner !== a && can(h)).sort((x, y) => pull(x) - pull(y))[0];
   if (want && (G.crown || Math.random() < s.holdBias)) return { kind: 'hold', id: want.id };
   return null;

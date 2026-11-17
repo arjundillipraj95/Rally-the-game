@@ -139,6 +139,10 @@ export const CASTLE26 = {
   // breaking a nexus takes up to nexusShards of its side's shards
   hold: { pts: { mid: 5, outer: 3 }, heal: 8, healEvery: 3, shardRally: 25, nexusShards: 2 },
   nexus: { hp: 3000, pts: 5, morale: 30, low: 50, lowT: 60, crownFloor: 50 },
+  // (CASTLE9) computer champions: go for an open enemy nexus within nexusR m, and at a fortified castle, only with
+  // minMen soldiers; fortify a castle of theirs within fortR m when they have its cost and fortSpare more; an attack
+  // alert in the last alertT s makes a castle worth defending
+  ai: { nexusR: 90, minMen: 3, fortR: 45, fortSpare: 20, alertT: 10 },
   respawn: { clock: [[0, 6], [180, 8], [360, 13], [480, 17], [600, 20]], calm: 8 },
   circle: { r: 4.5, fill: [10, 6, 4, 3], soldier: .1, soldierMax: .5, drain: 12, cam: .15 }, // (fill[0]: soldiers alone, Arjun 16 Nov; then 1, 2, 3+ champions)
 };

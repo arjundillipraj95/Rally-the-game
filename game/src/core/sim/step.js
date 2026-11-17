@@ -20,6 +20,7 @@ import { neutralFoe, thinkNeutral } from './neutral.js';
 import { CC, captainAttack, chargeTimers, javMax, stepJump } from './captain.js';
 import { fallStep, integrate, moveToward, setPathBudget } from './move.js';
 import { respawnSpot } from './respawn.js'; // (CASTLE7)
+import { botFortify } from './ai26.js'; // (CASTLE9)
 import { thinkLeader } from './ai.js';
 import { aiPick, thinkSoldier } from './soldier.js';
 export { archTier, footTier, horseMax, speedOf } from './army.js'; // (for earlier files)
@@ -113,7 +114,8 @@ export function update(dt, input) {
         // the Crown: a watchtower by a castle of ours now and then, to see what's coming
         if (G.crown && G.T > 100 && s.leader && !s.leader.dead && upgradeCost(i, 'tower') != null && s.gold >= 140 && Math.random() < .25
           && G.holds.some(h => h.kind === 'castle' && h.owner === G.ALLY[colorOf(i)] && Math.hypot(h.x - s.leader.x, h.z - s.leader.z) < h.r + 6)) buyUpgrade(i, 'tower');
-        if (squadOf(i).length >= capOf(i) - 3 || !canRecruit(i)) {
+        if (!s.human && botFortify(i, s)) s.upT = rnd(3, 6); // (CASTLE9: a castle he stands in comes first)
+        else if (squadOf(i).length >= capOf(i) - 3 || !canRecruit(i)) {
           const opts = UPGRADES.map(u => u.id).filter(id => id !== 'tower' && upgradeCost(i, id) != null && s.gold >= upgradeCost(i, id) + 30 && (id !== 'fort' || G.mode === 'crown' || (i < 4 && G.mode !== 'ctrl')) && (id !== 'arm' || G.diff >= 2));
           if (opts.length) buyUpgrade(i, opts[Math.floor(Math.random() * opts.length)]);
         }
@@ -181,9 +183,9 @@ export function update(dt, input) {
   // an ordered attack follows its group: onto the marked man, or the next man near where he fell; none left, and they fall back in
   G.teams.forEach(s => {
     if (s.order !== 'focus' || !s.focus) return;
+    if (!s.focus.id) { if (!structureStands(s.focus.x, s.focus.z)) { s.order = 'follow'; s.focus = null; if (s.human) say('focusDone', G.teams.indexOf(s)); } return; } // (ORD1: a gate, nexus or chest: until it falls)
     const t = G.units.find(o => o.id === s.focus.id && !o.dead);
     if (t) { s.focus.x = t.x; s.focus.z = t.z; return; }
-    if (!s.focus.id) { if (!structureStands(s.focus.x, s.focus.z)) { s.order = 'follow'; s.focus = null; if (s.human) say('focusDone', G.teams.indexOf(s)); } return; } // (ORD1: a gate, nexus or chest: until it falls)
     const L = s.leader, n = L && G.units.filter(o => !o.dead && isEnemy(o, L)).sort((a, b) => Math.hypot(a.x - s.focus.x, a.z - s.focus.z) - Math.hypot(b.x - s.focus.x, b.z - s.focus.z))[0];
     if (n && Math.hypot(n.x - s.focus.x, n.z - s.focus.z) < 9) { s.focus.id = n.id; s.focus.x = n.x; s.focus.z = n.z; } else { s.order = 'follow'; s.focus = null; if (s.human) say('focusDone', G.teams.indexOf(s)); }
   });

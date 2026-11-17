@@ -200,6 +200,9 @@ Last updated: 2026-11-16 (CASTLE4 built on `launch26`; main = launch26 at NETX).
   after the name while unclaimed); a nexus broken moves 2 shards. Snapshot: mountain field 10, holds field 12. r_CASTLE6 6/6.
 - ORD1 done (Arjun 16 Nov, card `docs/tickets/ORD1.md`): the attack order dragged onto an enemy gate, a nexus (not yours), the war
   chest or the glacier sends the foot soldiers to strike it (focus id 0, kept while it stands: forts.js structureStands). r_ORD1 4/4.
+- CASTLE9 done (card `docs/tickets/CASTLE9.md`, `core/sim/ai26.js`, `CASTLE26.ai`): bots fortify the castle they stand in first, make
+  the trip to fortify a low castle within 45 m, defend on an alert, go for an open enemy nexus with 3+ soldiers, keep off fortified
+  castles without soldiers. Bot battle 300 s: 16 fortifies, 7 castles taken. r_CASTLE9 8/8 + regression pass.
 
 ## CL2 Focus the map (15 Nov; card `docs/tickets/CL2.md`). On branch `t/CL2`, not shipped
 - Only the Crown on the Mountain in the menus (home, lobby, Quick); other maps and their modes hidden behind `?maps=all`
