@@ -65,6 +65,9 @@ export function thinkSoldier(u, dt) {
   u.routing = s.routT > 0;
   if (u.routing) { u.aim = false; u.holding = false; const [gx, gz] = G.crown ? (u.runTo || (u.runTo = homeAt(u.ti, 6))) : gatePos(TEAMS[colorOf(u.ti)], gateOff(u.ti), 6); go(u, gx, gz, speedOf(u), dt, 2); return; }
   if (u.guardOf) { guardRing(u, u.guardOf, dt); return; }
+  // (CASTLE10) following a champion who is hacking at a gate or a nexus: the footmen join him at it (and soak its arrows)
+  { const sg = s.siegeAt; if (sg && u.kind === 'foot' && G.T - sg.T < 2.5 && orderOf(u.ti) === 'follow' && !(u.fd < 3)) {
+    if (Math.hypot(sg.x - u.x, sg.z - u.z) > (sg.r || 0) + 1.6) { go(u, sg.x, sg.z, speedOf(u), dt, (sg.r || 0) + 1); return; } u.face = Math.atan2(sg.x - u.x, sg.z - u.z); } }
   // ordered at one enemy group: go for the men around it
   if (orderOf(u.ti) === 'focus' && s.focus) {
     let best = null, bd = 1e9;

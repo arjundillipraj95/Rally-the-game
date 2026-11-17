@@ -1,6 +1,6 @@
 // Battle rules: CASTLE3 a castle shoots like a League turret. One target a castle (st.tg), picked by turretTarget:
-// an enemy champion who has just hit a champion of the castle's side inside its range (aggro), else the man it is
-// already shooting (it sticks), else the nearest enemy soldier, else the nearest enemy champion. Shots on the same
+// an enemy champion who has just hit a champion of the castle's side inside its range (aggro), else the soldier it is
+// already shooting (it sticks), else the nearest enemy soldier, else a champion (only while no soldier is in range). Shots on the same
 // champion ramp up volley by volley. Turret shots don't miss on a shield and don't roll for the head (missiles.js).
 import { CASTLE26 } from '../../config.js';
 import { G } from '../state.js';
@@ -20,7 +20,7 @@ export function turretTarget(cw, h, st) {
     if (u.leader) { if (now - (u.champHitT ?? -99) < T().aggro && u.champHitA === a && d < da) { da = d; aggro = u; } if (d < dc) { dc = d; champ = u; } }
     else if (d < ds) { ds = d; soldier = u; } }
   if (aggro) return aggro;
-  const cur = st.tg != null && G.units.find(u => u.id === st.tg); if (cur && shootable(cw, a, cur)) return cur;
+  const cur = st.tg != null && G.units.find(u => u.id === st.tg); if (cur && shootable(cw, a, cur) && !(cur.leader && soldier)) return cur; // (it sticks to a soldier; a champion only while no soldier is in range: the design's rule)
   return soldier || champ;
 }
 // one volley's damage on man e (a champion: ramps while it stays on him) and the bookkeeping

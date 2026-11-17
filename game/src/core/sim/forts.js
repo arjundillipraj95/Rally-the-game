@@ -30,9 +30,9 @@ export function applyFort(c) {
 // The Crown's castle gates: shut against the castle's enemies (its own side walks through, see integrate), open when
 // broken, at level 0, or when nobody holds the castle. (CASTLE1) A gate is layers: fortify adds one to every gate,
 // damage never heals (no mending), and every layer is CASTLE26.plates plates, each paying the side that knocks it off.
-export const layerHp = gi => (gi === 0 || gi === 3 ? CASTLE26.layer.big : CASTLE26.layer.small); // (the lane gate and the middle castle's back gate are the big ones)
-export const plateHp = gi => layerHp(gi) / CASTLE26.plates;
-export const gateHp = (gi, lv = 0) => layerHp(gi) * (lv | 0); // (a fresh gate at level lv)
+export const plateHp = gi => (gi === 0 || gi === 3 ? CASTLE26.plate.big : CASTLE26.plate.small); // (the lane gate and the middle castle's back gate are the big ones)
+export const layerHp = (gi, n = 0) => plateHp(gi) * CASTLE26.layerPlates[Math.min(n, CASTLE26.layerPlates.length - 1)]; // (the layer level n+1 adds)
+export const gateHp = (gi, lv = 0) => { let t = 0; for (let n = 0; n < (lv | 0); n++) t += layerHp(gi, n); return t; }; // (a fresh gate at level lv)
 export const GATES = [0, 1, 2, 3]; // (GATE1: up to four gates a castle: the middle castle's back gate is the fourth)
 // a castle's gates at level lv, untouched: lv layers each, or open (broken) at level 0. paid: plates already paid for, a gate
 export const freshGates = (lv = 0) => ({ hp: GATES.map(gi => gateHp(gi, lv)), max: GATES.map(gi => gateHp(gi, lv)), paid: [0, 0, 0, 0], broken: lv ? 0 : 15, lv: lv | 0, towerT: 0 });
@@ -40,8 +40,8 @@ export const freshGates = (lv = 0) => ({ hp: GATES.map(gi => gateHp(gi, lv)), ma
 export const gatePct = (st, gi) => (st.max && st.max[gi] > 0 ? Math.max(0, Math.min(1, (st.hp[gi] ?? 0) / st.max[gi])) : 0);
 // Fortify: one more level, one more layer on every gate (a broken one shuts again); what was knocked off stays off
 export function fortifyGates(st) {
-  st.lv = (st.lv | 0) + 1;
-  for (const gi of GATES) { const L = layerHp(gi); st.hp[gi] = Math.max(0, st.hp[gi] || 0) + L; st.max[gi] = (st.max[gi] || 0) + L; st.broken &= ~(1 << gi); }
+  const n = st.lv | 0; st.lv = n + 1;
+  for (const gi of GATES) { const L = layerHp(gi, n); st.hp[gi] = Math.max(0, st.hp[gi] || 0) + L; st.max[gi] = (st.max[gi] || 0) + L; st.broken &= ~(1 << gi); }
   applyCastleGates();
 }
 // the mountain: the village of his side's a captain stands in (for its palisade)
@@ -82,6 +82,7 @@ export function applyCastleGates() {
 function hitCastleGate(u, w) {
   const st = G.cgates[w.cgate], h = G.holds[w.cgate], gi = w.gi | 0; if (!st || (st.broken >> gi) & 1 || !h || h.owner < 0 || h.owner === allianceOf(u.ti)) return;
   attacked(h, allianceOf(u.ti)); // (CASTLE5)
+  if (u.leader && G.teams[u.ti]) G.teams[u.ti].siegeAt = { x: w.x, z: w.z, T: G.T }; // (CASTLE10: his men come and help)
   st.hitT = G.T; st.hp[gi] -= u.dmg * FORT.wallDmg * (u.leader ? FORT.capWall : 1) * aiDmg(u.ti);
   sound('wall', w.x, w.z); spark(w.x, groundY(w.x, w.z) + 1.4, w.z, '#a3825a', 4);
   platesTick(st, gi, u, w.cgate);

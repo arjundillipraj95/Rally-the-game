@@ -411,7 +411,7 @@ function clientApply(hp) {
   for (const m of (hp.m || [])) if (m[0] > C.lastMsgN) {
     C.lastMsgN = m[0];
     if (typeof m[1] === 'string' && m[1].startsWith('fx')) { const u = G.units.find(x => x.id === m[2]), a = G.units.find(x => x.id === m[4]); if (u) bus.emit('fxmsg', { k: m[1], u, a, heavy: !!m[3], byAI: !!m[5], q: m[6], fromNet: true }); }
-    else showMsg(m[1], m.slice(2));
+    else { showMsg(m[1], m.slice(2)); bus.emit('msgIn', { k: m[1], a: m.slice(2) }); } // (CASTLE10: the castle moments on joined phones too, render/castlefx.js)
   }
 }
 

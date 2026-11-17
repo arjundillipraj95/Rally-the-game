@@ -21,7 +21,7 @@ const r = await page.evaluate(async () => {
   me.x = h.x + 2; me.z = h.z; G.teams[me.ti].gold = 2000;
   o.cost0 = army.upgradeCost(me.ti, 'fort'); o.bought1 = army.buyUpgrade(me.ti, 'fort');
   const gate = gi => cw.obs.find(w => w.cgate != null && w.gi === gi), w0 = gate(0);
-  o.lv1 = st().lv; o.shut1 = !w0.off; o.max1 = st().max[0];
+  o.lv1 = st().lv; o.shut1 = !w0.off; o.max1 = st().max[0]; o.L = [0, 1, 2].map(n => f.layerHp(0, n));
   // the foe hacks the lane gate to about half
   const goldOf = () => G.teams.map((s, i) => s && s.active && G.ALLY[st8.colorOf(i)] === foeA ? s.gold : null);
   const g0 = goldOf();
@@ -41,7 +41,7 @@ const r = await page.evaluate(async () => {
   o.stillBroken = !!(st().broken & 1) && st().hp[0] === 0;
   // fortify on the broken gate: it shuts with one fresh layer
   army.buyUpgrade(me.ti, 'fort');
-  o.reshut = { shut: !w0.off, hp: st().hp[0], layer: f.layerHp(0), max: st().max[0] - maxBroken, lv: st().lv };
+  o.reshut = { shut: !w0.off, hp: st().hp[0], layer: f.layerHp(0, 2), max: st().max[0] - maxBroken, lv: st().lv };
   o.cost3 = army.upgradeCost(me.ti, 'fort');
   // the foe takes it: level 0, gates open, the banner rises
   const away = u => { if (u !== foe && !u.dead && Math.hypot(u.x - h.x, u.z - h.z) < h.r + 6) { u.x += 300; u.z += 300; } };
@@ -61,12 +61,12 @@ const r = await page.evaluate(async () => {
 const C = r.C;
 ok(r.startLv.every(v => v === 0) && r.startOpen, `every castle starts at level 0, gates open (${r.startLv.join('')})`);
 ok(r.cost0 === C.fortCost[0] && r.bought1 && r.lv1 === 1 && r.shut1, `Fortify ${r.cost0}g: level 1, gates shut`);
-ok(r.max1 === C.layer.big, `level 1 lane gate: one layer of ${r.max1}`);
+ok(r.max1 === r.L[0], `level 1 lane gate: ${r.max1}`);
 ok(r.paidHalf === 1 && r.goldGain.every(v => v === C.plateGold), `half the gate gone: 1 plate, +${C.plateGold} gold to each foe army (${r.goldGain.join(', ')})`);
-ok(r.cost1 === C.fortCost[1] && r.afterFort.lv === 2 && Math.abs(r.afterFort.hp - C.layer.big) < 1e-6 && r.afterFort.max === C.layer.big && r.afterFort.paid === 1,
+ok(r.cost1 === C.fortCost[1] && r.afterFort.lv === 2 && Math.abs(r.afterFort.hp - r.L[1]) < 1e-6 && r.afterFort.max === r.L[1] && r.afterFort.paid === 1,
   `Fortify mid-attack: +1 layer on top (hp +${r.afterFort.hp}, max +${r.afterFort.max}); the damage stays`);
 ok(r.oneHitGain.every(v => v === 0), 'one more blow: no plate paid twice');
-ok(r.broken && r.openWhenBroken && r.platesAll === 6, `broken: open, every plate paid (${r.platesAll} of 6)`);
+ok(r.broken && r.openWhenBroken && r.platesAll === 5, `broken: open, every plate paid (${r.platesAll} of 5)`);
 ok(r.stillBroken, 'my men in the yard for 70 s: it does not mend');
 ok(r.reshut.shut && r.reshut.hp === r.reshut.layer && r.reshut.max === r.reshut.layer && r.reshut.lv === 3, `Fortify a broken gate: shut with one fresh layer (${r.reshut.hp})`);
 ok(r.cost3 == null, 'level 3: nothing more to buy');

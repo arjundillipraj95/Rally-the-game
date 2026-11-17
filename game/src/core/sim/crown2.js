@@ -97,6 +97,7 @@ export function c2BreakInReach(u) {
 }
 export function c2Hit(u, b) {
   if (b.hp <= 0 || !c2CanHit(u, b)) return;
+  if (u.leader && b.kind === 'nexus' && G.teams[u.ti]) G.teams[u.ti].siegeAt = { x: b.x, z: b.z, T: G.T, r: b.r }; // (CASTLE10: his men come and help)
   b.hp -= b.kind === 'glacier' || b.kind === 'chest' ? 1 : u.dmg * (u.leader ? 1.5 : 1) * aiDmg(u.ti); // (the glacier and the chest count blows) b.by = u.ti; b.hitT = G.T;
   sound('wall', b.x, b.z); spark(b.x, groundY(b.x, b.z) + 1.4, b.z, b.kind === 'glacier' ? '#bfe6f5' : b.kind === 'chest' ? '#ffcf3a' : '#b33a2a', 4);
   if (b.hp > 0) return;

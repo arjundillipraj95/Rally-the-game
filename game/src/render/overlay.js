@@ -278,8 +278,8 @@ function drawGateBars() {
       const [sx, sy, ok] = proj(x, groundY(x, z) + 5.2, z); if (!ok) return; const w = 54, hgt = 7;
       ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillRect(sx - w / 2 - 2, sy - 2, w + 4, hgt + 4);
       ctx.fillStyle = h.owner === myA ? '#5fd35a' : '#e2483d'; ctx.fillRect(sx - w / 2, sy, w * p, hgt);
-      ctx.fillStyle = 'rgba(0,0,0,.7)'; const ph = plateHp(gi), mx = st.max[gi] || 0; // (CASTLE1: a tick between plates; a heavier one between layers)
-      for (let k = 1, n = Math.round(mx / ph); k < n; k++) { const tx = sx - w / 2 + w * k * ph / mx; ctx.fillRect(tx - (k % 3 ? .5 : 1), sy, k % 3 ? 1 : 2, hgt); }
+      ctx.fillStyle = 'rgba(0,0,0,.7)'; const ph = plateHp(gi), mx = st.max[gi] || 0; // (CASTLE1: a tick between plates)
+      for (let k = 1, n = Math.round(mx / ph); k < n; k++) { const tx = sx - w / 2 + w * k * ph / mx; ctx.fillRect(tx - .5, sy, 1, hgt); }
       ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 1; ctx.strokeRect(sx - w / 2 - .5, sy - .5, w + 1, hgt + 1); }); }
 }
 function drawHoldLabels() {

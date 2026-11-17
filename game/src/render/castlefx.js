@@ -10,7 +10,7 @@ import { say as callOut } from './banter.js';
 const alerts = new Map(); // castle id -> until (ms)
 const hold = id => G.holds && G.holds[id];
 const caller = (a, h) => G.units.filter(u => !u.dead && !u.leader && !u.neutral && G.ALLY[colorOf(u.ti)] === a && Math.hypot(u.x - h.x, u.z - h.z) < 25).sort((p, q) => Math.hypot(p.x - h.x, p.z - h.z) - Math.hypot(q.x - h.x, q.z - h.z))[0];
-bus.on('msg', m => {
+const onMsg = m => {
   if (!m || !G.c2) return;
   if (m.k === 'holdTaken' && m.a[1] === 'castle') {
     const h = hold(m.a[2]); if (!h) return; const px = h.px ?? h.x, pz = h.pz ?? h.z, cw = G.layout.cwalls.find(c => c.hid === h.id);
@@ -24,7 +24,8 @@ bus.on('msg', m => {
     const h = hold(m.a[1]); if (!h) return; bus.emit('sfx', { name: 'cheer', x: h.x, z: h.z });
     const u = caller(m.a[0], h); if (u) callOut(u, 'held', true); alerts.delete(h.id);
   } else if (m.k === 'castleAttacked' && m.a[0] === G.ALLY[colorOf(G.myTi)]) alerts.set(m.a[1], performance.now() + 6000);
-});
+};
+bus.on('msg', onMsg); bus.on('msgIn', onMsg); // (the host's own announcements; a joined phone's, from the snapshot)
 export function drawCastleAlerts(ctx, proj) {
   const now = performance.now(); if (!alerts.size) return;
   for (const [id, until] of alerts) {

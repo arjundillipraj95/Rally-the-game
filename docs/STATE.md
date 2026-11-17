@@ -2,7 +2,7 @@
 
 Current work: **friends' playtest fixes (F tickets) and lag (Phase 0)**, then Roles & Combat (design and plan in
 Claude Docs, links in CLAUDE.md). Every builder updates this file as the last step of its ticket. Owner: Opus owner chat.
-Last updated: 2026-11-16 (CASTLE4 built on `launch26`; main = launch26 at NETX). Before: CASTLE1. Before: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT built on `t/SPLIT`). Before: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
+Last updated: 2026-11-17 (castle set CASTLE1-10 built on `launch26`; main = launch26 at NETX). Before: CASTLE1. Before: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT built on `t/SPLIT`). Before: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
 
 ## Live on main
 - Shipped 14 Nov (Arjun's "ship whatever is ready"; main = roles at 5b30ce7): V1b (private voice relay; Arjun's 3 secret steps still
@@ -203,6 +203,11 @@ Last updated: 2026-11-16 (CASTLE4 built on `launch26`; main = launch26 at NETX).
 - CASTLE9 done (card `docs/tickets/CASTLE9.md`, `core/sim/ai26.js`, `CASTLE26.ai`): bots fortify the castle they stand in first, make
   the trip to fortify a low castle within 45 m, defend on an alert, go for an open enemy nexus with 3+ soldiers, keep off fortified
   castles without soldiers. Bot battle 300 s: 16 fortifies, 7 castles taken. r_CASTLE9 8/8 + regression pass.
+- CASTLE10 done (card `docs/tickets/CASTLE10.md`, measured with `store/r_CASTLE10.mjs`): footmen on Follow join their champion at a
+  gate or nexus he hits; the turret sticks only to soldiers (a champion only with no soldier in range); joined phones now run the
+  castle moments (msgIn). Gates: plates 450/300, level 1 = 3 plates, +2 each level; archers 2/3/4 every 1.8 s; ditch 2/s. Lone laner
+  takes a level 1 castle in ~31-39 s; level 2 often a 2nd push; level 3 needs a team (12 men: 2nd push). r_CASTLE10, r_CASTLE10-join,
+  every castle test and the regression set pass. The castle set (CASTLE1-10, ORD1) is built on launch26, not on main.
 
 ## CL2 Focus the map (15 Nov; card `docs/tickets/CL2.md`). On branch `t/CL2`, not shipped
 - Only the Crown on the Mountain in the menus (home, lobby, Quick); other maps and their modes hidden behind `?maps=all`

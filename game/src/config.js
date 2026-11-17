@@ -106,17 +106,17 @@ export const CROWN26 = {
 };
 // (CASTLE1) the mountain's castles, levels 0-3. Level 0: gates stand open, nothing shoots (neutral castles, and every
 // castle just taken). Fortify (fortCost by the level you're on) adds one layer to every gate: layer health by gate
-// (big: the lane gate, and the middle castle's back gate; small: the rest). Damage never heals and fortify never
-// refills it; a broken gate gets one fresh layer. Each layer is `plates` plates; each knocked off pays plateGold to
+// (plate health: big, the lane gate and the middle castle's back gate; small, the rest; layerPlates: the plates each
+// level adds). Damage never heals and fortify never refills it; a broken gate gets that level's fresh layer. Each plate knocked off pays plateGold to
 // every army of the side that broke it. archers/every: the wall archers by level and their seconds between shots.
 // shield: seconds after a capture that nobody can take it (the banner rising). Starting numbers: CASTLE10 tunes them.
 export const CASTLE26 = {
-  fortCost: [100, 170, 250], layer: { big: 1500, small: 1000 }, plates: 3, plateGold: 30,
-  archers: [0, 2, 4, 4], every: [0, 1.8, 1.8, 1.2], shield: 45, neutralLv: 0,
+  fortCost: [100, 170, 250], plate: { big: 450, small: 300 }, layerPlates: [3, 2, 2], plateGold: 30, // (CASTLE10: each level adds layerPlates plates; level 1, 2, 3 = 1x, 1.67x, 2.33x the gate)
+  archers: [0, 2, 3, 4], every: [0, 1.8, 1.8, 1.8], shield: 45, neutralLv: 0,
   // (CASTLE2) level 3: the keep's ballista (a bolt every `every` s, range m, damage; shields don't stop it), the
   // watchtower (lights every bush within `watch` m for the owner's side), the spike ditch (from the wall out to
   // `w` m: the castle's enemies in it move at `slow` and lose `dmg` health a second)
-  ballista: { every: 4, dmg: 28 }, watch: 45, ditch: { w: 3, slow: .6, dmg: 4 },
+  ballista: { every: 4, dmg: 28 }, watch: 45, ditch: { w: 3, slow: .6, dmg: 2 },
   // (CASTLE3) League turret rules for every castle shooter (wall archers and ballista): range m from the castle's
   // middle; one target a castle: an enemy champion who hit one of the castle's side's champions in range within
   // `aggro` s first, else whoever it is already shooting, else the nearest soldier, else the nearest champion.
