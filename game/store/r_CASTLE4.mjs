@@ -1,5 +1,5 @@
 // CASTLE4: the capture circle round the courtyard banner. Closed on a held castle with whole gates, open once one breaks;
-// 6 / 4 / 3 s with 1 / 2 / 3 champions, soldiers speed it up (5: +50%), soldiers alone don't take it; anyone of another
+// 6 / 4 / 3 s with 1 / 2 / 3 champions, soldiers speed it up (5: +50%), soldiers alone take it in 10 s (5: about 6.7); anyone of another
 // side in it pauses it; an empty circle drains; closed while the banner rises; a neutral castle opens when its guards
 // are dead; the camera pulls back inside.
 import { chromium } from 'playwright';
@@ -29,7 +29,7 @@ const r = await page.evaluate(async () => {
   reset(); put(me, 0); put(extra[0], 1); o.t2 = run(20);
   reset(); put(me, 0); put(extra[0], 1); put(extra[1], 2); o.t3 = run(20);
   reset(); put(me, 0); soldiers.forEach((s, k) => put(s, k + 1)); o.t1s = run(20);
-  reset(); soldiers.forEach((s, k) => put(s, k + 1)); o.soldiersAlone = run(10);
+  reset(); soldiers.forEach((s, k) => put(s, k + 1)); o.soldiersAlone = run(20);
   reset(); put(me, 0); run(3); const p0 = h.prog; put(foeMan, 3); foeMan.dead = false; run(3); o.paused = { before: +p0.toFixed(2), after: +h.prog.toFixed(2), contested: h.contested };
   away(foeMan); away(me); const p1 = h.prog; for (let k = 0; k < 150; k++) cap.captureTick(h, .02); o.drain = { from: +p1.toFixed(2), to: +h.prog.toFixed(3) };
   reset(); h.shieldT = G.T + 30; o.shieldClosed = !cap.circleOpen(h);
@@ -41,9 +41,9 @@ const r = await page.evaluate(async () => {
 const C = r.C;
 const near = (t, want) => t != null && Math.abs(t - want) < .25;
 ok(r.closedWhole && r.openBroken, 'a level I castle with whole gates: closed; one gate broken: open');
-ok(near(r.t1, C.fill[0]) && near(r.t2, C.fill[1]) && near(r.t3, C.fill[2]), `1 / 2 / 3 champions: ${r.t1} / ${r.t2} / ${r.t3} s`);
-ok(near(r.t1s, C.fill[0] / (1 + C.soldierMax)), `1 champion and 5 soldiers: ${r.t1s} s`);
-ok(r.soldiersAlone == null, 'soldiers alone: not taken');
+ok(near(r.t1, C.fill[1]) && near(r.t2, C.fill[2]) && near(r.t3, C.fill[3]), `1 / 2 / 3 champions: ${r.t1} / ${r.t2} / ${r.t3} s`);
+ok(near(r.t1s, C.fill[1] / (1 + C.soldierMax)), `1 champion and 5 soldiers: ${r.t1s} s`);
+ok(near(r.soldiersAlone, C.fill[0] / (1 + C.soldierMax)), `5 soldiers alone: ${r.soldiersAlone} s`);
 ok(r.paused.after === r.paused.before && r.paused.contested, `an enemy soldier in it: paused at ${r.paused.after}`);
 ok(r.drain.to < r.drain.from && Math.abs((r.drain.from - r.drain.to) - 3 / C.drain) < .02, `empty: drains ${r.drain.from} -> ${r.drain.to} in 3 s`);
 ok(r.shieldClosed, 'closed while the banner rises');

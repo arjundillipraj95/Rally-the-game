@@ -179,7 +179,7 @@ Last updated: 2026-11-16 (CASTLE4 built on `launch26`; main = launch26 at NETX).
 - Shipped 16 Nov (Arjun): main = launch26 with CASTLE3 and NETX.
 - CASTLE4 done (card `docs/tickets/CASTLE4.md`): capture circle round the courtyard banner (`core/sim/capture.js`, `CASTLE26.circle`):
   opens when guards are dead / castle open (level 0 or a gate broken) and no banner rising; 6/4/3 s with 1/2/3 champions,
-  soldiers +10% each to +50%, soldiers alone don't take it (Claude's call), anyone else in it pauses, empty drains; drawn on the
+  soldiers +10% each to +50%, soldiers alone take it in 10 s (Arjun 16 Nov), anyone else in it pauses, empty drains; drawn on the
   overlay (`render/captring.js`); camera +15% inside; computer captains go for the banner. r_CASTLE4 10/10, r_CASTLE1-3,
   crown2sim (castles change hands) and crown2online roles off+on, r_PERF1c pass. Next: Arjun plays (C1-C4), then CASTLE5.
 

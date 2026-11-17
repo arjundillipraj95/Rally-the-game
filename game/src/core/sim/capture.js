@@ -1,7 +1,7 @@
 // Battle rules: CASTLE4 the capture circle. A castle is taken by standing round its courtyard banner, not by filling it
 // with men: the circle opens on a neutral castle once its guards are dead, on a held one once it is open (level 0 or
-// a broken gate) and its banner isn't rising. One side's champions fill it (1, 2, 3+: CASTLE26.circle.fill s), their
-// soldiers speed it up; anyone of another side in it pauses it; an empty circle drains.
+// a broken gate) and its banner isn't rising. One side fills it (soldiers alone, 1, 2, 3+ champions: CASTLE26.circle.fill s),
+// each soldier speeding it up; anyone of another side in it pauses it; an empty circle drains.
 import { CASTLE26 } from '../../config.js';
 import { G } from '../state.js';
 import { allianceOf } from './holds.js';
@@ -29,9 +29,9 @@ export function captureTick(h, dt) {
   h.contested = sides.size > 1;
   if (!sides.size) { if (h.prog > 0) { h.prog = Math.max(0, h.prog - dt / C().drain); if (!h.prog) h.cap = -1; } return; }
   if (sides.size > 1) return; // (anyone of another side in it: paused)
-  const [a] = sides, n = champs.get(a) || 0; if (a === h.owner || !n) return; // (its own side, or soldiers alone: nothing)
+  const [a] = sides, n = champs.get(a) || 0; if (a === h.owner) return; // (its own side: nothing; soldiers alone take it, slower: Arjun 16 Nov)
   if (h.cap !== a) { h.cap = a; h.prog = 0; }
-  const f = C().fill[Math.min(n, C().fill.length) - 1], boost = 1 + Math.min(C().soldierMax, (men.get(a) || 0) * C().soldier);
+  const f = C().fill[Math.min(n, C().fill.length - 1)], boost = 1 + Math.min(C().soldierMax, (men.get(a) || 0) * C().soldier);
   h.prog += dt / f * boost;
   if (h.prog >= 1) c2Take(h, a, per);
 }
