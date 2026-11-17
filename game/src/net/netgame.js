@@ -29,7 +29,7 @@ if (import.meta.env.DEV) window.__netC = C; // dev-only: lets tests watch the cl
 const r1 = v => Math.round(v * 10) / 10, r2 = v => Math.round(v * 100) / 100;
 const b36 = n => Math.max(0, Math.round(n)).toString(36);
 const p36 = s => parseInt(s, 36);
-const encX = x => b36((x + 100) * 10), decX = s => p36(s) / 10 - 100;
+const encX = x => b36((x + 300) * 10), decX = s => p36(s) / 10 - 300; // (positions -300 to +300 m, a tenth of a metre; was -100: the new mountain reaches about 210 m, and men past -100 were pinned there on joined phones)
 const encF = f => b36(((f % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / (Math.PI * 2) * 72 % 72), decF = s => p36(s) / 72 * Math.PI * 2;
 export const myPeer = room => { const p = room.peers().find(p => p.sameTab); return p ? p.peer : null; };
 

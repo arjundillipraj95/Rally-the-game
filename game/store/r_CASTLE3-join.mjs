@@ -1,5 +1,5 @@
 // CASTLE3 on a joined phone: a castle shooting the joined player's captain sends him as its target, so his phone draws
-// the range ring red with a line to him. Same start as r_NET1 (needs the servers: bash store/servers.sh).
+// the range ring red with a line to him. Also: positions past -100 m reach joined phones (the snapshot's range). Same start as r_NET1 (needs the servers: bash store/servers.sh).
 import { chromium } from 'playwright';
 const opts = { executablePath: '/opt/pw-browsers/chromium', args: ['--disable-features=WebRtcHideLocalIpsWithMdns', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] };
 const b1 = await chromium.launch(opts), b2 = await chromium.launch(opts);
@@ -41,6 +41,12 @@ await waitT(4);
 const r = await B.evaluate(({ id }) => { const G = window.__fb.G, st = G.cgates[id], me = G.player; return { tg: st.tg, me: me && me.id, lv: st.lv, onMe: st.tg === me.id && G.T - st.tgT < 2, d: Math.hypot(me.x - G.layout.cwalls.find(c => c.hid === id).x, me.z - G.layout.cwalls.find(c => c.hid === id).z) }; }, hid);
 await A.evaluate(() => clearInterval(window.__hold)); await B.evaluate(() => clearInterval(window.__hold));
 ok(r.lv === 1 && r.tg === r.me && r.onMe, `joined phone: the castle is shooting me (target ${r.tg}, me ${r.me}, ${r.d.toFixed(0)} m): ring red`);
+// positions past -100 m (the new mountain reaches about 210 m): a man of the host's at (-150, -30) is there on the joined phone too
+const far = await A.evaluate(() => { const G = window.__fb.G, u = G.units.find(o => !o.dead && !o.leader && !o.neutral); window.__far = setInterval(() => { u.x = -150; u.z = -30; u.vx = u.vz = 0; }, 16); return u.id; });
+await waitT(2);
+const fp = await B.evaluate(id => { const u = window.__fb.G.units.find(o => o.id === id); return u ? { x: u.x, z: u.z } : null; }, far);
+await A.evaluate(() => clearInterval(window.__far));
+ok(fp && Math.abs(fp.x + 150) < 1 && Math.abs(fp.z + 30) < 1, `joined phone: a man at (-150, -30) is drawn there (${fp && fp.x.toFixed(1)}, ${fp && fp.z.toFixed(1)})`);
 await B.screenshot({ path: '/tmp/r_CASTLE3-join.png' });
 await b1.close(); await b2.close();
 console.log(fails ? `${fails} FAILED` : 'ALL PASS'); process.exit(fails ? 1 : 0);

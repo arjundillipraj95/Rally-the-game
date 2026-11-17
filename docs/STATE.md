@@ -173,6 +173,9 @@ Last updated: 2026-11-16 (CASTLE3 built on `launch26`; main = launch26 at CASTLE
   on the overlay (`render/turretring.js`), red with a line when it's you; target id in the snapshot (holds field 11). Fixed: castle
   shots hit their own keep and walls (most tower arrows never landed). Lone champion dies in 7.6 s at level I. r_CASTLE3 10/10,
   r_CASTLE3-join, r_CASTLE1/2, crown2sim/online roles off+on, r_PERF1c pass. Next: CASTLE4 capture circle, then Arjun plays.
+- NETX fix (16 Nov, Arjun's playtest with Ana on main: her army kept vanishing): the snapshot packed positions -100..+100 m only;
+  the new mountain reaches ~210 m, so on joined phones men past -100 were pinned there. Now -300..+300 (same 3 characters).
+  r_CASTLE3-join checks a man at (-150, -30); crown2online off+on, r_CASTLE1-join, lag (response 141 ms, error .2 m) pass.
 
 ## CL2 Focus the map (15 Nov; card `docs/tickets/CL2.md`). On branch `t/CL2`, not shipped
 - Only the Crown on the Mountain in the menus (home, lobby, Quick); other maps and their modes hidden behind `?maps=all`
