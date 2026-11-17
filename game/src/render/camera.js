@@ -1,6 +1,7 @@
 // Third-person camera that follows your captain (or an ally's once you fall).
 import { G, isEnemyTi } from '../core/state.js';
-import { FEEL, EXEC } from '../config.js';
+import { FEEL, EXEC, CASTLE26 } from '../config.js';
+import { circleOf } from '../core/sim/capture.js'; // (CASTLE4)
 import { groundY, terrainMeshY, rnd, W } from '../core/world.js';
 import { camera, view } from './scene.js';
 
@@ -48,6 +49,7 @@ function direct(tgt, dt) {
     if (tgt.duelId) { dir.want = 1.05; dir.wantLift = 1.8; } // (a called duel: up over the heads of the ring, the two of you inside it)
     else if (duel && near <= 6) { dir.want = .86; dir.wantLift = -.6; }
     else { dir.want = 1 + .38 * scale; dir.wantLift = 2.2 * scale; }
+    if (!tgt.dead && G.c2 && circleOf(tgt)) dir.want = Math.max(dir.want, 1 + CASTLE26.circle.cam); // (CASTLE4: in a capture circle, pulled back)
     if (tgt.dead) { dir.want = FEEL.death.zoom; dir.wantLift = FEEL.death.lift; } // (F5: back and up over a fallen captain)
   }
   // an execution: in close and low on the two of them, quickly

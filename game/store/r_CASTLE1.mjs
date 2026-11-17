@@ -44,12 +44,13 @@ const r = await page.evaluate(async () => {
   o.reshut = { shut: !w0.off, hp: st().hp[0], layer: f.layerHp(0), max: st().max[0] - maxBroken, lv: st().lv };
   o.cost3 = army.upgradeCost(me.ti, 'fort');
   // the foe takes it: level 0, gates open, the banner rises
-  const away = u => { if (u !== foe && !u.dead && Math.hypot(u.x - h.x, u.z - h.z) < h.r + 2) { u.x += 300; u.z += 300; } };
-  G.units.forEach(away); foe.x = h.x + 1; foe.z = h.z + 1; foe.hp = foe.max;
+  const away = u => { if (u !== foe && !u.dead && Math.hypot(u.x - h.x, u.z - h.z) < h.r + 6) { u.x += 300; u.z += 300; } };
+  const cap = await import('/src/core/sim/capture.js'), cc = cap.circleAt(h); st().broken |= 2; f.applyCastleGates(); // (CASTLE4: a gate down opens the circle)
+  G.units.forEach(away); foe.x = cc.x + .5; foe.z = cc.z; foe.hp = foe.max;
   for (let k = 0; k < 400 && h.owner !== foeA; k++) c2.c2Hold(h, .1);
   o.taken = h.owner === foeA; o.takenLv = st().lv; o.takenOpen = st().broken === 15; o.shield = h.shieldT - G.T;
   // I stand in it alone for 30 s: nothing (the banner is rising)
-  foe.x += 300; me.x = h.x + 1; me.z = h.z; G.units.forEach(u => { if (u !== me) away(u); });
+  foe.x += 300; me.x = cc.x + .5; me.z = cc.z; G.units.forEach(u => { if (u !== me) away(u); });
   for (let k = 0; k < 300; k++) c2.c2Hold(h, .1);
   o.shieldHeld = h.owner === foeA && !h.prog;
   // after the shield: it can be taken

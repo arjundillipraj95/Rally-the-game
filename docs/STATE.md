@@ -2,7 +2,7 @@
 
 Current work: **friends' playtest fixes (F tickets) and lag (Phase 0)**, then Roles & Combat (design and plan in
 Claude Docs, links in CLAUDE.md). Every builder updates this file as the last step of its ticket. Owner: Opus owner chat.
-Last updated: 2026-11-16 (CASTLE3 built on `launch26`; main = launch26 at CASTLE2). Before: CASTLE1. Before: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT built on `t/SPLIT`). Before: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
+Last updated: 2026-11-16 (CASTLE4 built on `launch26`; main = launch26 at NETX). Before: CASTLE1. Before: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT built on `t/SPLIT`). Before: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
 
 ## Live on main
 - Shipped 14 Nov (Arjun's "ship whatever is ready"; main = roles at 5b30ce7): V1b (private voice relay; Arjun's 3 secret steps still
@@ -176,6 +176,12 @@ Last updated: 2026-11-16 (CASTLE3 built on `launch26`; main = launch26 at CASTLE
 - NETX fix (16 Nov, Arjun's playtest with Ana on main: her army kept vanishing): the snapshot packed positions -100..+100 m only;
   the new mountain reaches ~210 m, so on joined phones men past -100 were pinned there. Now -300..+300 (same 3 characters).
   r_CASTLE3-join checks a man at (-150, -30); crown2online off+on, r_CASTLE1-join, lag (response 141 ms, error .2 m) pass.
+- Shipped 16 Nov (Arjun): main = launch26 with CASTLE3 and NETX.
+- CASTLE4 done (card `docs/tickets/CASTLE4.md`): capture circle round the courtyard banner (`core/sim/capture.js`, `CASTLE26.circle`):
+  opens when guards are dead / castle open (level 0 or a gate broken) and no banner rising; 6/4/3 s with 1/2/3 champions,
+  soldiers +10% each to +50%, soldiers alone don't take it (Claude's call), anyone else in it pauses, empty drains; drawn on the
+  overlay (`render/captring.js`); camera +15% inside; computer captains go for the banner. r_CASTLE4 10/10, r_CASTLE1-3,
+  crown2sim (castles change hands) and crown2online roles off+on, r_PERF1c pass. Next: Arjun plays (C1-C4), then CASTLE5.
 
 ## CL2 Focus the map (15 Nov; card `docs/tickets/CL2.md`). On branch `t/CL2`, not shipped
 - Only the Crown on the Mountain in the menus (home, lobby, Quick); other maps and their modes hidden behind `?maps=all`

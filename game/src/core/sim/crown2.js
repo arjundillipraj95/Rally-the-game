@@ -11,6 +11,7 @@ import { die, endMatch } from './score.js';
 import { applyCastleGates, castleTowersTick, freshGates, towersTick } from './forts.js';
 import { allianceOf, sideArmies } from './holds.js';
 import { castle3Tick } from './castle3.js';
+import { captureTick } from './capture.js';
 import { c2Man, c2Post, c2PostTick } from './step.js'; // (later files: through the entry, so files still load in the old order)
 
 // ---------- the new Crown: the mountain's rules ----------
@@ -23,6 +24,7 @@ const c2Lv = h => h.kind === 'castle' ? Math.min(2, ((G.cgates[h.id] && G.cgates
 const c2TakeT = h => h.kind === 'castle' ? CROWN2.take.castle[c2Lv(h)] : h.fort ? CROWN2.take.villageFort : CROWN2.take.village;
 export const c2Guard = h => G.c2.breaks.find(b => b.kind === 'guard' && b.hid === h.id && b.n > 0); // (F4: while one of its guards lives)
 export function c2Hold(h, dt) {
+  if (h.kind === 'castle') { captureTick(h, dt); if (h.owner >= 0) { const g = CROWN2.gold.castle; for (const i of sideArmies(h.owner)) G.teams[i].gold += g * dt; } return; } // (CASTLE4: the capture circle)
   const n = new Map(), per = new Map(), count = u => { if (u.dead || u.neutral || u.routing || Math.hypot(u.x - h.x, u.z - h.z) > h.r) return; const a = allianceOf(u.ti); n.set(a, (n.get(a) || 0) + 1); per.set(u.ti, (per.get(u.ti) || 0) + 1); };
   if (gridOk()) eachNear(h.x, h.z, h.r, count); else for (const u of G.units) count(u);
   h.contested = n.size > 1;
@@ -36,7 +38,7 @@ export function c2Hold(h, dt) {
   else if (n.size === 0 && h.prog > 0) { h.prog = Math.max(0, h.prog - dt / c2TakeT(h) * .5); if (!h.prog) h.cap = -1; }
   if (h.owner >= 0) { const g = CROWN2.gold[c2Kind(h)]; for (const i of sideArmies(h.owner)) G.teams[i].gold += g * dt; }
 }
-function c2Take(h, a, per) {
+export function c2Take(h, a, per) {
   const by = [...per.entries()].filter(([ti]) => allianceOf(ti) === a).sort((p, q) => q[1] - p[1])[0][0], k = c2Kind(h), was = h.by;
   let gain = CROWN2.bonus[k];
   if (h.owner >= 0 && was != null && G.teams[was]) { const v = G.teams[was], take = Math.max(0, v.gold) * CROWN2.steal[k]; v.gold -= take; gain = Math.max(gain, take); }

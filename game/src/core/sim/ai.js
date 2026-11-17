@@ -1,4 +1,5 @@
 // Battle rules: computer captains.
+import { circleAt } from './capture.js'; // (CASTLE4)
 import { CROWN26, TEAMS, CASTLE_REACH, HEAVY, GUARD, CTRL } from '../../config.js';
 import { G, isEnemy, isEnemyTi, colorOf, gateOff, rules } from '../state.js';
 import { spearReach } from '../spearhit.js';
@@ -96,6 +97,7 @@ function planGoal0(u, s) {
     case 'point': { const pt = G.ctrlPoints && G.ctrlPoints[p.id]; return pt ? { x: pt.x, z: pt.z, stop: CTRL.radius * .6 } : null; }
     case 'hold': { const h = G.holds && G.holds[p.id]; if (!h) return null;
       const gd = G.c2 && h.owner < 0 && c2Guard(h); if (gd) return { x: gd.x, z: gd.z, stop: 1.2 }; // (the mountain: its guards first)
+      if (h.kind === 'castle' && G.c2) { const c = circleAt(h); return { x: c.x, z: c.z, stop: c.r * .5 }; } // (CASTLE4: the banner's circle)
       return { x: h.x, z: h.z, stop: h.r * .35 }; }
     case 'spot': return { x: p.x, z: p.z, stop: p.stop || 1.5 };
   }

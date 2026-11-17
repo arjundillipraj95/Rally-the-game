@@ -123,6 +123,10 @@ export const CASTLE26 = {
   // soldier/champ: damage of one archer's arrow; on the same champion each volley adds rampStep, up to +rampMax.
   // ring: the range circle shows within ring m of the range's edge
   turret: { range: 24, soldier: 32, champ: 10, rampStep: .4, rampMax: 1.2, aggro: 2.5, ring: 10 },
+  // (CASTLE4) the capture circle round the courtyard banner: radius m; seconds to fill with 1, 2, 3+ champions; each
+  // soldier of theirs in it adds `soldier` (up to `soldierMax`); an empty circle drains a full bar in `drain` s;
+  // inside it the camera pulls back by `cam`
+  circle: { r: 4.5, fill: [6, 4, 3], soldier: .1, soldierMax: .5, drain: 12, cam: .15 },
 };
 // Match length, in minutes: Quick, Standard (the default) or Long. A shorter battle runs hotter: more
 // gold, and computer armies march out with smaller squads (gather).
