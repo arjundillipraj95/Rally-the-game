@@ -111,7 +111,7 @@ export function holdPlan(u, s) {
     const K = G.c2, keep = s.plan && s.plan.kind === 'spot' && Math.random() > .1;
     if (K.chest === 1) { const b = K.breaks.find(x => x.kind === 'chest' && x.hp > 0); if (b && (keep || Math.random() < .6)) return { kind: 'spot', x: b.x, z: b.z, stop: 1 }; }
     { const jc = jungleCamp(u, s); if (jc) return { kind: 'spot', x: jc.x, z: jc.z, stop: 2, camp: jc.id }; } // (AI2)
-    if (K.phase === 'night') { s.glacierBias = s.glacierBias ?? Math.random(); if (s.glacierBias < .6 || G.T > CROWN2.crack - (G.layout.map26 ? CROWN26.allGo : 20)) return { kind: 'spot', x: 0, z: 0, stop: 1.5 }; }
+    if (K.phase === 'night' && K.breaks.some(b => b.kind === 'glacier' && b.hp > 0)) { s.glacierBias = s.glacierBias ?? Math.random(); if (s.glacierBias < .6 || G.T > CROWN2.crack - (G.layout.map26 ? CROWN26.allGo : 20)) return { kind: 'spot', x: 0, z: 0, stop: 1.5 }; }
   }
   if (s.plan && s.plan.kind === 'hold') { const h = hs[s.plan.id]; if (h && (h.owner !== a || h.contested) && !(G.crown && h.safe && h.owner !== a) && (h.chest === 2 || Math.random() > .12)) return s.plan; }
   s.holdBias = s.holdBias ?? rnd(.3, .7);

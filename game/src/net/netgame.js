@@ -83,7 +83,7 @@ function encodeSnap() {
   const cx = G.units.filter(u => u.leader && !u.dead).map(u => [b36(u.id), Math.round(u.st ?? 100), (u.swingSide | 0) + 1, u.sideN | 0].join(',')).join(';');
   // the mountain: the arena's phase, the war chest, the points that aren't places, and what's left of every guard, camp and the glacier
   const K = G.c2, c2 = K ? (() => { const ch = K.breaks.find(b => b.kind === 'chest'), one = o => { const k = Object.keys(o).find(a => o[a]); return k == null ? -1 : k; };
-    return [['shut', 'open', 'night'].indexOf(K.phase), K.chest, ch ? Math.round(ch.hp) : 0, one(K.chestPts), one(K.crownPts), [0, 1, 2, 3].map(a => Object.values(K.kills[a] || {}).reduce((n, v) => n + v, 0)).join('.'), K.breaks.filter(b => b.kind !== 'chest').map(b => b.post ? b.units.reduce((m, u, k) => m | (u && !u.dead ? 1 << k : 0), 0) : Math.max(0, Math.round(b.hp))).join('.'), K.floodAt == null ? '' : Math.round(K.floodAt * 10), [0, 1, 2, 3].map(a => Object.entries(K.kills[a] || {}).map(([ti, v]) => ti + '_' + v).join('+')).join('.')].join(','); })() : ''; // (F7a: when the lake's countdown began)
+    return [['shut', 'open', 'night'].indexOf(K.phase), K.chest, ch ? Math.round(ch.hp) : 0, one(K.chestPts), one(K.crownPts), [0, 1, 2, 3].map(a => Object.values(K.kills[a] || {}).reduce((n, v) => n + v, 0)).join('.'), K.breaks.filter(b => b.kind !== 'chest').map(b => b.post ? b.units.reduce((m, u, k) => m | (u && !u.dead ? 1 << k : 0), 0) : Math.max(0, Math.round(b.hp))).join('.'), K.floodAt == null ? '' : Math.round(K.floodAt * 10), [0, 1, 2, 3].map(a => Object.entries(K.kills[a] || {}).map(([ti, v]) => ti + '_' + v).join('+')).join('.'), [0, 1, 2, 3].map(a => (K.nexusPts && K.nexusPts[a]) || 0).join('.')].join(','); })() : ''; // (CASTLE8: nexus points, field 9) // (F7a: when the lake's countdown began)
   return [Math.round(G.T * 10), teams, us.join(';'), ars.join(';'), hs.join(';'), fl, pl, G.bounty, hd, cp, fo, du, wt, cx, c2].join('|');
 }
 // a remote player's blow landing (or landing on them) goes out at once rather than waiting for the
@@ -359,6 +359,7 @@ function clientApply(hp) {
     const ch = K.breaks.find(b => b.kind === 'chest'); if (ch) ch.hp = K.chest === 1 ? +f[2] : 0;
     K.floodAt = f[7] == null || f[7] === '' ? null : +f[7] / 10; // (F7a: every phone works the lake out from this)
     K.chestPts = pts(f[3], CROWN2.points.chest); K.crownPts = pts(f[4], CROWN2.points.crown);
+    if (f[9] != null) { K.nexusPts = {}; f[9].split('.').forEach((v, a) => { if (+v) K.nexusPts[a] = +v; }); } // (CASTLE8)
     if (f[8] != null) { // F12: the host's own list of captains each side has cut down, so every phone shows the same +2 markers (a missed message can't leave one out)
       f[8].split('.').forEach((l, a) => { const o = {}; if (l) for (const e of l.split('+')) { const [ti, v] = e.split('_'); if (+v) o[+ti] = +v; } K.kills[a] = o; });
     } else (f[5] || '').split('.').forEach((n, a) => { K.kills[a] = +n ? { pts: +n } : {}; }); // (an older host: the total only; the marker keeps its own list from the messages)

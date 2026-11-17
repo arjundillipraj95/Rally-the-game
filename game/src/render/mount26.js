@@ -30,7 +30,7 @@ export function buildMount26(grp, L) {
       const p = new THREE.Mesh(plinthG, stone); p.position.set(n.x, y + .4, n.z); parts.push(p);
       const st = new THREE.Mesh(stepG, cap); st.position.set(n.x, y + 1.1, n.z); parts.push(st);
       const glass = new THREE.MeshPhongMaterial({ color: col.clone().lerp(new THREE.Color(0xffffff), .25), emissive: col, emissiveIntensity: .55, specular: 0xffffff, shininess: 110, flatShading: true, transparent: true, opacity: .92 });
-      const c = new THREE.Mesh(crystalG, glass); c.position.set(n.x, y + 4.2, n.z); c.rotation.y = n.a; c.castShadow = true; grp.add(c); flags.push(c);
+      const c = new THREE.Mesh(crystalG, glass); c.position.set(n.x, y + 4.2, n.z); c.rotation.y = n.a; c.castShadow = true; grp.add(c); flags.push(c); n.mesh = c; // (CASTLE8: hidden once broken)
       for (let k = 0; k < 3; k++) { const b = n.a + k * 2.09 + .5, s = new THREE.Mesh(shardG, glass); s.position.set(n.x + Math.cos(b) * 1.35, y + 2.1, n.z + Math.sin(b) * 1.35); s.rotation.set(Math.cos(b) * .35, b, Math.sin(b) * .35); s.castShadow = true; grp.add(s); flags.push(s); } }
     merged(grp, parts);
     // (MAP14) the bushes, as in League: patches of tall grass, shoulder high, swaying in the wind; tufts packed over

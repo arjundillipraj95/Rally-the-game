@@ -38,3 +38,13 @@ export function drawCastleAlerts(ctx, proj) {
     ctx.restore();
   }
 }
+// (CASTLE8) the nexus: its crystal gone once broken (with a burst, once); a health bar over it for a while after a blow
+const nexusDone = new Set();
+export function drawNexus(ctx, proj) {
+  const K = G.c2; if (!K || !G.layout || !G.layout.nexus) return;
+  for (const b of K.breaks) { if (b.kind !== 'nexus') continue; const n = G.layout.nexus.find(x => x.c === b.c);
+    if (b.hp <= 0) { if (n && n.mesh && n.mesh.visible) { n.mesh.visible = false; if (!nexusDone.has(b.c)) { nexusDone.add(b.c); bus.emit('spark', { x: b.x, y: groundY(b.x, b.z) + 4, z: b.z, c: '#ffffff', n: 30 }); bus.emit('sfx', { name: 'crumble', x: b.x, z: b.z }); } } continue; }
+    if (!(G.T - (b.hitT ?? -99) < 6)) continue; const [sx, sy, ok] = proj(b.x, groundY(b.x, b.z) + 7.5, b.z); if (!ok) continue;
+    const w = 70, p = Math.max(0, b.hp / b.max); ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillRect(sx - w / 2 - 2, sy - 2, w + 4, 11);
+    ctx.fillStyle = G.ALLY[b.c] === G.ALLY[colorOf(G.myTi)] ? '#5fd35a' : '#e2483d'; ctx.fillRect(sx - w / 2, sy, w * p, 7); }
+}

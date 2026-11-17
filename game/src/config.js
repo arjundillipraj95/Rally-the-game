@@ -67,7 +67,7 @@ export const CROWN2 = {
   // cleared camp's men return. A castle can't be taken while one of its guards lives.
   guards: { foot: 3, arch: 2, ambush: 9, leash: 14, calm: 3, archR: 18, manGold: 0 },
   camp: { foot: 3, arch: 2, ambush: 9, leash: 14, calm: 3, archR: 18, manGold: 0, gold: 50, back: 90 },
-  points: { castle: 3, village: 2, chest: 4, crown: 7, killCaptain: 2, killArmy: 1 }, // (an enemy captain is worth 2 to the captain who cuts him down, 1 if your men get there first; once only)
+  points: { castle: 3, village: 2, chest: 4, crown: 8, killCaptain: 2, killArmy: 1 }, // (an enemy captain is worth 2 to the captain who cuts him down, 1 if your men get there first; once only)
   chest: 300, chestWarn: 20, chestShut: 420, chestHp: 250, // (the chest: 250 blows, any blow counts one, a soldier's or a captain's: whole armies swing at it, so it holds about 30 s under a full crowd)
   // (the war chest lands at 5:00 in the arena, armies let in; broken open, or at 7:00, the gates shut)
   dusk: 450, night: 480, crack: 570, glacierHits: 80, // (dusk at 7:30; at 8:00 the arena opens to captains and the glacier can be hit; it breaks after so many captain blows)
@@ -132,6 +132,9 @@ export const CASTLE26 = {
   moment: { side: 80, held: 60, heldAfter: 8, alertGap: 20 },
   // (CASTLE7) a champion's wait to come back, by the match clock ([s, wait s], straight lines between: about 6 s early,
   // 20 s late, Arjun 16 Nov); he comes back at his side's castle nearest where he fell unless it was attacked in `calm` s
+  // (CASTLE8) the nexus: health; points to the side that breaks it; its owners' morale -morale at once and no higher than
+  // `low` for lowT s; the Crown's side's morale never under crownFloor (its armies can't rout)
+  nexus: { hp: 3000, pts: 5, morale: 30, low: 50, lowT: 60, crownFloor: 50 },
   respawn: { clock: [[0, 6], [180, 8], [360, 13], [480, 17], [600, 20]], calm: 8 },
   circle: { r: 4.5, fill: [10, 6, 4, 3], soldier: .1, soldierMax: .5, drain: 12, cam: .15 }, // (fill[0]: soldiers alone, Arjun 16 Nov; then 1, 2, 3+ champions)
 };

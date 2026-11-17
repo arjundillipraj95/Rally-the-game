@@ -1,4 +1,5 @@
 // Battle rules: orders, morale and rally, recruiting, upgrades, speed, horses.
+import { moraleBounds } from './nexus.js'; // (CASTLE8)
 import { CROWN2, CROWN, STATS, HUMAN_CAPTAIN, CAPTAIN_SPD, HORSE_HP, HORSE_CD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, CHARGE, EXEC, FORT, HOLD_ATK, MORALE, RALLY, AURA, LAST, ARMOUR, CASTLE26 } from '../../config.js';
 import { G, isEnemy, colorOf, capOf, isC2 } from '../state.js';
 import { groundY, clamp, rnd, angDiff, W, groundSlow } from '../world.js';
@@ -38,6 +39,7 @@ export function moraleTick(dt) {
     // a computer captain sounds his horn when it's full and his men are wavering or in a big fight
     if (!s.human && up && s.rally >= 100 && (s.morale < 50 || G.units.filter(o => !o.dead && isEnemy(o, L) && Math.hypot(o.x - L.x, o.z - L.z) < 10).length >= 5)) rallyCry(ti);
   });
+  G.teams.forEach((s, ti) => { if (s.active) moraleBounds(s, ti); }); // (CASTLE8: a fallen nexus caps it, the Crown floors it)
 }
 export function rallyCry(ti) {
   const s = G.teams[ti], L = s && s.leader; if (!L || L.dead || (s.rally || 0) < 100) return false;

@@ -191,6 +191,10 @@ Last updated: 2026-11-16 (CASTLE4 built on `launch26`; main = launch26 at NETX).
   to 20 s at 10:00, `CASTLE26.respawn`); back at the side's castle nearest where he fell unless it's under attack (enemy in turret range,
   alert in 8 s, circle filling), else base; marches out of its lane gate. Pick-by-hand not built. r_CASTLE7 6/6 + regression pass.
   Test lesson: t.sh now restarts vite when game/src changed (stale modules made CASTLE4/5 and PERF1c fail falsely).
+- CASTLE8 done (card `docs/tickets/CASTLE8.md`, `core/sim/nexus.js`): nexus breakable (3000) once its side's middle castle isn't
+  theirs, never by its own side or while its side holds the Crown; +5 to the breaker (points, results, snapshot field 9), owners'
+  morale -30 and capped 50 for 60 s; crystal gone, bar when hit. Crown = 8 points, no longer ends the battle (bot battles end at
+  10:00 on points), its side's morale floor 50; bots leave the glacier once taken. r_CASTLE8 8/8 + regression pass.
 
 ## CL2 Focus the map (15 Nov; card `docs/tickets/CL2.md`). On branch `t/CL2`, not shipped
 - Only the Crown on the Mountain in the menus (home, lobby, Quick); other maps and their modes hidden behind `?maps=all`

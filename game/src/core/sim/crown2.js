@@ -13,6 +13,7 @@ import { allianceOf, sideArmies } from './holds.js';
 import { castle3Tick } from './castle3.js';
 import { captureTick } from './capture.js';
 import { siegeTick } from './siege.js';
+import { nexusBreaks, nexusOpen, nexusBroken } from './nexus.js';
 import { c2Man, c2Post, c2PostTick } from './step.js'; // (later files: through the entry, so files still load in the old order)
 
 // ---------- the new Crown: the mountain's rules ----------
@@ -56,14 +57,15 @@ export function c2Take(h, a, per) {
 export function c2Points(a) {
   const K = G.c2; if (!K) return 0; let p = 0;
   for (const h of G.holds || []) if (h.owner === a) p += CROWN2.points[c2Kind(h)];
-  return p + (K.chestPts[a] || 0) + (K.crownPts[a] || 0) + Object.values(K.kills[a] || {}).reduce((n, v) => n + v, 0);
+  return p + (K.chestPts[a] || 0) + (K.crownPts[a] || 0) + ((K.nexusPts && K.nexusPts[a]) || 0) + Object.values(K.kills[a] || {}).reduce((n, v) => n + v, 0);
 }
 // where a side's points came from (the results screen): places held at the end, the chest, the Crown, captains cut down
 export function c2Breakdown(a) {
-  const K = G.c2, P = CROWN2.points, o = { castles: 0, villages: 0, chest: 0, crown: 0, caps: 0, total: 0 }; if (!K) return o;
+  const K = G.c2, P = CROWN2.points, o = { castles: 0, villages: 0, chest: 0, crown: 0, caps: 0, nexus: 0, total: 0 }; if (!K) return o;
   for (const h of G.holds || []) if (h.owner === a) { if (c2Kind(h) === 'castle') o.castles++; else o.villages++; }
   o.chest = K.chestPts[a] || 0; o.crown = K.crownPts[a] || 0; o.caps = Object.values(K.kills[a] || {}).reduce((n, v) => n + v, 0);
-  o.total = o.castles * P.castle + o.villages * P.village + o.chest + o.crown + o.caps;
+  o.nexus = (K.nexusPts && K.nexusPts[a]) || 0;
+  o.total = o.castles * P.castle + o.villages * P.village + o.chest + o.crown + o.caps + o.nexus;
   return o;
 }
 // the things on the mountain you break: a neutral castle's guards, a bandit camp, the war chest, the glacier
@@ -78,10 +80,11 @@ export function c2Begin(mk = null) {
   // (F4) every post's men, real soldiers with fixed ids (a joined phone makes the same ones: `mk` is its maker)
   let pi = 0; for (const b of K.breaks) if (b.post) { b.pi = pi++; for (let k = 0; k < b.men; k++) c2Man(b, k, mk); }
   K.breaks.push({ brk: true, kind: 'glacier', x: 0, z: 0, r: 2.6, hp: CROWN2.glacierHits, max: CROWN2.glacierHits });
+  K.breaks.push(...nexusBreaks(L)); K.nexusPts = {}; // (CASTLE8)
   applyCastleGates();
   G.plazaWall.up = true; G.plazaWall.broken = 15; // (F7: the arena's gates stand open; the lake keeps everyone out)
 }
-const c2CanHit = (u, b) => b.kind === 'glacier' ? u.leader && G.c2.phase === 'night' : b.kind === 'chest' ? G.c2.chest === 1 : true;
+const c2CanHit = (u, b) => b.kind === 'glacier' ? u.leader && G.c2.phase === 'night' : b.kind === 'chest' ? G.c2.chest === 1 : b.kind === 'nexus' ? nexusOpen(b, u) : true;
 // how many of a garrison still stand: [footmen, archers] (F4: its live men)
 export function c2Garrison(b) {
   let f = 0, a = 0; for (const u of b.units || []) if (u && !u.dead) { if (u.kind === 'arch') a++; else f++; }
@@ -98,7 +101,8 @@ export function c2Hit(u, b) {
   if (b.hp > 0) return;
   b.hp = 0; const a = allianceOf(u.ti), K = G.c2;
   if (b.kind === 'chest') { c2ChestTo(a, u.ti); }
-  else if (b.kind === 'glacier') { K.crownPts[a] = CROWN2.points.crown; hl(u.ti, 'crown'); say('crownTaken', u.ti); fx('netFlush'); c2End('crown'); }
+  else if (b.kind === 'glacier') { K.crownPts[a] = CROWN2.points.crown; hl(u.ti, 'crown'); say('crownTaken', u.ti); fx('netFlush'); } // (CASTLE8: the Crown no longer ends the battle: 10:00 does)
+  else if (b.kind === 'nexus') nexusBroken(b, a, u.ti);
 }
 function c2ChestTo(a, ti = -1) { // (ti: the captain whose blow broke it, if anyone's)
   const K = G.c2; K.chest = 2; const b = K.breaks.find(x => x.kind === 'chest'); if (b) b.hp = 0;
