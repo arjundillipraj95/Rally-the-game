@@ -13,7 +13,7 @@ import { bushTick } from './bush.js';
 import { attackHold, blockPress, braceTick, heavyTick } from './guard.js';
 import { arrowsTick, shoot } from './missiles.js';
 import { checkTime, die, updateControlPoints } from './score.js';
-import { fortLvl, insidePlaza, towerInReach, wallInReach } from './forts.js';
+import { fortLvl, insidePlaza, structureStands, towerInReach, wallInReach } from './forts.js';
 import { holdsTick, updateFlag } from './holds.js';
 import { c2BreakInReach, c2Tick } from './crown2.js';
 import { neutralFoe, thinkNeutral } from './neutral.js';
@@ -183,6 +183,7 @@ export function update(dt, input) {
     if (s.order !== 'focus' || !s.focus) return;
     const t = G.units.find(o => o.id === s.focus.id && !o.dead);
     if (t) { s.focus.x = t.x; s.focus.z = t.z; return; }
+    if (!s.focus.id) { if (!structureStands(s.focus.x, s.focus.z)) { s.order = 'follow'; s.focus = null; if (s.human) say('focusDone', G.teams.indexOf(s)); } return; } // (ORD1: a gate, nexus or chest: until it falls)
     const L = s.leader, n = L && G.units.filter(o => !o.dead && isEnemy(o, L)).sort((a, b) => Math.hypot(a.x - s.focus.x, a.z - s.focus.z) - Math.hypot(b.x - s.focus.x, b.z - s.focus.z))[0];
     if (n && Math.hypot(n.x - s.focus.x, n.z - s.focus.z) < 9) { s.focus.id = n.id; s.focus.x = n.x; s.focus.z = n.z; } else { s.order = 'follow'; s.focus = null; if (s.human) say('focusDone', G.teams.indexOf(s)); }
   });

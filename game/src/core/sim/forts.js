@@ -154,3 +154,9 @@ export function towersTick(dt) {
 }
 export function hitTower(u, w) { if (w && w.brk) return c2Hit(u, w); if (!w || w.hp <= 0 || G.ALLY[colorOf(u.ti)] === w.a) return; w.hp -= u.dmg * FORT.wallDmg * 2 * (u.leader ? FORT.capWall : 1); w.by = u.ti; sound('wall', w.x, w.z); spark(w.x, groundY(w.x, w.z) + 2, w.z, '#a3825a', 4); }
 export const towerInReach = u => (G.wtowers || []).find(w => w.a !== G.ALLY[colorOf(u.ti)] && Math.hypot(w.x - u.x, w.z - u.z) < u.r + u.reach + CROWN.tower.reach * .6) || (G.c2 ? c2BreakInReach(u) : null);
+// (ORD1) is there still a gate (unbroken, of a held castle) or a breakable (the chest, a nexus, the glacier) at this spot?
+export function structureStands(x, z) {
+  for (const cw of (G.layout && G.layout.cwalls) || []) { const st = G.cgates && G.cgates[cw.hid], h = G.holds && G.holds[cw.hid]; if (!st || !h || h.owner < 0) continue;
+    for (let gi = 0; gi < cw.gates.length; gi++) if (!((st.broken >> gi) & 1) && Math.hypot(cw.x + Math.cos(cw.gates[gi]) * cw.r - x, cw.z + Math.sin(cw.gates[gi]) * cw.r - z) < 3) return true; }
+  return ((G.c2 && G.c2.breaks) || []).some(b => !b.post && b.hp > 0 && Math.hypot(b.x - x, b.z - z) < b.r + 2);
+}

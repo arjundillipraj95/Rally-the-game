@@ -69,7 +69,8 @@ export function thinkSoldier(u, dt) {
   if (orderOf(u.ti) === 'focus' && s.focus) {
     let best = null, bd = 1e9;
     for (const o of G.units) { if (o.dead || !isEnemy(o, u) || Math.hypot(o.x - s.focus.x, o.z - s.focus.z) > 9) continue; const d = Math.hypot(o.x - u.x, o.z - u.z); if (d < bd) { bd = d; best = o; } }
-    if (best) { u.foe = best; u.fd = bd; } else if (Math.hypot(s.focus.x - u.x, s.focus.z - u.z) > 3) { go(u, s.focus.x, s.focus.z, speedOf(u), dt, 2); return; }
+    if (best) { u.foe = best; u.fd = bd; } else if (Math.hypot(s.focus.x - u.x, s.focus.z - u.z) > (s.focus.id ? 3 : 1.6)) { go(u, s.focus.x, s.focus.z, speedOf(u), dt, s.focus.id ? 2 : 1); return; } // (ORD1: a gate, nexus or chest (id 0): right up to it)
+    else if (!s.focus.id) u.face = Math.atan2(s.focus.x - u.x, s.focus.z - u.z); // (facing it: the strike rules in step.js do the rest)
   }
   const myOrder = orderOf(u.ti);
   if (myOrder === 'shieldwall' && leaderUp) {

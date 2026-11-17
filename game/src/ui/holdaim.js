@@ -40,7 +40,16 @@ export function holdMove(sx, sy, touch) {
   // dragged onto enemy men: that's an attack order on their group, not a line
   let best = null, bd = 3.2;
   for (const u of G.units) { if (u.dead || !isEnemyTi(u.ti, G.myTi)) continue; const d = Math.hypot(u.x - g.x, u.z - g.z); if (d < bd) { bd = d; best = u; } }
-  hold.focus = best;
+  hold.focus = best || structureAt(g.x, g.z);
+}
+// (ORD1, Arjun 16 Nov) dragged onto an enemy castle's gate, a nexus, the war chest or the glacier: an attack order on it
+// (the soldiers walk up to it and strike it: core/sim/step.js); a focus with id 0
+export function structureAt(x, z) {
+  const myA = G.ALLY[G.myTi % 4], near = (px, pz, r) => Math.hypot(px - x, pz - z) < r;
+  for (const cw of (G.layout && G.layout.cwalls) || []) { const h = G.holds && G.holds[cw.hid], st = G.cgates && G.cgates[cw.hid]; if (!h || h.owner < 0 || h.owner === myA || !st) continue;
+    for (let gi = 0; gi < cw.gates.length; gi++) { if ((st.broken >> gi) & 1) continue; const gx = cw.x + Math.cos(cw.gates[gi]) * cw.r, gz = cw.z + Math.sin(cw.gates[gi]) * cw.r; if (near(gx, gz, 4)) return { x: gx + Math.cos(cw.gates[gi]) * 1.2, z: gz + Math.sin(cw.gates[gi]) * 1.2, id: 0, obj: true }; } } // (just outside it: the wall itself can't be walked to)
+  for (const b of (G.c2 && G.c2.breaks) || []) if (!b.post && b.hp > 0 && (b.kind !== 'nexus' || G.ALLY[b.c] !== myA) && near(b.x, b.z, b.r + 3)) { const p = G.player || { x, z }, a = Math.atan2(p.z - b.z, p.x - b.x); return { x: b.x + Math.cos(a) * (b.r + .8), z: b.z + Math.sin(a) * (b.r + .8), id: 0, obj: true }; } // (its near side)
+  return null;
 }
 // the placed line ({x, z, face}), an attack on a group ({x, z, id, focus: true}), or null for a plain tap
 export function holdEnd() {

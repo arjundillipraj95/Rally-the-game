@@ -198,6 +198,8 @@ Last updated: 2026-11-16 (CASTLE4 built on `launch26`; main = launch26 at NETX).
 - CASTLE6 done (card `docs/tickets/CASTLE6.md`, `core/sim/holding.js`, `CASTLE26.hold`): castle points middle 5 / outer 3; +8 health
   per 3 s in the yard (none with an enemy in it); Crown shard to the first side to take a castle (+25 to each army's horn; a diamond
   after the name while unclaimed); a nexus broken moves 2 shards. Snapshot: mountain field 10, holds field 12. r_CASTLE6 6/6.
+- ORD1 done (Arjun 16 Nov, card `docs/tickets/ORD1.md`): the attack order dragged onto an enemy gate, a nexus (not yours), the war
+  chest or the glacier sends the foot soldiers to strike it (focus id 0, kept while it stands: forts.js structureStands). r_ORD1 4/4.
 
 ## CL2 Focus the map (15 Nov; card `docs/tickets/CL2.md`). On branch `t/CL2`, not shipped
 - Only the Crown on the Mountain in the menus (home, lobby, Quick); other maps and their modes hidden behind `?maps=all`
