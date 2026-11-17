@@ -4,11 +4,15 @@
 import { CHAMP } from '../config.js';
 import { G, ARMIES } from '../core/state.js';
 import legionary from './legionary.js';
+import titus from './titus.js';
+import { check } from './guard.js';
 
-export const CHAMPS = { legionary };
+export const CHAMPS = { legionary, titus };
 // (tests) extra champions a test page sets up before the game loads: window.__champs = [{ id, ... }], dev only
 try { if (import.meta.env.DEV && typeof window !== 'undefined' && Array.isArray(window.__champs)) for (const d of window.__champs) CHAMPS[d.id] = d; } catch (e) { /* none */ }
 export const CHAMP_IDS = Object.keys(CHAMPS);
+// (C3a) a page outside the guardrails is reported at load (dev); r_C3a fails on it
+try { if (import.meta.env.DEV) for (const id of CHAMP_IDS) { const b = check(CHAMPS[id]); if (b.length) console.error('champion ' + id + ' outside the guardrails: ' + b.join('; ')); } } catch (e) { /* none */ }
 export const champDef = id => CHAMPS[id] || CHAMPS[CHAMP.def];
 export const champOf = ti => champDef(G.champs && G.champs[ti]);
 const okId = id => (id && CHAMPS[id] ? id : null);

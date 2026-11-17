@@ -36,3 +36,15 @@ export const ARMY = {
   striker: { start: 3, mid: 3, outer: 3 },
   raider: { start: 3, mid: 3, outer: 3 },
 };
+
+// (C3a) the base champion and its hard limits (design "Base champion, budget and guardrails", 17 Nov), in the plain
+// numbers players see: [base, floor, ceiling]. Budget: % off the base in health, damage per second, pace on foot and
+// horse pace (+30 for a ranged champion) adds up to 0, give or take `budget`. Checked by champions/guard.js (r_C3a).
+export const BASE = {
+  hp: [400, 280, 560], dmg: [30, 20, 45], rate: [1.4, 1, 2.2], dps: [42, 34, 52], reach: [1.3, 1.1, 2], range: [14, 10, 16],
+  spd: [6.2, 5.6, 7.2], horse: [11.2, 10, 12.5], budget: 5, ranged: 30,
+};
+// (C3a) a champion's soldiers, on a 100-health man (neutral soldiers keep today's rows): the base each army shift
+// starts from (an upgrade keeps today's step over it), and the shift's limits: each stat within `shift` % of the
+// base, the shifts adding up to 0, give or take `budget` (agreed 17 Nov: soldiers' stats align with their champion).
+export const SOLDIER = { foot: { hp: 100, dmg: 20 }, arch: { hp: 60, dmg: 10 }, shift: 20, budget: 5 };

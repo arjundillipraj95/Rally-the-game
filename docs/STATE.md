@@ -369,7 +369,17 @@ Last updated: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pag
 - C1f: pace on foot, horse pace and health from the page. Base to the Crown: ~30 s on foot, ~16 s riding.
 - Tests: r_C1a (join: champions, weapons, levels, a press), r_C1b, r_C1c, r_C1d, r_C1e, r_C1f; crown2sim/online, r_PERF1c pass;
   lag 250 ms: response 138 ms, error .21 m (was 141 / .2). r_SPLIT's seeded battle changes by design from C1d on.
-- Next: C3 Titus (card waiting for Arjun's go); then C2 units before Devi (C4) and Sigrun (C5).
+- Next: C3 Titus; then C2 units before Devi (C4) and Sigrun (C5).
+
+## C3 Titus (17 Nov; card `docs/tickets/C3.md`)
+- C3a built on launch26 (Arjun's go): `champions/titus.js` in plain numbers (480 health, 30 a hit at 1.2/s, reach 1.4, 5.9 / 11.2 m/s,
+  horse 200); combo slash, slash, shield bash (30 each, stagger capped 1 s) on his beat; `champions/guard.js` floors, ceilings and
+  budget (+0.9); army shift slot (`champions/army.js`): his soldiers on a 100-health man (spearman 100 / 20 with spear from the start,
+  archer 60 / 10), neutral soldiers and the legionary unchanged (Arjun 17 Nov). `?champ=titus`, `?botchamp=titus`.
+- Tests: r_C3a, r_C3a-join, r_C1a (now lists Titus), r_C1d, crown2sim (off, roles, titus) and crown2online pass; lag 250 ms: response
+  133 ms, error .19 m. r_C1b's level-end checks vary run to run (known, G1).
+- Open for the designer: Titus's army shift numbers; shield discipline (part of the shift or its own effect); spearman base reach
+  (today 1.25 m). Next: C3d Eagle's fall (animation first), then C3b, C3c, C3e, C3f.
 - Arjun 17 Nov (for S1-12, designer to fold into the design doc): the lobby is 60 s and picks the champion with the lane: filter
   by class, then a picture grid like League or Unite. Today's design says 25 s and no grid.
 - Fixes 17 Nov (Arjun's list), on launch26: FIX1 lobby (not reproduced as reported; made robust: the service resends the

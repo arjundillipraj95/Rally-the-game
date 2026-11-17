@@ -24,7 +24,8 @@ import { floatText } from '../render/effects.js';
 import { cam, CAM_PITCH } from '../render/camera.js';
 import { pingTick, pingPong } from './ping.js';
 import { freshGates } from '../core/sim/forts.js';
-import { applyChamp, champHp } from '../champions/stats.js';
+import { applyChamp, champHp, champReach, comboCd } from '../champions/stats.js';
+import { unitRow } from '../champions/army.js';
 import { SLOTS, useAbility } from '../core/sim/abilities.js';
 
 export const C = {}; // client-side state
@@ -250,6 +251,7 @@ function clientUnit(id, kind, ti, x, z) {
     spd: kind === 'captain' ? champOf(ti).stats.spd : STATS[kind].spd, // (C1f: his page's pace)
     horseHp: horseMax(ti), horseCd: 0, summon: false, shieldwall: false, blocking: false, lastHit: -9,
     jy: 0, jyT: 0, jvy: 0, jumpCd: 0, weapon: human && ti === G.myTi ? (G.teams[ti].weapon || 'sword') : undefined, javAmmo: CAPTAIN_COMBAT.jav.ammo, javRegen: 0, combo: 0, lastSwingT: -9 };
+  if (kind === 'foot' || kind === 'arch') { const r = unitRow(ti, kind); if (r && r.hp !== u.max) u.hp = u.max = r.hp; } // (C3a: his champion's soldiers)
   G.units.push(u); if (C.byId) C.byId.set(id, u); return u;
 }
 function clientKill(u) {
@@ -648,12 +650,13 @@ function predictAttack(p) {
   }
   // the host lands the blow ~.12s into the swing; show the impact here at the same moment instead of
   // waiting for the host's word (the damage itself still comes from the host)
-  if (best) C.pred = { at: performance.now() + (skewer ? SK.t * 1000 : spear ? CC.spear.t * 1000 : 120), tg: best, reach: STATS.captain.reach, spear, blow: spear && spearBlow(sCombo) };
+  if (best) C.pred = { at: performance.now() + (skewer ? SK.t * 1000 : spear ? CC.spear.t * 1000 : 120), tg: best, reach: champReach(G.myTi), spear, blow: spear && spearBlow(sCombo) };
   if (spear && skewer) { C.localCd = SK.cd; p.swingKind = 5; p.combo = 2; p.vx = Math.sin(p.face) * SK.lunge; p.vz = Math.cos(p.face) * SK.lunge; p.dashT = SK.dash; } // (the skewer: a running lunge)
   else if (spear) { C.localCd = sCombo === 1 ? CC.spear.cd2 : CC.spear.cd; p.swingKind = 3; p.combo = sCombo; p.vx += Math.sin(p.face) * CC.spear.lunge; p.vz += Math.cos(p.face) * CC.spear.lunge; }
   else {
-    const combo = performance.now() / 1000 - p.lastSwingT < CC.sword.window ? (p.combo + 1) % 3 : 0;
-    p.combo = combo; p.swingKind = combo === 2 ? 4 : combo; C.localCd = combo === 2 ? CC.sword.finisherCd : CC.sword.cd;
+    const tc = comboCd(G.myTi, 0) != null, win = tc ? Math.max(CC.sword.window, comboCd(G.myTi, 2) + .45) : CC.sword.window; // (C3a: his page's beat, as on the host)
+    const combo = performance.now() / 1000 - p.lastSwingT < win ? (p.combo + 1) % 3 : 0;
+    p.combo = combo; p.swingKind = combo === 2 ? (tc ? 6 : 4) : combo; C.localCd = tc ? comboCd(G.myTi, combo) : combo === 2 ? CC.sword.finisherCd : CC.sword.cd;
     if (combo !== 2) { p.vx += Math.sin(p.face) * CC.sword.step; p.vz += Math.cos(p.face) * CC.sword.step; } // (the half-step, as on the host)
   }
   p.lastSwingT = now;

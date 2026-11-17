@@ -17,6 +17,7 @@ import { batchOn, abOn, abOld } from './batch.js';
 import { foldGear, foldShow } from './rig/fold.js';
 import { strikeYaw, lookAlong } from './rig/strikeface.js';
 import { aimShaft } from './rig/shaft.js';
+import { spearman } from '../champions/army.js';
 
 // the warhorse's leg joints, in its own (Z-up) model space: each leg swings from the top of its upper part
 const LEGS = { frontL: [-.34, -.63, 1.2], frontR: [.34, -.63, 1.2], backL: [-.36, .58, 1.2], backR: [.36, .58, 1.2] };
@@ -94,7 +95,7 @@ let FRAME = 0; // (frames drawn: what was drawn this frame stays up, the rest is
 const live = new Map(); // unit -> { R, weapon, team, run, moveName, moveT, hp, sc, U, legs }
 const KIND = ['forehand', 'backhand', 'overhead', 'thrust', 'spin', 'heavy', 'bash'];
 // the Arms upgrade (tier 1+) puts a spear in the hand of a footman, and of a captain who has not picked one
-function weaponOf(u) { if (u.kind === 'arch') return 'bow'; if (u.weapon) return u.weapon === 'spear' ? 'spear' : u.weapon === 'jav' ? 'jav' : 'sword'; return u.tier >= 1 ? 'spear' : 'sword'; }
+function weaponOf(u) { if (u.kind === 'arch') return 'bow'; if (u.weapon) return u.weapon === 'spear' ? 'spear' : u.weapon === 'jav' ? 'jav' : 'sword'; return u.tier >= 1 || spearman(u) ? 'spear' : 'sword'; } // (C3a: spearmen)
 // the look chosen for this unit's team (the wardrobe): helmet, armour and shield come from it
 const lookOf = u => (G.looks && G.looks[u.ti]) || null;
 // the colour an army's cloth, shield face and hood are tinted to: its team's, or the neutral grey (M1: the mountain's garrisons and camps)

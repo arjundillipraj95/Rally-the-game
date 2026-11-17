@@ -14,6 +14,7 @@ import { towerInReach, wallInReach } from './forts.js';
 import { c2BreakInReach } from './crown2.js';
 import { swiftCd } from './buffs.js';
 import { champOf } from '../../champions/index.js';
+import { comboCd } from '../../champions/stats.js';
 
 // Last Man Standing (a test variant of the Crown): the same battle until 9:00; then nobody comes back,
 // a ring closes on the plaza (outside it hurts) and the last side with a captain standing wins. If it
@@ -205,17 +206,21 @@ function captainAttack0(p) {
     p.vx += Math.sin(p.face) * CC.spear.lunge; p.vz += Math.cos(p.face) * CC.spear.lunge; // (the whole body goes into the thrust)
     p.cd = sCombo === 1 ? CC.spear.cd2 : CC.spear.cd; p.combo = sCombo; p.swingKind = 3;
   } else {
-    const combo = G.T - p.lastSwingT < S.window ? (p.combo + 1) % 3 : 0, fin = combo === 2;
+    const tc = comboCd(p.ti, 0) != null, win = tc ? Math.max(S.window, comboCd(p.ti, 2) + .45) : S.window; // (C3a: his page's beat)
+    const combo = G.T - p.lastSwingT < win ? (p.combo + 1) % 3 : 0, fin = combo === 2;
     // the rhythm: presses on the beat (a joiner's phone judges its own, network hiccups aside)
     const onBeat = Math.abs(G.T - p.lastSwingT - RHYTHM.at) <= RHYTHM.w;
     p.beats = combo === 0 ? 0 : p.remote && p.rbIn != null ? p.rbIn : onBeat ? (p.beats || 0) + 1 : 0; p.rbIn = null;
     Object.assign(p.pending, { mult: fin ? S.finisherMult : S.mult, cleave: fin, spin: fin, kb: fin ? 1.25 : .25 }); // light hits keep him in reach, the finisher spins and launches
-    if (fin && p.human && p.beats >= 2) { // on the beat all the way: the rhythm finisher
+    if (tc && fin) { // (C3a: his third blow is the shield bash, at full weight; it staggers)
+      Object.assign(p.pending, { mult: S.mult, cleave: false, spin: false, kb: BASH.kb, bash: true, stunMax: champOf(p.ti).combo.stunMax, reachB: .3 });
+      sound('thud', p.x, p.z);
+    } else if (fin && p.human && p.beats >= 2) { // on the beat all the way: the rhythm finisher
       Object.assign(p.pending, { mult: S.finisherMult * RHYTHM.mult, kb: 1.25 * RHYTHM.kb, stun: RHYTHM.stun });
       fx('fxmsg', { k: 'fxrhythm', u: p }); hl(p.ti, 'rhythm'); if (p.remote) fx('netFlush');
     }
     if (!fin) { p.vx += Math.sin(p.face) * S.step; p.vz += Math.cos(p.face) * S.step; } // (a half-step into each blow)
-    p.cd = fin ? S.finisherCd : S.cd; p.combo = combo; p.swingKind = fin ? 4 : combo; // (4: the spin)
+    p.cd = tc ? comboCd(p.ti, combo) : fin ? S.finisherCd : S.cd; p.combo = combo; p.swingKind = fin ? (tc ? 6 : 4) : combo; // (4: the spin; 6: the shield bash)
   }
   if ((ev === 'side' || ev === 'back') && p.pending) {
     if (ev === 'side') { Object.assign(p.pending, { mult: (p.pending.mult || 1) * EVADE.flank.mult, stun: Math.max(p.pending.stun || 0, EVADE.flank.stun) }); p.swingKind = spear ? 3 : 1; } // the flank cut: hard enough to break a wind-up; from behind, a backstab too

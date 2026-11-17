@@ -8,6 +8,7 @@ import { applyCastleGates, applyPlazaWall, archTier, c2Begin, footTier, freshGat
 import { assignChamps, champOf, myChamp } from '../../champions/index.js';
 import { applyChamp } from '../../champions/stats.js';
 import { inflHp } from '../../champions/influence.js';
+import { unitRow } from '../../champions/army.js';
 // (C1a) a champion's weapon: the one asked for if he carries it, else his first
 export const champWeapon = (ti, w) => { const ws = champOf(ti).weapons; return ws.includes(w) ? w : ws[0]; };
 
@@ -23,7 +24,7 @@ export function newTeams(humans, active = activeFrom([0, 0, 0, 0])) {
 export function mkUnit(ti, x, z, kind, human = false) {
   const st = STATS[kind];
   const tier = kind === 'foot' || kind === 'captain' ? footTier(ti) : kind === 'arch' ? archTier(ti) : 0;
-  const base = kind === 'foot' ? FOOT_TIERS[tier] : kind === 'arch' ? ARCH_TIERS[tier] : st;
+  const base = kind === 'foot' || kind === 'arch' ? unitRow(ti, kind, tier) : st; // (C3a: his champion's soldiers)
   const capB = kind === 'captain' ? CAPTAIN_TIERS[tier] : null;
   const u = { id: ++G.uid, ti, kind, leader: kind === 'captain', human, isMe: human && ti === G.myTi && G.role !== 'client', remote: human && ti !== G.myTi,
     x, z, y: groundY(x, z), vx: 0, vz: 0, vy: 0, face: Math.atan2(-x, -z),

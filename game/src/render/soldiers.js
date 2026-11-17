@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { TEAMS, CRESTS, EXEC, NEUTRAL, FEEL, QUALITY } from '../config.js';
 import { G, isEnemyTi, isFfa, colorOf, bus } from '../core/state.js';
 import { braced } from '../core/sim.js';
+import { spearman } from '../champions/army.js';
 import { lookOf, slotOf, SLOT_IX } from '../core/look.js';
 import { scene, shadowsOn, camera } from './scene.js';
 import { camTarget } from './camera.js';
@@ -174,7 +175,7 @@ const DENT = new THREE.Color(0x24211e), PELT = new THREE.Color(0x7a6c5e), SILVER
 const armed = u => u.tier >= 1; // Footman/captain Arms upgrade: spear + javelin
 const armored = u => u.tier >= 2; // Footman/captain Armor upgrade: extra plate
 // what's in the weapon hand: a player captain shows the weapon they picked; everyone else by tier
-const spearOut = u => u.weapon ? u.weapon !== 'sword' : u.tier >= 1;
+const spearOut = u => u.weapon ? u.weapon !== 'sword' : u.tier >= 1 || spearman(u); // (C3a: his champion's spearmen)
 const trained = u => u.tier >= 1, marksman = u => u.tier >= 2; // Archer tiers
 // (a neutral soldier of the mountain's garrisons and camps, M1: grey steel instead of a team colour)
 const NEUT = col(NEUTRAL.hex), NEUT_DARK = col(NEUTRAL.hex).multiplyScalar(.62);
