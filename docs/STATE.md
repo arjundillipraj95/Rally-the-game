@@ -182,6 +182,11 @@ Last updated: 2026-11-16 (CASTLE4 built on `launch26`; main = launch26 at NETX).
   soldiers +10% each to +50%, soldiers alone take it in 10 s (Arjun 16 Nov), anyone else in it pauses, empty drains; drawn on the
   overlay (`render/captring.js`); camera +15% inside; computer captains go for the banner. r_CASTLE4 10/10, r_CASTLE1-3,
   crown2sim (castles change hands) and crown2online roles off+on, r_PERF1c pass. Next: Arjun plays (C1-C4), then CASTLE5.
+- Arjun 16 Nov 21:02: soldiers alone take a castle (10 s); soldier orders to target gates, nexus, war chest; build all castle cards
+  in Claude's order overnight (5, 7, 8, 6, orders, 9, 10), launch26 only. Test helpers: /home/claude/bin/t.sh, reg.sh (restart servers).
+- CASTLE5 done (card `docs/tickets/CASTLE5.md`): capture moment on every phone (`render/castlefx.js`: torn banner, gate dust, horn and
+  sting, a taker's call, camera beat near), +80 gold each other army on the side; sieges and Held! (`core/sim/siege.js`, +60 each
+  defending army); under-attack banner and edge arrow, once in 20 s. r_CASTLE5 9/9 + regression pass.
 
 ## CL2 Focus the map (15 Nov; card `docs/tickets/CL2.md`). On branch `t/CL2`, not shipped
 - Only the Crown on the Mountain in the menus (home, lobby, Quick); other maps and their modes hidden behind `?maps=all`

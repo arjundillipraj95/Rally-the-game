@@ -1,5 +1,5 @@
 // Third-person camera that follows your captain (or an ally's once you fall).
-import { G, isEnemyTi } from '../core/state.js';
+import { G, isEnemyTi, bus } from '../core/state.js';
 import { FEEL, EXEC, CASTLE26 } from '../config.js';
 import { circleOf } from '../core/sim/capture.js'; // (CASTLE4)
 import { groundY, terrainMeshY, rnd, W } from '../core/world.js';
@@ -32,6 +32,7 @@ export function camTarget() {
 const angTo = (from, to) => { let d = (to - from) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return d; };
 // The director: the camera reads the fight around you. A big clash pulls it back and up to show the
 // scale of it; a duel between captains brings it in close and low; quiet ground, the usual view.
+let beatUntil = 0; bus.on('camBeat', () => { beatUntil = performance.now() + 1300; }); // (CASTLE5: a castle taken near you: a beat of camera, back and up)
 const dir = { zoom: 1, lift: 0, t: 0, want: 1, wantLift: 0, orbit: 0, side: 1, ex: null };
 function direct(tgt, dt) {
   dir.t -= dt;
@@ -50,6 +51,7 @@ function direct(tgt, dt) {
     else if (duel && near <= 6) { dir.want = .86; dir.wantLift = -.6; }
     else { dir.want = 1 + .38 * scale; dir.wantLift = 2.2 * scale; }
     if (!tgt.dead && G.c2 && circleOf(tgt)) dir.want = Math.max(dir.want, 1 + CASTLE26.circle.cam); // (CASTLE4: in a capture circle, pulled back)
+    if (performance.now() < beatUntil) { dir.want = Math.max(dir.want, 1.35); dir.wantLift = Math.max(dir.wantLift, 2.6); dir.t = .1; }
     if (tgt.dead) { dir.want = FEEL.death.zoom; dir.wantLift = FEEL.death.lift; } // (F5: back and up over a fallen captain)
   }
   // an execution: in close and low on the two of them, quickly

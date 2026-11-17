@@ -126,6 +126,10 @@ export const CASTLE26 = {
   // (CASTLE4) the capture circle round the courtyard banner: radius m; seconds to fill with soldiers alone, 1, 2, 3+ champions; each
   // soldier of theirs in it adds `soldier` (up to `soldierMax`); an empty circle drains a full bar in `drain` s;
   // inside it the camera pulls back by `cam`
+  // (CASTLE5) a capture pays `side` gold to every other army on the taker's side too; an attack beaten off (a plate
+  // broken or the circle started, then no enemy within the turret's range for `heldAfter` s) pays the defenders `held`
+  // each; an attack (a gate hit, the circle started, the turret on a champion) warns the owners, once in `alertGap` s
+  moment: { side: 80, held: 60, heldAfter: 8, alertGap: 20 },
   circle: { r: 4.5, fill: [10, 6, 4, 3], soldier: .1, soldierMax: .5, drain: 12, cam: .15 }, // (fill[0]: soldiers alone, Arjun 16 Nov; then 1, 2, 3+ champions)
 };
 // Match length, in minutes: Quick, Standard (the default) or Long. A shorter battle runs hotter: more

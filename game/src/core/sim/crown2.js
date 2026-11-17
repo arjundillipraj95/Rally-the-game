@@ -12,6 +12,7 @@ import { applyCastleGates, castleTowersTick, freshGates, towersTick } from './fo
 import { allianceOf, sideArmies } from './holds.js';
 import { castle3Tick } from './castle3.js';
 import { captureTick } from './capture.js';
+import { siegeTick } from './siege.js';
 import { c2Man, c2Post, c2PostTick } from './step.js'; // (later files: through the entry, so files still load in the old order)
 
 // ---------- the new Crown: the mountain's rules ----------
@@ -42,7 +43,8 @@ export function c2Take(h, a, per) {
   const by = [...per.entries()].filter(([ti]) => allianceOf(ti) === a).sort((p, q) => q[1] - p[1])[0][0], k = c2Kind(h), was = h.by;
   let gain = CROWN2.bonus[k];
   if (h.owner >= 0 && was != null && G.teams[was]) { const v = G.teams[was], take = Math.max(0, v.gold) * CROWN2.steal[k]; v.gold -= take; gain = Math.max(gain, take); }
-  G.teams[by].gold += gain;
+  G.teams[by].gold += gain; if (k === 'castle') for (const i of sideArmies(a)) if (i !== by) G.teams[i].gold += CASTLE26.moment.side; // (CASTLE5: gold for the whole side)
+  h.siege = null;
   h.owner = a; h.by = by; h.prog = 0; h.cap = -1; h.tick = 0; h.fort = 0; // (a palisade doesn't change hands)
   say('holdTaken', a, h.kind, h.id); hl(by, h.kind === 'castle' ? 'castle' : 'hold');
   for (const s of G.teams) s.homeSpot = null; for (const u of G.units) u.runTo = null;
@@ -172,7 +174,7 @@ function floodStep(u, dt, own, ar) {
   return true;
 }
 export function c2Tick(dt) {
-  towersTick(dt); castleTowersTick(dt); castle3Tick(dt); // (CASTLE1: no gate mends by itself; CASTLE2: level III)
+  towersTick(dt); castleTowersTick(dt); castle3Tick(dt); siegeTick(); // (CASTLE1: no gate mends by itself; CASTLE2: level III)
   const K = G.c2, T = G.T, C = CROWN2, once = (k, ...a) => { if (!K.said[k]) { K.said[k] = 1; say(k, ...a); } };
   if (T >= C.chest - C.chestWarn) once('c2chestSoon', C.chestWarn);
   if (T >= C.chest && K.chest === 0) { K.chest = 1; const r = G.layout.arena.r * .5; K.breaks.push({ brk: true, kind: 'chest', x: r, z: 0, r: 1.6, hp: C.chestHp, max: C.chestHp }); once('c2chestUp'); c2Phase('open'); G.teams.forEach(s => { if (!s.human) s.thinkT = Math.min(s.thinkT, rnd(.2, 1.5)); }); }

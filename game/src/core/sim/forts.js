@@ -7,6 +7,7 @@ import { fx, say, sound, spark } from './util.js';
 import { aiDmg, nearestFoe } from './melee.js';
 import { shoot } from './missiles.js';
 import { turretTarget, turretShot, volleyOn } from './turret.js';
+import { attacked, siegeOn } from './siege.js';
 import { allianceOf, c2BreakInReach, c2Hit } from './step.js'; // (later files: through the entry, so files still load in the old order)
 
 // ---------- Fortify: a castle's palisade and gate towers ----------
@@ -64,6 +65,7 @@ export function castleTowersTick(dt) {
     st.towerT = (st.towerT || 0) - dt; if (st.towerT > 0) continue;
     const ti = activeArmies().find(i => allianceOf(i) === h.owner); if (ti == null) { st.towerT = 1; continue; }
     const e = turretTarget(cw, h, st); if (!e) { st.towerT = .3; st.tg = null; continue; }
+    if (e.leader) attacked(h, allianceOf(e.ti)); // (CASTLE5: a champion at the walls)
     st.towerT = CASTLE26.every[lv]; const m = volleyOn(st, e), T = CASTLE26.turret, dmg = (e.leader ? T.champ * m : T.soldier);
     for (let k = 0; k < CASTLE26.archers[lv]; k++) { const b = h.towerA0 + k * Math.PI / 2, x = h.x + Math.cos(b) * 9.5, z = h.z + Math.sin(b) * 9.5;
       turretShot(x, groundY(x, z) + 5, z, ti, e, dmg, false, cw); }
@@ -79,6 +81,7 @@ export function applyCastleGates() {
 }
 function hitCastleGate(u, w) {
   const st = G.cgates[w.cgate], h = G.holds[w.cgate], gi = w.gi | 0; if (!st || (st.broken >> gi) & 1 || !h || h.owner < 0 || h.owner === allianceOf(u.ti)) return;
+  attacked(h, allianceOf(u.ti)); // (CASTLE5)
   st.hitT = G.T; st.hp[gi] -= u.dmg * FORT.wallDmg * (u.leader ? FORT.capWall : 1) * aiDmg(u.ti);
   sound('wall', w.x, w.z); spark(w.x, groundY(w.x, w.z) + 1.4, w.z, '#a3825a', 4);
   platesTick(st, gi, u, w.cgate);
@@ -88,6 +91,7 @@ function hitCastleGate(u, w) {
 function platesTick(st, gi, u, hid) {
   const n = Math.floor((st.max[gi] - Math.max(0, st.hp[gi])) / plateHp(gi) + 1e-6), a = allianceOf(u.ti); if (a < 0) return;
   st.paid = st.paid || [0, 0, 0, 0];
+  if ((st.paid[gi] | 0) < n) siegeOn(G.holds[hid], a); // (CASTLE5: a plate down: a siege)
   while ((st.paid[gi] | 0) < n) { st.paid[gi] = (st.paid[gi] | 0) + 1; for (const i of activeArmies()) if (allianceOf(i) === a && G.teams[i]) G.teams[i].gold += CASTLE26.plateGold;
     say('gatePlate', a, u.ti, hid, gi, CASTLE26.plateGold); if (colorOf(u.ti) === colorOf(G.myTi)) sound('coin'); }
 }

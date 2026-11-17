@@ -45,7 +45,7 @@ export function msgText(k, a) {
     case 'joined': return mine(a[0]) ? null : [`A player joins as ${nm(a[0])}`, 'They take over that army', css(a[0])];
     case 'holdTaken': { // a[0]: the alliance that took it, a[1]: what it is, a[2]: which
       const ours = a[0] === G.ALLY[colorOf(myTi)], h = G.holds && G.holds[a[2]], what = (h && h.name) || (a[1] === 'oasis' ? 'the Oasis' : 'a village');
-      const give = { castle: ['+5 men for every captain on your side, and gold', 'Their armies grow. Take it back from 4:00'], mine: ['Gold pours in', 'Their purses fill. Take it back'], oasis: ['Your men heal in it, and gold flows in', 'They heal there and grow rich. Take it back'], shrine: ['Gold flows in, and your rally horns fill', 'Their horns fill and they grow rich. Take it back'], village: ['It will send you footmen', 'It sends them men. Take it back'] }[a[1]] || ['', ''];
+      const give = { castle: ['Gold for every army. Fortify it before they come back', 'Its banner is rising. Take it back once it\'s up'], mine: ['Gold pours in', 'Their purses fill. Take it back'], oasis: ['Your men heal in it, and gold flows in', 'They heal there and grow rich. Take it back'], shrine: ['Gold flows in, and your rally horns fill', 'Their horns fill and they grow rich. Take it back'], village: ['It will send you footmen', 'It sends them men. Take it back'] }[a[1]] || ['', ''];
       return ours ? [`Your side holds ${what}!`, give[0], '#ffcf3a'] : [`${allyNames(a[0])} took ${what}`, give[1], '#e0352b'];
     }
     // the war chest: a[0] the hold it lands in
@@ -85,6 +85,8 @@ export function msgText(k, a) {
     case 'towerUp': return mine(a[0]) ? ['Watchtower going up', 'It sees far through the fog once it\'s built. Enemies can hack it down', '#ffcf3a'] : null;
     case 'towerDown': return !isEnemyTi(a[0], myTi) ? [mine(a[0]) ? 'Your watchtower is down!' : `${nm(a[0])}'s watchtower is down`, a[1] >= 0 ? `Hacked down by ${nm(a[1])}` : '', '#e0352b'] : a[1] === myTi ? ['Watchtower down!', 'They\'re blind there now', '#ffcf3a'] : null;
     case 'castleFort': { const nmC = (G.holds && G.holds[a[1]] && G.holds[a[1]].name) || 'The castle'; return !isEnemyTi(a[0], myTi) ? [`${nmC} fortified`, a[2] >= 3 ? 'An iron layer on every gate' : a[2] === 2 ? 'A stone layer on every gate, more archers' : 'Gates shut, archers on the walls', '#ffcf3a'] : null; }
+    case 'castleAttacked': { const nmC = (G.holds && G.holds[a[1]] && G.holds[a[1]].name) || 'A castle'; return a[0] === G.ALLY[colorOf(myTi)] ? [`${nmC} is under attack!`, `${allyNames(a[2])} at the walls`, '#e0352b'] : null; } // (CASTLE5)
+    case 'castleHeld': { const nmC = (G.holds && G.holds[a[1]] && G.holds[a[1]].name) || 'The castle'; return a[0] === G.ALLY[colorOf(myTi)] ? [`Held! ${nmC} stands`, `+${a[2]} gold for every army`, '#ffcf3a'] : null; }
     case 'castleGate': { // a[0]: the side holding it, a[1]: who broke it, a[2]: the castle
       const nmC = (G.holds && G.holds[a[2]] && G.holds[a[2]].name) || 'a castle';
       const which = a[3] ? 'side gate' : 'main gate';

@@ -28,6 +28,8 @@ const LINES = {
   duel: ['Fight!', 'Go on, sir!', 'Finish him!', 'Watch his blade!', 'Don’t blink.'],
   taunt: ['Is that your army?', 'Go home!', 'Kneel.', 'Come and take it!', 'You’ll break.', 'I’ve seen better shields on a cart.'],
   breach: ['They’re through!', 'Breach!', 'Plug the gap!', 'The wall’s down!'],
+  taken: ['The castle is ours!', 'Raise the banner!', 'Nice walls. We’ll keep them.', 'Another one for us!', 'Somebody fetch the flag!'], // (CASTLE5)
+  held: ['Held!', 'They broke on our walls!', 'Nobody passes.', 'Back to your camp!', 'Not today!'],
 };
 const recent = [];
 function pick(kind) {
