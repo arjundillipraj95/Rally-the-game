@@ -258,7 +258,9 @@ export class Hub {
   async m_ready(s, m) {
     const room = this.lobbyOf(s); if (!room || !room.p[s.id]) return;
     room.p[s.id].ready = !!m.ready;
-    if (room.sides.flat().every(id => id == null || (room.p[id] && room.p[id].ready))) room.deadline = Math.min(room.deadline, Date.now() + READY_WAIT); // (everyone's ready: 10 s more for anyone still coming)
+    // (FIX5, Arjun 17 Nov) cut to 10 s only once every seat has a player and all of them are Done: while a seat is open,
+    // more players may still come in, so the clock runs on
+    if (room.sides.flat().every(id => id != null && room.p[id] && room.p[id].ready)) room.deadline = Math.min(room.deadline, Date.now() + READY_WAIT);
     this.lobbyUpdate(room);
   }
   async m_seat(s, m) {

@@ -376,8 +376,8 @@ Last updated: 2026-11-17 (C1 champion framework built on launch26, not shipped).
   lobby every 2 s, keeps a seat through a dropped link and picks the phone up again, `online/src/index.js`; reaches the live
   service only when main is shipped, online.yml), FIX2 quieter (master .5, Sound setting Low/Medium/High), FIX3 nexus life bar
   always shown, FIX4 ballista bolt drawn big with a streak, twang, landing slam and jolt (`render/bolts.js`). r_FIX1 (MODE=
-  search, party, reconnect), r_FIX2-4, crown2sim/online, r_PERF1c pass. Known: a Done alone cuts the lobby to 10 s, so a
-  friend joining after that gets little time.
+  search, party, reconnect), r_FIX2-4, crown2sim/online, r_PERF1c pass. FIX5: the lobby clock drops to 10 s only
+  once every seat has a player and all are Done (else it runs its 60 s); r_FIX5. Live only when main is shipped.
 
 ## Known bugs
 - (fixed in AI1) A computer captain sometimes stood at the glacier at night without striking.
