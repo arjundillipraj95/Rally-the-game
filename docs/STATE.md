@@ -187,6 +187,10 @@ Last updated: 2026-11-16 (CASTLE4 built on `launch26`; main = launch26 at NETX).
 - CASTLE5 done (card `docs/tickets/CASTLE5.md`): capture moment on every phone (`render/castlefx.js`: torn banner, gate dust, horn and
   sting, a taker's call, camera beat near), +80 gold each other army on the side; sieges and Held! (`core/sim/siege.js`, +60 each
   defending army); under-attack banner and edge arrow, once in 20 s. r_CASTLE5 9/9 + regression pass.
+- CASTLE7 done (card `docs/tickets/CASTLE7.md`, `core/sim/respawn.js`): on the mountain the respawn wait follows the clock (6 s at 0:00
+  to 20 s at 10:00, `CASTLE26.respawn`); back at the side's castle nearest where he fell unless it's under attack (enemy in turret range,
+  alert in 8 s, circle filling), else base; marches out of its lane gate. Pick-by-hand not built. r_CASTLE7 6/6 + regression pass.
+  Test lesson: t.sh now restarts vite when game/src changed (stale modules made CASTLE4/5 and PERF1c fail falsely).
 
 ## CL2 Focus the map (15 Nov; card `docs/tickets/CL2.md`). On branch `t/CL2`, not shipped
 - Only the Crown on the Mountain in the menus (home, lobby, Quick); other maps and their modes hidden behind `?maps=all`

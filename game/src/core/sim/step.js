@@ -19,6 +19,7 @@ import { c2BreakInReach, c2Tick } from './crown2.js';
 import { neutralFoe, thinkNeutral } from './neutral.js';
 import { CC, captainAttack, chargeTimers, javMax, stepJump } from './captain.js';
 import { fallStep, integrate, moveToward, setPathBudget } from './move.js';
+import { respawnSpot } from './respawn.js'; // (CASTLE7)
 import { thinkLeader } from './ai.js';
 import { aiPick, thinkSoldier } from './soldier.js';
 export { archTier, footTier, horseMax, speedOf } from './army.js'; // (for earlier files)
@@ -128,9 +129,9 @@ export function update(dt, input) {
     if (s.leader.dead && canRespawn(i)) {
       s.leaderDeadT -= dt;
       if (s.leaderDeadT <= 0) {
-        const [gx, gz] = isC2() ? c2HomePt(i, 0) : homeAt(i, 7);
+        const sp = isC2() ? respawnSpot(i) : null, [gx, gz] = sp ? [sp.x, sp.z] : isC2() ? c2HomePt(i, 0) : homeAt(i, 7); // (CASTLE7: a castle of his side's, else home)
         const L = mkUnit(i, gx, gz, 'captain', s.human); s.leader = L; s.plan = null;
-        if (isC2()) { L.face = inwardOf(i); startMarch(L, true); } // (F7: he marches out of the yard)
+        if (isC2()) { L.face = sp ? sp.face : inwardOf(i); startMarch(L, true); } // (F7: he marches out of the yard)
         if (i === G.myTi) { G.player = L; bus.emit('respawnMe', L); }
         if (s.human) say('respawn', i);
       }

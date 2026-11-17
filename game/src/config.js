@@ -130,6 +130,9 @@ export const CASTLE26 = {
   // broken or the circle started, then no enemy within the turret's range for `heldAfter` s) pays the defenders `held`
   // each; an attack (a gate hit, the circle started, the turret on a champion) warns the owners, once in `alertGap` s
   moment: { side: 80, held: 60, heldAfter: 8, alertGap: 20 },
+  // (CASTLE7) a champion's wait to come back, by the match clock ([s, wait s], straight lines between: about 6 s early,
+  // 20 s late, Arjun 16 Nov); he comes back at his side's castle nearest where he fell unless it was attacked in `calm` s
+  respawn: { clock: [[0, 6], [180, 8], [360, 13], [480, 17], [600, 20]], calm: 8 },
   circle: { r: 4.5, fill: [10, 6, 4, 3], soldier: .1, soldierMax: .5, drain: 12, cam: .15 }, // (fill[0]: soldiers alone, Arjun 16 Nov; then 1, 2, 3+ champions)
 };
 // Match length, in minutes: Quick, Standard (the default) or Long. A shorter battle runs hotter: more

@@ -1,4 +1,5 @@
 // Battle rules: death, castles falling, scores, the end of a match, control points.
+import { respawnTime } from './respawn.js'; // (CASTLE7)
 import { CROWN2, LAUNCH, TEAMS, MORALE, RALLY, CAPKILL_SLOW, CTRL, LAST } from '../../config.js';
 import { G, bus, isEnemyTi, colorOf, activeArmies, rules, matchTime, isC2 } from '../state.js';
 import { rnd } from '../world.js';
@@ -56,7 +57,8 @@ export function die(u, killer, ang, launch = 0) {
     if (u.leader) say('capDown', u.ti, killer.ti);
   } else if (u.leader) say('capDown', u.ti, -1); // (F5: every captain's fall is a line in the feed)
   if (u.leader) {
-    s.leaderDeadT = G.warmup ? (u.human ? 1.5 : 3) : u.human ? 5 : 9; // (the warm-up: straight back up)
+    s.leaderDeadT = G.warmup ? (u.human ? 1.5 : 3) : G.c2 ? respawnTime() : u.human ? 5 : 9; // (the warm-up: straight back up; CASTLE7: the mountain, by the clock)
+    s.deadAt = [u.x, u.z];
     if (u.human) say('fell', u.ti, canRespawn(u.ti) ? 1 : 0, killer && killer.ti != null && isEnemyTi(killer.ti, u.ti) ? killer.ti : -1, how);
   }
   checkEnd();
