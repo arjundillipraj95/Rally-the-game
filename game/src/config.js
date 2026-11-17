@@ -1,6 +1,8 @@
 // Game data shared by the rules, the renderer and the UI. No engine code here,
 // so this file carries over unchanged if Rally ever moves to a native engine.
 export * from './config/champs.js'; // (C1: the champions' shared tables)
+// (FIX2) the whole game's loudness (was .9: Arjun 17 Nov, too loud); music and effects keep their balance under it
+export const AUDIO = { master: .5, levels: { low: .25, mid: .5, high: .8 } }; // (levels: the Sound setting)
 import { UNITS } from './config/champs.js';
 const INF = UNITS.inf, HIT = UNITS.inf * UNITS.hit.foot, ARW = UNITS.inf * UNITS.hit.arrow; // (C1d: the baselines in hit points)
 

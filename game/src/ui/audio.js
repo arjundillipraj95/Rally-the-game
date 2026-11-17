@@ -4,6 +4,7 @@
 // relative to the camera, dulled and sent further into a shared outdoor reverb with distance, and
 // the whole mix runs through a limiter so a big melee never clips.
 import { G, isEnemyTi } from '../core/state.js';
+import { AUDIO } from '../config.js';
 import { clamp } from '../core/world.js';
 import { cam, camTarget } from '../render/camera.js';
 
@@ -20,7 +21,7 @@ export function initAudio() {
     // limiter -> speakers; a short outdoor reverb shared by everything
     const lim = ac.createDynamicsCompressor();
     lim.threshold.value = -10; lim.knee.value = 6; lim.ratio.value = 12; lim.attack.value = .003; lim.release.value = .2;
-    out = ac.createGain(); out.gain.value = muted ? 0 : .9; out.connect(lim).connect(ac.destination);
+    out = ac.createGain(); out.gain.value = muted ? 0 : vol(); out.connect(lim).connect(ac.destination);
     verb = ac.createConvolver(); verb.buffer = impulse(1.7, 3.2); const vg = ac.createGain(); vg.gain.value = .55; verb.connect(vg).connect(out);
     loadBank();
   } catch (e) { ac = null; }
@@ -59,7 +60,12 @@ const PITCHED = {
 const musReady = () => !!(mb.horn_d && mb.cello_d && mb.bd1 && mb.pizz_d);
 // Silence everything (the games site's mute setting, or while an ad plays).
 let muted = false;
-export function setMuted(m) { muted = !!m; if (out && ac) out.gain.setTargetAtTime(muted ? 0 : .9, ac.currentTime, .05); }
+// (FIX2) the Sound setting: low, mid (default) or high
+let volK = (() => { try { return localStorage.getItem('rally-vol') || 'mid'; } catch (e) { return 'mid'; } })();
+const vol = () => AUDIO.levels[volK] ?? AUDIO.master;
+export const soundLevel = () => volK;
+export function setSoundLevel(k) { if (!(k in AUDIO.levels)) return; volK = k; try { localStorage.setItem('rally-vol', k); } catch (e) { /* none */ } if (out && ac && !muted) out.gain.setTargetAtTime(vol(), ac.currentTime, .05); }
+export function setMuted(m) { muted = !!m; if (out && ac) out.gain.setTargetAtTime(muted ? 0 : vol(), ac.currentTime, .05); }
 // for automated checks: what loaded, how many sounds are playing right now, the battle's heat
 export const audioStats = () => ({ music: { on: musicOn, level: M.level, want: M.want, move: +M.move.toFixed(2), hurt: +M.hurt.toFixed(2), night: M.night, rec: musReady(), samples: Object.keys(mb).length, drone: !!M.drone, bar: M.bar, beat: M.beat, next: ac && +M.next.toFixed(2), now: ac && +ac.currentTime.toFixed(2) }, state: ac && ac.state, muted, banks: Object.fromEntries(Object.entries(bufs).map(([k, v]) => [k, v.length])), voices, heat: +(amb.heat || 0).toFixed(2), near: amb.near || 0, far: amb.far || 0 });
 export function gateS(n, ms) { const t = performance.now(); if (lastS[n] && t - lastS[n] < ms) return false; lastS[n] = t; return true; }

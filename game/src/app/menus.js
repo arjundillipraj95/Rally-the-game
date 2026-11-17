@@ -22,6 +22,7 @@ import { buildCrests, newTip, renderMissSub } from './endscreen.js';
 import { homeView, pressFmt, seedDemo, setHomeView, showFmtRank, soloStart } from './home.js';
 import { renderFriends, toast } from './friends.js';
 import { CHAMP_IDS, champDef, myChamp, setMyChamp } from '../champions/index.js';
+import { setSoundLevel, soundLevel } from '../ui/audio.js';
 
 // ---------- menus ----------
 function seg(id, cb) {
@@ -75,6 +76,9 @@ seg('segDiff', v => { G.diff = +v; });
 $('segChamp').innerHTML = CHAMP_IDS.map(id => `<button type="button" data-v="${id}" aria-pressed="false">${champDef(id).name}</button>`).join('');
 seg('segChamp', v => { setMyChamp(v); pressSeg('segChamp', v); });
 pressSeg('segChamp', myChamp());
+// (FIX2) how loud the game is
+seg('segVol', v => { setSoundLevel(v); pressSeg('segVol', v); });
+pressSeg('segVol', soundLevel());
 seg('segMusic', v => { setMusic(v === 'on'); pressSeg('segMusic', v); });
 pressSeg('segMusic', musicEnabled() ? 'on' : 'off');
 seg('segVibe', v => { setVibe(v === 'on'); pressSeg('segVibe', v); });
