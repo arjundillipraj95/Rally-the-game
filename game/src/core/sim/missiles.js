@@ -53,12 +53,12 @@ function arrowHit(a, b) {
   if (a.volley) { const s = G.teams[a.ti]; if (s) (s.vHit || (s.vHit = new Set())).add(b.ti); }
   const frontal = Math.abs(angDiff(b.face, Math.atan2(a.x0 - b.x, a.z0 - b.z))) < 1.1;
   // a shieldwall turns arrows from the front only — locked shields don't cover the sides or back
-  if (b.shieldwall && frontal && (b.kind === 'foot' || Math.random() < .6)) { spark(b.x, b.y + 2.2, b.z, '#e8d9b0', 4); sound('thud', b.x, b.z); return; }
+  if (b.shieldwall && frontal && !a.bolt && (b.kind === 'foot' || Math.random() < .6)) { spark(b.x, b.y + 2.2, b.z, '#e8d9b0', 4); sound('thud', b.x, b.z); return; }
   b.lastHit = G.T;
   if (a.unhorse && b.mounted) { horseDamage(b, dmg); if (b.mounted) dismount(b, true); gainRally(a.shooter, RALLY.unhorse); fx('fxmsg', { k: 'fxunhorse', u: b }); return; } // a full-draw javelin knocks a rider clean off
   if (b.mounted && Math.random() < .6) { horseDamage(b, dmg); return; }
   let blocked = false;
-  if (frontal && !b.mounted && !b.carrying && loc !== 'head') {
+  if (frontal && !b.mounted && !b.carrying && loc !== 'head' && !a.bolt) { // (CASTLE2: a ballista bolt goes through a shield)
     if (b.kind === 'foot' && !a.plunge && Math.random() < .7) blocked = true; // (a plain shield; arrows plunging from a tower come in over it)
     if (b.leader && (b.human ? b.blocking : Math.random() < .35)) blocked = true;
   }
@@ -69,7 +69,7 @@ function arrowHit(a, b) {
   if (b.isMe) { fx('shake', FEEL.hurt.arrowShake); fx('buzz', FEEL.hurt.arrowBuzz); }
   const sh = a.shooter;
   if (b.hp <= 0) b.howBy = a.javelin ? 'jav' : 'arrow';
-  if (b.hp <= 0 && (a.neutral || a.plunge)) b.cause = a.neutral ? 'garrison' : 'tower';
+  if (b.hp <= 0 && (a.neutral || a.plunge || a.bolt)) b.cause = a.neutral ? 'garrison' : a.bolt ? 'ballista' : 'tower';
   if (b.hp <= 0) die(b, a.neutral ? null : sh && !sh.dead && !sh.tower ? sh : { ti: a.ti, human: false, leader: false }, Math.atan2(b.x - a.x0, b.z - a.z0));
 }
 // Missile volley: every archer with a target in range fires immediately, and every javelin-ready

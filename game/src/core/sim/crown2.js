@@ -10,6 +10,7 @@ import { duels, endDuel } from './duel.js';
 import { die, endMatch } from './score.js';
 import { applyCastleGates, castleTowersTick, freshGates, towersTick } from './forts.js';
 import { allianceOf, sideArmies } from './holds.js';
+import { castle3Tick } from './castle3.js';
 import { c2Man, c2Post, c2PostTick } from './step.js'; // (later files: through the entry, so files still load in the old order)
 
 // ---------- the new Crown: the mountain's rules ----------
@@ -169,7 +170,7 @@ function floodStep(u, dt, own, ar) {
   return true;
 }
 export function c2Tick(dt) {
-  towersTick(dt); castleTowersTick(dt); // (CASTLE1: no gate mends by itself)
+  towersTick(dt); castleTowersTick(dt); castle3Tick(dt); // (CASTLE1: no gate mends by itself; CASTLE2: level III)
   const K = G.c2, T = G.T, C = CROWN2, once = (k, ...a) => { if (!K.said[k]) { K.said[k] = 1; say(k, ...a); } };
   if (T >= C.chest - C.chestWarn) once('c2chestSoon', C.chestWarn);
   if (T >= C.chest && K.chest === 0) { K.chest = 1; const r = G.layout.arena.r * .5; K.breaks.push({ brk: true, kind: 'chest', x: r, z: 0, r: 1.6, hp: C.chestHp, max: C.chestHp }); once('c2chestUp'); c2Phase('open'); G.teams.forEach(s => { if (!s.human) s.thinkT = Math.min(s.thinkT, rnd(.2, 1.5)); }); }

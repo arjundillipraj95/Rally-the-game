@@ -36,6 +36,7 @@ export function buildCastleFort(world, L) {
       const gal = new THREE.Mesh(new THREE.CylinderGeometry(1.9, 1.9, .3, 16), WOOD); gal.position.set(tx, terrainMeshY(tx, tz) + 3.4, tz); gal.userData = { lv: 2 }; world.add(gal);
       parts.push(gal);
     }
+    level3(parts, world, cw, h, cy); // (CASTLE2)
     keepLive(...parts); // (each piece shows by the castle's level)
     // F1a: the pieces that show together (by level, and the portcullis) drawn as one mesh per material
     const merged = [];
@@ -59,4 +60,20 @@ export function updateCastleFort() {
     if (f.parts.length) for (const c of f.gate.children) c.visible = abShow(false) && lv >= c.userData.lv && !(c.userData.portc && down);
     for (const m of f.merged) m.visible = abShow(true) && lv >= m.userData.lv && !(m.userData.portc && down);
   }
+}
+
+// (CASTLE2) level III: a ballista on the keep, a timber watchtower over the first corner tower, a ring of stakes
+// (the spike ditch) just outside the wall. Each piece is tagged level 3, so it merges with that level's others.
+function level3(parts, world, cw, h, cy) {
+  const put = o => { o.userData = { lv: 3 }; world.add(o); parts.push(o); };
+  const ky = terrainMeshY(cw.x, cw.z) + 8.2, fa = cw.gates[0]; // (the keep's top; the ballista faces the lane gate)
+  const bal = new THREE.Group(); bal.position.set(cw.x, ky, cw.z); bal.rotation.y = Math.PI / 2 - fa;
+  bal.add(box(.5, .4, 2.4, WOOD, 0, .2, .2)); bal.add(box(2.6, .18, .25, WOOD, 0, .5, 1)); bal.add(box(.1, .1, 2.2, DARK, 0, .5, .3));
+  for (const c of [...bal.children]) { const m = c.clone(); m.applyMatrix4(new THREE.Matrix4().compose(bal.position, new THREE.Quaternion().setFromEuler(bal.rotation), new THREE.Vector3(1, 1, 1))); put(m); }
+  const b = h.towerA0, tx = cw.x + Math.cos(b) * 9.5, tz = cw.z + Math.sin(b) * 9.5, ty = terrainMeshY(tx, tz) + 5;
+  for (const [dx, dz] of [[-.9, -.9], [.9, -.9], [-.9, .9], [.9, .9]]) put(box(.25, 5, .25, WOOD, tx + dx, ty + 2.5, tz + dz));
+  put(box(2.4, .25, 2.4, WOOD, tx, ty + 4.2, tz)); put(box(2.8, .2, 2.8, DARK, tx, ty + 5.4, tz));
+  const R = cw.r + 1.8, n = Math.round(Math.PI * 2 * R / 1.4);
+  for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2, x = cw.x + Math.cos(a) * R, z = cw.z + Math.sin(a) * R, st = box(.16, 1.3, .16, WOOD, x, terrainMeshY(x, z) + .45, z);
+    st.rotation.set(Math.sin(a) * .55, 0, -Math.cos(a) * .55); put(st); } // (leaning out, at the attackers)
 }

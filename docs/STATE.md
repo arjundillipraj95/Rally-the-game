@@ -2,7 +2,7 @@
 
 Current work: **friends' playtest fixes (F tickets) and lag (Phase 0)**, then Roles & Combat (design and plan in
 Claude Docs, links in CLAUDE.md). Every builder updates this file as the last step of its ticket. Owner: Opus owner chat.
-Last updated: 2026-11-16 (CASTLE1 built on `launch26`). Before: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT built on `t/SPLIT`). Before: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
+Last updated: 2026-11-16 (CASTLE2 built on `launch26`). Before: CASTLE1. Before: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT built on `t/SPLIT`). Before: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
 
 ## Live on main
 - Shipped 14 Nov (Arjun's "ship whatever is ready"; main = roles at 5b30ce7): V1b (private voice relay; Arjun's 3 secret steps still
@@ -162,6 +162,11 @@ Last updated: 2026-11-16 (CASTLE1 built on `launch26`). Before: 2026-11-16 (MAP 
   layers of 3 plates (`CASTLE26`); damage never heals, Fortify adds a layer (never refills); each plate pays the breaking side; neutral and
   just-taken castles level 0 (gates open); 45 s banner shield after a capture. r_CASTLE1 15/15, r_CASTLE1-join 4/4, r_GATE1, crown2sim/online
   roles off+on, r_PERF1c pass; lag 250 ms: response 100 ms, error .12 m. Found (before CASTLE1): net/netgame.js 786 lines, config.js 571 (over 500). Next: CASTLE2 (level III pieces), CASTLE3 turrets, CASTLE4 circle; then Arjun plays.
+- CASTLE2 done (card `docs/tickets/CASTLE2.md`): level III = ballista on the keep (`core/sim/castle3.js`, a bolt every 4 s, 28 m, through
+  shields), watchtower (lights bushes within 45 m for its side, `bush.js`), spike ditch (enemies at 0.6 speed, -4/s). r_CASTLE2 9/9, r_CASTLE1,
+  crown2sim/online roles off+on, r_PERF1c pass. Every castle at III: 171 -> 192 draws (older III pieces 14, new ~7).
+  Test lesson: after editing render files, restart the vite server (`pkill -f "vite --port 8766"`) or tests that import /src modules get
+  a second copy (PERF1c showed 0 drawn); servers.sh can hang, start vite directly if so.
 
 ## CL2 Focus the map (15 Nov; card `docs/tickets/CL2.md`). On branch `t/CL2`, not shipped
 - Only the Crown on the Mountain in the menus (home, lobby, Quick); other maps and their modes hidden behind `?maps=all`

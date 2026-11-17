@@ -113,6 +113,10 @@ export const CROWN26 = {
 export const CASTLE26 = {
   fortCost: [100, 170, 250], layer: { big: 1500, small: 1000 }, plates: 3, plateGold: 30,
   archers: [0, 2, 4, 4], every: [0, 1.8, 1.8, 1.2], shield: 45, neutralLv: 0,
+  // (CASTLE2) level 3: the keep's ballista (a bolt every `every` s, range m, damage; shields don't stop it), the
+  // watchtower (lights every bush within `watch` m for the owner's side), the spike ditch (from the wall out to
+  // `w` m: the castle's enemies in it move at `slow` and lose `dmg` health a second)
+  ballista: { every: 4, range: 28, dmg: 28 }, watch: 45, ditch: { w: 3, slow: .6, dmg: 4 },
 };
 // Match length, in minutes: Quick, Standard (the default) or Long. A shorter battle runs hotter: more
 // gold, and computer armies march out with smaller squads (gather).
