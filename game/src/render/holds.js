@@ -67,6 +67,7 @@ function buildCastleWalls(world, list) {
   bm.count = blocks.length; world.add(bm); world.add(gm);
   cwalls = { gm, gates, list, sig: '' };
 }
+const Z0 = new THREE.Vector3(0, 0, 0);
 function updateCastleWalls() {
   const c = cwalls; if (!c || !G.cgates) return;
   const sig = c.list.map(cw => (G.cgates[cw.hid] ? (G.cgates[cw.hid].broken | 0) + '/' + (G.cgates[cw.hid].lv | 0) : 0) + ':' + (G.holds && G.holds[cw.hid] ? G.holds[cw.hid].owner : -1)).join(',');
@@ -77,7 +78,7 @@ function updateCastleWalls() {
     const down = st && ((st.broken >> (o.gi | 0)) & 1), open = !h || h.owner < 0 || h.owner === G.ALLY[colorOf(G.myTi)]; // (an empty castle, or your own side's: the gate stands open, swung back)
     e.set(down ? Math.PI / 2 * .95 : 0, Math.atan2(o.x - cw.x, o.z - cw.z) + (open && !down ? Math.PI / 2 : 0), 0); q.setFromEuler(e);
     const y = terrainMeshY(o.x, o.z) + (down ? .25 : 1.2), off = open && !down ? 1.2 : 0;
-    m.compose(v.set(o.x, y, o.z), q, sc); c.gm.setMatrixAt(i, m);
+    m.compose(v.set(o.x, y, o.z), q, st && !(st.lv | 0) ? Z0 : sc); c.gm.setMatrixAt(i, m); // (CASTLE1: level 0 has no gate in the gateway)
     c.gm.setColorAt(i, (st && st.lv) ? IRON : PLANK); // (fortified: iron-banded, dark)
   });
   c.gm.count = c.gates.length; c.gm.instanceMatrix.needsUpdate = true; if (c.gm.instanceColor) c.gm.instanceColor.needsUpdate = true;

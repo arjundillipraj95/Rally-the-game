@@ -9,7 +9,7 @@ export { duelOffer, canChallenge, duelTarget, duelAct, challenge, duelBounds, ex
 export { strikeAt, rideLock, rideQuality, rideRelease, blockPress, attackHold, attackRelease } from './sim/guard.js';
 export { makeArrow, orderVolley, volleyCharge, arrowsTick } from './sim/missiles.js';
 export { die, teamOut, armiesOfColor, colorScore, colorOut, colorHuman, placesOf, teamScore, allianceCaps, allianceCtrl, checkEnd, endMatch, makeCtrlPoints } from './sim/score.js';
-export { initForts, fortLvl, applyFort, freshGates, villageHere, castleHere, applyCastleGates, applyPlazaWall, plazaGateFor } from './sim/forts.js';
+export { initForts, fortLvl, applyFort, freshGates, fortifyGates, gatePct, layerHp, plateHp, villageHere, castleHere, applyCastleGates, applyPlazaWall, plazaGateFor } from './sim/forts.js';
 export { makeHolds } from './sim/holds.js';
 export { c2Points, c2Breakdown, c2Begin, c2Garrison, c2BreakInReach, c2Lake, c2GateA, c2Water } from './sim/crown2.js';
 export { c2Spot, c2ManId, c2Man } from './sim/neutral.js';

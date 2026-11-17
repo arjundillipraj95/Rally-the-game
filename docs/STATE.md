@@ -2,7 +2,7 @@
 
 Current work: **friends' playtest fixes (F tickets) and lag (Phase 0)**, then Roles & Combat (design and plan in
 Claude Docs, links in CLAUDE.md). Every builder updates this file as the last step of its ticket. Owner: Opus owner chat.
-Last updated: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT built on `t/SPLIT`). Before: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
+Last updated: 2026-11-16 (CASTLE1 built on `launch26`). Before: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT built on `t/SPLIT`). Before: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
 
 ## Live on main
 - Shipped 14 Nov (Arjun's "ship whatever is ready"; main = roles at 5b30ce7): V1b (private voice relay; Arjun's 3 secret steps still
@@ -158,7 +158,10 @@ Last updated: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT bu
   the cap keeps the nearest (r_PERF1c). Arjun: phone checklist in the card.
 - NET1 done: a man in a bush who just struck is seen on joined phones too (host sends bit 30 of the unit flags; r_NET1, online). Lag 250 ms: response 113 vs 107 ms, position error .07 vs .10 m (noise).
 - HUD1 done: your side's camp buff shows under the phase (War drum +15% damage / Swift +15% speed, seconds left, in the banner's colour); a buff camp's mini captain stands captain-sized with his buff's name over his bar (r_HUD1).
-- Next: castles (nexus breakable: Arjun 08:55).
+- CASTLE1 done (card `docs/tickets/CASTLE1.md`, plan CASTLE1-10 there; design doc 'Changes for the owner' 16 Nov): levels 0-3, gates in
+  layers of 3 plates (`CASTLE26`); damage never heals, Fortify adds a layer (never refills); each plate pays the breaking side; neutral and
+  just-taken castles level 0 (gates open); 45 s banner shield after a capture. r_CASTLE1 15/15, r_CASTLE1-join 4/4, r_GATE1, crown2sim/online
+  roles off+on, r_PERF1c pass; lag 250 ms: response 100 ms, error .12 m. Found (before CASTLE1): net/netgame.js 786 lines, config.js 571 (over 500). Next: CASTLE2 (level III pieces), CASTLE3 turrets, CASTLE4 circle; then Arjun plays.
 
 ## CL2 Focus the map (15 Nov; card `docs/tickets/CL2.md`). On branch `t/CL2`, not shipped
 - Only the Crown on the Mountain in the menus (home, lobby, Quick); other maps and their modes hidden behind `?maps=all`

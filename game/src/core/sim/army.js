@@ -1,10 +1,10 @@
 // Battle rules: orders, morale and rally, recruiting, upgrades, speed, horses.
-import { CROWN2, CROWN, STATS, HUMAN_CAPTAIN, CAPTAIN_SPD, HORSE_HP, HORSE_CD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, CHARGE, EXEC, FORT, HOLD_ATK, MORALE, RALLY, AURA, LAST, ARMOUR } from '../../config.js';
+import { CROWN2, CROWN, STATS, HUMAN_CAPTAIN, CAPTAIN_SPD, HORSE_HP, HORSE_CD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, CHARGE, EXEC, FORT, HOLD_ATK, MORALE, RALLY, AURA, LAST, ARMOUR, CASTLE26 } from '../../config.js';
 import { G, isEnemy, colorOf, capOf, isC2 } from '../state.js';
 import { groundY, clamp, rnd, angDiff, W, groundSlow } from '../world.js';
 import { fx, say, sound, spark } from './util.js';
 import { homeAt, mkUnit, squadOf, startMarch } from './match.js';
-import { applyCastleGates, applyFort, castleHere, fortLvl, gateHp, lastStand, nearestFoe, villageHere, volleyCharge } from './step.js'; // (later files: through the entry, so files still load in the old order)
+import { applyFort, castleHere, fortLvl, fortifyGates, lastStand, nearestFoe, villageHere, volleyCharge } from './step.js'; // (later files: through the entry, so files still load in the old order)
 import { swiftSpd } from './buffs.js';
 
 // Hold: pt is where the front rank stands and which way it faces ({x, z, face}); without one, the
@@ -77,8 +77,7 @@ export const upgradeCost = (ti, id) => {
   if (id === 'fort' && G.mode === 'crown') { // the castle your captain stands in: fortify it, or mend its gates
     if (isC2() && !castleHere(ti)) { const v = villageHere(ti); return v && !v.fort ? CROWN2.villageFort : null; } // (the mountain: a palisade round a village)
     const cw = castleHere(ti), st = cw && G.cgates[cw.hid]; if (!st) return null;
-    if (st.broken) return FORT.repair;
-    return (st.lv | 0) < CROWN.fortCost.length ? CROWN.fortCost[st.lv | 0] : null;
+    return (st.lv | 0) < CASTLE26.fortCost.length ? CASTLE26.fortCost[st.lv | 0] : null; // (CASTLE1: a level a tap; nothing to mend, damage stays)
   }
   if (id === 'arm') { const s = G.teams[ti], L = (ti === G.myTi && G.player) || (s && s.leader); // (a joiner's phone knows its own captain, not the team's)
     return !L || L.dead || (L.armour || 0) >= ARMOUR.hp - .5 ? null : Math.min(ARMOUR.maxCost, ARMOUR.cost + ARMOUR.step * (s.armBuys | 0)); } // (armour: whenever it's not whole, again and again)
@@ -126,8 +125,7 @@ export function buyUpgrade(ti, id) {
   if (id === 'fort' && G.mode === 'crown') {
     if (isC2() && !castleHere(ti)) { const v = villageHere(ti); v.fort = 1; sound('wall', v.x, v.z); say('villageFort', ti, v.id); fx('netFlush'); return true; }
     const cw = castleHere(ti), st = G.cgates[cw.hid];
-    if (st.broken) { st.broken = 0; st.hp = [0, 1, 2, 3].map(gi => gateHp(gi, st.lv)); st.mendT = [0, 0, 0, 0]; applyCastleGates(); say('gateRepaired', ti, cw.hid); }
-    else { st.lv = (st.lv | 0) + 1; st.hp = [0, 1, 2, 3].map(gi => gateHp(gi, st.lv)); say('castleFort', ti, cw.hid, st.lv); }
+    fortifyGates(st); say('castleFort', ti, cw.hid, st.lv); // (CASTLE1: one more layer on every gate; what was knocked off stays off)
     sound('wall', cw.x, cw.z); fx('netFlush'); return true;
   }
   if (id === 'fort' && fortLvl(colorOf(ti)) >= UPGRADES.find(u => u.id === 'fort').cost.length) { // mend the broken gates

@@ -32,7 +32,7 @@ export const CROWN = {
   carrierSlow: .85, wallR: 17.5, gateHp: 1000, // (the arena's wall and its four gates)
   lateJoin: 120, // (a friend, or the next searcher, can still take over a computer captain in its first two minutes)
   tower: { build: 4, hp: 260, max: 2, reach: 2.2, volley: 3, every: 4.6, range: 22, arrow: 12, jitter: .45 }, // (a watchtower, once built, looses 3 arrows at the nearest enemy every 4.6 s, twice an archer's reload: from above, so a plain shield doesn't stop them (a shield wall does); a lone soldier lasts about three volleys)
-  cgateW: 6.4, cgateSmall: 2.6, cgateHp: 700, cgateSmallHp: 450, fortCost: [100, 170, 250], fortMult: [1, 2, 3, 4], fortTowers: [0, 1, 4, 4], fortTowerEvery: [0, 1.8, 1.8, 1.2], fortMend: 2, // (Fortify a castle you stand in, three levels: gates tougher by fortMult (x base HP), towers from level 1 (fortTowers of the four), shooting every fortTowerEvery s; a broken gate mends only with your men inside, fortMend times as fast) cgateMend: 60, // (castle curtain walls: radius, gate width and toughness, seconds a broken gate takes to mend) // (watchtowers: seconds to build, toughness, how many a side may have)
+  cgateW: 6.4, cgateSmall: 2.6, // (castle gateways' widths: the lane gate, the rest. CASTLE1: gate health, fortify and archers are CASTLE26's)
 };
 // The Crown (the mountain). A terraced
 // round mountain, the same for every side: four homes on the rim, two lanes each (home, castle, open
@@ -103,6 +103,16 @@ export const CROWN26 = {
   buffs: { t: 90, drum: { dmg: 1.15 }, swift: { spd: 1.15, cd: .85 } },
   jungle: { solo: .35, threatR: 70, near: 50 }, // (AI2: a lone computer captain goes for his buff camps about a third of his plans, when no castle of his is under threat)
   allGo: 40, // (seconds before the Crown cracks that every computer captain heads for the glacier: the walk up is longer here)
+};
+// (CASTLE1) the mountain's castles, levels 0-3. Level 0: gates stand open, nothing shoots (neutral castles, and every
+// castle just taken). Fortify (fortCost by the level you're on) adds one layer to every gate: layer health by gate
+// (big: the lane gate, and the middle castle's back gate; small: the rest). Damage never heals and fortify never
+// refills it; a broken gate gets one fresh layer. Each layer is `plates` plates; each knocked off pays plateGold to
+// every army of the side that broke it. archers/every: the wall archers by level and their seconds between shots.
+// shield: seconds after a capture that nobody can take it (the banner rising). Starting numbers: CASTLE10 tunes them.
+export const CASTLE26 = {
+  fortCost: [100, 170, 250], layer: { big: 1500, small: 1000 }, plates: 3, plateGold: 30,
+  archers: [0, 2, 4, 4], every: [0, 1.8, 1.8, 1.2], shield: 45, neutralLv: 0,
 };
 // Match length, in minutes: Quick, Standard (the default) or Long. A shorter battle runs hotter: more
 // gold, and computer armies march out with smaller squads (gather).

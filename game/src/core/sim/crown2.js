@@ -1,5 +1,5 @@
 // Battle rules: the Crown on the mountain: holds, points, breakables, phases, the lake and the flood.
-import { CROWN2, CROWN26, FEEL, CHEST } from '../../config.js';
+import { CROWN2, CROWN26, FEEL, CHEST, CASTLE26 } from '../../config.js';
 import { G, colorOf, activeArmies, matchTime } from '../state.js';
 import { groundY, clamp, rnd, angDiff, turn, mountHomeA } from '../world.js';
 import { setPalSeg } from '../nav.js';
@@ -8,7 +8,7 @@ import { hl } from './match.js';
 import { aiDmg, eachNear, gridOk } from './melee.js';
 import { duels, endDuel } from './duel.js';
 import { die, endMatch } from './score.js';
-import { applyCastleGates, castleGatesTick, castleTowersTick, freshGates, towersTick } from './forts.js';
+import { applyCastleGates, castleTowersTick, freshGates, towersTick } from './forts.js';
 import { allianceOf, sideArmies } from './holds.js';
 import { c2Man, c2Post, c2PostTick } from './step.js'; // (later files: through the entry, so files still load in the old order)
 
@@ -26,7 +26,7 @@ export function c2Hold(h, dt) {
   if (gridOk()) eachNear(h.x, h.z, h.r, count); else for (const u of G.units) count(u);
   h.contested = n.size > 1;
   const v = [...n.entries()].sort((p, q) => q[1] - p[1]), lead = v.length && !(v[1] && v[1][1] === v[0][1]) ? v[0][0] : null;
-  if (h.owner < 0 && c2Guard(h)) { h.prog = 0; h.cap = -1; }
+  if ((h.owner < 0 && c2Guard(h)) || (h.shieldT > G.T && h.owner >= 0)) { h.prog = 0; h.cap = -1; } // (CASTLE1: a banner rising)
   else if (lead != null && lead !== h.owner) {
     if (h.cap !== lead) { h.cap = lead; h.prog = 0; }
     h.prog += dt / c2TakeT(h);
@@ -43,7 +43,8 @@ function c2Take(h, a, per) {
   h.owner = a; h.by = by; h.prog = 0; h.cap = -1; h.tick = 0; h.fort = 0; // (a palisade doesn't change hands)
   say('holdTaken', a, h.kind, h.id); hl(by, h.kind === 'castle' ? 'castle' : 'hold');
   for (const s of G.teams) s.homeSpot = null; for (const u of G.units) u.runTo = null;
-  if (G.cgates[h.id]) { G.cgates[h.id] = freshGates(0); applyCastleGates(); }
+  if (G.cgates[h.id]) { G.cgates[h.id] = freshGates(0); applyCastleGates(); } // (CASTLE1: taken: level 0, gates open)
+  if (h.kind === 'castle') h.shieldT = G.T + CASTLE26.shield; // (CASTLE1: the banner rises; nobody takes it back meanwhile)
   G.teams.forEach(s => { if (!s.human) s.thinkT = Math.min(s.thinkT, rnd(.5, 2)); });
 }
 // points: places held now, the war chest, the Crown, and each enemy captain the side has cut down once
@@ -64,7 +65,7 @@ export function c2Breakdown(a) {
 export function c2Begin(mk = null) {
   const L = G.layout, K = G.c2 = { kills: {}, chestPts: {}, crownPts: {}, breaks: [], phase: 'shut', said: {}, chest: 0 };
   for (const h of G.holds) if (h.kind === 'castle') {
-    if (G.cgates[h.id]) G.cgates[h.id] = freshGates(1); // (neutral: level 2)
+    if (G.cgates[h.id]) G.cgates[h.id] = freshGates(CASTLE26.neutralLv); // (CASTLE1: neutral castles at level 0, their guards the defence)
     const cw = L.cwalls.find(c => c.hid === h.id), g = cw ? cw.gate : 0;
     K.breaks.push(c2Post({ kind: 'guard', hid: h.id, x: h.x + Math.cos(g) * 4.5, z: h.z + Math.sin(g) * 4.5, r: 2.4 }, CROWN2.guards));
   }
@@ -168,7 +169,7 @@ function floodStep(u, dt, own, ar) {
   return true;
 }
 export function c2Tick(dt) {
-  towersTick(dt); castleGatesTick(dt); castleTowersTick(dt);
+  towersTick(dt); castleTowersTick(dt); // (CASTLE1: no gate mends by itself)
   const K = G.c2, T = G.T, C = CROWN2, once = (k, ...a) => { if (!K.said[k]) { K.said[k] = 1; say(k, ...a); } };
   if (T >= C.chest - C.chestWarn) once('c2chestSoon', C.chestWarn);
   if (T >= C.chest && K.chest === 0) { K.chest = 1; const r = G.layout.arena.r * .5; K.breaks.push({ brk: true, kind: 'chest', x: r, z: 0, r: 1.6, hp: C.chestHp, max: C.chestHp }); once('c2chestUp'); c2Phase('open'); G.teams.forEach(s => { if (!s.human) s.thinkT = Math.min(s.thinkT, rnd(.2, 1.5)); }); }

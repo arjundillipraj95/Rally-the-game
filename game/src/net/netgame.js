@@ -22,7 +22,7 @@ import { readMove, inp, moveNow } from '../ui/input.js';
 import { floatText } from '../render/effects.js';
 import { cam, CAM_PITCH } from '../render/camera.js';
 import { pingTick, pingPong } from './ping.js';
-import { gatePct } from '../core/sim/forts.js';
+import { freshGates } from '../core/sim/forts.js';
 
 export const C = {}; // client-side state
 if (import.meta.env.DEV) window.__netC = C; // dev-only: lets tests watch the client's snapshots
@@ -74,7 +74,7 @@ function encodeSnap() {
     return [i, b36(L.id), L.dead ? 1 : 0, Math.round(L.horseHp), Math.ceil(L.horseCd), L.summon ? 1 : 0, k.n, r1(k.lvx || 0), r1(k.lvz || 0), r2(k.lst || 0), Math.round(L.hp), k.lh ? 1 : '', L.streak | 0, Math.round(L.armour || 0)].join(','); // (11: F9 the kick ends his charge; 12: the streak)
   }).filter(Boolean).join(';');
   // the map's holdings, and control mode's points: who has each, and how far a capture has got
-  const hd = (G.holds || []).map(h => [h.owner, Math.round(h.prog * 100), h.cap, h.contested ? 1 : 0, h.chest | 0, G.cgates && G.cgates[h.id] ? G.cgates[h.id].broken | 0 : 0, G.cgates && G.cgates[h.id] ? G.cgates[h.id].lv | 0 : 0, h.by ?? -1, h.fort | 0, G.cgates && G.cgates[h.id] ? [0, 1, 2, 3].map(gi => Math.round(gatePct(G.cgates[h.id], gi) * 100)).join('.') : ''].join(',')).join(';'); // (GATE1: each gate's health, %)
+  const hd = (G.holds || []).map(h => [h.owner, Math.round(h.prog * 100), h.cap, h.contested ? 1 : 0, h.chest | 0, G.cgates && G.cgates[h.id] ? G.cgates[h.id].broken | 0 : 0, G.cgates && G.cgates[h.id] ? G.cgates[h.id].lv | 0 : 0, h.by ?? -1, h.fort | 0, G.cgates && G.cgates[h.id] ? [0, 1, 2, 3].map(gi => Math.round(Math.max(0, G.cgates[h.id].hp[gi] || 0)) + '_' + Math.round(G.cgates[h.id].max[gi] || 0)).join('.') : '', h.shieldT > G.T ? Math.ceil(h.shieldT - G.T) : 0].join(',')).join(';'); // (GATE1, CASTLE1: each gate's health and full health; the banner shield's seconds left)
   const cp = (G.ctrlPoints || []).map(p => [p.owner, Math.round(p.prog * 100), p.capturer ?? -1].join(',')).join(';');
   const fo = (G.forts || []).map(f => f.broken).join(',') + (G.plazaWall ? ',' + (G.plazaWall.up ? 16 : 0) + G.plazaWall.broken : ''); // (Fortify: each castle's broken palisade sections)
   const du = (G.duels || []).map(d => [d.id, b36(d.a.id), b36(d.b.id), d.state === 'on' ? 1 : 0, encX(d.x), encX(d.z), Math.max(0, Math.ceil(d.t))].join(',')).join(';'); // (duels: called out, or on)
@@ -213,7 +213,7 @@ export function clientStart(hp) {
   G.plazaWall = G.crown ? { up: false, hp: [0, 0, 0, 0], broken: 0 } : null; C.wallSig = null; G.cgates = G.crown ? {} : null; G.wtowers = [];
   G.ctrlPoints = G.mode === 'ctrl' ? makeCtrlPoints(G.layout) : null;
   G.holds = makeHolds(G.layout); G.duels = [];
-  G.c2 = null; if (G.mode === 'crown' && G.map.id === 'mount') { G.cgates = {}; for (const cw of (G.layout.cwalls || [])) G.cgates[cw.hid] = { hp: [1, 1, 1, 1], broken: 0, lv: 1 }; c2Begin(clientMk); }
+  G.c2 = null; if (G.mode === 'crown' && G.map.id === 'mount') { G.cgates = {}; for (const cw of (G.layout.cwalls || [])) G.cgates[cw.hid] = freshGates(0); c2Begin(clientMk); }
   Object.assign(C, { seatSig: "", off: null, back: null, snapHt: null, byId: new Map(), lastN: -1, lastMsgN: (hp.m && hp.m.length) ? hp.m[hp.m.length - 1][0] : 0, meId: null, meInit: false, kickN: 0, localCd: 0, lastSnapAt: performance.now(),
     inp: { rb: 0, bsh: 0, dl: 0, dlId: null, atk: 0, ride: 0, vly: 0, chg: 0, evN: 0, evK: '', par: 0, ahN: 0, ahD: 0, ah: false, rly: 0, foc: null, vat: null, rec: [0, 0, 0], up: UPGRADES.map(() => 0), ord: 'follow', hold: null, face: 0 }, sendAt: 0, sendNow: false, pred: null, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
   for (const u of G.units) if (u.neutral) C.byId.set(u.id, u); // (F4: the mountain's neutral men, made with the battle above)
@@ -295,7 +295,7 @@ function clientApply(hp) {
     if (v.length > 10) s.buff = v[10] ? { kind: v[10] >= 2000 ? 'swift' : 'drum', until: G.T + v[10] % 1000 } : null;
   });
   G.bounty = +secs[7];
-  if (secs[8] && G.holds) secs[8].split(';').forEach((r, i) => { const h = G.holds[i], v = r.split(',').map(Number); if (h) { h.owner = v[0]; h.prog = v[1] / 100; h.cap = v[2]; h.contested = !!v[3]; h.chest = v[4] | 0; if (v.length > 7) { h.by = v[7] < 0 ? undefined : v[7]; h.fort = v[8] | 0; } if (G.cgates) { if (!G.cgates[i] && G.layout.cwalls && G.layout.cwalls.some(c => c.hid === i)) G.cgates[i] = { hp: [1, 1, 1, 1], broken: 0 }; if (G.cgates[i]) { G.cgates[i].broken = v[5] | 0; G.cgates[i].lv = v[6] | 0; const pc = r.split(',')[9]; if (pc) { const p = pc.split('.').map(Number), old = G.cgates[i].pct; if (old && p.some((x, k) => x < (old[k] ?? 1) * 100 - .5)) G.cgates[i].hitT = G.T; G.cgates[i].pct = p.map(x => x / 100); } } } } }); if (G.crown) applyCastleGates();
+  if (secs[8] && G.holds) secs[8].split(';').forEach((r, i) => { const h = G.holds[i], v = r.split(',').map(Number); if (h) { h.owner = v[0]; h.prog = v[1] / 100; h.cap = v[2]; h.contested = !!v[3]; h.chest = v[4] | 0; if (v.length > 7) { h.by = v[7] < 0 ? undefined : v[7]; h.fort = v[8] | 0; } if (G.cgates) { if (!G.cgates[i] && G.layout.cwalls && G.layout.cwalls.some(c => c.hid === i)) G.cgates[i] = freshGates(0); if (G.cgates[i]) { const st = G.cgates[i]; st.broken = v[5] | 0; st.lv = v[6] | 0; const pc = r.split(',')[9]; if (pc) { const p = pc.split('.').map(x => x.split('_').map(Number)); if (p.some((x, k) => x[0] < (st.hp[k] ?? 0) - .5)) st.hitT = G.T; st.hp = p.map(x => x[0]); st.max = p.map(x => x[1] || 0); } } h.shieldT = v[10] > 0 ? G.T + v[10] : 0; } } }); if (G.crown) applyCastleGates();
   if (secs[10] != null && G.forts) { // palisades: built (the castle's Fortify level) and broken
     secs[10].split(',').forEach((v, c) => { if (G.forts[c]) G.forts[c].broken = +v || 0; });
     const pv = +secs[10].split(',')[4]; // (the Crown: the plaza's wall, up (16) and its broken gates)

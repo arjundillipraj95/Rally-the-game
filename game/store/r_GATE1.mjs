@@ -12,7 +12,7 @@ const r = await page.evaluate(async () => {
   const { G } = window.__fb, f = await import('/src/core/sim/forts.js'), st8 = await import('/src/core/state.js');
   const me = G.player, myA = G.ALLY[st8.colorOf(me.ti)], foeA = [0, 1, 2, 3].map(c => G.ALLY[c]).find(a => a !== myA);
   const mid = G.holds.findIndex(h => h.mid && h.side === 1), cw = G.layout.cwalls.find(c => c.hid === mid);
-  G.holds[mid].owner = foeA; G.cgates[mid] = f.freshGates(); f.applyCastleGates();
+  G.holds[mid].owner = foeA; G.cgates[mid] = f.freshGates(1); f.applyCastleGates();
   const out = { gates: cw.gates.length, blows: [], pctAfter1: [], opened: [] };
   for (let gi = 0; gi < cw.gates.length; gi++) {
     const w = cw.obs.find(o => o.cgate != null && o.gi === gi); let n = 0;
@@ -20,7 +20,7 @@ const r = await page.evaluate(async () => {
     out.blows.push(n); out.opened.push(!!w.off);
   }
   // one blow on a fresh gate: the bar shows
-  G.cgates[mid] = f.freshGates(); f.applyCastleGates(); const w0 = cw.obs.find(o => o.cgate != null && o.gi === 3); f.hitWall(me, w0);
+  G.cgates[mid] = f.freshGates(1); f.applyCastleGates(); const w0 = cw.obs.find(o => o.cgate != null && o.gi === 3); f.hitWall(me, w0);
   out.hitT = G.T - G.cgates[mid].hitT; out.pct3 = f.gatePct(G.cgates[mid], 3);
   me.x = cw.x + Math.cos(cw.gates[3]) * (cw.r + 8); me.z = cw.z + Math.sin(cw.gates[3]) * (cw.r + 8);
   return out; });

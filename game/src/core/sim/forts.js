@@ -1,5 +1,5 @@
 // Battle rules: forts, castle and plaza gates, walls, towers.
-import { CROWN, FORT } from '../../config.js';
+import { CROWN, FORT, CASTLE26 } from '../../config.js';
 import { G, isEnemyTi, colorOf, activeArmies, noCastle } from '../state.js';
 import { groundY, rnd, angDiff } from '../world.js';
 import { nearObstacles, setPalSeg } from '../nav.js';
@@ -25,21 +25,29 @@ export function applyFort(c) {
   for (const b of P.blk) b.off = !on(b.k);
   for (let k = 0; k < FORT.segs; k++) setPalSeg(c + ':' + k, on(k));
 }
-// The Crown's castle gates: shut against the castle's enemies (its own side walks through, see
-// integrate), open when broken or when nobody holds the castle; a broken gate mends itself in time.
-export const gateHp = (gi, lv = 0) => (gi === 0 ? CROWN.cgateHp : CROWN.cgateSmallHp) * CROWN.fortMult[Math.min(lv | 0, CROWN.fortMult.length - 1)];
-// the side's men inside a castle's yard (a gate mends only while someone of its side is in there)
-const insideYard = (cw, ally) => G.units.some(u => !u.dead && allianceOf(u.ti) === ally && Math.hypot(u.x - cw.x, u.z - cw.z) < cw.r);
+// The Crown's castle gates: shut against the castle's enemies (its own side walks through, see integrate), open when
+// broken, at level 0, or when nobody holds the castle. (CASTLE1) A gate is layers: fortify adds one to every gate,
+// damage never heals (no mending), and every layer is CASTLE26.plates plates, each paying the side that knocks it off.
+export const layerHp = gi => (gi === 0 || gi === 3 ? CASTLE26.layer.big : CASTLE26.layer.small); // (the lane gate and the middle castle's back gate are the big ones)
+export const plateHp = gi => layerHp(gi) / CASTLE26.plates;
+export const gateHp = (gi, lv = 0) => layerHp(gi) * (lv | 0); // (a fresh gate at level lv)
 export const GATES = [0, 1, 2, 3]; // (GATE1: up to four gates a castle: the middle castle's back gate is the fourth)
-export const freshGates = (lv = 0) => ({ hp: GATES.map(gi => gateHp(gi, lv)), broken: 0, mendT: [0, 0, 0, 0], lv, towerT: 0 }); // (broken: one bit a gate)
+// a castle's gates at level lv, untouched: lv layers each, or open (broken) at level 0. paid: plates already paid for, a gate
+export const freshGates = (lv = 0) => ({ hp: GATES.map(gi => gateHp(gi, lv)), max: GATES.map(gi => gateHp(gi, lv)), paid: [0, 0, 0, 0], broken: lv ? 0 : 15, lv: lv | 0, towerT: 0 });
 // a gate's health, 0 to 1 (GATE1: its bar)
-export const gatePct = (st, gi) => st.pct ? st.pct[gi] ?? 1 : Math.max(0, Math.min(1, (st.hp[gi] ?? 0) / gateHp(gi, st.lv)));
-// the Crown castle (wall and yard) a captain is standing in, if his side holds it
+export const gatePct = (st, gi) => (st.max && st.max[gi] > 0 ? Math.max(0, Math.min(1, (st.hp[gi] ?? 0) / st.max[gi])) : 0);
+// Fortify: one more level, one more layer on every gate (a broken one shuts again); what was knocked off stays off
+export function fortifyGates(st) {
+  st.lv = (st.lv | 0) + 1;
+  for (const gi of GATES) { const L = layerHp(gi); st.hp[gi] = Math.max(0, st.hp[gi] || 0) + L; st.max[gi] = (st.max[gi] || 0) + L; st.broken &= ~(1 << gi); }
+  applyCastleGates();
+}
 // the mountain: the village of his side's a captain stands in (for its palisade)
 export function villageHere(ti) {
   const L = (ti === G.myTi && G.player) || (G.teams[ti] && G.teams[ti].leader); if (!L || L.dead) return null;
   const a = G.ALLY[colorOf(ti)]; return (G.holds || []).find(h => h.kind === 'village' && h.owner === a && Math.hypot(L.x - h.x, L.z - h.z) < h.r) || null;
 }
+// the Crown castle (wall and yard) a captain is standing in, if his side holds it
 export function castleHere(ti) {
   const L = (ti === G.myTi && G.player) || (G.teams[ti] && G.teams[ti].leader); if (!L || L.dead || !G.layout || !G.layout.cwalls) return null;
   const a = G.ALLY[colorOf(ti)];
@@ -49,10 +57,10 @@ export function castleHere(ti) {
 export function castleTowersTick(dt) {
   for (const cw of G.layout.cwalls || []) {
     const st = G.cgates[cw.hid], h = G.holds[cw.hid]; if (!st || !(st.lv | 0) || !h || h.owner < 0) continue;
-    const lv = Math.min(st.lv | 0, CROWN.fortTowers.length - 1);
-    st.towerT = (st.towerT || 0) - dt; if (st.towerT > 0) continue; st.towerT = CROWN.fortTowerEvery[lv];
+    const lv = Math.min(st.lv | 0, CASTLE26.archers.length - 1);
+    st.towerT = (st.towerT || 0) - dt; if (st.towerT > 0) continue; st.towerT = CASTLE26.every[lv];
     const ti = activeArmies().find(i => allianceOf(i) === h.owner); if (ti == null) continue;
-    for (let k = 0; k < CROWN.fortTowers[lv]; k++) { const b = h.towerA0 + k * Math.PI / 2, x = h.x + Math.cos(b) * 9.5, z = h.z + Math.sin(b) * 9.5;
+    for (let k = 0; k < CASTLE26.archers[lv]; k++) { const b = h.towerA0 + k * Math.PI / 2, x = h.x + Math.cos(b) * 9.5, z = h.z + Math.sin(b) * 9.5;
       const [e] = nearestFoe({ x, z, ti }, FORT.towerRange); if (e) shoot({ x, z, y: 3, vx: 0, vz: 0, ti, tower: true, arrow: FORT.towerDmg }, e, 5.5); }
   }
 }
@@ -68,13 +76,15 @@ function hitCastleGate(u, w) {
   const st = G.cgates[w.cgate], h = G.holds[w.cgate], gi = w.gi | 0; if (!st || (st.broken >> gi) & 1 || !h || h.owner < 0 || h.owner === allianceOf(u.ti)) return;
   st.hitT = G.T; st.hp[gi] -= u.dmg * FORT.wallDmg * (u.leader ? FORT.capWall : 1) * aiDmg(u.ti);
   sound('wall', w.x, w.z); spark(w.x, groundY(w.x, w.z) + 1.4, w.z, '#a3825a', 4);
-  if (st.hp[gi] <= 0) { st.broken |= 1 << gi; st.mendT[gi] = CROWN.cgateMend; applyCastleGates(); say('castleGate', h.owner, u.ti, w.cgate, gi); fx('fxmsg', { k: 'fxgate', u, ti: -1 }); fx('netFlush'); }
+  platesTick(st, gi, u, w.cgate);
+  if (st.hp[gi] <= 0) { st.hp[gi] = 0; st.broken |= 1 << gi; applyCastleGates(); say('castleGate', h.owner, u.ti, w.cgate, gi); fx('fxmsg', { k: 'fxgate', u, ti: -1 }); fx('netFlush'); }
 }
-export function castleGatesTick(dt) {
-  for (const id in G.cgates) { const st = G.cgates[id]; if (!st.broken) continue;
-    const cw = G.layout.cwalls.find(c => c.hid == id), h = G.holds[id]; if (!cw || !h || h.owner < 0) continue;
-    const men = insideYard(cw, h.owner) ? CROWN.fortMend : 0; // (a breach in an empty castle stays open until one of its side comes back)
-    for (let gi = 0; gi < 4; gi++) if ((st.broken >> gi) & 1) { st.mendT[gi] -= dt * men * (1 + .5 * (st.lv | 0)); if (st.mendT[gi] <= 0) { st.broken &= ~(1 << gi); st.hp[gi] = gateHp(gi, st.lv); applyCastleGates(); fx('netFlush'); } } }
+// (CASTLE1) every plate knocked off a gate pays each army of the side that broke it, once
+function platesTick(st, gi, u, hid) {
+  const n = Math.floor((st.max[gi] - Math.max(0, st.hp[gi])) / plateHp(gi) + 1e-6), a = allianceOf(u.ti); if (a < 0) return;
+  st.paid = st.paid || [0, 0, 0, 0];
+  while ((st.paid[gi] | 0) < n) { st.paid[gi] = (st.paid[gi] | 0) + 1; for (const i of activeArmies()) if (allianceOf(i) === a && G.teams[i]) G.teams[i].gold += CASTLE26.plateGold;
+    say('gatePlate', a, u.ti, hid, gi, CASTLE26.plateGold); if (colorOf(u.ti) === colorOf(G.myTi)) sound('coin'); }
 }
 // The plaza's wall (the Crown, from 9:00): down until it rises; a broken gate lets everyone through.
 export function applyPlazaWall() {

@@ -12,7 +12,7 @@ import { cam } from './camera.js';
 import { parts, floats, pows } from './effects.js';
 import { bubbles } from './banter.js';
 import { sideCss } from './holds.js';
-import { gatePct } from '../core/sim/forts.js';
+import { gatePct, plateHp } from '../core/sim/forts.js';
 
 const fx = document.getElementById('fx'), ctx = fx.getContext('2d');
 const mini = document.getElementById('mini'), mctx = mini.getContext('2d');
@@ -275,6 +275,8 @@ function drawGateBars() {
       const [sx, sy, ok] = proj(x, groundY(x, z) + 5.2, z); if (!ok) return; const w = 54, hgt = 7;
       ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillRect(sx - w / 2 - 2, sy - 2, w + 4, hgt + 4);
       ctx.fillStyle = h.owner === myA ? '#5fd35a' : '#e2483d'; ctx.fillRect(sx - w / 2, sy, w * p, hgt);
+      ctx.fillStyle = 'rgba(0,0,0,.7)'; const ph = plateHp(gi), mx = st.max[gi] || 0; // (CASTLE1: a tick between plates; a heavier one between layers)
+      for (let k = 1, n = Math.round(mx / ph); k < n; k++) { const tx = sx - w / 2 + w * k * ph / mx; ctx.fillRect(tx - (k % 3 ? .5 : 1), sy, k % 3 ? 1 : 2, hgt); }
       ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 1; ctx.strokeRect(sx - w / 2 - .5, sy - .5, w + 1, hgt + 1); }); }
 }
 function drawHoldLabels() {
@@ -287,6 +289,7 @@ function drawHoldLabels() {
     ctx.textAlign = 'center'; ctx.font = `italic ${sz}px Bangers, Impact, sans-serif`; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.6)';
     ctx.strokeText(name, sx, sy); ctx.fillStyle = h.owner >= 0 ? sideCss(h.owner) : '#efe9d8'; ctx.fillText(name, sx, sy);
     if (h.chest) { ctx.font = `italic ${Math.round(sz * .85)}px Bangers, Impact, sans-serif`; const t = h.chest === 2 ? 'WAR CHEST!' : 'WAR CHEST COMING'; ctx.strokeText(t, sx, sy - sz * 1.05); ctx.fillStyle = (performance.now() / 300 | 0) % 2 ? '#ffd23a' : '#fff4c0'; ctx.fillText(t, sx, sy - sz * 1.05); ctx.font = `italic ${sz}px Bangers, Impact, sans-serif`; }
+    if (h.shieldT > G.T) { const t = `BANNER RISING ${Math.ceil(h.shieldT - G.T)}`; ctx.font = `800 ${Math.round(sz * .6)}px "Barlow Semi Condensed", sans-serif`; ctx.fillStyle = '#efe9d8'; ctx.strokeText(t, sx, sy + sz * .8); ctx.fillText(t, sx, sy + sz * .8); continue; } // (CASTLE1: nobody can take it yet)
     if (h.contested) { ctx.font = `800 ${Math.round(sz * .6)}px "Barlow Semi Condensed", sans-serif`; ctx.fillStyle = '#ffcf3a'; ctx.strokeText('CONTESTED', sx, sy + sz * .8); ctx.fillText('CONTESTED', sx, sy + sz * .8); }
     else if (h.cap >= 0 && h.prog > 0) { const w = sz * 2.6; ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, sy + 6, w, 5); ctx.fillStyle = sideCss(h.cap); ctx.fillRect(sx - w / 2, sy + 6, w * Math.min(1, h.prog), 5); }
   }

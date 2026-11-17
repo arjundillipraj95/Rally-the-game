@@ -4,7 +4,7 @@ import { G, colorOf, activeArmies, activeFrom, gateOff, ARMIES, rules, matchTime
 import { groundY, gatePos, makeLayout, clamp, rnd } from '../world.js';
 import { buildNav } from '../nav.js';
 import { fx, say } from './util.js';
-import { applyCastleGates, applyPlazaWall, archTier, c2Begin, footTier, freshGates, horseMax, initForts, makeCtrlPoints, makeHolds, moveToward, speedOf } from './step.js'; // (later files: through the entry, so files still load in the old order)
+import { applyCastleGates, applyPlazaWall, archTier, c2Begin, footTier, freshGates, horseMax, plateHp, initForts, makeCtrlPoints, makeHolds, moveToward, speedOf } from './step.js'; // (later files: through the entry, so files still load in the old order)
 
 // ---------- setup ----------
 // Armies 0-3 are each castle's own army; 4-11 are its Duo/Trio teammates', real only when active[i].
@@ -110,7 +110,7 @@ export function adoptBattle() {
   G.uid = maxId + 1;
   G.player = G.teams[G.myTi] && G.teams[G.myTi].leader && !G.teams[G.myTi].leader.dead ? G.teams[G.myTi].leader : null;
   if (G.flag) { const c = G.flag.carrier ? byId.get(G.flag.carrier.id) : null; G.flag.carrier = c || null; if (c) c.carrying = true; else if (G.flag.state === 'carried') G.flag.state = 'dropped'; }
-  if (G.cgates) { for (const k of Object.keys(G.cgates)) { const g = G.cgates[k], n = freshGates(g.lv | 0); n.broken = g.broken | 0; for (let gi = 0; gi < 3; gi++) if (n.broken & (1 << gi)) n.hp[gi] = 0; G.cgates[k] = n; } applyCastleGates(); }
+  if (G.cgates) { for (const k of Object.keys(G.cgates)) { const g = G.cgates[k], n = freshGates(g.lv | 0); n.broken = g.broken | 0; n.hp = [0, 1, 2, 3].map(gi => n.broken & (1 << gi) ? 0 : g.hp[gi] ?? n.hp[gi]); n.max = [0, 1, 2, 3].map(gi => g.max ? g.max[gi] ?? n.max[gi] : n.max[gi]); n.paid = [0, 1, 2, 3].map(gi => Math.floor((n.max[gi] - n.hp[gi]) / plateHp(gi) + 1e-6)); G.cgates[k] = n; } applyCastleGates(); } // (CASTLE1: the layers and plates as the old host left them)
   if (G.plazaWall) { G.plazaWall.hp = [0, 1, 2, 3].map(i => (G.plazaWall.broken & (1 << i)) ? 0 : CROWN.gateHp); applyPlazaWall(); }
   G.wtN = (G.wtowers || []).reduce((m, w) => Math.max(m, w.id), 0) + 1;
   const h = (G.holds || []).find(x => x.centre), at = CHEST.at * matchTime();
