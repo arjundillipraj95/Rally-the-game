@@ -1,5 +1,6 @@
 // Battle rules: arrows, javelins and volleys.
 import { FEEL, NEUTRAL, TEAMS, STATS, JAVELIN, VOLLEY, RALLY, VCHARGE } from '../../config.js';
+import { COUNTER } from '../../config.js';
 import { G, isEnemyTi, colorOf } from '../state.js';
 import { groundY, inFord, rnd, angDiff } from '../world.js';
 import { nearBlockers, gateShut } from '../nav.js';
@@ -57,7 +58,8 @@ function arrowHit(a, b) {
   if (b.shieldwall && frontal && !a.bolt && !a.turret && (b.kind === 'foot' || Math.random() < .6)) { spark(b.x, b.y + 2.2, b.z, '#e8d9b0', 4); sound('thud', b.x, b.z); return; }
   b.lastHit = G.T;
   if (a.unhorse && b.mounted) { horseDamage(b, dmg); if (b.mounted) dismount(b, true); gainRally(a.shooter, RALLY.unhorse); fx('fxmsg', { k: 'fxunhorse', u: b }); return; } // a full-draw javelin knocks a rider clean off
-  if (b.mounted && Math.random() < .6) { horseDamage(b, dmg); return; }
+  if (!a.javelin && !a.turret && b.kind === 'foot') dmg *= COUNTER.mult; // (C1d the counter rule: arrows on infantry)
+  if (b.mounted) { horseDamage(b, dmg); return; } // (C1d: a mounted champion's horse takes every arrow)
   let blocked = false;
   if (frontal && !b.mounted && !b.carrying && loc !== 'head' && !a.bolt && !a.turret) { // (CASTLE2: a ballista bolt goes through a shield)
     if (b.kind === 'foot' && !a.plunge && Math.random() < .7) blocked = true; // (a plain shield; arrows plunging from a tower come in over it)

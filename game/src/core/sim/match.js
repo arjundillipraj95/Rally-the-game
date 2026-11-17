@@ -6,6 +6,7 @@ import { buildNav } from '../nav.js';
 import { fx, say } from './util.js';
 import { applyCastleGates, applyPlazaWall, archTier, c2Begin, footTier, freshGates, horseMax, plateHp, initForts, makeCtrlPoints, makeHolds, moveToward, speedOf } from './step.js'; // (later files: through the entry, so files still load in the old order)
 import { assignChamps, champOf, myChamp } from '../../champions/index.js';
+import { applyChamp } from '../../champions/stats.js';
 // (C1a) a champion's weapon: the one asked for if he carries it, else his first
 export const champWeapon = (ti, w) => { const ws = champOf(ti).weapons; return ws.includes(w) ? w : ws[0]; };
 
@@ -37,6 +38,7 @@ export function mkUnit(ti, x, z, kind, human = false) {
     weapon: kind === 'captain' ? champWeapon(ti, G.teams[ti] && G.teams[ti].weapon) : undefined, // (C1a: one of his champion's weapons)
     jy: 0, jvy: 0, jumpCd: 0, javAmmo: CAPTAIN_COMBAT.jav.ammo + tier, javRegen: 0, combo: 0, lastSwingT: -9, atkBuf: 0, st: STAMINA.max, stT: -9,
     neutral: false, post: null, pk: 0, px: 0, pz: 0, pface: 0, rest: false, tface: 0 }; // (F4: a garrison's man fills these in; every unit has them so they all share one shape)
+  if (u.leader) applyChamp(u); // (C1d: his page's health and blow)
   G.units.push(u); return u;
 }
 // (F7) Stepping out: a captain back on his feet (and at the start, with his men), or a soldier just raised, walks out

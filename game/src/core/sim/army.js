@@ -7,6 +7,9 @@ import { fx, say, sound, spark } from './util.js';
 import { homeAt, mkUnit, squadOf, startMarch } from './match.js';
 import { applyFort, castleHere, fortLvl, fortifyGates, lastStand, nearestFoe, villageHere, volleyCharge, ditchSlow } from './step.js'; // (later files: through the entry, so files still load in the old order)
 import { swiftSpd } from './buffs.js';
+import { applyChamp } from '../../champions/stats.js';
+import { champOf } from '../../champions/index.js';
+import { UNITS } from '../../config.js';
 
 // Hold: pt is where the front rank stands and which way it faces ({x, z, face}); without one, the
 // line forms a couple of paces in front of the captain, facing where he faces.
@@ -64,7 +67,7 @@ export function recruit(ti, kind) {
 }
 // ---------- upgrades and the captain's aura ----------
 const lvl = (ti, id) => (G.teams[ti] && G.teams[ti].up) ? G.teams[ti].up[id] | 0 : 0;
-export const horseMax = ti => HORSE_HP + 30 * lvl(ti, 'horse');
+export const horseMax = ti => HORSE_HP * champOf(ti).mount.hp / UNITS.hp.champHorse + 30 * lvl(ti, 'horse'); // (C1d: his page's horse)
 export const horseCooldown = ti => HORSE_CD - 4 * lvl(ti, 'horse');
 export const auraRange = ti => AURA.range + AURA.perRange * lvl(ti, 'aura');
 export const auraBonus = ti => AURA.bonus + AURA.perBonus * lvl(ti, 'aura');
@@ -98,8 +101,7 @@ function applyFootTier(ti) {
       const nmax = t.hp; u.hp = Math.min(nmax, Math.max(1, u.hp + (nmax - u.max))); u.max = nmax;
       u.dmg = t.dmg; u.reach = t.reach; u.block = t.block; u.spd = t.spd; u.javelin = t.javelin; u.tier = tier;
     } else if (u.leader) {
-      const nmax = STATS.captain.hp + cb.hpB; u.hp = Math.min(nmax, Math.max(1, u.hp + (nmax - u.max))); u.max = nmax;
-      u.dmg = (u.human ? HUMAN_CAPTAIN.dmg : STATS.captain.dmg) + cb.dmgB;
+      applyChamp(u); // (C1d: a champion's health and blow are his page's and his level's, not his footmen's)
       u.reach = STATS.captain.reach + cb.reachB; u.javelin = cb.javelin; u.tier = tier;
     }
   }

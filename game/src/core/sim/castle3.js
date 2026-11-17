@@ -33,7 +33,7 @@ export function castle3Tick(dt) {
     const ti = activeArmies().find(i => allianceOf(i) === h.owner); if (ti == null) { st.balT = 1; continue; }
     const e = turretTarget(cw, h, st); if (!e) { st.balT = .5; continue; } // (CASTLE3: the castle's one target)
     st.balT = B.every; const m = volleyOn(st, e), x = cw.x + (e.x - cw.x) / (Math.hypot(e.x - cw.x, e.z - cw.z) || 1) * 3.2, z = cw.z + (e.z - cw.z) / (Math.hypot(e.x - cw.x, e.z - cw.z) || 1) * 3.2;
-    turretShot(x, groundY(cw.x, cw.z) + 8.7, z, ti, e, B.dmg * m, true, cw); // (from the keep's rim: clear of its own stones)
+    turretShot(x, groundY(cw.x, cw.z) + 8.7, z, ti, e, (e.leader ? B.champ : B.dmg) * m, true, cw); // (from the keep's rim: clear of its own stones)
   }
   const D = CASTLE26.ditch;
   for (const u of G.units) { if (u.dead || u.rest || u.inSafe || !ditchOf(u)) continue;

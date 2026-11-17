@@ -24,6 +24,7 @@ import { floatText } from '../render/effects.js';
 import { cam, CAM_PITCH } from '../render/camera.js';
 import { pingTick, pingPong } from './ping.js';
 import { freshGates } from '../core/sim/forts.js';
+import { applyChamp, champHp } from '../champions/stats.js';
 
 export const C = {}; // client-side state
 if (import.meta.env.DEV) window.__netC = C; // dev-only: lets tests watch the client's snapshots
@@ -125,7 +126,7 @@ export function netHostReadInputs() {
     if (!present.has(peer)) { // (F24: one marked idle, so already played by the computer, still gives up his seat when he goes)
       if (G.teams[ti].human) {
         G.teams[ti].human = false; const L = G.teams[ti].leader;
-        if (L) { L.human = false; L.remote = false; L.dmg = STATS.captain.dmg; L.spd = STATS.captain.spd; }
+        if (L) { L.human = false; L.remote = false; applyChamp(L); }
         bus.emit('msg', { k: 'left', a: [ti] });
       }
       delete NET.seats[peer];
@@ -142,14 +143,14 @@ export function netHostReadInputs() {
     const pr = p.presence || {}, ti = pr.want; if (typeof ti !== 'number' || ti < 0 || ti >= ARMIES || Object.values(NET.seats).includes(ti)) continue;
     const s = G.teams[ti], back = HO && HO.tis.includes(ti) && pr.seed === G.seed; if (!s || !s.active || (s.human && !back) || (!late && !back)) continue;
     NET.seats[p.peer] = ti; s.human = true;
-    const L = s.leader; if (L) { L.human = true; L.remote = true; L.dmg = HUMAN_CAPTAIN.dmg; L.spd = HUMAN_CAPTAIN.spd; }
+    const L = s.leader; if (L) { L.human = true; L.remote = true; applyChamp(L); }
     if (back) NET.inp[ti] = { sh: pr.sh | 0, atk: pr.atk | 0, chg: pr.chg | 0, ride: pr.ride | 0, vly: pr.vly | 0, par: pr.par | 0, ahN: pr.ahN | 0, bsh: pr.bsh | 0, evN: pr.evN | 0, dl: pr.dl | 0, rly: pr.rly | 0, hold: '', rec: (pr.rec || [0, 0, 0]).map(n => n | 0), up: UPGRADES.map((u, k) => (pr.up && pr.up[k]) | 0) }; // (their button counts carry on from where they were)
     else bus.emit('msg', { k: 'joined', a: [ti] });
     netHostSend(true);
   }
   if (HO && performance.now() > HO.until) { // whoever didn't make it back: the computer plays their army
     for (const ti of HO.tis) if (!Object.values(NET.seats).includes(ti) && G.teams[ti].human) {
-      G.teams[ti].human = false; const L = G.teams[ti].leader; if (L) { L.human = false; L.remote = false; L.dmg = STATS.captain.dmg; L.spd = STATS.captain.spd; }
+      G.teams[ti].human = false; const L = G.teams[ti].leader; if (L) { L.human = false; L.remote = false; applyChamp(L); }
       bus.emit('msg', { k: 'left', a: [ti] });
     }
     NET.handover = null;
@@ -162,8 +163,8 @@ export function netHostReadInputs() {
     { // idle for 30 s: the computer plays their army until they touch the controls again
       const idle = NET.idle || (NET.idle = {}), sig = [Array.isArray(pr.cap) ? Math.round(pr.cap[1] * 2) + ',' + Math.round(pr.cap[2] * 2) : '', pr.atk, pr.par, pr.ahN, pr.ride, pr.chg, pr.vly, pr.ord, pr.evN, pr.blk, pr.ah].join('|');
       const w = idle[ti] || (idle[ti] = { sig, at: performance.now(), out: false });
-      if (w.sig !== sig) { w.sig = sig; w.at = performance.now(); if (w.out) { w.out = false; s.human = true; if (L) { L.human = true; L.remote = true; L.dmg = HUMAN_CAPTAIN.dmg; L.spd = HUMAN_CAPTAIN.spd; } bus.emit('msg', { k: 'back', a: [ti] }); } }
-      else if (!w.out && s.human && L && !L.dead && performance.now() - w.at > IDLE_MS) { w.out = true; s.human = false; L.human = false; L.remote = false; L.dmg = STATS.captain.dmg; L.spd = STATS.captain.spd; bus.emit('msg', { k: 'idle', a: [ti] }); }
+      if (w.sig !== sig) { w.sig = sig; w.at = performance.now(); if (w.out) { w.out = false; s.human = true; if (L) { L.human = true; L.remote = true; applyChamp(L); } bus.emit('msg', { k: 'back', a: [ti] }); } }
+      else if (!w.out && s.human && L && !L.dead && performance.now() - w.at > IDLE_MS) { w.out = true; s.human = false; L.human = false; L.remote = false; applyChamp(L); bus.emit('msg', { k: 'idle', a: [ti] }); }
     }
     if (!s.human) continue;
     const last = NET.inp[ti] || (NET.inp[ti] = { atk: 0, chg: 0, ride: 0, vly: 0, par: 0, ahN: 0, hold: '', rec: [0, 0, 0], up: UPGRADES.map(() => 0) }); // (one count per upgrade: a short list once lost the Horse)
@@ -243,7 +244,7 @@ function clientPost(b, mask, seen) {
 function clientUnit(id, kind, ti, x, z) {
   const human = kind === 'captain' && !!G.teams[ti] && G.teams[ti].human;
   const u = { id, kind, ti, leader: kind === 'captain', human, x, z, y: groundY(x, z), tx: x, tz: z, tface: 0, face: 0, vx: 0, vz: 0, vy: 0,
-    hp: STATS[kind].hp, max: STATS[kind].hp, r: STATS[kind].r, swing: 0, stun: 0, blockT: 0, dead: false, deadT: 0, mounted: false, carrying: false, aim: false,
+    hp: kind === 'captain' ? champHp(ti) : STATS[kind].hp, max: kind === 'captain' ? champHp(ti) : STATS[kind].hp, r: STATS[kind].r, swing: 0, stun: 0, blockT: 0, dead: false, deadT: 0, mounted: false, carrying: false, aim: false,
     spd: human ? 6.3 : STATS[kind].spd, horseHp: horseMax(ti), horseCd: 0, summon: false, shieldwall: false, blocking: false, lastHit: -9,
     jy: 0, jyT: 0, jvy: 0, jumpCd: 0, weapon: human && ti === G.myTi ? (G.teams[ti].weapon || 'sword') : undefined, javAmmo: CAPTAIN_COMBAT.jav.ammo, javRegen: 0, combo: 0, lastSwingT: -9 };
   G.units.push(u); if (C.byId) C.byId.set(id, u); return u;
@@ -570,7 +571,7 @@ async function handover() {
     try { await oldRoom.leave(); } catch (e) {}
     adoptBattle();
     const gone = (NET.lastSeats || {})[NET.hostPeer]; // (the old host's army: the computer plays it now)
-    if (gone != null && G.teams[gone]) { G.teams[gone].human = false; const L = G.teams[gone].leader; if (L) { L.human = false; L.remote = false; L.dmg = STATS.captain.dmg; L.spd = STATS.captain.spd; } }
+    if (gone != null && G.teams[gone]) { G.teams[gone].human = false; const L = G.teams[gone].leader; if (L) { L.human = false; L.remote = false; applyChamp(L); } }
     const me = myPeer(room) || 'me', tis = left.slice(1).map(x => x[1]);
     if (gone != null) tis.push(gone); // (F24: the old host, if its phone comes back, rejoins as a player in its own army)
     session.NET = { role: 'host', room, name: code, base, gen, me, seats: { [me]: G.myTi }, msgs: [], msgN: C.lastMsgN + 50, snapN: C.lastN + 1000, inp: {}, match: NET.match,

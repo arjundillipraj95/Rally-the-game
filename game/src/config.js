@@ -1,6 +1,8 @@
 // Game data shared by the rules, the renderer and the UI. No engine code here,
 // so this file carries over unchanged if Rally ever moves to a native engine.
 export * from './config/champs.js'; // (C1: the champions' shared tables)
+import { UNITS } from './config/champs.js';
+const INF = UNITS.inf, HIT = UNITS.inf * UNITS.hit.foot, ARW = UNITS.inf * UNITS.hit.arrow; // (C1d: the baselines in hit points)
 
 export const TEAMS = [
   { name: 'Blue',   hex: 0x3a5cf0, css: '#3a5cf0', pos: [-56,  56] },
@@ -117,13 +119,13 @@ export const CASTLE26 = {
   // (CASTLE2) level 3: the keep's ballista (a bolt every `every` s, range m, damage; shields don't stop it), the
   // watchtower (lights every bush within `watch` m for the owner's side), the spike ditch (from the wall out to
   // `w` m: the castle's enemies in it move at `slow` and lose `dmg` health a second)
-  ballista: { every: 4, dmg: 28 }, watch: 45, ditch: { w: 3, slow: .6, dmg: 2 },
+  ballista: { every: 4, dmg: 28, champ: 70 }, watch: 45, ditch: { w: 3, slow: .6, dmg: 2 }, // (C1d ballista.champ: on a champion, rescaled with his 400% health)
   // (CASTLE3) League turret rules for every castle shooter (wall archers and ballista): range m from the castle's
   // middle; one target a castle: an enemy champion who hit one of the castle's side's champions in range within
   // `aggro` s first, else whoever it is already shooting, else the nearest soldier, else the nearest champion.
   // soldier/champ: damage of one archer's arrow; on the same champion each volley adds rampStep, up to +rampMax.
   // ring: the range circle shows within ring m of the range's edge
-  turret: { range: 24, soldier: 32, champ: 10, rampStep: .4, rampMax: 1.2, aggro: 2.5, ring: 10 },
+  turret: { range: 24, soldier: 32, champ: 25, rampStep: .4, rampMax: 1.2, aggro: 2.5, ring: 10 },
   // (CASTLE4) the capture circle round the courtyard banner: radius m; seconds to fill with soldiers alone, 1, 2, 3+ champions; each
   // soldier of theirs in it adds `soldier` (up to `soldierMax`); an empty circle drains a full bar in `drain` s;
   // inside it the camera pulls back by `cam`
@@ -188,28 +190,28 @@ export const CALM = {
 // Quick shouts (in battle, instead of typing): your captain calls it out, your side sees it in the feed
 export const SHOUTS = ['Follow me!', 'Defend!', 'Attack their castle!', 'Good game!'];
 export const STATS = {
-  captain: { hp: 150, dmg: 22, reach: 1.3,  cd: .6,  spd: 6.2, r: .62, block: .3 }, // (SPD1: = CAPTAIN_SPD.foot)
-  foot:    { hp: 95,  dmg: 13, reach: 1.25, cd: .95, spd: 5.4, r: .55, block: .35, cost: 40, name: 'Footman' },
-  arch:    { hp: 60,  dmg: 6,  reach: 1.1,  cd: 1.2, spd: 5.3, r: .5,  block: 0,   cost: 50, name: 'Archer', range: 22, shoot: 2.3, arrow: 10, jitter: .8 },
+  captain: { hp: INF * UNITS.hp.champ, dmg: INF * UNITS.hit.champ, reach: 1.3,  cd: .6,  spd: 6.2, r: .62, block: .3 }, // (SPD1: = CAPTAIN_SPD.foot)
+  foot:    { hp: INF, dmg: HIT, reach: 1.25, cd: .95, spd: 5.4, r: .55, block: .35, cost: 40, name: 'Footman' },
+  arch:    { hp: INF * UNITS.hp.arch, dmg: 6,  reach: 1.1,  cd: 1.2, spd: 5.3, r: .5,  block: 0,   cost: 50, name: 'Archer', range: 22, shoot: 2.3, arrow: ARW, jitter: .8 },
 };
 // (SPD1) one speed for every captain, the player's or the computer's: on foot, and the horse's multiple
 export const CAPTAIN_SPD = { foot: 6.2, mount: 1.8 };
-export const HUMAN_CAPTAIN = { dmg: 30, spd: CAPTAIN_SPD.foot };
+export const HUMAN_CAPTAIN = { dmg: INF * UNITS.hit.champ, spd: CAPTAIN_SPD.foot }; // (C1d: the same blow as a computer champion's)
 export const RECRUITS = ['foot', 'arch'];
 
 // Footman's 3 tiers: sword & shield -> spear, javelin & a better shield -> heavier armor & hp.
 // Index = number of foot upgrades bought (foot1 + foot2), so 0/1/2.
 export const FOOT_TIERS = [
-  { hp: 95,  dmg: 13, reach: 1.25, cd: .95, spd: 5.4, r: .55, block: .35, javelin: false, name: 'Footman' },
-  { hp: 105, dmg: 15, reach: 2.1,  cd: 1.0,  spd: 5.2, r: .55, block: .4,  javelin: true,  name: 'Footman (Arms)' },
-  { hp: 130, dmg: 16, reach: 2.1,  cd: 1.0,  spd: 5.0, r: .55, block: .45, javelin: true,  name: 'Footman (Armor)' },
+  { hp: INF, dmg: HIT, reach: 1.25, cd: .95, spd: 5.4, r: .55, block: .35, javelin: false, name: 'Footman' }, // (C1d: an infantry hit is 20% of a man)
+  { hp: 105, dmg: HIT * 1.15, reach: 2.1,  cd: 1.0,  spd: 5.2, r: .55, block: .4,  javelin: true,  name: 'Footman (Arms)' },
+  { hp: 130, dmg: HIT * 1.23, reach: 2.1,  cd: 1.0,  spd: 5.0, r: .55, block: .45, javelin: true,  name: 'Footman (Armor)' },
 ];
 // Archer's 3 tiers: base -> a balanced all-round bump -> more range & tighter accuracy.
 // jitter is the aim-spread radius (lower = more accurate = more head/critical shots).
 export const ARCH_TIERS = [
-  { hp: 60, dmg: 6, reach: 1.1, cd: 1.2, spd: 5.3, r: .5, block: 0, range: 22, shoot: 2.3, arrow: 10, jitter: .8,  name: 'Archer' },
-  { hp: 68, dmg: 7, reach: 1.1, cd: 1.1, spd: 5.4, r: .5, block: 0, range: 23, shoot: 2.1, arrow: 11, jitter: .7,  name: 'Archer (Training)' },
-  { hp: 68, dmg: 7, reach: 1.1, cd: 1.1, spd: 5.4, r: .5, block: 0, range: 29, shoot: 2.0, arrow: 12, jitter: .45, name: 'Archer (Marksman)' },
+  { hp: INF * .6, dmg: 6, reach: 1.1, cd: 1.2, spd: 5.3, r: .5, block: 0, range: 22, shoot: 2.3, arrow: ARW, jitter: .8,  name: 'Archer' }, // (C1d: 60% of a man; an arrow 10%)
+  { hp: INF * .68, dmg: 7, reach: 1.1, cd: 1.1, spd: 5.4, r: .5, block: 0, range: 23, shoot: 2.1, arrow: ARW * 1.1, jitter: .7,  name: 'Archer (Training)' },
+  { hp: INF * .68, dmg: 7, reach: 1.1, cd: 1.1, spd: 5.4, r: .5, block: 0, range: 29, shoot: 2.0, arrow: ARW * 1.2, jitter: .45, name: 'Archer (Marksman)' },
 ];
 // The captain rides the Footman upgrade line: a small stat bump plus the javelin at tier 1+,
 // so playing the captain always mirrors what the squad's Footman upgrades are doing.
@@ -288,7 +290,7 @@ export const RIDE = { gallop: 1.6, turnLoss: 1.1, lockR: 16, lockCone: .9, perfe
 // its captain; it comes back while the captain stands and no enemy is close. At `rout` the army breaks:
 // its men run for home for routT seconds, taking flankX damage as they go, then regroup at `regroup`.
 // Blows from the side or behind always land flankX harder on soldiers.
-export const MORALE = { death: 7, flankDeath: 5, captain: 35, regen: 3, calmR: 15, rout: 20, waver: 40, regroup: 45, routT: 6, steady: 12, homeR: 32, flankAng: 2.0, flankX: 1.25 };
+export const MORALE = { death: 7, flankDeath: 5, captain: 35, regen: 3, calmR: 15, rout: 20, waver: 40, regroup: 45, routT: 6, steady: 12, homeR: 32, flankAng: 2.0, flankX: UNITS.behind }; // (C1d: a blow from behind 1.5x)
 // (steady: after regrouping, an army can't break again for this long; homeR: men this close to their own castle fight with their backs to the wall and don't break)
 // Places on a map worth taking: each map's own question. Stand in one with more of your side's men
 // than anyone else's and, after capture s (quicker with more men), it turns your side's colour; allies
@@ -323,7 +325,7 @@ export const DUEL = { mineT: 15, // (a refused challenge: "He's mine!" for this 
   offerR: 10, ring: 6, guardR: 25, offerT: 5, time: 60, accept: [.55, .75, .9], aiChallenge: [.02, .045, .08], aiVsAi: .02, decline: 8, winMorale: 30, broken: 20, brokenRally: 25, draw: 10,
   shoveT: .3 }; // (F7e: when a duel starts, anyone inside the ring is shoved to its edge over shoveT seconds, not in one frame)
 // A blow from behind (a captain's): harder, and it staggers. Circle him.
-export const BACKSTAB = { mult: 1.6, stun: .5 };
+export const BACKSTAB = { mult: UNITS.behind, stun: .5 }; // (C1d)
 // The execution: an enemy captain beaten down (hp at or under hp of his max, or hpStunned while
 // reeling) with none of his own men within clearR of him is marked to finish. Attack within reach
 // executes him (F7f: the executioner slides to his spot over `slide` s, and the camera pushes in a little more, `push`): he drops to his knees, the blow comes down at strikeAt into dur; both untouchable.
@@ -439,11 +441,12 @@ export const UPGRADES = [
 // (gateW wide), in segs sections; then a tower at each gate shooting every towerEvery s. It can't be
 // shut: a gate is held by men (the Hold order). And it can be broken: each section has segHp, and a
 // blow does wallDmg of the striker's damage (a captain's more), so a squad hacks a breach in seconds.
-export const FORT = { gateHp: 480, repair: 60, r: 22, h: 3.4, segs: 12, gateW: 3.4, segHp: 360, wallDmg: .7, capWall: 1.4, towerEvery: 1.8, towerRange: 20, towerDmg: 6 };
+export const FORT = { gateHp: 480, repair: 60, r: 22, h: 3.4, segs: 12, gateW: 3.4, segHp: 360, wallDmg: .48, capWall: 1.9, // (C1d: rescaled with the new blows, so gates fall as fast as before)
+   towerEvery: 1.8, towerRange: 20, towerDmg: 6 };
 // The captain's aura: soldiers this close fight harder, block more and move a little faster.
 export const AURA = { range: 8, perRange: 3, bonus: .1, perBonus: .05 };
 export const CASTLE_R = 9.5, CASTLE_REACH = 11;
-export const HORSE_HP = 120, HORSE_CD = 20;
+export const HORSE_HP = INF * UNITS.hp.champHorse, HORSE_CD = 20; // (C1d: a champion's horse is 200% of a man; his own page may change it)
 // Ping readout (P0.3): a joiner's round trip to the host, sent as ping/pong. A reading every `every` ms; the
 // shown ping is the median of the last `keep` readings. `bands` are the upper limits (ms) for the colours, in
 // order: dark green (no data loss), green (acceptable data loss), amber (visible data loss), red, dark red.

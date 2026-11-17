@@ -1,5 +1,6 @@
 // Battle rules: who is near (grid), stamina, sword swings, clashes and the blow landing.
 import { STAMINA, DUEL_DIR, FEEL, NEUTRAL, CROWN, TEAMS, STATS, DIFF, CASTLE_REACH, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, EVADE, GUARD, MORALE, RALLY, CAPTAIN_COMBAT, STREAK, BASH, LAST, VCHARGE } from '../../config.js';
+import { COUNTER } from '../../config.js';
 import { G, isEnemy, isEnemyTi, colorOf, rules } from '../state.js';
 import { inSpear } from '../spearhit.js';
 import { groundY, rnd, angDiff } from '../world.js';
@@ -220,14 +221,15 @@ export function hit(a, b, mult = 1, extra) {
   let dmg = a.dmg * rnd(.8, 1.2) * mult * aiDmg(a.ti);
   if (!a.leader && a.aura) dmg *= 1 + auraBonus(a.ti);
   if (a.y - b.y > .8) dmg *= 1.2; // fighting downhill
-  if (!b.leader && (behind(b, a) || routing(b.ti))) dmg *= MORALE.flankX; // caught from the side or behind, or running
+  if (!b.leader && !back && (behind(b, a) || routing(b.ti))) dmg *= MORALE.flankX; // (C1d: once, not on top of a champion's backstab) // caught from the side or behind, or running
   if (a.rallyT > 0) dmg *= RALLY.dmg;
   dmg *= drumDmg(a.ti); // (CAMP1: the war drum)
   if (!a.leader && G.teams[a.ti] && G.teams[a.ti].vcT > G.T) dmg *= VCHARGE.dmg; // (charging in behind a volley)
   if (G.mode === 'conquest' && G.teams[colorOf(a.ti)].breached && lastStand(a)) dmg *= LAST.dmg; // (backs to the wall)
   b.lastHit = G.T;
   const spearedHorse = (a.kind === 'foot' && a.tier >= 1) || (a.leader && a.weapon === 'spear');
-  if (b.mounted && (spearedHorse || Math.random() < .5)) { horseDamage(b, dmg * (spearedHorse ? 3 : 1)); return; }
+  if (a.mounted && b.kind === 'arch') dmg *= COUNTER.mult; // (C1d the counter rule: cavalry on archers)
+  if (b.mounted) { horseDamage(b, dmg * (spearedHorse ? COUNTER.mult : 1)); return; } // (C1d: a mounted champion's horse takes every blow; spears 120%)
   let kb = (a.leader ? (a.mounted ? 10 : 8) : 5) * (extra && extra.kb || 1) * (!a.leader && G.teams[a.ti] && G.teams[a.ti].vcT > G.T ? VCHARGE.kb : 1);
   const frontal = Math.abs(angDiff(b.face, Math.atan2(a.x - b.x, a.z - b.z))) < 1.1;
   const held = frontal && b.holding && !b.human; // a footman standing his place in a held line
