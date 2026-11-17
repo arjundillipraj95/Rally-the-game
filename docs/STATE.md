@@ -372,8 +372,12 @@ Last updated: 2026-11-17 (C1 champion framework built on launch26, not shipped).
 - Next: C3 Titus (card waiting for Arjun's go); then C2 units before Devi (C4) and Sigrun (C5).
 - Arjun 17 Nov (for S1-12, designer to fold into the design doc): the lobby is 60 s and picks the champion with the lane: filter
   by class, then a picture grid like League or Unite. Today's design says 25 s and no grid.
-- Arjun's list for later (17 Nov): sounds too loud; nexus health bar; castle shots (ballista) to be a big visible, felt bolt;
-  lobby: two players in the same match, one phone showed only himself (1/12) while the other showed both.
+- Fixes 17 Nov (Arjun's list), on launch26: FIX1 lobby (not reproduced as reported; made robust: the service resends the
+  lobby every 2 s, keeps a seat through a dropped link and picks the phone up again, `online/src/index.js`; reaches the live
+  service only when main is shipped, online.yml), FIX2 quieter (master .5, Sound setting Low/Medium/High), FIX3 nexus life bar
+  always shown, FIX4 ballista bolt drawn big with a streak, twang, landing slam and jolt (`render/bolts.js`). r_FIX1 (MODE=
+  search, party, reconnect), r_FIX2-4, crown2sim/online, r_PERF1c pass. Known: a Done alone cuts the lobby to 10 s, so a
+  friend joining after that gets little time.
 
 ## Known bugs
 - (fixed in AI1) A computer captain sometimes stood at the glacier at night without striking.
