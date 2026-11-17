@@ -2,7 +2,7 @@
 
 Current work: **friends' playtest fixes (F tickets) and lag (Phase 0)**, then Roles & Combat (design and plan in
 Claude Docs, links in CLAUDE.md). Every builder updates this file as the last step of its ticket. Owner: Opus owner chat.
-Last updated: 2026-11-16 (CASTLE2 built on `launch26`). Before: CASTLE1. Before: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT built on `t/SPLIT`). Before: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
+Last updated: 2026-11-16 (CASTLE3 built on `launch26`; main = launch26 at CASTLE2). Before: CASTLE1. Before: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT built on `t/SPLIT`). Before: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
 
 ## Live on main
 - Shipped 14 Nov (Arjun's "ship whatever is ready"; main = roles at 5b30ce7): V1b (private voice relay; Arjun's 3 secret steps still
@@ -167,6 +167,12 @@ Last updated: 2026-11-16 (CASTLE2 built on `launch26`). Before: CASTLE1. Before:
   crown2sim/online roles off+on, r_PERF1c pass. Every castle at III: 171 -> 192 draws (older III pieces 14, new ~7).
   Test lesson: after editing render files, restart the vite server (`pkill -f "vite --port 8766"`) or tests that import /src modules get
   a second copy (PERF1c showed 0 drawn); servers.sh can hang, start vite directly if so.
+- Shipped 16 Nov (Arjun's "push to main"): main = launch26 at cf16420 (the relaunch so far: SPLIT, MAP, CASTLE1-2).
+- CASTLE3 done (card `docs/tickets/CASTLE3.md`): League turret rules in `core/sim/turret.js` for wall archers and ballista (aggro on
+  a champion who hits yours, sticks, soldiers first, ramp 1 -> 2.2x, flat shots through shields, no neutral/bush targets); range ring
+  on the overlay (`render/turretring.js`), red with a line when it's you; target id in the snapshot (holds field 11). Fixed: castle
+  shots hit their own keep and walls (most tower arrows never landed). Lone champion dies in 7.6 s at level I. r_CASTLE3 10/10,
+  r_CASTLE3-join, r_CASTLE1/2, crown2sim/online roles off+on, r_PERF1c pass. Next: CASTLE4 capture circle, then Arjun plays.
 
 ## CL2 Focus the map (15 Nov; card `docs/tickets/CL2.md`). On branch `t/CL2`, not shipped
 - Only the Crown on the Mountain in the menus (home, lobby, Quick); other maps and their modes hidden behind `?maps=all`

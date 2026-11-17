@@ -10,6 +10,7 @@ import { aiDmg, nearestFoe } from './melee.js';
 import { soak } from './duel.js';
 import { die } from './step.js'; // (later files: through the entry, so files still load in the old order)
 import { drumDmg } from './buffs.js';
+import { champHit } from './turret.js'; // (CASTLE3)
 
 export function shoot(u, tg, fromY = 1.6) {
   if (G.c2 && u.kind === 'arch' && inFord(u.x, u.z)) return; // (the mountain's river: no bow work up to your knees in it)
@@ -37,7 +38,7 @@ function arrowHit(a, b) {
   if (b.execT > 0 || b.iframeT > 0) return;
   const shooter = a.shooter;
   let dmg, loc = 'body';
-  if (a.javelin) {
+  if (a.javelin || a.turret) { // (CASTLE3: a castle's shot is flat damage, no head roll)
     dmg = (a.jd || JAVELIN.dmg) * rnd(.85, 1.15) * aiDmg(a.ti) * drumDmg(a.ti); // (CAMP1: the war drum)
   } else {
     // shooter is missing .arrow/.jitter for a castle tower's arrows (a bare {x,z,ti,tower}
@@ -53,17 +54,18 @@ function arrowHit(a, b) {
   if (a.volley) { const s = G.teams[a.ti]; if (s) (s.vHit || (s.vHit = new Set())).add(b.ti); }
   const frontal = Math.abs(angDiff(b.face, Math.atan2(a.x0 - b.x, a.z0 - b.z))) < 1.1;
   // a shieldwall turns arrows from the front only — locked shields don't cover the sides or back
-  if (b.shieldwall && frontal && !a.bolt && (b.kind === 'foot' || Math.random() < .6)) { spark(b.x, b.y + 2.2, b.z, '#e8d9b0', 4); sound('thud', b.x, b.z); return; }
+  if (b.shieldwall && frontal && !a.bolt && !a.turret && (b.kind === 'foot' || Math.random() < .6)) { spark(b.x, b.y + 2.2, b.z, '#e8d9b0', 4); sound('thud', b.x, b.z); return; }
   b.lastHit = G.T;
   if (a.unhorse && b.mounted) { horseDamage(b, dmg); if (b.mounted) dismount(b, true); gainRally(a.shooter, RALLY.unhorse); fx('fxmsg', { k: 'fxunhorse', u: b }); return; } // a full-draw javelin knocks a rider clean off
   if (b.mounted && Math.random() < .6) { horseDamage(b, dmg); return; }
   let blocked = false;
-  if (frontal && !b.mounted && !b.carrying && loc !== 'head' && !a.bolt) { // (CASTLE2: a ballista bolt goes through a shield)
+  if (frontal && !b.mounted && !b.carrying && loc !== 'head' && !a.bolt && !a.turret) { // (CASTLE2: a ballista bolt goes through a shield)
     if (b.kind === 'foot' && !a.plunge && Math.random() < .7) blocked = true; // (a plain shield; arrows plunging from a tower come in over it)
     if (b.leader && (b.human ? b.blocking : Math.random() < .35)) blocked = true;
   }
   if (blocked) { spark(b.x, b.y + 1.3, b.z, '#e8d9b0', 4); sound('thud', b.x, b.z); b.blockT = Math.max(b.blockT, .2); return; }
   if (b.leader && b.armour > 0) dmg = soak(b, dmg, false);
+  champHit(a.shooter, b); // (CASTLE3: turret aggro)
   b.hp -= dmg; spark(b.x, b.y + 1.3, b.z, b.neutral ? NEUTRAL.css : TEAMS[colorOf(b.ti)].css, 4); sound('hit', b.x, b.z);
   push(b, 0, 0, .12);
   if (b.isMe) { fx('shake', FEEL.hurt.arrowShake); fx('buzz', FEEL.hurt.arrowBuzz); }
@@ -133,6 +135,7 @@ export function arrowsTick(dt, authoritative) {
     if (y < 15 && a.t > .12) { // trees, walls, buildings and ridges stop arrows
       for (const tr of nearBlockers(x, z)) {
         if (tr.off || y > tr.h + groundY(tr.x, tr.z) || (tr.gate && !gateShut(tr))) continue;
+        if (a.home && (tr.x - a.home.x) ** 2 + (tr.z - a.home.z) ** 2 < a.home.r2) continue; // (CASTLE3: a castle's shots fly over its own keep and walls)
         if (Math.abs(tr.x - x) < tr.r && Math.abs(tr.z - z) < tr.r && Math.hypot(tr.x - x, tr.z - z) < tr.r) { a.stuck = true; a.life = 2; sound('thud', x, z); spark(x, y, z, '#8a7a62', 3); break; }
       }
       if (a.stuck) continue;

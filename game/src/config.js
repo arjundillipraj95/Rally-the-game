@@ -116,7 +116,13 @@ export const CASTLE26 = {
   // (CASTLE2) level 3: the keep's ballista (a bolt every `every` s, range m, damage; shields don't stop it), the
   // watchtower (lights every bush within `watch` m for the owner's side), the spike ditch (from the wall out to
   // `w` m: the castle's enemies in it move at `slow` and lose `dmg` health a second)
-  ballista: { every: 4, range: 28, dmg: 28 }, watch: 45, ditch: { w: 3, slow: .6, dmg: 4 },
+  ballista: { every: 4, dmg: 28 }, watch: 45, ditch: { w: 3, slow: .6, dmg: 4 },
+  // (CASTLE3) League turret rules for every castle shooter (wall archers and ballista): range m from the castle's
+  // middle; one target a castle: an enemy champion who hit one of the castle's side's champions in range within
+  // `aggro` s first, else whoever it is already shooting, else the nearest soldier, else the nearest champion.
+  // soldier/champ: damage of one archer's arrow; on the same champion each volley adds rampStep, up to +rampMax.
+  // ring: the range circle shows within ring m of the range's edge
+  turret: { range: 24, soldier: 32, champ: 10, rampStep: .4, rampMax: 1.2, aggro: 2.5, ring: 10 },
 };
 // Match length, in minutes: Quick, Standard (the default) or Long. A shorter battle runs hotter: more
 // gold, and computer armies march out with smaller squads (gather).

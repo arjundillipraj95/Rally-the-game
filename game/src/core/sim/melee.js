@@ -7,6 +7,7 @@ import { fx, sound, spark } from './util.js';
 import { hl } from './match.js';
 import { hiddenFrom } from './bush.js';
 import { drumDmg } from './buffs.js';
+import { champHit } from './turret.js'; // (CASTLE3)
 import { auraBonus, behind, gainRally, horseDamage, push, routing } from './army.js';
 import { CC, breach, destroyCastle, die, duelFoe, hitTower, hitWall, lastStand, parry, soak } from './step.js'; // (later files: through the entry, so files still load in the old order)
 
@@ -270,7 +271,7 @@ export function hit(a, b, mult = 1, extra) {
     if (b.isMe) { fx('shake', FEEL.hurt.shake); fx('buzz', FEEL.hurt.buzz); }
   }
   if (b.leader && b.armour > 0 && !blocked && dmg > 0) dmg = soak(b, dmg, heavy || broke || back || !!(extra && extra.unblockable));
-  b.hp -= dmg;
+  b.hp -= dmg; if (!blocked && dmg > 0) champHit(a, b); // (CASTLE3: turret aggro)
   if (!blocked && dmg > 0) { // the streak: a player captain's blows that land, broken when he's hit
     if (a.human && a.leader && !(extra && extra.streak) && a.streakBlow !== a.lastSwingT) { // (one per blow that lands, however many it cuts; not the whirlwind's own)
       a.streakBlow = a.lastSwingT; a.streak = G.T - (a.streakT ?? -9) > STREAK.gap ? 1 : (a.streak || 0) + 1; a.streakT = G.T; hl(a.ti, 'streak', a.streak);

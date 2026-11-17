@@ -6,6 +6,7 @@ import { nearObstacles, setPalSeg } from '../nav.js';
 import { fx, say, sound, spark } from './util.js';
 import { aiDmg, nearestFoe } from './melee.js';
 import { shoot } from './missiles.js';
+import { turretTarget, turretShot, volleyOn } from './turret.js';
 import { allianceOf, c2BreakInReach, c2Hit } from './step.js'; // (later files: through the entry, so files still load in the old order)
 
 // ---------- Fortify: a castle's palisade and gate towers ----------
@@ -53,15 +54,19 @@ export function castleHere(ti) {
   const a = G.ALLY[colorOf(ti)];
   return G.layout.cwalls.find(cw => G.holds[cw.hid] && G.holds[cw.hid].owner === a && Math.hypot(L.x - cw.x, L.z - cw.z) < cw.r) || null;
 }
-// Fortify II: the castle's four towers shoot at whoever comes at it
+// Fortify: the castle's wall archers (CASTLE26.archers by level, on its corner towers) shoot as one League turret
+// (CASTLE3, turret.js): one target, the same volley from every archer, ramping on a champion who stays in range
 export function castleTowersTick(dt) {
+  if (G.role === 'client') return;
   for (const cw of G.layout.cwalls || []) {
     const st = G.cgates[cw.hid], h = G.holds[cw.hid]; if (!st || !(st.lv | 0) || !h || h.owner < 0) continue;
     const lv = Math.min(st.lv | 0, CASTLE26.archers.length - 1);
-    st.towerT = (st.towerT || 0) - dt; if (st.towerT > 0) continue; st.towerT = CASTLE26.every[lv];
-    const ti = activeArmies().find(i => allianceOf(i) === h.owner); if (ti == null) continue;
+    st.towerT = (st.towerT || 0) - dt; if (st.towerT > 0) continue;
+    const ti = activeArmies().find(i => allianceOf(i) === h.owner); if (ti == null) { st.towerT = 1; continue; }
+    const e = turretTarget(cw, h, st); if (!e) { st.towerT = .3; st.tg = null; continue; }
+    st.towerT = CASTLE26.every[lv]; const m = volleyOn(st, e), T = CASTLE26.turret, dmg = (e.leader ? T.champ * m : T.soldier);
     for (let k = 0; k < CASTLE26.archers[lv]; k++) { const b = h.towerA0 + k * Math.PI / 2, x = h.x + Math.cos(b) * 9.5, z = h.z + Math.sin(b) * 9.5;
-      const [e] = nearestFoe({ x, z, ti }, FORT.towerRange); if (e) shoot({ x, z, y: 3, vx: 0, vz: 0, ti, tower: true, arrow: FORT.towerDmg }, e, 5.5); }
+      turretShot(x, groundY(x, z) + 5, z, ti, e, dmg, false, cw); }
   }
 }
 export function applyCastleGates() {

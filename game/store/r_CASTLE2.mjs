@@ -35,7 +35,7 @@ const r = await page.evaluate(async () => {
   const watch = () => { const b = B[bi[1]]; foe.x = b.x; foe.z = b.z; foe.atkT = -99; foe.swing = 0; foe.netSeen = false; bush.bushTick();
     return { mine: !bush.bushHid(foe, myA), third: !bush.bushHid(foe, thirdA) }; };
   setLv(2); o.l2 = { ballista: volley(20, 3), ditch: ditch(), watch: watch() };
-  setLv(3); o.l3 = { near: volley(20, 8), far: volley(C.ballista.range + 6, 3), ditch: ditch(), watch: watch() };
+  setLv(3); o.l3 = { near: volley(20, 8), far: volley(C.turret.range + 6, 3), ditch: ditch(), watch: watch() };
   h.owner = foeA; G.cgates[h.id] = f.freshGates(0); f.applyCastleGates(); h.owner = myA; // (taken and back: level 0)
   o.taken = { ballista: volley(20, 3), ditch: ditch(), watch: watch() };
   // draw calls: every castle at level II, then at level III, same frame
@@ -47,7 +47,7 @@ const r = await page.evaluate(async () => {
 const C = r.C;
 ok(r.l2.ballista.bolts === 0 && r.l2.ditch.slow > .99 && r.l2.ditch.lost === 0 && !r.l2.watch.mine, 'level II: no ballista, no ditch, no watchtower');
 ok(r.l3.near.bolts === 8 && r.l3.near.hits === 8, `level III ballista: ${r.l3.near.hits}/${r.l3.near.bolts} bolts hit a shielded footman facing it`);
-ok(r.l3.far.bolts === 0, `nothing past ${C.ballista.range} m`);
+ok(r.l3.far.bolts === 0, `nothing past ${C.turret.range} m`);
 ok(Math.abs(r.l3.ditch.slow - C.ditch.slow) < .02 && Math.abs(r.l3.ditch.lost - C.ditch.dmg) < .5, `ditch: an enemy at ${r.l3.ditch.slow.toFixed(2)} speed, -${r.l3.ditch.lost.toFixed(1)} health a second`);
 ok(r.l3.ditch.mineSlow > .99 && r.l3.ditch.mine === 0, 'ditch: the owner\'s own man passes freely');
 ok(r.bushD < C.watch && r.l3.watch.mine && !r.l3.watch.third, `watchtower: an enemy in a bush ${r.bushD.toFixed(0)} m off is seen by the owner's side, not by a third side`);

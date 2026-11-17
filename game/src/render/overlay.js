@@ -13,6 +13,7 @@ import { parts, floats, pows } from './effects.js';
 import { bubbles } from './banter.js';
 import { sideCss } from './holds.js';
 import { gatePct, plateHp } from '../core/sim/forts.js';
+import { drawTurretRange } from './turretring.js';
 
 const fx = document.getElementById('fx'), ctx = fx.getContext('2d');
 const mini = document.getElementById('mini'), mctx = mini.getContext('2d');
@@ -135,7 +136,7 @@ export function drawOverlay(opts) {
     drawWindups(); drawDuelSide(); drawDuels(); drawBeat(); drawStars(); drawFinish(); drawStreak();
     drawBubbles();
     if (G.flag) drawFlagPointer();
-    if (G.mode === 'ctrl') drawControlLabels(); drawHoldLabels(); drawGateBars();
+    if (G.mode === 'ctrl') drawControlLabels(); drawHoldLabels(); drawGateBars(); drawTurretRange(ctx, proj); // (CASTLE3)
     if (G.mode === 'dm' && G.bounty === G.myTi && player && !player.dead && (performance.now() / 500 % 1) < .7) {
       ctx.font = 'italic 18px Bangers, Impact, sans-serif'; ctx.fillStyle = '#ffcf3a'; ctx.fillText('BOUNTY ON YOU', W / 2, 118);
     }
