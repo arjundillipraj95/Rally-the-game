@@ -83,6 +83,14 @@
   #blk.held{background:rgba(58,92,240,.55);}
   #jmp{right:calc(var(--A) / 2 + var(--off) - var(--J) / 2);bottom:calc(var(--A) / 2 + var(--off) - var(--J) / 2);width:var(--J);height:var(--J);}
   #wpn{right:calc((var(--A) - var(--W)) / 2);bottom:calc(var(--A) + var(--g));width:var(--W);height:var(--W);}
+  /* (C1c) a champion's special attacks and ult: three round buttons over Attack until the battle screen (S1-15) */
+  .pad .ab{width:var(--W);height:var(--W);background:rgba(120,70,200,.3);border-color:rgba(214,190,255,.85);}
+  #ab1{right:calc((var(--A) - var(--W)) / 2);bottom:calc(var(--A) + var(--g));}
+  #ab2{right:calc(var(--A) / 2 + var(--off) - var(--W) / 2);bottom:calc(var(--A) / 2 + var(--off) + var(--J) / 2 + var(--g));} /* (over Evade) */
+  #ab3{right:calc(var(--A) / 2 + var(--off) + var(--J) / 2 + var(--g));bottom:calc(var(--A) / 2 + var(--off) - var(--W) / 2 + var(--g) * 1.5);background:rgba(220,160,40,.32);border-color:#ffd77a;} /* (left of Evade) */
+  .pad .ab .abC{font:800 clamp(12px,4vh,16px) var(--body);color:#fff;text-shadow:0 1px 2px #000;}
+  .pad .ab.wait{background:rgba(40,40,48,.55);border-color:rgba(255,255,255,.35);}
+  .pad .ab.locked{opacity:.45;}
   /* squad & army bar: icon + word, bottom centre */
   .sbar{position:absolute;left:50%;transform:translateX(-50%);bottom:max(8px, env(safe-area-inset-bottom,0px));display:flex;gap:6px;align-items:stretch;}
   .sbtn{border-radius:12px;min-width:clamp(52px,17vh,66px);height:clamp(38px,12.5vh,50px);border-width:1.5px;border-color:rgba(255,255,255,.5);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:0 8px;}

@@ -10,7 +10,7 @@ const pages = [];
 for (const [b, nick, q] of [[b1, 'Arjun', '&botchamp=tester'], [b2, 'Ravi', '']]) {
   const ctx = await b.newContext({ viewport: { width: 844, height: 390 } });
   await ctx.addInitScript(nick => { window.__testSheet = null; window.__PEER_OPTS = { host: '127.0.0.1', port: 9000, path: '/', secure: false, config: { iceServers: [] } }; localStorage.setItem('rally-tutorial-done', '1'); localStorage.setItem('rally-quality', 'low'); localStorage.setItem('fb-nick', nick);
-    window.__champs = [{ id: 'tester', name: 'Tester', cls: 'striker', stats: { hp: 4, hit: .34, spd: 6.2 }, weapons: ['spear'], mount: { kind: 'horse', hp: 2, spd: 1 }, recruits: ['foot', 'arch'], influence: null, sp1: null, sp2: null, ult: null, armyUlt: null }]; }, nick);
+    window.__champs = [{ id: 'tester', name: 'Tester', cls: 'striker', stats: { hp: 4, hit: .34, spd: 6.2 }, weapons: ['spear'], mount: { kind: 'horse', hp: 2, spd: 1 }, recruits: ['foot', 'arch'], influence: null, sp1: { name: 'Lunge', short: 'Lunge', cd: 6, range: 8, run(u) { u.n1 = (u.n1 || 0) + 1; } }, sp2: null, ult: null, armyUlt: null }]; }, nick);
   const p = await ctx.newPage(); p.on('pageerror', e => console.log(nick, 'ERR', e.message)); pages.push(p);
   await p.goto('http://127.0.0.1:8766/?online=http://127.0.0.1:8787&crown2=1' + q);
 }
@@ -43,5 +43,9 @@ await A.evaluate(async ti => { const L = await import('/src/core/sim/levels.js')
 const la = await A.evaluate(() => window.__fb.G.teams.map(t => t.lvl || 1).join()), lb = await B.evaluate(() => window.__fb.G.teams.map(t => t.lvl || 1).join());
 const mine = await B.evaluate(() => { const G = window.__fb.G; return [G.teams[G.myTi].lvl, Math.round(G.teams[G.myTi].xp)]; });
 ok(la === lb && mine[0] === 4, `levels the same on the joined phone (${lb}); his own: level ${mine[0]}, ${mine[1]} XP`);
+// (C1c) the joined phone presses special attack 1 (open at level 4): the host fires it for his champion
+await B.evaluate(() => window.__fb.ability(0)); await sleep(2500);
+const n1 = await A.evaluate(ti => window.__fb.G.teams[ti].leader.n1 | 0, b.ti), cdB = await B.evaluate(() => { const G = window.__fb.G; return G.teams[G.myTi].cds && G.teams[G.myTi].cds.sp1; });
+ok(n1 === 1 && cdB > 0, `joined phone's special attack fired on the host (${n1}), recharge shown on his phone (${cdB} s)`);
 await b1.close(); await b2.close();
 console.log(fails ? `${fails} FAILED` : 'ALL PASS'); process.exit(fails ? 1 : 0);

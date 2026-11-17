@@ -14,6 +14,7 @@ import { c2Guard } from './crown2.js';
 import { captainAttack, captainJump } from './captain.js';
 import { faceTo, go, moveToward } from './move.js';
 import { champOf } from '../../champions/index.js';
+import { aiAbilities } from './abilities.js';
 
 // ---------- AI ----------
 function planLeader(u, s) {
@@ -135,6 +136,7 @@ function aiCaptainFight(u, foe, fd, dt) {
   if (u.windup > 0) { moveToward(u, u.x, u.z, 0, dt); return; }
   if (aiPunish(u, foe, fd)) return;
   if (aiGuard(u, foe, fd, dt)) return;
+  if (aiAbilities(u, foe, fd)) return; // (C1c: his special attacks and ult)
   if (!u.weapon) u.weapon = champWeapon(u.ti, 'sword');
   u.wpnT = (u.wpnT || 0) - dt; u.leapT = (u.leapT || 0) - dt;
   if (u.wpnT <= 0) { // re-think the weapon now and then, like a person would

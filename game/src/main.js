@@ -33,6 +33,7 @@ import { readMove, inp } from './ui/input.js';
 import { tutorialTick } from './ui/tutorial.js';
 import { session, isClient, isHost, prefs } from './net/session.js';
 import { actions, netHostReadInputs, netHostTick, netHostSend, clientTick, clientHorses, C } from './net/netgame.js';
+import './net/champnet.js'; // (C1c: the ability buttons' action)
 import { hostLobbyTick, clientLobbyTick } from './net/lobby.js';
 import { ON, online, startOnline } from './net/online.js';
 import { lookCode } from './core/look.js';
@@ -146,7 +147,7 @@ window.__fb = {
   step(n, dt = 1 / 30, drive) { const inp = drive ? Object.assign({ wx: 0, wz: 0, mag: 0, block: false, attackHeld: false, camYaw: 0 }, drive === true ? {} : drive) : null; for (let i = 0; i < n && G.state === 'play'; i++) update(dt, inp); },
   ride() { if (G.player) { G.player.lastHit = -9; actions.ride(); } },
   volley(pt) { actions.volley(pt); }, order(o, pt) { actions.order(o, pt); }, rally() { actions.rally(); },
-  attack() { actions.attack(); }, duel() { actions.duel(); }, jump() { actions.jump(); }, weapon(w) { actions.weapon(w); }, upgrade(id) { actions.upgrade(id); },
+  attack() { actions.attack(); }, duel() { actions.duel(); }, jump() { actions.jump(); }, weapon(w) { actions.weapon(w); }, ability(k) { actions.ability(k); }, upgrade(id) { actions.upgrade(id); },
   fort(c, lv) { G.teams[c].up.fort = lv; applyFort(c); },
   feel: feelStats, death: deathState, nick: ti => nickFor(ti), hitstop: () => S.hitstopN, slowmo: () => S.slowmo, camTarget, camera,
   tlTick, tlPack, ledger, voiceState, voiceLevels, voiceCalls, setOrder, rideRelease, findPath, gatePos, orderVolley, mkUnit, challenge, canChallenge, G, W, c2Points, die, cam, scene, renderer, camera, audio: () => audioStats(),

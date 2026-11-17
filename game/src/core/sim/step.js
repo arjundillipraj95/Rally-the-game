@@ -21,6 +21,7 @@ import { CC, captainAttack, chargeTimers, javMax, stepJump } from './captain.js'
 import { fallStep, integrate, moveToward, setPathBudget } from './move.js';
 import { respawnSpot, underAttack } from './respawn.js'; // (CASTLE7)
 import { xpTick } from './levels.js';
+import { abilityTick } from './abilities.js';
 import { botFortify } from './ai26.js'; // (CASTLE9)
 import { thinkLeader } from './ai.js';
 import { aiPick, thinkSoldier } from './soldier.js';
@@ -96,6 +97,7 @@ export function update(dt, input) {
   syncGates();
   execMark();
   staminaTick(dt);
+  abilityTick(dt); // (C1c: the slots recharge)
   xpTick(dt, underAttack); // (C1b: the trickle near a fight for a castle, or in the arena)
   // Duo battles can field twice the soldiers of a solo one; searching fewer new paths per frame
   // as the field gets crowded keeps worst-case frame cost bounded instead of growing with it.

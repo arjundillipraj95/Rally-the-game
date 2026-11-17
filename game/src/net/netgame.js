@@ -25,6 +25,7 @@ import { cam, CAM_PITCH } from '../render/camera.js';
 import { pingTick, pingPong } from './ping.js';
 import { freshGates } from '../core/sim/forts.js';
 import { applyChamp, champHp } from '../champions/stats.js';
+import { SLOTS, useAbility } from '../core/sim/abilities.js';
 
 export const C = {}; // client-side state
 if (import.meta.env.DEV) window.__netC = C; // dev-only: lets tests watch the client's snapshots
@@ -54,7 +55,7 @@ bus.on('fxmsg', d => {
 if (import.meta.env.DEV) window.__encodeSnap = () => encodeSnap(); // (dev: F4's test weighs a snapshot)
 function encodeSnap() {
   const upPack = s => UPGRADES.reduce((n, u, k) => n + (s.up[u.id] | 0) * 4 ** k, 0);
-  const teams = G.teams.map(s => [Math.round(s.points * 10), s.tickets, s.caps, Math.floor(s.gold), s.alive ? 1 : 0, Math.max(0, Math.ceil(s.leaderDeadT)), upPack(s), Math.round(s.morale || 0), Math.floor(s.rally || 0), s.routT > 0 ? 1 : 0, s.buff && s.buff.until > G.T ? (s.buff.kind === 'drum' ? 1000 : 2000) + Math.ceil(s.buff.until - G.T) : 0, s.lvl || 1, Math.floor(s.xp || 0)].join(',')).join(';'); // (CAMP1: the side's buff and its seconds left)
+  const teams = G.teams.map(s => [Math.round(s.points * 10), s.tickets, s.caps, Math.floor(s.gold), s.alive ? 1 : 0, Math.max(0, Math.ceil(s.leaderDeadT)), upPack(s), Math.round(s.morale || 0), Math.floor(s.rally || 0), s.routT > 0 ? 1 : 0, s.buff && s.buff.until > G.T ? (s.buff.kind === 'drum' ? 1000 : 2000) + Math.ceil(s.buff.until - G.T) : 0, s.lvl || 1, Math.floor(s.xp || 0), ...['sp1', 'sp2', 'ult'].map(k => Math.ceil(Math.max(0, (s.cds && s.cds[k]) || 0)))].join(',')).join(';'); // (CAMP1: the side's buff and its seconds left)
   const us = [];
   for (const u of G.units) {
     if (u.dead) continue;
@@ -167,7 +168,7 @@ export function netHostReadInputs() {
       else if (!w.out && s.human && L && !L.dead && performance.now() - w.at > IDLE_MS) { w.out = true; s.human = false; L.human = false; L.remote = false; applyChamp(L); bus.emit('msg', { k: 'idle', a: [ti] }); }
     }
     if (!s.human) continue;
-    const last = NET.inp[ti] || (NET.inp[ti] = { atk: 0, chg: 0, ride: 0, vly: 0, par: 0, ahN: 0, hold: '', rec: [0, 0, 0], up: UPGRADES.map(() => 0) }); // (one count per upgrade: a short list once lost the Horse)
+    const last = NET.inp[ti] || (NET.inp[ti] = { atk: 0, chg: 0, ride: 0, vly: 0, par: 0, ahN: 0, hold: '', rec: [0, 0, 0], ab: [0, 0, 0], up: UPGRADES.map(() => 0) }); // (one count per upgrade: a short list once lost the Horse)
     if (L && !L.dead && Array.isArray(pr.cap) && pr.cap[0] === L.id) {
       L.x = +pr.cap[1]; L.z = +pr.cap[2]; L.face = +pr.cap[3]; L.vx = +pr.cap[4]; L.vz = +pr.cap[5];
       L.blocking = !!pr.blk; L.stickSide = (pr.gs | 0) || 0; // (in a duel: which way their stick points, for their guard and their blow) L.jy = Math.max(0, +pr.cap[6] || 0); L.ahHeld = !!pr.ah;
@@ -191,6 +192,7 @@ export function netHostReadInputs() {
     }
     if (typeof pr.rly === 'number' && pr.rly > (last.rly || 0)) { rallyCry(ti); last.rly = pr.rly; } // the rally horn
     if (typeof pr.sh === 'number' && pr.sh > (last.sh || 0)) { last.sh = pr.sh; if (SHOUTS[pr.shK | 0]) bus.emit('msg', { k: 'callout', a: [ti, pr.shK | 0] }); } // a quick shout
+    if (Array.isArray(pr.ab)) for (let k = 0; k < 3; k++) if ((pr.ab[k] | 0) > last.ab[k]) { last.ab[k] = pr.ab[k] | 0; useAbility(ti, SLOTS[k], Array.isArray(pr.abAt) && pr.abAt[k] ? { x: +pr.abAt[k][0], z: +pr.abAt[k][1] } : null); } // (C1c: a press of a special or the ult)
     if (Array.isArray(pr.rec)) for (let k = 0; k < 3; k++) while ((pr.rec[k] | 0) > last.rec[k]) { last.rec[k]++; recruit(ti, RECRUITS[k]); }
   }
 }
@@ -218,7 +220,7 @@ export function clientStart(hp) {
   G.holds = makeHolds(G.layout); G.duels = [];
   G.c2 = null; if (G.mode === 'crown' && G.map.id === 'mount') { G.cgates = {}; for (const cw of (G.layout.cwalls || [])) G.cgates[cw.hid] = freshGates(0); c2Begin(clientMk); }
   Object.assign(C, { seatSig: "", off: null, back: null, snapHt: null, byId: new Map(), lastN: -1, lastMsgN: (hp.m && hp.m.length) ? hp.m[hp.m.length - 1][0] : 0, meId: null, meInit: false, kickN: 0, localCd: 0, lastSnapAt: performance.now(),
-    inp: { rb: 0, bsh: 0, dl: 0, dlId: null, atk: 0, ride: 0, vly: 0, chg: 0, evN: 0, evK: '', par: 0, ahN: 0, ahD: 0, ah: false, rly: 0, foc: null, vat: null, rec: [0, 0, 0], up: UPGRADES.map(() => 0), ord: 'follow', hold: null, face: 0 }, sendAt: 0, sendNow: false, pred: null, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
+    inp: { rb: 0, bsh: 0, dl: 0, dlId: null, atk: 0, ride: 0, vly: 0, chg: 0, evN: 0, evK: '', par: 0, ahN: 0, ahD: 0, ah: false, rly: 0, foc: null, vat: null, rec: [0, 0, 0], ab: [0, 0, 0], abAt: [null, null, null], up: UPGRADES.map(() => 0), ord: 'follow', hold: null, face: 0 }, sendAt: 0, sendNow: false, pred: null, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
   for (const u of G.units) if (u.neutral) C.byId.set(u.id, u); // (F4: the mountain's neutral men, made with the battle above)
   G.player = null;
   cam.yaw = Math.atan2(-TEAMS[colorOf(G.myTi)].pos[0], -TEAMS[colorOf(G.myTi)].pos[1]); cam.pitch = CAM_PITCH;
@@ -296,7 +298,8 @@ function clientApply(hp) {
     if (v.length > 6 && (i !== myTi || performance.now() - (C.upLocalAt || 0) > 700)) UPGRADES.forEach((u, k) => { s.up[u.id] = Math.floor(v[6] / 4 ** k) % 4; });
     if (v.length > 9) { s.morale = v[7]; s.rally = v[8]; s.routT = v[9] ? 1 : 0; }
     if (v.length > 10) s.buff = v[10] ? { kind: v[10] >= 2000 ? 'swift' : 'drum', until: G.T + v[10] % 1000 } : null;
-    if (v.length > 12) { s.lvl = v[11]; s.xp = v[12]; } // (C1b: level and XP)
+    if (v.length > 12) { s.lvl = v[11]; s.xp = v[12]; }
+    if (v.length > 15) s.cds = { sp1: v[13], sp2: v[14], ult: v[15], armyUlt: 0 }; // (C1c: the slots' seconds left) // (C1b: level and XP)
   });
   G.bounty = +secs[7];
   if (secs[8] && G.holds) secs[8].split(';').forEach((r, i) => { const h = G.holds[i], v = r.split(',').map(Number); if (h) { h.owner = v[0]; h.prog = v[1] / 100; h.cap = v[2]; h.contested = !!v[3]; h.chest = v[4] | 0; if (v.length > 7) { h.by = v[7] < 0 ? undefined : v[7]; h.fort = v[8] | 0; } if (G.cgates) { if (!G.cgates[i] && G.layout.cwalls && G.layout.cwalls.some(c => c.hid === i)) G.cgates[i] = freshGates(0); if (G.cgates[i]) { const st = G.cgates[i]; st.broken = v[5] | 0; st.lv = v[6] | 0; const pc = r.split(',')[9]; if (pc) { const p = pc.split('.').map(x => x.split('_').map(Number)); if (p.some((x, k) => x[0] < (st.hp[k] ?? 0) - .5)) st.hitT = G.T; st.hp = p.map(x => x[0]); st.max = p.map(x => x[1] || 0); } } h.shieldT = v[10] > 0 ? G.T + v[10] : 0; if (G.cgates[i]) { G.cgates[i].tg = v[11] >= 0 ? v[11] : null; G.cgates[i].tgT = G.T; } if (v.length > 12) h.shardBy = v[12] >= 0 ? v[12] : null; } } }); if (G.crown) applyCastleGates();
@@ -523,7 +526,7 @@ export function clientTick(dt) {
   // send my captain and my buttons
   if ((performance.now() - C.sendAt > 66 || C.sendNow) && G.state === 'play') {
     C.sendAt = performance.now(); C.sendNow = false;
-    const pres = { role: 'player', gs: (G.player && G.player.stickSide) | 0, sh: C.inp.sh || 0, shK: C.inp.shK || 0, want: G.myTi, nick: session.myNick || 'Captain', ph: 'play', seed: G.seed, evN: C.inp.evN, evK: C.inp.evK, rly: C.inp.rly, rb: C.inp.rb, bsh: C.inp.bsh, dl: C.inp.dl, dlId: C.inp.dlId, foc: C.inp.foc, par: C.inp.par, ahN: C.inp.ahN, ahD: C.inp.ahD, ah: C.inp.ah, atk: C.inp.atk, ride: C.inp.ride, vly: C.inp.vly, vat: C.inp.vat, chg: C.inp.chg, rec: C.inp.rec, up: C.inp.up, ord: C.inp.ord, hold: C.inp.hold, face: C.inp.face, blk: inp.blockHeld ? 1 : 0 };
+    const pres = { role: 'player', gs: (G.player && G.player.stickSide) | 0, sh: C.inp.sh || 0, shK: C.inp.shK || 0, want: G.myTi, nick: session.myNick || 'Captain', ph: 'play', seed: G.seed, evN: C.inp.evN, evK: C.inp.evK, rly: C.inp.rly, rb: C.inp.rb, bsh: C.inp.bsh, dl: C.inp.dl, dlId: C.inp.dlId, foc: C.inp.foc, par: C.inp.par, ahN: C.inp.ahN, ahD: C.inp.ahD, ah: C.inp.ah, atk: C.inp.atk, ride: C.inp.ride, vly: C.inp.vly, vat: C.inp.vat, chg: C.inp.chg, ab: C.inp.ab, abAt: C.inp.abAt, rec: C.inp.rec, up: C.inp.up, ord: C.inp.ord, hold: C.inp.hold, face: C.inp.face, blk: inp.blockHeld ? 1 : 0 };
     if (me && !me.dead) pres.cap = [me.id, r2(me.x), r2(me.z), r2(me.face), r1(me.vx), r1(me.vz), r2(me.jy || 0), Math.max(0, WEAPONS.indexOf(me.weapon || 'sword'))];
     NET.room.presence(pres).catch(() => {});
   }

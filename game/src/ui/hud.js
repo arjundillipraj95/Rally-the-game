@@ -10,6 +10,8 @@ let spdT = null; // (SPD1: the speed shown on the Ride button)
 import { tlTick } from './timeline.js';
 import { sfx } from './audio.js';
 import { champOf } from '../champions/index.js';
+import { LEVELS } from '../config.js';
+import { SLOTS, cdLeft, slotDef, unlocked } from '../core/sim/abilities.js';
 
 const $ = id => document.getElementById(id);
 export const fmt = s => { s = Math.max(0, Math.floor(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
@@ -159,6 +161,7 @@ export function updateHud(lastSnapAt) {
   $('mnt').classList.toggle('dim', !p || (!p.mounted && (p.horseCd > 0 || p.carrying || p.dead)));
   $('blk').classList.toggle('dim', !p || p.mounted);
   $('atk').classList.toggle('dim', !p || p.carrying);
+  abilityButtons(); // (C1c)
   const w = (p && p.weapon) || 'sword';
   { const ws = champOf(G.myTi).weapons; $('wpn').hidden = ws.length < 2; document.querySelectorAll('#wheel button').forEach(b => { b.hidden = !ws.includes(b.dataset.w); }); } // (C1a: only his champion's weapons; one weapon: no switch)
   if (atkIcon !== w) { atkIcon = w; $('atkIc').innerHTML = ICONS[w]; document.querySelectorAll('#wheel button').forEach(b => { b.classList.toggle('cur', b.dataset.w === w); const s = b.querySelector('svg'); if (!s.innerHTML) s.innerHTML = ICONS[b.dataset.w]; }); }
@@ -198,4 +201,15 @@ export function banner(t, sub, color) {
   if (sub) { const s2 = document.createElement('small'); s2.textContent = sub; b.appendChild(s2); }
   b.classList.add('on');
   clearTimeout(bannerTO); bannerTO = setTimeout(() => b.classList.remove('on'), 2000);
+}
+
+// (C1c) the three slot buttons: hidden when his champion has none; dim and 'Lv n' until it opens; seconds while it recharges
+function abilityButtons() {
+  for (let k = 0; k < 3; k++) {
+    const b = $('ab' + (k + 1)), slot = SLOTS[k], d = slotDef(G.myTi, slot); if (b.hidden !== !d) b.hidden = !d; if (!d) continue;
+    const lock = !unlocked(G.myTi, slot), cd = cdLeft(G.myTi, slot), sig = (lock ? 'L' : cd > 0 ? Math.ceil(cd) : 'R') + d.short;
+    if (b.dataset.sig === sig) continue; b.dataset.sig = sig;
+    b.classList.toggle('locked', lock); b.classList.toggle('wait', !lock && cd > 0);
+    b.querySelector('.abL').textContent = d.short || d.name; b.querySelector('.abC').textContent = lock ? `Lv ${LEVELS.unlock[slot]}` : cd > 0 ? Math.ceil(cd) : '';
+  }
 }

@@ -11,6 +11,7 @@ import { applyChamp } from '../../champions/stats.js';
 import { champOf } from '../../champions/index.js';
 import { UNITS } from '../../config.js';
 import { inflHp, inflSpd } from '../../champions/influence.js';
+import { useArmyUlt } from './abilities.js';
 
 // Hold: pt is where the front rank stands and which way it faces ({x, z, face}); without one, the
 // line forms a couple of paces in front of the captain, facing where he faces.
@@ -47,6 +48,7 @@ export function moraleTick(dt) {
 }
 export function rallyCry(ti) {
   const s = G.teams[ti], L = s && s.leader; if (!L || L.dead || (s.rally || 0) < 100) return false;
+  if (useArmyUlt(ti)) { s.rally = 0; return true; } // (C1c: a champion with an army ult sounds it instead)
   s.rally = 0; s.morale = Math.min(100, s.morale + RALLY.morale); s.routT = 0;
   for (const u of G.units) if (!u.dead && u.ti === ti && !u.leader && Math.hypot(u.x - L.x, u.z - L.z) < RALLY.r) { u.rallyT = RALLY.buffT; u.stun = Math.min(u.stun, 0); }
   const shaken = new Set();

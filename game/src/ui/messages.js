@@ -149,7 +149,8 @@ function note(k, a) { // (bookkeeping every phone does from the messages: the ho
   if (k === 'start') { for (const x in claimed) delete claimed[x]; glory.chest = glory.crown = null; }
 }
 export function showMsg(k, a) {
-  if (k === 'levelUp') { levelUp(a); return; } // (C1b: only your own champion's, and quietly)
+  if (k === 'levelUp') { levelUp(a); return; }
+  if (k === 'ability') { abilityName(a); return; } // (C1c) // (C1b: only your own champion's, and quietly)
   note(k, a || []);
   bus.emit('shownMsg', { k, a });
   const myTi = G.myTi;
@@ -178,4 +179,11 @@ function levelUp(a) {
   sfx.coin(); buzz(40);
   const ch = champOf(G.myTi), open = Object.entries(LEVELS.unlock).filter(([slot, at]) => at === lv && ch[slot]).map(([slot]) => ch[slot].name);
   if (open.length) banner(`Level ${lv}`, `${open.join(' and ')} ready`, '#9fd8ff');
+}
+// (C1c) a champion fired a special or an ult: its name over him (near you), and a sound
+function abilityName(a) {
+  const ti = a[0], slot = ['sp1', 'sp2', 'ult', 'armyUlt'][a[1]], d = champOf(ti)[slot], L = G.units.find(u => u.leader && u.ti === ti && !u.dead), p = G.player;
+  if (!d || !L || L.dead) return; if (p && Math.hypot(L.x - p.x, L.z - p.z) > 40 && ti !== G.myTi) return;
+  floatText(L.x, L.y + 3.6, L.z, d.name, slot === 'ult' || slot === 'armyUlt' ? '#ffd77a' : '#d6beff');
+  if (slot === 'ult' || slot === 'armyUlt') sfx.horn(); else sfx.order();
 }

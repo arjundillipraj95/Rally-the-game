@@ -90,6 +90,7 @@ export function bindInput(actions) {
   holdBtn($('blk'), () => { inp.blockHeld = true; }, () => { inp.blockHeld = false; });
   tapBtn($('mnt'), () => A.ride());
   tapBtn($('jmp'), () => A.jump());
+  [1, 2, 3].forEach(k => tapBtn($('ab' + k), () => A.ability && A.ability(k - 1))); // (C1c)
   // Weapon: press opens the wheel; slide onto a weapon and let go to take it, or let go on the button
   // and tap one. Either way it's one quick gesture, not cycling through the ones you don't want.
   const wpn = $('wpn'), chips = [...document.querySelectorAll('#wheel button')];
@@ -188,6 +189,7 @@ export function bindInput(actions) {
     if (e.code === 'KeyV') { if (aimStart(mouse.x, mouse.y)) aimMove(mouse.x, mouse.y, false, true); else A.volley(); } // aims at the mouse
     if (e.code === 'KeyC') A.jump();
     if (e.code === 'KeyX') A.duel();
+    { const k = ['KeyJ', 'KeyK', 'KeyL'].indexOf(e.code); if (k >= 0 && A.ability) A.ability(k); } // (C1c)
     if (e.code === 'KeyR') A.weapon();
     if (e.code === 'KeyU') upOpen(!inp.upIsOpen);
     if (e.code === 'KeyG') { const t = $('shoutTray'); t.hidden = !t.hidden; $('shoutBtn').classList.toggle('open', !t.hidden); }
