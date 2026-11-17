@@ -24,6 +24,7 @@ import { startTutorial, bindTutorial } from '../ui/tutorial.js';
 import { progress } from '../ui/progress.js';
 import { session, prefs } from '../net/session.js';
 import { assignLooks, lookFrom } from '../core/look.js';
+import { assignChamps, myChamp } from '../champions/index.js';
 import { actions, setNetHooks } from '../net/netgame.js';
 import { bindLobby, showLobby, netLeave } from '../net/lobby.js';
 import { ON } from '../net/online.js';
@@ -193,6 +194,7 @@ export function soloStart(o = {}) {
   if (G.map.id === 'mount') G.time = 10; // (the mountain's phases are set to the minute)
   G.seed = (Math.random() * 1e9) | 0;
   G.looks = assignLooks({ [G.myTi]: prefs.look }, G.seed);
+  assignChamps({ [G.myTi]: myChamp() }); // (C1a)
   const active = activeFrom(o.duo || soloDuo);
   G.crests = []; G.crests[G.myTi] = progress.crest;
   beginMatch(TEAMS.map((_, i) => i === G.myTi ? 1 : 0), active);

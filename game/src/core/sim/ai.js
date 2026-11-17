@@ -4,7 +4,7 @@ import { CROWN26, TEAMS, CASTLE_REACH, HEAVY, GUARD, CTRL } from '../../config.j
 import { G, isEnemy, isEnemyTi, colorOf, gateOff, rules } from '../state.js';
 import { spearReach } from '../spearhit.js';
 import { gatePos, rnd, angDiff, W, mountK, mountHomeA } from '../world.js';
-import { homeAt, squadOf } from './match.js';
+import { champWeapon, homeAt, squadOf } from './match.js';
 import { dismount, spearNear, speedOf, summonHorse } from './army.js';
 import { nearestFoe, startSwing } from './melee.js';
 import { aiRide, startHeavy } from './guard.js';
@@ -13,6 +13,7 @@ import { allianceOf, holdPlan, leadingSide } from './holds.js';
 import { c2Guard } from './crown2.js';
 import { captainAttack, captainJump } from './captain.js';
 import { faceTo, go, moveToward } from './move.js';
+import { champOf } from '../../champions/index.js';
 
 // ---------- AI ----------
 function planLeader(u, s) {
@@ -134,16 +135,16 @@ function aiCaptainFight(u, foe, fd, dt) {
   if (u.windup > 0) { moveToward(u, u.x, u.z, 0, dt); return; }
   if (aiPunish(u, foe, fd)) return;
   if (aiGuard(u, foe, fd, dt)) return;
-  if (!u.weapon) u.weapon = 'sword';
+  if (!u.weapon) u.weapon = champWeapon(u.ti, 'sword');
   u.wpnT = (u.wpnT || 0) - dt; u.leapT = (u.leapT || 0) - dt;
   if (u.wpnT <= 0) { // re-think the weapon now and then, like a person would
     u.wpnT = war ? rnd(.8, 1.4) : rnd(1.6, 2.6);
     const riders = foe.mounted || G.units.some(o => !o.dead && o.mounted && isEnemy(o, u) && Math.hypot(o.x - u.x, o.z - u.z) < 12);
     const w = riders ? 'spear' : fd > 4.5 && u.javAmmo >= 1 ? 'jav' : war || Math.random() < .5 ? 'sword' : 'spear';
-    if (w !== u.weapon) { u.weapon = w; u.combo = 0; u.cd = Math.max(u.cd, .25); }
+    if (w !== u.weapon && champOf(u.ti).weapons.includes(w)) { u.weapon = w; u.combo = 0; u.cd = Math.max(u.cd, .25); } // (C1a: only his champion's weapons)
   }
   if (u.weapon === 'jav') {
-    if (u.javAmmo < 1 || fd < 3) { u.weapon = 'sword'; u.wpnT = rnd(.6, 1.2); }
+    if (u.javAmmo < 1 || fd < 3) { u.weapon = champWeapon(u.ti, 'sword'); u.wpnT = rnd(.6, 1.2); }
     else {
       moveToward(u, u.x, u.z, 0, dt); faceTo(u, foe.x, foe.z, dt, 10);
       if (u.cd <= 0 && Math.abs(angDiff(u.face, Math.atan2(foe.x - u.x, foe.z - u.z))) < .3) { captainAttack(u); if (!war) u.cd += .5; }

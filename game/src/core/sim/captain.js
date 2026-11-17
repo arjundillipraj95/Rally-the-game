@@ -13,6 +13,7 @@ import { die } from './score.js';
 import { towerInReach, wallInReach } from './forts.js';
 import { c2BreakInReach } from './crown2.js';
 import { swiftCd } from './buffs.js';
+import { champOf } from '../../champions/index.js';
 
 // Last Man Standing (a test variant of the Crown): the same battle until 9:00; then nobody comes back,
 // a ring closes on the plaza (outside it hurts) and the last side with a captain standing wins. If it
@@ -102,7 +103,8 @@ function aiEvade(u, from) {
 // No argument: cycle sword -> spear -> javelins. The choice sticks through respawns.
 export function switchWeapon(p, w) {
   if (!p || p.dead) return null;
-  const next = WEAPONS.includes(w) ? w : WEAPONS[(WEAPONS.indexOf(p.weapon || 'sword') + 1) % WEAPONS.length];
+  const ws = champOf(p.ti).weapons; // (C1a: only his champion's weapons)
+  const next = ws.includes(w) ? w : ws[(ws.indexOf(p.weapon || ws[0]) + 1) % ws.length];
   p.weapon = next; p.combo = 0; p.cd = Math.max(p.cd, .12);
   if (G.teams[p.ti]) G.teams[p.ti].weapon = next;
   return next;
@@ -159,7 +161,7 @@ function captainAttack0(p) {
   if (wpn === 'jav') {
     if (p.human && (p.javAmmo || 0) >= 1) return; // (a captain on foot throws when Attack is let go: a tap throws, a hold draws it back)
     if (throwCaptainJav(p)) return;
-    p.weapon = 'sword'; if (G.teams[p.ti]) G.teams[p.ti].weapon = 'sword';
+    p.weapon = champOf(p.ti).weapons.includes('sword') ? 'sword' : champOf(p.ti).weapons[0]; if (G.teams[p.ti]) G.teams[p.ti].weapon = p.weapon;
     if (p.isMe) fx('float', { x: p.x, y: p.y + 3.2, z: p.z, text: 'Out of javelins', color: '#fff' });
   }
   if (p.human && orderOf(p.ti) === 'shieldwall' && !softAim(p, 2.2) && wallPush(p)) return; // (behind the wall, nobody in reach: the wall heaves)

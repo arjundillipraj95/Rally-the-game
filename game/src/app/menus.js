@@ -21,6 +21,7 @@ import { $, S, hideVeil, resetSolo, saveSoloAl, showVeil, soloDuo } from './stat
 import { buildCrests, newTip, renderMissSub } from './endscreen.js';
 import { homeView, pressFmt, seedDemo, setHomeView, showFmtRank, soloStart } from './home.js';
 import { renderFriends, toast } from './friends.js';
+import { CHAMP_IDS, champDef, myChamp, setMyChamp } from '../champions/index.js';
 
 // ---------- menus ----------
 function seg(id, cb) {
@@ -70,6 +71,10 @@ seg('segTarget', v => { G.target = +v; prefs.tgt[G.mode] = +v; prefs.save(); upd
 export const pressSeg = (id, v) => $(id).querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === String(v))));
 if (!ALL_MAPS) { focusMenus($); G.mode = 'crown'; G.target = targetFor('crown'); S.soloMap = MAPS.mount; pressSeg('segMode', 'crown'); renderTargets(); updateDesc(); } // (CL2: the Mountain is the live map)
 seg('segDiff', v => { G.diff = +v; });
+// (C1a) your champion, until the lobby's pick (S1-12): one button each
+$('segChamp').innerHTML = CHAMP_IDS.map(id => `<button type="button" data-v="${id}" aria-pressed="false">${champDef(id).name}</button>`).join('');
+seg('segChamp', v => { setMyChamp(v); pressSeg('segChamp', v); });
+pressSeg('segChamp', myChamp());
 seg('segMusic', v => { setMusic(v === 'on'); pressSeg('segMusic', v); });
 pressSeg('segMusic', musicEnabled() ? 'on' : 'off');
 seg('segVibe', v => { setVibe(v === 'on'); pressSeg('segVibe', v); });

@@ -5,6 +5,9 @@ import { groundY, gatePos, makeLayout, clamp, rnd } from '../world.js';
 import { buildNav } from '../nav.js';
 import { fx, say } from './util.js';
 import { applyCastleGates, applyPlazaWall, archTier, c2Begin, footTier, freshGates, horseMax, plateHp, initForts, makeCtrlPoints, makeHolds, moveToward, speedOf } from './step.js'; // (later files: through the entry, so files still load in the old order)
+import { assignChamps, champOf, myChamp } from '../../champions/index.js';
+// (C1a) a champion's weapon: the one asked for if he carries it, else his first
+export const champWeapon = (ti, w) => { const ws = champOf(ti).weapons; return ws.includes(w) ? w : ws[0]; };
 
 // ---------- setup ----------
 // Armies 0-3 are each castle's own army; 4-11 are its Duo/Trio teammates', real only when active[i].
@@ -31,7 +34,7 @@ export function mkUnit(ti, x, z, kind, human = false) {
     mounted: false, horse: null, summon: null, horseHp: horseMax(ti), horseCd: 0, carrying: false, aura: false, shieldwall: false,
     kick: { n: 0, vx: 0, vz: 0, st: 0, dirty: false },
     // player captains: current weapon, jump state, javelin ammo, sword combo, buffered attack press
-    weapon: kind === 'captain' && human ? ((G.teams[ti] && G.teams[ti].weapon) || 'sword') : undefined,
+    weapon: kind === 'captain' ? champWeapon(ti, G.teams[ti] && G.teams[ti].weapon) : undefined, // (C1a: one of his champion's weapons)
     jy: 0, jvy: 0, jumpCd: 0, javAmmo: CAPTAIN_COMBAT.jav.ammo + tier, javRegen: 0, combo: 0, lastSwingT: -9, atkBuf: 0, st: STAMINA.max, stT: -9,
     neutral: false, post: null, pk: 0, px: 0, pz: 0, pface: 0, rest: false, tface: 0 }; // (F4: a garrison's man fills these in; every unit has them so they all share one shape)
   G.units.push(u); return u;
@@ -124,6 +127,7 @@ export function startMatch(humans, active = activeFrom([0, 0, 0, 0])) {
   G.units = []; G.horses = []; G.arrows = [];
   G.T = 0; G.kills = 0; G.recruited = 0; G.bounty = -1; G.uid = 0; G.arrowN = 0; G.endInfo = null; G.awarded = false; G.seasoned = false;
   G.teams = newTeams(humans, active);
+  if (!G.champs || G.champs.length !== ARMIES) assignChamps({ [G.myTi]: myChamp() }); // (C1a: a start that didn't say)
   for (let c = 0; c < 4; c++) if (!active[c]) { G.teams[c].alive = false; G.teams[c].points = 0; G.teams[c].tickets = 0; } // (a castle out of this battle)
   G.flag = G.mode === 'ctf' ? { state: 'home', x: 0, z: 0, carrier: null, dropT: 0 } : null;
   G.ctrlPoints = G.mode === 'ctrl' ? makeCtrlPoints(G.layout) : null;

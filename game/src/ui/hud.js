@@ -9,6 +9,7 @@ import { claimed, nameOf, glory, allyNames } from './messages.js';
 let spdT = null; // (SPD1: the speed shown on the Ride button)
 import { tlTick } from './timeline.js';
 import { sfx } from './audio.js';
+import { champOf } from '../champions/index.js';
 
 const $ = id => document.getElementById(id);
 export const fmt = s => { s = Math.max(0, Math.floor(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
@@ -157,6 +158,7 @@ export function updateHud(lastSnapAt) {
   $('blk').classList.toggle('dim', !p || p.mounted);
   $('atk').classList.toggle('dim', !p || p.carrying);
   const w = (p && p.weapon) || 'sword';
+  { const ws = champOf(G.myTi).weapons; $('wpn').hidden = ws.length < 2; document.querySelectorAll('#wheel button').forEach(b => { b.hidden = !ws.includes(b.dataset.w); }); } // (C1a: only his champion's weapons; one weapon: no switch)
   if (atkIcon !== w) { atkIcon = w; $('atkIc').innerHTML = ICONS[w]; document.querySelectorAll('#wheel button').forEach(b => { b.classList.toggle('cur', b.dataset.w === w); const s = b.querySelector('svg'); if (!s.innerHTML) s.innerHTML = ICONS[b.dataset.w]; }); }
   const mx = javMax(G.myTi), am = p ? Math.min(mx, p.javAmmo | 0) : 0;
   $('wpnS').textContent = w === 'jav' ? 'Javelin' : WEAPON_NAMES[w];

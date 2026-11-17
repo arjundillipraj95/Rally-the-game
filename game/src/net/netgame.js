@@ -15,6 +15,7 @@ import { makeP2PRoom } from './p2p.js';
 import { showMsg } from '../ui/messages.js';
 import { tlPack, tlAdopt } from '../ui/timeline.js';
 import { lookCode, lookFrom } from '../core/look.js';
+import { champCode, champOf, champsFrom } from '../champions/index.js';
 import { capOf } from '../core/state.js';
 import { sfx, buzz, gateS } from '../ui/audio.js';
 import { banner } from '../ui/hud.js';
@@ -100,7 +101,7 @@ export function netHostSend() {
   const NET = session.NET; if (!NET) return;
   NET.lastSend = performance.now();
   if (NET.me === 'me') { const id = myPeer(NET.room); if (id) { const t = NET.seats.me; delete NET.seats.me; NET.me = id; if (t !== undefined) NET.seats[id] = t; } } // (a battle that began before this phone knew its own link name: put the name right, or joined phones can't tell the host is a player and show a computer captain's name for him)
-  const pres = { role: 'host', ph: G.state === 'end' ? 'end' : 'play', seed: G.seed, mode: G.mode, map: G.map.id, diff: G.diff, time: G.time, tgt: G.target, al: G.ALLY.join(''), duo: duoStr(G.duo), seats: NET.seats, nick: session.myNick || 'Host', lk: (G.looks || []).map(lookCode).join(','), cr: Array.from({ length: ARMIES }, (_, i) => (G.crests && G.crests[i]) | 0).join(''), n: ++NET.snapN, s: encodeSnap(), m: NET.msgs };
+  const pres = { role: 'host', ph: G.state === 'end' ? 'end' : 'play', seed: G.seed, mode: G.mode, map: G.map.id, diff: G.diff, time: G.time, tgt: G.target, al: G.ALLY.join(''), duo: duoStr(G.duo), seats: NET.seats, nick: session.myNick || 'Host', lk: (G.looks || []).map(lookCode).join(','), ch: champCode(), cr: Array.from({ length: ARMIES }, (_, i) => (G.crests && G.crests[i]) | 0).join(''), n: ++NET.snapN, s: encodeSnap(), m: NET.msgs };
   if (G.state === 'end' && G.endInfo) { pres.res = [G.endInfo.w, G.endInfo.why]; pres.kl = G.teams.map(t => t.kills | 0).join(','); pres.st = G.teams.map(t => [t.capK | 0, t.menK | 0, t.falls | 0, t.lost | 0, t.earned | 0, t.spent | 0, t.dist | 0, t.gold | 0, t.recruits | 0].join(',')).join(';'); pres.hl = G.teams.map(t => t.hl ? Object.entries(t.hl).map(([k, v]) => k + ':' + v).join(',') : '').join(';'); }
   pres.ht = Math.round(performance.now()); // (P0.7: the host's clock, so phones can space snapshots as they were sent, not as they arrived)
   let json = JSON.stringify(pres);
@@ -169,7 +170,7 @@ export function netHostReadInputs() {
     if (L && !L.dead && Array.isArray(pr.cap) && pr.cap[0] === L.id) {
       L.x = +pr.cap[1]; L.z = +pr.cap[2]; L.face = +pr.cap[3]; L.vx = +pr.cap[4]; L.vz = +pr.cap[5];
       L.blocking = !!pr.blk; L.stickSide = (pr.gs | 0) || 0; // (in a duel: which way their stick points, for their guard and their blow) L.jy = Math.max(0, +pr.cap[6] || 0); L.ahHeld = !!pr.ah;
-      const w = WEAPONS[pr.cap[7] | 0]; if (w && L.weapon !== w) { L.weapon = w; s.weapon = w; }
+      const w = WEAPONS[pr.cap[7] | 0]; if (w && L.weapon !== w && champOf(ti).weapons.includes(w)) { L.weapon = w; s.weapon = w; }
     }
     if (typeof pr.par === 'number' && pr.par > last.par) { if (L && !L.dead) blockPress(L); last.par = pr.par; } // Block pressed: a parry window
     if (typeof pr.ahN === 'number' && pr.ahN > last.ahN) { if (L && !L.dead) { if (typeof pr.face === 'number') L.face = pr.face; if (L.mounted) rideRelease(L, L.weapon || 'sword', +pr.ahD || 0); else attackRelease(L, L.weapon || 'sword', +pr.ahD || 0); } last.ahN = pr.ahN; } // Attack let go after a hold
@@ -198,6 +199,7 @@ export function clientStart(hp) {
   G.role = 'client'; G.warmup = null;
   G.mode = hp.mode; G.map = hp.mode === 'crown' ? MAPS.mount : MAPS[hp.map]; G.diff = hp.diff; G.time = [5, 10, 15].includes(+hp.time) ? +hp.time : 10; G.target = hp.tgt == null ? null : +hp.tgt; G.ALLY = hp.al.split('').map(Number); G.seed = hp.seed;
   G.looks = String(hp.lk || '').split(',').map(lookFrom);
+  champsFrom(hp.ch); // (C1a: every army's champion, as the host has it)
   G.crests = String(hp.cr || '').split('').map(c => Math.min(7, +c || 0));
   G.duo = duoParse(hp.duo);
   G.layout = makeLayout(G.map.id, G.mode === 'ctf', G.mode === 'ctrl', G.seed); buildNav(G.layout);

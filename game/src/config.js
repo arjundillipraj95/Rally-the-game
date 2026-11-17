@@ -1,5 +1,6 @@
 // Game data shared by the rules, the renderer and the UI. No engine code here,
 // so this file carries over unchanged if Rally ever moves to a native engine.
+export * from './config/champs.js'; // (C1: the champions' shared tables)
 
 export const TEAMS = [
   { name: 'Blue',   hex: 0x3a5cf0, css: '#3a5cf0', pos: [-56,  56] },

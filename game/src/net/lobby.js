@@ -14,6 +14,7 @@ async function makeP2PRoom(code, host, onStage) {
 import { session, prefs } from './session.js';
 import { allyFor } from '../core/teams.js';
 import { assignLooks, lookCode, lookFrom } from '../core/look.js';
+import { assignChamps, myChamp } from '../champions/index.js';
 import { myPeer, clientStart, netHostSend } from './netgame.js';
 import { initAudio, stopCrowd } from '../ui/audio.js';
 
@@ -21,7 +22,7 @@ const $ = id => document.getElementById(id);
 let hooks = { startMatch() {}, seedDemo() {}, preset: () => 'ffa', resetSolo() {} };
 // want is the desired ARMY seat (0-3 = a color's own army, 4-7 its Duo teammate, 8-11 its Trio third);
 // -2 (just arrived) lets the host seat you in the first free color, -1 means you stood up
-const myPresence = () => ({ role: 'player', nick: session.myNick || 'Captain', ph: 'lobby', want: (session.NET.want ?? -2), lk: lookCode(prefs.look), cr: progress.crest });
+const myPresence = () => ({ role: 'player', nick: session.myNick || 'Captain', ph: 'lobby', want: (session.NET.want ?? -2), lk: lookCode(prefs.look), cr: progress.crest, ch: myChamp() });
 let busy = false;
 
 export function openBrowse() {
@@ -67,7 +68,7 @@ export function hostLobbyTick() {
       const free = [0, 1, 2, 3].find(t => !taken().includes(t)); if (free !== undefined) NET.seats[p.peer] = free;
     }
   }
-  NET.room.presence({ role: 'host', ph: 'lobby', nick: session.myNick || 'Host', lk: lookCode(prefs.look), mode: L.mode, map: L.map, diff: L.diff, time: L.time, tgt: L.tgt, al: L.al.join(''), duo: duoStr(L.duo), seats: NET.seats, s: null, m: null, res: null }).catch(() => {});
+  NET.room.presence({ role: 'host', ph: 'lobby', nick: session.myNick || 'Host', lk: lookCode(prefs.look), ch: myChamp(), mode: L.mode, map: L.map, diff: L.diff, time: L.time, tgt: L.tgt, al: L.al.join(''), duo: duoStr(L.duo), seats: NET.seats, s: null, m: null, res: null }).catch(() => {});
   renderLobby();
 }
 function lobbyView() {
@@ -252,16 +253,17 @@ export function hostStart() {
     G.myTi = NET.seats[NET.me] ?? 0; G.lms = false;
     G.seed = (Math.random() * 1e9) | 0;
     NET.msgs = []; NET.msgN = 0; NET.inp = {}; NET.snapN = 0;
-    const humans = new Array(ARMIES).fill(0), chosen = [], peers = NET.room.peers();
+    const humans = new Array(ARMIES).fill(0), chosen = [], champs = {}, peers = NET.room.peers();
     G.crests = [];
     const active = activeFrom(L.duo);
     for (const [peer, ti] of Object.entries(NET.seats)) {
       humans[ti] = 1;
       const pr = (peers.find(p => p.peer === peer) || {}).presence || {};
       chosen[ti] = peer === NET.me ? prefs.look : lookFrom(pr.lk);
+      champs[ti] = peer === NET.me ? myChamp() : pr.ch; // (C1a: each player's champion)
       G.crests[ti] = peer === NET.me ? progress.crest : Math.min(7, Math.max(0, pr.cr | 0));
     }
-    G.looks = assignLooks(chosen, G.seed);
+    G.looks = assignLooks(chosen, G.seed); assignChamps(champs);
     hooks.startMatch(humans, active);
     netHostSend(true);
 }
