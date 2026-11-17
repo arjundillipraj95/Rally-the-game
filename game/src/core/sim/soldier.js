@@ -10,6 +10,7 @@ import { startHeavy } from './guard.js';
 import { shoot, throwJavelin } from './missiles.js';
 import { c2GateA } from './crown2.js';
 import { faceTo, go, moveToward } from './move.js';
+import { champOf } from '../../champions/index.js';
 
 function slotPos(anchor, front, idx, isArch, meleeN) {
   const W = 5, row = Math.floor(idx / W), lat = (idx % W - 2) * 1.45;
@@ -145,7 +146,8 @@ export function thinkSoldier(u, dt) {
     if (d < 1) u.face = turn(u.face, anchor.face, dt * 6);
   } else { const [gx, gz] = G.crown ? (u.runTo || (u.runTo = homeAt(u.ti, 2))) : gatePos(TEAMS[colorOf(u.ti)], gateOff(u.ti), 2); go(u, gx, gz, u.spd, dt, 3); }
 }
-export function aiPick(ti) {
+export function aiPick(ti) { const k = aiPick0(ti), ok = champOf(ti).recruits; return ok.includes(k) ? k : ok[Math.floor(Math.random() * ok.length)]; } // (C1e: his champion's soldiers)
+function aiPick0(ti) {
   const r = Math.random();
   if (G.diff === 2) {
     const foes = activeArmies().filter(i => G.teams[i].human && isEnemyTi(i, ti));

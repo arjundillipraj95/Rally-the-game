@@ -10,6 +10,7 @@ import { swiftSpd } from './buffs.js';
 import { applyChamp } from '../../champions/stats.js';
 import { champOf } from '../../champions/index.js';
 import { UNITS } from '../../config.js';
+import { inflHp, inflSpd } from '../../champions/influence.js';
 
 // Hold: pt is where the front rank stands and which way it faces ({x, z, face}); without one, the
 // line forms a couple of paces in front of the captain, facing where he faces.
@@ -58,6 +59,7 @@ export function rallyCry(ti) {
 export function canRecruit(ti) { const s = G.teams[ti]; return G.mode === 'crown' ? true : G.mode === 'conquest' ? G.teams[colorOf(ti)].alive : G.mode === 'dm' ? s.tickets > 0 : true; }
 export function recruit(ti, kind) {
   const s = G.teams[ti], n = squadOf(ti).length, cost = STATS[kind].cost;
+  if (!champOf(ti).recruits.includes(kind)) return false; // (C1e: only the soldiers his champion recruits)
   if (!canRecruit(ti) || s.gold < cost || n >= capOf(ti)) return false;
   s.gold -= cost;
   { const [gx, gz] = homeAt(ti), m = mkUnit(ti, gx, gz, kind); if (isC2()) { m.face = Math.atan2(-gx, -gz); startMarch(m, false); } } // (from the place you hold nearest you; F7: he steps out of it)
@@ -98,7 +100,7 @@ function applyFootTier(ti) {
   for (const u of G.units) {
     if (u.dead || u.ti !== ti) continue;
     if (u.kind === 'foot') {
-      const nmax = t.hp; u.hp = Math.min(nmax, Math.max(1, u.hp + (nmax - u.max))); u.max = nmax;
+      const nmax = t.hp * inflHp(ti); u.hp = Math.min(nmax, Math.max(1, u.hp + (nmax - u.max))); u.max = nmax;
       u.dmg = t.dmg; u.reach = t.reach; u.block = t.block; u.spd = t.spd; u.javelin = t.javelin; u.tier = tier;
     } else if (u.leader) {
       applyChamp(u); // (C1d: a champion's health and blow are his page's and his level's, not his footmen's)
@@ -110,11 +112,12 @@ function applyArchTier(ti) {
   const tier = archTier(ti), t = ARCH_TIERS[tier];
   for (const u of G.units) {
     if (u.dead || u.ti !== ti || u.kind !== 'arch') continue;
-    const nmax = t.hp; u.hp = Math.min(nmax, Math.max(1, u.hp + (nmax - u.max))); u.max = nmax;
+    const nmax = t.hp * inflHp(ti); u.hp = Math.min(nmax, Math.max(1, u.hp + (nmax - u.max))); u.max = nmax;
     u.dmg = t.dmg; u.spd = t.spd; u.range = t.range; u.shootBase = t.shoot; u.arrow = t.arrow; u.jitter = t.jitter; u.tier = tier;
   }
 }
 export function buyUpgrade(ti, id) {
+  if (id === 'aura' && isC2()) return false; // (C1e: no aura on the mountain)
   const s = G.teams[ti], cost = upgradeCost(ti, id);
   if (!s || cost == null || s.gold < cost || !UPGRADES.some(u => u.id === id)) return false;
   if (id === 'foot2' && lvl(ti, 'foot1') < 1) return false;
@@ -161,7 +164,7 @@ export const mountMul = u => CAPTAIN_SPD.mount * (1 + .05 * lvl(u.ti, 'horse'));
 export function speedOf(u) {
   let s = u.spd;
   if (u.mounted) s *= mountMul(u) * (u.charge > 0 ? CHARGE.spd : 1) * (u.human ? .8 + .35 * (u.gallop || 0) : 1); // (a human rider's gallop builds on the straight)
-  if (!u.leader) { if (u.aura) s *= 1 + auraBonus(u.ti) * .5; if (u.shieldwall) s *= .55; }
+  if (!u.leader) { s *= inflSpd(u); if (u.aura) s *= 1 + auraBonus(u.ti) * .5; if (u.shieldwall) s *= .55; }
   if (u.carrying) s *= G.crown ? CROWN.carrierSlow : .7;
   s *= groundSlow(u.x, u.z); // (a ford, a wheat field, an oasis)
   if (u.boostT > G.T && !u.inSafe) s *= CROWN2.safe.boost; // (the mountain: out of your home at a run)

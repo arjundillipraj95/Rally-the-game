@@ -1,6 +1,7 @@
 // The whole game state lives in one plain object. Rules read and write it;
 // the renderer and UI only read it. Nothing here depends on three.js or the DOM.
-import { MAPS, MODES, TIMES, PACE, TARGETS, CROWN, CROWN2, BOT_NAMES } from '../config.js';
+import { MAPS, MODES, TIMES, PACE, TARGETS, CROWN, CROWN2, BOT_NAMES, ARMY } from '../config.js';
+import { champOf } from '../champions/index.js';
 
 export const G = {
   role: 'solo',          // 'solo' | 'host' | 'client'
@@ -55,10 +56,10 @@ export const capOf = ti => {
   if (G.mode !== 'crown') return G.squadCap;
   { // the mountain (the Crown is always the mountain): 5 each, and every place the side holds adds to it, shared out between the side's captains
     // (whoever took it: an ally's castle gives you room too; a side's whole army is the same however it splits)
-    const a = G.ALLY[colorOf(ti)]; let pool = 0;
-    for (const h of G.holds || []) if (h.owner === a) pool += h.kind === 'castle' ? CROWN2.perCastle : h.kind === 'village' ? CROWN2.perVillage : 0;
-    const n = Math.max(1, G.teams.filter((t, i) => t && t.active && G.ALLY[colorOf(i)] === a).length);
-    return CROWN2.base + Math.ceil(pool / n);
+    // (C1e) by his champion's class: a start, and every castle the side holds counts in full for each champion on it
+    const a = G.ALLY[colorOf(ti)], A = ARMY[champOf(ti).cls] || ARMY.vanguard; let n = A.start;
+    for (const h of G.holds || []) if (h.owner === a && h.kind === 'castle') n += h.mid ? A.mid : A.outer;
+    return n;
   }
 };
 export const activeArmies = () => { const out = castlesIn(); for (let s = 1; s <= 2; s++) for (let c = 0; c < 4; c++) if ((G.duo[c] | 0) >= s) out.push(c + 4 * s); return out; };

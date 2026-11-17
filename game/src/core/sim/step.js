@@ -166,7 +166,7 @@ export function update(dt, input) {
     if (u.dead || u.leader || u.neutral) continue;
     if (u.kind !== 'arch') meleeN[u.ti]++; else archN[u.ti]++;
     const L = G.teams[u.ti].leader, dx = L ? L.x - u.x : 0, dz = L ? L.z - u.z : 0;
-    u.aura = !!L && !L.dead && dx * dx + dz * dz < rng[u.ti];
+    u.aura = !isC2() && !!L && !L.dead && dx * dx + dz * dz < rng[u.ti]; // (C1e: on the mountain the champion's influence does this job)
     u.shieldwall = ords[u.ti] === 'shieldwall';
     // shieldwall ranks: footmen in the front rank, archers at the back.
     // Slot 0 sits nearest the captain, who is behind a human's block and in front of a computer's.

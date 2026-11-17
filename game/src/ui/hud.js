@@ -133,10 +133,12 @@ export function updateHud(lastSnapAt) {
     $('atk').classList.toggle('execReady', !!execTarget(G.player) || (G.player && (G.player.streak || 0) >= STREAK.n)); // (a beaten captain in reach: Attack finishes him; a full streak: the whirlwind)
   }
   document.querySelectorAll('#tray button').forEach(b => {
+    { const hide = !champOf(G.myTi).recruits.includes(b.dataset.kind); if (b.hidden !== hide) b.hidden = hide; } // (C1e: his champion's soldiers only)
     b.setAttribute('aria-disabled', (gold < STATS[b.dataset.kind].cost || sq.length >= cap || !canRecruit(G.myTi)) ? 'true' : 'false');
   });
   document.querySelectorAll('#upTray button').forEach(b => {
     const id = b.dataset.up, def = UPGRADES.find(u => u.id === id), max = def ? def.cost.length : 0;
+    if (id === 'aura') { const hide = isC2(); if (b.hidden !== hide) b.hidden = hide; if (hide) return; } // (C1e: the mountain has no aura; influence does it)
     if (id === 'tower') { const hide = G.mode !== 'crown'; if (b.hidden !== hide) b.hidden = hide; if (hide) return; } // (the Crown's watchtowers)
     const vh = id === 'fort' && isC2() && !castleHere(G.myTi) ? villageHere(G.myTi) : null;
     const cw = id === 'fort' && G.mode === 'crown' ? castleHere(G.myTi) : null, cst = cw && G.cgates && G.cgates[cw.hid]; // (the Crown: Fortify is the castle you stand in)

@@ -11,6 +11,7 @@ import { drumDmg } from './buffs.js';
 import { champHit } from './turret.js'; // (CASTLE3)
 import { auraBonus, behind, gainRally, horseDamage, push, routing } from './army.js';
 import { CC, breach, destroyCastle, die, duelFoe, hitTower, hitWall, lastStand, parry, soak } from './step.js'; // (later files: through the entry, so files still load in the old order)
+import { inflDmg, inflTaken } from '../../champions/influence.js';
 
 // ---------- combat ----------
 // A spatial grid of the living, rebuilt every step (8 m cells): the big battles have hundreds of men,
@@ -224,6 +225,7 @@ export function hit(a, b, mult = 1, extra) {
   if (!b.leader && !back && (behind(b, a) || routing(b.ti))) dmg *= MORALE.flankX; // (C1d: once, not on top of a champion's backstab) // caught from the side or behind, or running
   if (a.rallyT > 0) dmg *= RALLY.dmg;
   dmg *= drumDmg(a.ti); // (CAMP1: the war drum)
+  dmg *= inflDmg(a) * inflTaken(b, Math.abs(angDiff(b.face, Math.atan2(a.x - b.x, a.z - b.z))) < 1.1); // (C1e: the champions' influence)
   if (!a.leader && G.teams[a.ti] && G.teams[a.ti].vcT > G.T) dmg *= VCHARGE.dmg; // (charging in behind a volley)
   if (G.mode === 'conquest' && G.teams[colorOf(a.ti)].breached && lastStand(a)) dmg *= LAST.dmg; // (backs to the wall)
   b.lastHit = G.T;

@@ -1,12 +1,13 @@
 // Battle rules: setting up a match, armies, units, the march out of home.
 import { STAMINA, CROWN2, FEEL, CROWN, ECON, TEAMS, STATS, HUMAN_CAPTAIN, START_SQUAD, FULL_SQUAD, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, CAPTAIN_COMBAT, CHEST } from '../../config.js';
-import { G, colorOf, activeArmies, activeFrom, gateOff, ARMIES, rules, matchTime, isC2 } from '../state.js';
+import { G, colorOf, activeArmies, activeFrom, gateOff, ARMIES, rules, matchTime, isC2, capOf } from '../state.js';
 import { groundY, gatePos, makeLayout, clamp, rnd } from '../world.js';
 import { buildNav } from '../nav.js';
 import { fx, say } from './util.js';
 import { applyCastleGates, applyPlazaWall, archTier, c2Begin, footTier, freshGates, horseMax, plateHp, initForts, makeCtrlPoints, makeHolds, moveToward, speedOf } from './step.js'; // (later files: through the entry, so files still load in the old order)
 import { assignChamps, champOf, myChamp } from '../../champions/index.js';
 import { applyChamp } from '../../champions/stats.js';
+import { inflHp } from '../../champions/influence.js';
 // (C1a) a champion's weapon: the one asked for if he carries it, else his first
 export const champWeapon = (ti, w) => { const ws = champOf(ti).weapons; return ws.includes(w) ? w : ws[0]; };
 
@@ -39,6 +40,7 @@ export function mkUnit(ti, x, z, kind, human = false) {
     jy: 0, jvy: 0, jumpCd: 0, javAmmo: CAPTAIN_COMBAT.jav.ammo + tier, javRegen: 0, combo: 0, lastSwingT: -9, atkBuf: 0, st: STAMINA.max, stT: -9,
     neutral: false, post: null, pk: 0, px: 0, pz: 0, pface: 0, rest: false, tface: 0 }; // (F4: a garrison's man fills these in; every unit has them so they all share one shape)
   if (u.leader) applyChamp(u); // (C1d: his page's health and blow)
+  else if (kind === 'foot' || kind === 'arch') { u.max *= inflHp(ti); u.hp = u.max; } // (C1e: his champion's influence)
   G.units.push(u); return u;
 }
 // (F7) Stepping out: a captain back on his feet (and at the start, with his men), or a soldier just raised, walks out
@@ -145,7 +147,8 @@ export function startMatch(humans, active = activeFrom([0, 0, 0, 0])) {
     const [x, z] = c2HomePt(i, 0), L = G.teams[i].leader = mkUnit(i, x, z, 'captain', G.teams[i].human); L.face = inwardOf(i); startMarch(L, true);
     // (F7) his men in a column of twos behind him in the yard; they all step out together when the battle begins
     const fx0 = Math.sin(L.face), fz0 = Math.cos(L.face);
-    CROWN2.startSquad.forEach((k, n) => { const row = (n >> 1) + 1, side = n & 1 ? 1.1 : -1.1, m = mkUnit(i, x - fx0 * 1.5 * row + fz0 * side, z - fz0 * 1.5 * row - fx0 * side, k); m.face = L.face; startMarch(m, false); m.marchT = FEEL.march.cap; });
+    // (C1e: his starting men are his champion's soldiers)
+    CROWN2.startSquad.map(k => (champOf(i).recruits.includes(k) ? k : champOf(i).recruits[0])).slice(0, capOf(i)).forEach((k, n) => { const row = (n >> 1) + 1, side = n & 1 ? 1.1 : -1.1, m = mkUnit(i, x - fx0 * 1.5 * row + fz0 * side, z - fz0 * 1.5 * row - fx0 * side, k); m.face = L.face; startMarch(m, false); m.marchT = FEEL.march.cap; });
   }
   for (let i = 0; i < ARMIES; i++) {
     if (!G.teams[i].active || G.crown) continue;

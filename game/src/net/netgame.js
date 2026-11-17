@@ -781,7 +781,7 @@ export const actions = {
   },
   recruit(kind) {
     if (G.state !== 'play') return;
-    const st = STATS[kind], me = G.teams[G.myTi];
+    const st = STATS[kind], me = G.teams[G.myTi]; if (!st || !champOf(G.myTi).recruits.includes(kind)) return; // (C1e)
     if (!canRecruit(G.myTi)) { banner('No recruits', G.mode === 'dm' ? 'Your team is out of tickets' : 'You need a castle to recruit', '#e0352b'); return; }
     if (squadOf(G.myTi).length >= capOf(G.myTi)) { banner('Army full', `${capOf(G.myTi)} soldiers is your limit${G.mode === 'crown' ? (G.layout && G.layout.map26 ? ': take castles for more' : ': take castles and villages for more') : ''}`); return; }
     if (me.gold < st.cost) { banner('Not enough gold', `A ${st.name.toLowerCase()} costs ${st.cost} gold`, '#ffcf3a'); return; }

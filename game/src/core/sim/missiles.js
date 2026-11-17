@@ -12,6 +12,7 @@ import { soak } from './duel.js';
 import { die } from './step.js'; // (later files: through the entry, so files still load in the old order)
 import { drumDmg } from './buffs.js';
 import { champHit } from './turret.js'; // (CASTLE3)
+import { inflDmg, inflTaken } from '../../champions/influence.js';
 
 export function shoot(u, tg, fromY = 1.6) {
   if (G.c2 && u.kind === 'arch' && inFord(u.x, u.z)) return; // (the mountain's river: no bow work up to your knees in it)
@@ -54,6 +55,7 @@ function arrowHit(a, b) {
   if (G.teams[b.ti]) G.teams[b.ti].arrowHits++;
   if (a.volley) { const s = G.teams[a.ti]; if (s) (s.vHit || (s.vHit = new Set())).add(b.ti); }
   const frontal = Math.abs(angDiff(b.face, Math.atan2(a.x0 - b.x, a.z0 - b.z))) < 1.1;
+  dmg *= inflDmg(shooter) * inflTaken(b, frontal); // (C1e: the champions' influence)
   // a shieldwall turns arrows from the front only — locked shields don't cover the sides or back
   if (b.shieldwall && frontal && !a.bolt && !a.turret && (b.kind === 'foot' || Math.random() < .6)) { spark(b.x, b.y + 2.2, b.z, '#e8d9b0', 4); sound('thud', b.x, b.z); return; }
   b.lastHit = G.T;
