@@ -84,6 +84,11 @@ export class Hub {
     this.live.set(id, s);
     try { noteSeen(this.sql, id, fresh); } catch (e) {}
     this.send(s, { t: 'me', id, key: a.key, nick: a.nick, crowns: a.crowns });
+    // (FIX1) a phone that comes back while still seated in a lobby (its old link not yet closed) picks it up again;
+    // one that isn't seated anywhere is told so (a stale lobby on the phone would never update)
+    let seatedIn = null; for (const room of this.rooms.values()) if (!room.started && room.sides.some(sd => sd.includes(id))) seatedIn = room;
+    if (seatedIn) { s.room = seatedIn.id; s.where = 'lobby'; s.queued = { fmt: seatedIn.fmt }; this.lobbyUpdate(seatedIn); }
+    else this.send(s, { t: 'lobby', room: null });
     await this.sendFriends(s); this.notifyFriends(id);
   }
   async m_nick(s, m) { const a = await this.acct(s.id); a.nick = s.nick = cleanNick(m.nick); await this.save(s.id, a); this.notifyFriends(s.id); this.partyUpdate(s.party); }
@@ -270,7 +275,7 @@ export class Hub {
     for (const [mine, sd0] of room.sides.entries()) for (const id of sd0) {
       if (id == null) continue;
       // your own army's lanes only: the enemies' plans stay hidden until the versus screen
-      const sides = room.sides.map((sd, c) => sd.map(x => { if (x == null) return null; const y = this.live.get(x), q = (room.p || {})[x] || {}; return { id: x, nick: y ? y.nick : '?', look: y ? y.look : '', ready: !!q.ready, lane: c === mine ? q.lane || null : null }; }));
+      const sides = room.sides.map((sd, c) => sd.map(x => { if (x == null) return null; const y = this.live.get(x), q = (room.p || {})[x] || {}; if (y) (room.nicks || (room.nicks = {}))[x] = y.nick; return { id: x, nick: y ? y.nick : (room.nicks || {})[x] || 'Captain', look: y ? y.look : '', ready: !!q.ready, lane: c === mine ? q.lane || null : null, away: !y }; })); // (FIX1 away: his link dropped, his seat kept)
       this.to(id, { t: 'lobby', v: 2, room: room.id, fmt: room.fmt, sides, endsIn, me: id });
     }
   }
@@ -280,9 +285,9 @@ export class Hub {
     for (const room of this.rooms.values()) {
       if (room.started) { if (now - room.startedAt > 20 * 60e3) this.rooms.delete(room.id); continue; }
       any = true;
-      if (!this.humans(room)) { this.rooms.delete(room.id); continue; }
+      if (!room.sides.some(sd => sd.some(id => id != null && this.live.has(id)))) { this.rooms.delete(room.id); continue; } // (FIX1: nobody connected any more)
       if (now >= room.deadline) this.start(room); // (F2: the clock, cut to 10 s once everyone is ready; computers fill the empty seats)
-      else if ((now - room.created) % 10e3 < 1000) this.lobbyUpdate(room);
+      else if ((now - room.created) % 2e3 < 1000) this.lobbyUpdate(room); // (FIX1: every 2 s, so a missed message heals at once)
     }
     if (!any && this.timer) { clearInterval(this.timer); this.timer = null; }
   }
@@ -290,6 +295,7 @@ export class Hub {
     room.started = true; room.startedAt = Date.now();
     for (const sd of room.sides) for (const [k, id] of sd.entries()) if (id != null && !this.live.has(id)) sd[k] = null;
     const all = room.sides.flat().filter(id => id != null);
+    if (!all.length) { this.rooms.delete(room.id); return; } // (FIX1: everyone dropped out of the lobby)
     room.host = all[0]; room.code = 'M' + rid(7); // (a battle code for the phones' own link-up)
     room.seats = {}; room.sides.forEach((sd, c) => sd.forEach((id, k) => { if (id != null) room.seats[id] = c + 4 * k; }));
     const lanes = Object.fromEntries(all.map(i => [i, (room.p[i] || {}).lane || null])); // (the versus screen shows every army's plan)
@@ -331,7 +337,9 @@ export class Hub {
     const room = s.room && this.rooms.get(s.room);
     if (room && room.started && room.host === s.id) this.handover(room, s.id);
     if (s.where === 'battle') { this.noteQuit(s); this.freeSeat(s); }
-    this.cancelQueue(s); this.leaveParty(s);
+    // (FIX1) a lobby seat is kept through a dropped link: back within the lobby, he picks it up (hello); not back by the start, a computer plays it
+    if (!(room && !room.started && s.where === 'lobby')) this.cancelQueue(s);
+    this.leaveParty(s);
     this.live.delete(s.id); this.notifyFriends(s.id);
   }
 }

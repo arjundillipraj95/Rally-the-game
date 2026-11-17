@@ -57,7 +57,7 @@ function render() {
     if (!x) return `<button type="button" class="mlseat cpu" data-seat="${c},${k}"><b>Computer</b><small>Tap to sit here</small></button>`;
     const you = me && x.id === me.x.id;
     const kick = !you && lead && ON.party.members.some(m => m.id === x.id) ? `<button type="button" class="mlkick" data-kick="${esc(x.id)}" aria-label="Remove ${esc(x.nick)} from your party">Remove</button>` : ''; // (F23: the party leader can take a party member out)
-    return `<div class="mlseat${you ? ' me' : ''}${kick ? ' haskick' : ''}"><b>${esc(x.nick)}${you ? ' <em>you</em>' : ''}</b><small>${x.lane ? LANE_NAME[x.lane] : c === (me && me.c) ? 'No lane yet' : ''}${x.ready ? ' <i>✓ Ready</i>' : ''}</small>${kick}</div>`;
+    return `<div class="mlseat${you ? ' me' : ''}${kick ? ' haskick' : ''}"><b>${esc(x.nick)}${you ? ' <em>you</em>' : ''}</b><small>${x.away ? 'Reconnecting…' : x.lane ? LANE_NAME[x.lane] : c === (me && me.c) ? 'No lane yet' : ''}${x.ready && !x.away ? ' <i>✓ Ready</i>' : ''}</small>${kick}</div>`;
   };
   const html = `<div class="mlbox">
     <div class="mlhead"><b>${FMT[L.fmt]} · ${filled}/${cap * 4} players</b><span id="mlClock">${ML.clockTxt || ''}</span></div>
