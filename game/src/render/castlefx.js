@@ -4,7 +4,7 @@
 // arrow at the screen's edge (or a pulsing mark over it) for a few seconds.
 import { G, bus, colorOf } from '../core/state.js';
 import { groundY } from '../core/world.js';
-import { view } from './scene.js';
+import { camera, view } from './scene.js';
 import { say as callOut } from './banter.js';
 
 const alerts = new Map(); // castle id -> until (ms)
@@ -45,7 +45,16 @@ export function drawNexus(ctx, proj) {
   const K = G.c2; if (!K || !G.layout || !G.layout.nexus) return;
   for (const b of K.breaks) { if (b.kind !== 'nexus') continue; const n = G.layout.nexus.find(x => x.c === b.c);
     if (b.hp <= 0) { if (n && n.mesh && n.mesh.visible) { n.mesh.visible = false; if (!nexusDone.has(b.c)) { nexusDone.add(b.c); bus.emit('spark', { x: b.x, y: groundY(b.x, b.z) + 4, z: b.z, c: '#ffffff', n: 30 }); bus.emit('sfx', { name: 'crumble', x: b.x, z: b.z }); } } continue; }
-    if (!(G.T - (b.hitT ?? -99) < 6)) continue; const [sx, sy, ok] = proj(b.x, groundY(b.x, b.z) + 7.5, b.z); if (!ok) continue;
-    const w = 70, p = Math.max(0, b.hp / b.max); ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillRect(sx - w / 2 - 2, sy - 2, w + 4, 11);
-    ctx.fillStyle = G.ALLY[b.c] === G.ALLY[colorOf(G.myTi)] ? '#5fd35a' : '#e2483d'; ctx.fillRect(sx - w / 2, sy, w * p, 7); }
+    // (FIX3) its life bar is always over it while standing (in view, within 110 m), like a Unite goal: green yours, red
+    // theirs, dim with a lock while it can't be hit (its side holds its middle castle, or the Crown); brighter after a blow
+    if (b.hp <= 0 || Math.hypot(b.x - camera.position.x, b.z - camera.position.z) > 110) continue;
+    const [sx, sy, ok] = proj(b.x, groundY(b.x, b.z) + 7.5, b.z); if (!ok) continue;
+    const mine = G.ALLY[b.c] === G.ALLY[colorOf(G.myTi)], p = Math.max(0, b.hp / b.max), w = 84, h = 9;
+    const mid = (G.holds || []).find(x => x.kind === 'castle' && x.mid && x.side === b.c), shut = !!mid && mid.owner === G.ALLY[b.c];
+    ctx.globalAlpha = shut && !(G.T - (b.hitT ?? -99) < 6) ? .7 : 1;
+    ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(sx - w / 2 - 2, sy - 2, w + 4, h + 4);
+    ctx.fillStyle = mine ? '#5fd35a' : '#e2483d'; ctx.fillRect(sx - w / 2, sy, w * p, h);
+    ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1; ctx.strokeRect(sx - w / 2 - .5, sy - .5, w + 1, h + 1);
+    ctx.font = '800 11px "Barlow Semi Condensed", sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
+    ctx.fillText(`${shut ? '🔒 ' : ''}Nexus · ${Math.ceil(b.hp)}`, sx, sy - 5); ctx.globalAlpha = 1; }
 }
