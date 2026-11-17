@@ -3,7 +3,7 @@
 // already shooting (it sticks), else the nearest enemy soldier, else a champion (only while no soldier is in range). Shots on the same
 // champion ramp up volley by volley. Turret shots don't miss on a shield and don't roll for the head (missiles.js).
 import { CASTLE26 } from '../../config.js';
-import { G } from '../state.js';
+import { G, bus } from '../state.js';
 import { makeArrow } from './missiles.js';
 import { allianceOf } from './holds.js';
 import { bushHid } from './bush.js';
@@ -34,7 +34,7 @@ export function turretShot(x, y, z, ti, e, dmg, bolt = false, cw = null) {
   const d = Math.hypot(e.x - x, e.z - z), sp = bolt ? 45 : 32, lead = d / sp, tx = e.x + (e.vx || 0) * lead, tz = e.z + (e.vz || 0) * lead;
   G.arrows.push(makeArrow({ id: ++G.arrowN, x0: x, y0: y, z0: z, x1: tx, z1: tz, y1: groundY(tx, tz) + 1.1, dur: .12 + d / sp, peak: Math.min(bolt ? 1.5 : 3, d * (bolt ? .04 : .1)), ti, t: 0,
     shooter: { x, z, ti, tower: true }, turret: true, javelin: bolt, bolt, jd: dmg, plunge: true, home: cw ? { x: cw.x, z: cw.z, r2: (cw.r + 1.2) ** 2 } : null }));
-  sound('bow', x, z);
+  if (bolt) bus.emit('boltShot', G.arrows[G.arrows.length - 1]); else sound('bow', x, z); // (FIX4: a bolt has its own twang)
 }
 // (for the hit code) a champion's blow or arrow on a champion: the turrets of the victim's side take note
 export function champHit(a, b) { if (a && b && a.leader && b.leader && a.ti !== b.ti) { a.champHitT = G.T; a.champHitA = allianceOf(b.ti); } }

@@ -6,6 +6,7 @@ import { G, colorOf } from '../core/state.js';
 import { groundY, inRiver, rnd } from '../core/world.js';
 import { scene } from './scene.js';
 import { quality } from './quality.js';
+import { drawBolts } from './bolts.js';
 
 // (F6) particles are pooled: a spent one goes back on the spare pile and is handed out again, so a fight
 // makes no garbage per hit. `parts` holds the live ones (drawn on the 2D layer, render/overlay.js).
@@ -227,7 +228,7 @@ export function drawEffects() {
   // arrows
   let n = 0;
   for (const a of G.arrows) {
-    if (n >= MAX_ARROWS) break;
+    if (n >= MAX_ARROWS) break; if (a.bolt) continue; // (FIX4: bolts are drawn by render/bolts.js)
     const dx = a.x - a.px, dy = a.y - a.py, dz = a.z - a.pz;
     o3.position.set(a.x, a.y, a.z);
     if (dx || dy || dz) { o3.lookAt(a.x + dx + 1e-4, a.y + dy, a.z + dz); a.q = (a.q || new THREE.Quaternion()).copy(o3.quaternion); }
@@ -235,6 +236,7 @@ export function drawEffects() {
     o3.updateMatrix(); arrowMesh.setMatrixAt(n++, o3.matrix);
   }
   arrowMesh.count = n; arrowMesh.instanceMatrix.needsUpdate = true;
+  drawBolts();
 }
 
 export function clearEffects() { while (parts.length) spare.push(parts.pop()); floats = []; decals = []; pows = []; for (const sl of slashes) sl.on = false; slashLive = 0; for (const r of ribbons) { r.pts.length = 0; r.key = null; r.mesh.visible = false; } for (const w of waves) scene.remove(w.m); waves = []; }

@@ -67,7 +67,7 @@ function encodeSnap() {
     if (u.jy > .05) row.push(b36(u.jy * 10));
     us.push(row.join(','));
   }
-  const ars = G.arrows.filter(a => !a.stuck && !a.done).slice(-18).map(a => [b36(a.id), encX(a.x0), encX(a.z0), b36(a.y0 * 10), encX(a.x1), encX(a.z1), b36(a.y1 * 10 + 20), b36(a.dur * 100), b36(a.peak * 10), b36(a.t * 100), a.ti].join(','));
+  const ars = G.arrows.filter(a => !a.stuck && !a.done).slice(-18).map(a => [b36(a.id), encX(a.x0), encX(a.z0), b36(a.y0 * 10), encX(a.x1), encX(a.z1), b36(a.y1 * 10 + 20), b36(a.dur * 100), b36(a.peak * 10), b36(a.t * 100), a.ti, a.bolt ? 1 : 0].join(',')); // (FIX4: a ballista bolt is drawn as one)
   const hs = G.horses.filter(h => h.state === 'coming').map(h => [encX(h.x), encX(h.z), encF(h.face), h.ti].join(','));
   const f = G.flag;
   const fl = f ? [f.state === 'home' ? 0 : f.state === 'dropped' ? 1 : f.state === 'cased' ? 3 : 2, encX(f.x), encX(f.z), f.carrier ? b36(f.carrier.id) : '', Math.round((f.casing || 0) * 99)].join(',') : '';
@@ -398,8 +398,8 @@ function clientApply(hp) {
   if (G.player && G.player.dead) G.player = null;
   if (secs[3]) for (const row of secs[3].split(';')) {
     const f = row.split(','), id = p36(f[0]); if (C.arrowIds.has(id)) continue; C.arrowIds.add(id);
-    const a = makeArrow({ id, x0: decX(f[1]), z0: decX(f[2]), y0: p36(f[3]) / 10, x1: decX(f[4]), z1: decX(f[5]), y1: (p36(f[6]) - 20) / 10, dur: p36(f[7]) / 100, peak: p36(f[8]) / 10, ti: +f[10], t: p36(f[9]) / 100 });
-    G.arrows.push(a); sfx.bow(a.x0, a.z0);
+    const a = makeArrow({ id, x0: decX(f[1]), z0: decX(f[2]), y0: p36(f[3]) / 10, x1: decX(f[4]), z1: decX(f[5]), y1: (p36(f[6]) - 20) / 10, dur: p36(f[7]) / 100, peak: p36(f[8]) / 10, ti: +f[10], t: p36(f[9]) / 100 }); a.bolt = f[11] === '1';
+    G.arrows.push(a); if (a.bolt) bus.emit('boltShot', a); else sfx.bow(a.x0, a.z0);
   }
   if (C.arrowIds.size > 400) C.arrowIds = new Set([...C.arrowIds].slice(-200));
   const hs = secs[4] ? secs[4].split(';').map(r => r.split(',')) : [];

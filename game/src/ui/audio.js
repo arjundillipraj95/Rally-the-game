@@ -469,6 +469,8 @@ export const sfx = {
   die(x, z) { if (!gateS('di', 90)) return; play('fall', x, z, { vol: .75, delay: .18, rate: .9 }); play('cloth', x, z, { vol: .3, delay: .1 }); },
   wall(x, z) { if (gateS('wa', 100)) play('wall', x, z, { vol: .75, rate: .85, send: .35 }) || noise(.2, 500, 1.2, .3, 'lowpass', 0, at(x, z)); },
   bow(x, z) { if (gateS('bo', 60)) play('bow', x, z, { vol: .5, jit: .12, send: .15 }) || noise(.25, 2600, 2, .06, 'bandpass', 900, at(x, z)); },
+  bolt(x, z) { if (!gateS('bt', 120)) return; play('bow', x, z, { vol: .95, rate: .5, send: .25 }); play('thud', x, z, { vol: .6, rate: .6 }); }, // (FIX4: a ballista's deep twang)
+  boltHit(x, z) { if (gateS('bh', 120)) play('heavy', x, z, { vol: .95, rate: .7, send: .3 }); }, // (FIX4: the bolt slams in)
   thud(x, z) { if (gateS('th', 60)) play('thud', x, z, { vol: .45, jit: .15 }) || noise(.07, 900, 1.5, .15, 'bandpass', 0, at(x, z)); },
   hoof(x, z) { if (gateS('ho', 85)) play('step', x, z, { vol: .55, rate: .6, jit: .1 }) || noise(.05, 260, 2, .25, 'bandpass', 0, at(x, z)); },
   trample(x, z) { if (!gateS('tr', 90)) return; play('heavy', x, z, { vol: .8, rate: .75 }); play('fall', x, z, { vol: .5, delay: .08 }); },
