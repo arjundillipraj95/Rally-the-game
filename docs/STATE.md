@@ -2,7 +2,7 @@
 
 Current work: **friends' playtest fixes (F tickets) and lag (Phase 0)**, then Roles & Combat (design and plan in
 Claude Docs, links in CLAUDE.md). Every builder updates this file as the last step of its ticket. Owner: Opus owner chat.
-Last updated: 2026-11-17 (castle set CASTLE1-10 + ORD1 shipped: main = launch26 at aa8b0ad). Before: CASTLE1. Before: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT built on `t/SPLIT`). Before: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
+Last updated: 2026-11-17 (C1 champion framework built on launch26, not shipped). Before: 2026-11-17 (castle set CASTLE1-10 + ORD1 shipped: main = launch26 at aa8b0ad). Before: CASTLE1. Before: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT built on `t/SPLIT`). Before: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
 
 ## Live on main
 - Shipped 14 Nov (Arjun's "ship whatever is ready"; main = roles at 5b30ce7): V1b (private voice relay; Arjun's 3 secret steps still
@@ -354,6 +354,24 @@ Last updated: 2026-11-17 (castle set CASTLE1-10 + ORD1 shipped: main = launch26 
 - The numbers pass (HP, damage, gold): designer, before Phase 9.
 - Skins and the shop: after the game is done.
 - Budget: 50 dollars, nothing spent.
+
+## C1 Champion framework (17 Nov; card `docs/tickets/C1.md`). Built on `launch26` (C1a-C1f), not shipped
+- C1a: a champion is one page in `src/champions/` (`legionary` = today's captain, the default); `?champ=`, a Champion setting,
+  `?botchamp=` (tests), `window.__champs` test champions (dev); ids on every phone (presence `ch`); weapons limited to his own.
+- C1d: health and hits as shares of an infantryman (`config/champs.js` UNITS: champion 380, horse 190, infantry hit 19, arrow 9.5,
+  behind 1.5x), players and bots the same blow; counter 120% (spears on horses, arrows on infantry, cavalry on archers); a mounted
+  champion's horse takes every blow. Gates fall as before (wallDmg/capWall rescaled); turret/ballista on champions rescaled.
+- C1b: levels 1-10 (LEVELS, XPGAIN), +5% health and blow a level, badge over every champion, your XP bar, level-up moment.
+  Bot Trio battles end at average level 7.5 (design 8-9; trickle raised to 2/s): retune with real players (G1).
+- C1e: recruits per champion, influence on army (replaces the aura on the mountain), army size by class (every castle in full).
+- C1c: slots sp1/sp2/ult/armyUlt (`core/sim/abilities.js`, blocks in `champions/blocks.js`), locked to 3/5/7, cooldowns on the
+  wire, temporary buttons J/K/L over Attack, army ult from a full rally horn, bots fire them, locked in duels.
+- C1f: pace on foot, horse pace and health from the page. Base to the Crown: ~30 s on foot, ~16 s riding.
+- Tests: r_C1a (join: champions, weapons, levels, a press), r_C1b, r_C1c, r_C1d, r_C1e, r_C1f; crown2sim/online, r_PERF1c pass;
+  lag 250 ms: response 138 ms, error .21 m (was 141 / .2). r_SPLIT's seeded battle changes by design from C1d on.
+- Next: C3 Titus (card waiting for Arjun's go); then C2 units before Devi (C4) and Sigrun (C5).
+- Arjun's list for later (17 Nov): sounds too loud; nexus health bar; castle shots (ballista) to be a big visible, felt bolt;
+  lobby: two players in the same match, one phone showed only himself (1/12) while the other showed both.
 
 ## Known bugs
 - (fixed in AI1) A computer captain sometimes stood at the glacier at night without striking.
