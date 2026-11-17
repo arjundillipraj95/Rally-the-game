@@ -211,8 +211,8 @@ function captainAttack0(p) {
     const onBeat = Math.abs(G.T - p.lastSwingT - RHYTHM.at * k) <= RHYTHM.w * k;
     p.beats = combo === 0 ? 0 : p.remote && p.rbIn != null ? p.rbIn : onBeat ? (p.beats || 0) + 1 : 0; p.rbIn = null;
     Object.assign(p.pending, { mult: fin ? S.finisherMult : S.mult, cleave: fin, spin: fin, kb: fin ? 1.25 : .25 }); // light hits keep him in reach, the finisher spins and launches
-    const tb = champOf(p.ti).combo; // (C3a: a champion whose third blow is the shield bash, at full weight; it staggers)
-    if (fin && tb && tb.bash) { Object.assign(p.pending, { mult: S.mult, cleave: false, spin: false, kb: BASH.kb, bash: true, stunMax: tb.stunMax, reachB: .3 }); sound('thud', p.x, p.z); }
+    const tb = champOf(p.ti).combo; // (C3a: a champion whose third blow is the shield bash: his boosted hit, like every champion's third; it staggers, no more)
+    if (fin && tb && tb.bash) { Object.assign(p.pending, { mult: S.finisherMult, cleave: false, spin: false, kb: BASH.kb, stun: tb.stun, reachB: .3 }); sound('thud', p.x, p.z); }
     else if (fin && p.human && p.beats >= 2) { // on the beat all the way: the rhythm finisher
       Object.assign(p.pending, { mult: S.finisherMult * RHYTHM.mult, kb: 1.25 * RHYTHM.kb, stun: RHYTHM.stun });
       fx('fxmsg', { k: 'fxrhythm', u: p }); hl(p.ti, 'rhythm'); if (p.remote) fx('netFlush');

@@ -1,7 +1,7 @@
 // C3a: Titus's page, stats, combo and army, on the host (the joined phone: r_C3a-join). Needs the game server.
 // You and every bot play Titus (?champ=titus&botchamp=titus). Checks: his page inside the guardrails and on budget;
 // his health, blow, reach, hit rate, pace on foot and riding and his horse in battle; the combo slash, slash, shield
-// bash (30 each, staggers at most 1 s) on his beat (1.2 a second); his army takes his shares off the base champion
+// bash (30, 30, then his boosted hit 45 with a 0.45 s stagger) on his beat (1.2 a second); his army takes his shares off the base champion
 // (+20% health, -14% hit rate, -5% pace), spearmen from the start; neutral soldiers are the baseline; the legionary unchanged.
 import { chromium } from 'playwright';
 import { open, frames } from './stage.mjs';
@@ -54,10 +54,10 @@ ok(near(1 / o.cd, 1.2), `a computer Titus swings ${(1 / o.cd).toFixed(2)} a seco
 ok(near(o.foot, 5.9, .05) && near(o.ride, 11.2, .05), `on foot ${o.foot.toFixed(2)} m/s, riding ${o.ride.toFixed(2)} m/s`);
 ok(o.horse === 200, `his horse: ${o.horse} health`);
 const B = o.blows, avg = 3 / B.reduce((s, b) => s + b.cd, 0);
-ok(B[0].kind === 0 && B[1].kind === 1 && B[2].kind === 6 && B[2].bash && !B[0].bash, `combo: slash, slash, shield bash (kinds ${B.map(b => b.kind).join(', ')})`);
+ok(B[0].kind === 0 && B[1].kind === 1 && B[2].kind === 6, `combo: slash, slash, shield bash (kinds ${B.map(b => b.kind).join(', ')})`);
 ok(near(avg, 1.2, .01), `combo beat ${B.map(b => b.cd).join(' / ')} s = ${avg.toFixed(2)} a second`);
-ok(B.every(b => b.dmg >= 24 && b.dmg <= 36), `each blow ~30 (${B.map(b => b.dmg).join(', ')})`);
-ok(B[2].stun > 0 && B[2].stun <= 1, `the bash staggers ${B[2].stun} s (no more than 1)`);
+ok(B[0].dmg >= 24 && B[0].dmg <= 36 && B[1].dmg >= 24 && B[1].dmg <= 36 && B[2].dmg >= 36 && B[2].dmg <= 54, `slashes ~30, the bash ~45, his boosted hit (${B.map(b => b.dmg).join(', ')})`);
+ok(B[2].stun > .3 && B[2].stun <= .5, `the bash staggers ${B[2].stun} s (0.45)`);
 const F1 = o.foot1 || {};
 ok(near(F1.max, 120) && near(F1.dmg, 20) && near(F1.gap, .95 * 1.4 / 1.2) && near(F1.spd, 5.4 * 5.9 / 6.2) && F1.spear, `his footman, his shares off the base: ${F1.max} health (+20%), ${F1.dmg} a blow, a blow every ${F1.gap && F1.gap.toFixed(2)} s (-14%), ${F1.spd && F1.spd.toFixed(2)} m/s (-5%), spear from the start ${F1.spear}`);
 ok(o.foot1 && o.foot1.braced, `his spearmen brace standing (Hold)`);
