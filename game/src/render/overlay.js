@@ -16,6 +16,7 @@ import { gatePct, plateHp } from '../core/sim/forts.js';
 import { drawTurretRange } from './turretring.js';
 import { drawCaptureCircles } from './captring.js';
 import { drawCastleAlerts, drawNexus } from './castlefx.js';
+import { drawLevel, xpShare } from './levelbadge.js';
 
 const fx = document.getElementById('fx'), ctx = fx.getContext('2d');
 const mini = document.getElementById('mini'), mctx = mini.getContext('2d');
@@ -101,6 +102,7 @@ export function drawOverlay(opts) {
       let y = sy + 8; const thin = (v, col) => { ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, y, w, 3); ctx.fillStyle = col; ctx.fillRect(sx - w / 2, y, w * Math.min(1, Math.max(0, v)), 3); y += 4; };
       const st = player.st ?? STAMINA.max; if (st < STAMINA.max - 1) thin(st / STAMINA.max, st < STAMINA.low ? '#e0703a' : '#f2dc8a');
       if (player.mounted && player.horseK != null) thin(player.horseK, '#b07a42');
+      thin(xpShare(G.myTi), '#9fd8ff'); drawLevel(ctx, sx - w / 2 - 10, sy + 3, G.myTi, true); // (C1b: XP and level)
       if (player.armour > .5) { ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, sy - 5, w, 3); ctx.fillStyle = '#c9d2dc'; ctx.fillRect(sx - w / 2, sy - 5, w * Math.min(1, player.armour / ARMOUR.hp), 3); } }
   }
   if (G.state === 'play') {
@@ -111,6 +113,7 @@ export function drawOverlay(opts) {
       const w = u.leader || u.boss ? 40 : 26;
       ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, sy, w, 4);
       ctx.fillStyle = u.neutral ? NEUTRAL.css : TEAMS[colorOf(u.ti)].css; ctx.fillRect(sx - w / 2, sy, w * Math.max(0, u.hp / u.max), 4);
+      if (u.leader) drawLevel(ctx, sx - w / 2 - 8, sy + 2, u.ti, false); // (C1b)
       if (u.leader && (u.st ?? STAMINA.max) < STAMINA.max - 1) { ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, sy + 5, w, 2.5); ctx.fillStyle = u.st < STAMINA.low ? '#e0703a' : '#f2dc8a'; ctx.fillRect(sx - w / 2, sy + 5, w * Math.max(0, u.st) / STAMINA.max, 2.5); } // (stamina, when it's not full)
       if (u.leader && u.armour > .5) { ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, sy - 4, w, 3); ctx.fillStyle = '#c9d2dc'; ctx.fillRect(sx - w / 2, sy - 4, w * Math.min(1, u.armour / ARMOUR.hp), 3); } // (armour: a steel bar over the health)
       if (u.boss && u.post && u.post.buff) { // (HUD1: a buff camp's mini captain: his buff's name over his bar, in its colour)

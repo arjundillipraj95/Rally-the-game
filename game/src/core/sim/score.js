@@ -8,6 +8,7 @@ import { hl } from './match.js';
 import { behind, canRespawn, dismount, gainRally, loseHeart } from './army.js';
 import { endDuel } from './duel.js';
 import { allianceOf, c2Points, dieNeutral, dropFlag } from './step.js'; // (later files: through the entry, so files still load in the old order)
+import { xpForKill } from './levels.js';
 
 export function die(u, killer, ang, launch = 0) {
   if (killer && killer.neutral) { if (!u.cause) u.cause = 'garrison'; killer = null; } // (F4: cut down by a garrison: nobody's kill)
@@ -31,7 +32,7 @@ export function die(u, killer, ang, launch = 0) {
   if (u.carrying) dropFlag(u);
   { // the tally, for the results screen: kills by each captain and by his men, his falls and his men lost
     const vs = G.teams[u.ti]; if (vs) { if (u.leader) vs.falls = (vs.falls | 0) + 1; else vs.lost = (vs.lost | 0) + 1; }
-    const ks = killer && G.teams[killer.ti]; if (ks && isEnemyTi(killer.ti, u.ti)) { if (killer.leader) ks.capK = (ks.capK | 0) + 1; else ks.menK = (ks.menK | 0) + 1; }
+    const ks = killer && G.teams[killer.ti]; if (ks && isEnemyTi(killer.ti, u.ti)) { if (killer.leader) ks.capK = (ks.capK | 0) + 1; else ks.menK = (ks.menK | 0) + 1; xpForKill(killer.ti, u); } // (C1b: XP to his army's champion)
   }
   if (u.leader) { const dl = (G.duels || []).find(d => d.a === u || d.b === u); if (dl) { if (dl.state === 'on' && killer && (killer === dl.a || killer === dl.b)) endDuel(dl, 'win', killer); else endDuel(dl, 'off'); } }
   const s = G.teams[u.ti];

@@ -8,6 +8,8 @@ import { banner } from './hud.js';
 import { sfx, buzz, musicCue } from './audio.js';
 import { floatText } from '../render/effects.js';
 import { cam } from '../render/camera.js';
+import { LEVELS } from '../config.js';
+import { champOf } from '../champions/index.js';
 
 export const allyNames = a => TEAMS.filter((_, i) => G.ALLY[i] === a).map(t => t.name).join(' & ');
 
@@ -147,6 +149,7 @@ function note(k, a) { // (bookkeeping every phone does from the messages: the ho
   if (k === 'start') { for (const x in claimed) delete claimed[x]; glory.chest = glory.crown = null; }
 }
 export function showMsg(k, a) {
+  if (k === 'levelUp') { levelUp(a); return; } // (C1b: only your own champion's, and quietly)
   note(k, a || []);
   bus.emit('shownMsg', { k, a });
   const myTi = G.myTi;
@@ -166,4 +169,13 @@ export function showMsg(k, a) {
   if (k === 'capture') { sfx.capture(); sfx.cheer(); if (!isEnemyTi(a[0], myTi)) buzz([60, 40, 60]); }
   if (k === 'castleDown') { sfx.crumble(); sfx.cheer(); cam.shake = .6; if (a[0] === myTi) buzz([100, 60, 100]); }
   if (k === 'flagTaken' && a[0] === myTi) { sfx.order(); buzz(50); }
+}
+
+// (C1b) your champion levelled up: the number over his head, a chime, and a banner when it opens a slot
+function levelUp(a) {
+  if (a[0] !== G.myTi) return; const p = G.player, lv = a[1];
+  if (p && !p.dead) floatText(p.x, p.y + 3.8, p.z, `Level ${lv}`, '#9fd8ff');
+  sfx.coin(); buzz(40);
+  const ch = champOf(G.myTi), open = Object.entries(LEVELS.unlock).filter(([slot, at]) => at === lv && ch[slot]).map(([slot]) => ch[slot].name);
+  if (open.length) banner(`Level ${lv}`, `${open.join(' and ')} ready`, '#9fd8ff');
 }

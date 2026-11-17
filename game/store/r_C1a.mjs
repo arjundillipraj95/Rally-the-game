@@ -38,5 +38,10 @@ const bw = await B.evaluate(() => { window.__fb.weapon('jav'); const p = window.
 ok(bw === 'spear', `joined phone's own switch stays on the spear (${bw})`);
 const hw = await A.evaluate(ti => window.__fb.G.teams[ti].leader.weapon, b.ti);
 ok(hw === 'spear', `host keeps his captain on the spear (${hw})`);
+// (C1b) levels on the joined phone: the host gives the joined player's army 520 XP (level 4)
+await A.evaluate(async ti => { const L = await import('/src/core/sim/levels.js'); L.gainXp(ti, 520, 'test'); }, b.ti); await sleep(2500);
+const la = await A.evaluate(() => window.__fb.G.teams.map(t => t.lvl || 1).join()), lb = await B.evaluate(() => window.__fb.G.teams.map(t => t.lvl || 1).join());
+const mine = await B.evaluate(() => { const G = window.__fb.G; return [G.teams[G.myTi].lvl, Math.round(G.teams[G.myTi].xp)]; });
+ok(la === lb && mine[0] === 4, `levels the same on the joined phone (${lb}); his own: level ${mine[0]}, ${mine[1]} XP`);
 await b1.close(); await b2.close();
 console.log(fails ? `${fails} FAILED` : 'ALL PASS'); process.exit(fails ? 1 : 0);

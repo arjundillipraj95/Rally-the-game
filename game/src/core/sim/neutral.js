@@ -9,6 +9,7 @@ import { gainRally, speedOf } from './army.js';
 import { eachNear, gridOk, nearestFoe, startSwing } from './melee.js';
 import { shoot } from './missiles.js';
 import { faceTo, go, integrate, moveToward } from './step.js'; // (later files: through the entry, so files still load in the old order)
+import { xpForCamp, xpForKill } from './levels.js';
 
 // ---------- (F4) the mountain's neutral soldiers: a castle's guards and a jungle camp's bandits ----------
 // Each post is 3 footmen and 2 archers, real soldiers (ti NEUTRAL_TI, grey) standing at their spots facing out. A man of
@@ -66,7 +67,7 @@ function c2Restock(b) {
 }
 // the last man of a post cut down: a camp pays its gold to the army that did it, and fills again in time
 function c2PostCleared(b, killer) {
-  if (b.kind === 'camp') { b.back = G.T + CROWN2.camp.back; if (killer && G.teams[killer.ti]) G.teams[killer.ti].gold += CROWN2.camp.gold; }
+  if (b.kind === 'camp') { b.back = G.T + CROWN2.camp.back; if (killer && G.teams[killer.ti]) { G.teams[killer.ti].gold += CROWN2.camp.gold; if (!b.boss) xpForCamp(killer.ti); } } // (C1b: a camp's XP; a buff camp's is its mini captain's)
   if (killer) hl(killer.ti, 'hold');
 }
 // a neutral soldier's death: the fall, the gold (if any) for the man, and his post's tally; no morale, no results line
@@ -78,7 +79,7 @@ export function dieNeutral(u, killer, ang, launch) {
   u.fallDir = Math.random() < .5 ? 1 : -1;
   fx('splat', { x: u.x, z: u.z, s: rnd(1, 1.5), ti: u.ti }); sound('die', u.x, u.z);
   const b = u.post, Q = postQ(b);
-  if (killer && G.teams[killer.ti]) { G.teams[killer.ti].gold += Q.manGold; gainRally(killer, RALLY.kill); }
+  if (killer && G.teams[killer.ti]) { G.teams[killer.ti].gold += Q.manGold; gainRally(killer, RALLY.kill); xpForKill(killer.ti, u); } // (C1b: XP, a mini captain's more)
   if (u.boss && killer && G.teams[killer.ti] && b.buff) { giveBuff(killer.ti, b.buff); hl(killer.ti, 'hold'); } // (CAMP1: the camp's buff to his killer's side)
   b.n = b.units.filter(m => m && !m.dead).length;
   if (!b.n) c2PostCleared(b, killer);

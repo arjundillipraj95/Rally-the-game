@@ -16,6 +16,7 @@ import { siegeTick } from './siege.js';
 import { nexusBreaks, nexusOpen, nexusBroken } from './nexus.js';
 import { castlePts, holdingTick, shardOnTake } from './holding.js';
 import { c2Man, c2Post, c2PostTick } from './step.js'; // (later files: through the entry, so files still load in the old order)
+import { xpForCastle, xpForSceptre } from './levels.js';
 
 // ---------- the new Crown: the mountain's rules ----------
 // Places are taken by the side with the most men in them (a neutral castle's guards must fall first),
@@ -49,6 +50,7 @@ export function c2Take(h, a, per) {
   h.siege = null; if (k === 'castle') shardOnTake(h, a); // (CASTLE6)
   h.owner = a; h.by = by; h.prog = 0; h.cap = -1; h.tick = 0; h.fort = 0; // (a palisade doesn't change hands)
   say('holdTaken', a, h.kind, h.id); hl(by, h.kind === 'castle' ? 'castle' : 'hold');
+  if (h.kind === 'castle') xpForCastle(h, a, by, sideArmies); // (C1b)
   for (const s of G.teams) s.homeSpot = null; for (const u of G.units) u.runTo = null;
   if (G.cgates[h.id]) { G.cgates[h.id] = freshGates(0); applyCastleGates(); } // (CASTLE1: taken: level 0, gates open)
   if (h.kind === 'castle') h.shieldT = G.T + CASTLE26.shield; // (CASTLE1: the banner rises; nobody takes it back meanwhile)
@@ -109,7 +111,8 @@ export function c2Hit(u, b) {
 function c2ChestTo(a, ti = -1) { // (ti: the captain whose blow broke it, if anyone's)
   const K = G.c2; K.chest = 2; const b = K.breaks.find(x => x.kind === 'chest'); if (b) b.hp = 0;
   if (K.floodAt == null && G.T < CROWN2.night) K.floodAt = G.T; // (F7a: the chest is done; the lake's countdown starts)
-  if (a != null) { K.chestPts[a] = CROWN2.points.chest; for (const i of sideArmies(a)) { hl(i, 'chest'); const s = G.teams[i]; s.gold += CHEST.gold; s.rally = 100; s.morale = Math.min(100, s.morale + 15); } say('chestTaken', a, CHEST.gold, ti); }
+  if (a != null) { xpForSceptre(a, sideArmies); K.chestPts[a] = CROWN2.points.chest; // (C1b: the Sceptre's XP)
+ for (const i of sideArmies(a)) { hl(i, 'chest'); const s = G.teams[i]; s.gold += CHEST.gold; s.rally = 100; s.morale = Math.min(100, s.morale + 15); } say('chestTaken', a, CHEST.gold, ti); }
   fx('netFlush');
 }
 // the arena's phases: shut (under the lake), open to everyone (the war chest), shut again, then the captains' (night).

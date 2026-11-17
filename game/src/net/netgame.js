@@ -54,7 +54,7 @@ bus.on('fxmsg', d => {
 if (import.meta.env.DEV) window.__encodeSnap = () => encodeSnap(); // (dev: F4's test weighs a snapshot)
 function encodeSnap() {
   const upPack = s => UPGRADES.reduce((n, u, k) => n + (s.up[u.id] | 0) * 4 ** k, 0);
-  const teams = G.teams.map(s => [Math.round(s.points * 10), s.tickets, s.caps, Math.floor(s.gold), s.alive ? 1 : 0, Math.max(0, Math.ceil(s.leaderDeadT)), upPack(s), Math.round(s.morale || 0), Math.floor(s.rally || 0), s.routT > 0 ? 1 : 0, s.buff && s.buff.until > G.T ? (s.buff.kind === 'drum' ? 1000 : 2000) + Math.ceil(s.buff.until - G.T) : 0].join(',')).join(';'); // (CAMP1: the side's buff and its seconds left)
+  const teams = G.teams.map(s => [Math.round(s.points * 10), s.tickets, s.caps, Math.floor(s.gold), s.alive ? 1 : 0, Math.max(0, Math.ceil(s.leaderDeadT)), upPack(s), Math.round(s.morale || 0), Math.floor(s.rally || 0), s.routT > 0 ? 1 : 0, s.buff && s.buff.until > G.T ? (s.buff.kind === 'drum' ? 1000 : 2000) + Math.ceil(s.buff.until - G.T) : 0, s.lvl || 1, Math.floor(s.xp || 0)].join(',')).join(';'); // (CAMP1: the side's buff and its seconds left)
   const us = [];
   for (const u of G.units) {
     if (u.dead) continue;
@@ -296,6 +296,7 @@ function clientApply(hp) {
     if (v.length > 6 && (i !== myTi || performance.now() - (C.upLocalAt || 0) > 700)) UPGRADES.forEach((u, k) => { s.up[u.id] = Math.floor(v[6] / 4 ** k) % 4; });
     if (v.length > 9) { s.morale = v[7]; s.rally = v[8]; s.routT = v[9] ? 1 : 0; }
     if (v.length > 10) s.buff = v[10] ? { kind: v[10] >= 2000 ? 'swift' : 'drum', until: G.T + v[10] % 1000 } : null;
+    if (v.length > 12) { s.lvl = v[11]; s.xp = v[12]; } // (C1b: level and XP)
   });
   G.bounty = +secs[7];
   if (secs[8] && G.holds) secs[8].split(';').forEach((r, i) => { const h = G.holds[i], v = r.split(',').map(Number); if (h) { h.owner = v[0]; h.prog = v[1] / 100; h.cap = v[2]; h.contested = !!v[3]; h.chest = v[4] | 0; if (v.length > 7) { h.by = v[7] < 0 ? undefined : v[7]; h.fort = v[8] | 0; } if (G.cgates) { if (!G.cgates[i] && G.layout.cwalls && G.layout.cwalls.some(c => c.hid === i)) G.cgates[i] = freshGates(0); if (G.cgates[i]) { const st = G.cgates[i]; st.broken = v[5] | 0; st.lv = v[6] | 0; const pc = r.split(',')[9]; if (pc) { const p = pc.split('.').map(x => x.split('_').map(Number)); if (p.some((x, k) => x[0] < (st.hp[k] ?? 0) - .5)) st.hitT = G.T; st.hp = p.map(x => x[0]); st.max = p.map(x => x[1] || 0); } } h.shieldT = v[10] > 0 ? G.T + v[10] : 0; if (G.cgates[i]) { G.cgates[i].tg = v[11] >= 0 ? v[11] : null; G.cgates[i].tgT = G.T; } if (v.length > 12) h.shardBy = v[12] >= 0 ? v[12] : null; } } }); if (G.crown) applyCastleGates();

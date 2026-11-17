@@ -15,7 +15,7 @@ export const champWeapon = (ti, w) => { const ws = champOf(ti).weapons; return w
 // Castle strength (points/alive, conquest only) is only ever read/written on the color's own
 // army (0-3): a teammate's army shares its castle rather than owning one.
 export function newTeams(humans, active = activeFrom([0, 0, 0, 0])) {
-  return Array.from({ length: ARMIES }, (_, i) => ({ points: 100, tickets: rules().tickets, caps: 0, ctrlScore: 0, gold: isC2() ? CROWN2.startGold : Math.round(ECON.startGold * rules().gold), alive: true, plan: null, leaderDeadT: 0, recruitT: rnd(2, 6), thinkT: 0,
+  return Array.from({ length: ARMIES }, (_, i) => ({ points: 100, tickets: rules().tickets, caps: 0, ctrlScore: 0, gold: isC2() ? CROWN2.startGold : Math.round(ECON.startGold * rules().gold), alive: true, lvl: 1, xp: 0, plan: null, leaderDeadT: 0, recruitT: rnd(2, 6), thinkT: 0,
     human: !!humans[i], active: !!active[i], order: 'follow', holdPt: null, morale: 100, rally: 0, routT: 0, focus: null, towerT: rnd(0, 1.4), leader: null,
     up: { foot1: 0, foot2: 0, arch1: 0, arch2: 0, aura: 0, horse: 0, arm: 0, fort: 0 }, armBuys: 0, arrowHits: 0, shieldwallT: 0, volleyCd: 0, upT: rnd(20, 40) }));
 }

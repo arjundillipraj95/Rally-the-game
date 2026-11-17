@@ -16,7 +16,7 @@ export const LEVELS = {
 // mini captain, a castle taken (shared between the side's champions within `shareR` m, at least the taker), the
 // Sceptre (the war chest) to every champion of the side that takes it, and a trickle each second to a champion
 // within `nearR` m of a castle under attack or the arena.
-export const XPGAIN = { soldier: 6, champ: 60, champAbove: 10, camp: 40, buffCamp: 80, castle: 100, shareR: 30, sceptre: 200, trickle: 1, nearR: 20 };
+export const XPGAIN = { soldier: 6, champ: 60, champAbove: 10, camp: 40, buffCamp: 80, castle: 100, shareR: 30, sceptre: 200, trickle: 2, nearR: 25 };
 
 // (C1d) health as a share of one infantryman (`inf` hp); a hit as a share of an infantryman's health. A blow from
 // behind lands `behind` times harder. Champion and horse shares are each champion's own (its page), these the base.
