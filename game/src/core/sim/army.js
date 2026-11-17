@@ -162,7 +162,7 @@ export function push(u, vx, vz, stun) {
 // an archer's reach: on the mountain, by how far above (or below) his mark he stands; elsewhere high ground adds 30%
 export const bowRange = (u, t) => { if (!G.c2) return u.range * (u.y > 2.2 ? 1.3 : 1); const dy = u.y - (t ? t.y ?? groundY(t.x, t.z) : u.y); return u.range * (1 + clamp(dy * .075, -.15, .25)); };
 // (SPD1) a horse's multiple: the same for every captain, a little more with the horse upgrade
-export const mountMul = u => CAPTAIN_SPD.mount * (1 + .05 * lvl(u.ti, 'horse'));
+export const mountMul = u => CAPTAIN_SPD.mount * (champOf(u.ti).mount.spd || 1) * (1 + .05 * lvl(u.ti, 'horse')); // (C1f: his page's mount)
 export function speedOf(u) {
   let s = u.spd;
   if (u.mounted) s *= mountMul(u) * (u.charge > 0 ? CHARGE.spd : 1) * (u.human ? .8 + .35 * (u.gallop || 0) : 1); // (a human rider's gallop builds on the straight)

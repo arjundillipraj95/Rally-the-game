@@ -247,7 +247,8 @@ function clientUnit(id, kind, ti, x, z) {
   const human = kind === 'captain' && !!G.teams[ti] && G.teams[ti].human;
   const u = { id, kind, ti, leader: kind === 'captain', human, x, z, y: groundY(x, z), tx: x, tz: z, tface: 0, face: 0, vx: 0, vz: 0, vy: 0,
     hp: kind === 'captain' ? champHp(ti) : STATS[kind].hp, max: kind === 'captain' ? champHp(ti) : STATS[kind].hp, r: STATS[kind].r, swing: 0, stun: 0, blockT: 0, dead: false, deadT: 0, mounted: false, carrying: false, aim: false,
-    spd: human ? 6.3 : STATS[kind].spd, horseHp: horseMax(ti), horseCd: 0, summon: false, shieldwall: false, blocking: false, lastHit: -9,
+    spd: kind === 'captain' ? champOf(ti).stats.spd : STATS[kind].spd, // (C1f: his page's pace)
+    horseHp: horseMax(ti), horseCd: 0, summon: false, shieldwall: false, blocking: false, lastHit: -9,
     jy: 0, jyT: 0, jvy: 0, jumpCd: 0, weapon: human && ti === G.myTi ? (G.teams[ti].weapon || 'sword') : undefined, javAmmo: CAPTAIN_COMBAT.jav.ammo, javRegen: 0, combo: 0, lastSwingT: -9 };
   G.units.push(u); if (C.byId) C.byId.set(id, u); return u;
 }
