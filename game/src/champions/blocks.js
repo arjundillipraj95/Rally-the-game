@@ -5,6 +5,7 @@ import { hit } from '../core/sim/melee.js';
 import { push } from '../core/sim/army.js';
 import { throwJavelin } from '../core/sim/missiles.js';
 import { startEagle } from '../core/sim/eagle.js';
+import { startRam } from '../core/sim/ram.js';
 
 const foes = (u, keep) => G.units.filter(o => !o.dead && !o.rest && isEnemy(o, u) && !(o.fog && o.bush >= 0) && keep(o));
 // where a tap aims: the nearest enemy champion in range, else the nearest enemy, else straight ahead
@@ -36,3 +37,7 @@ export const buffOn = (u, key) => !!(u && u.fxT && u.fxT[key] > G.T);
 export const ownMen = (u, r) => G.units.filter(o => !o.dead && o.ti === u.ti && !o.leader && Math.hypot(o.x - u.x, o.z - u.z) < r);
 // a leap onto a spot: Eagle's fall (core/sim/eagle.js), the page's ult its numbers
 export const leap = (u, at, d) => startEagle(u, at, d);
+// a shield-first rush along a path: Ram of Cassius (core/sim/ram.js)
+export const ram = (u, at, d) => startRam(u, at, d);
+// where a press aims: straight ahead for a page that says so (aimFace), else autoAim
+export const aimOf = (u, d) => d.aimFace ? { x: u.x + Math.sin(u.face) * (d.range || 5), z: u.z + Math.cos(u.face) * (d.range || 5) } : autoAim(u, d.range || 8);

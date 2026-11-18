@@ -56,7 +56,7 @@ export function captainJump(p) {
 // Advances a captain's jump wherever that captain is driven (solo/host, or a client's own phone).
 export function stepJump(p, dt) {
   if (p.jumpCd > 0) p.jumpCd -= dt;
-  if (p.eagle) return; // (C3d: his leap carries him)
+  if (p.eagle || p.ram) return; // (C3d, C3b: his leap or his rush carries him)
   if (!(p.jy > 0) && !(p.jvy > 0)) return;
   p.jvy -= CC.jump.g * dt; p.jy += p.jvy * dt;
   if (p.jy <= 0) { p.jy = 0; p.jvy = 0; p.jumpCd = CC.jump.cd; sound('land', p.x, p.z); spark(p.x, groundY(p.x, p.z) + .1, p.z, '#c9b28a', 4); }
@@ -143,7 +143,7 @@ function leapSlam(p) {
 // The player captain's Attack: what it does depends on the weapon in hand and whether you're in the
 // air. Presses that land during a cooldown are buffered briefly instead of being dropped.
 export function captainAttack(p) {
-  if (p && p.eagle) return; // (C3d: in his leap)
+  if (p && (p.eagle || p.ram)) return; // (C3d, C3b: in his leap or his rush)
   const had = p && p.pending; captainAttack0(p);
   if (p && p.pending && p.pending !== had && p.pending.side != null && !p.pending.heavy) p.pending.t = Math.max(p.pending.t, DUEL_DIR.tell);
 }

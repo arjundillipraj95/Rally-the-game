@@ -281,6 +281,7 @@ export function hit(a, b, mult = 1, extra) {
   }
   if (b.leader && b.armour > 0 && !blocked && dmg > 0) dmg = soak(b, dmg, heavy || broke || back || !!(extra && extra.unblockable));
   b.hp -= dmg; if (!blocked && dmg > 0) champHit(a, b); // (CASTLE3: turret aggro)
+  b.hurt = { by: a.id, dmg, T: G.T }; // (the last blow taken: tests read it)
   if (!blocked && dmg > 0) { // the streak: a player captain's blows that land, broken when he's hit
     if (a.human && a.leader && !(extra && extra.streak) && a.streakBlow !== a.lastSwingT) { // (one per blow that lands, however many it cuts; not the whirlwind's own)
       a.streakBlow = a.lastSwingT; a.streak = G.T - (a.streakT ?? -9) > STREAK.gap ? 1 : (a.streak || 0) + 1; a.streakT = G.T; hl(a.ti, 'streak', a.streak);

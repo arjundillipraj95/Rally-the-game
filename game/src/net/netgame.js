@@ -28,6 +28,7 @@ import { applyChamp, champHp, champReach, paceOf } from '../champions/stats.js';
 import { unitRow } from '../champions/army.js';
 import { SLOTS, useAbility } from '../core/sim/abilities.js';
 import { eagleStep, flyEagle } from '../core/sim/eagle.js';
+import { endRam, flyRam, ramStep } from '../core/sim/ram.js';
 
 export const C = {}; // client-side state
 if (import.meta.env.DEV) window.__netC = C; // dev-only: lets tests watch the client's snapshots
@@ -421,7 +422,7 @@ function clientApply(hp) {
   }
   for (const m of (hp.m || [])) if (m[0] > C.lastMsgN) {
     C.lastMsgN = m[0];
-    if (typeof m[1] === 'string' && m[1].startsWith('fx')) { const u = G.units.find(x => x.id === m[2]), a = G.units.find(x => x.id === m[4]); if (u && m[1] === 'fxeagle' && u === G.player) flyEagle(u, m[6], champOf(u.ti).ult); if (u) bus.emit('fxmsg', { k: m[1], u, a, heavy: !!m[3], byAI: !!m[5], q: m[6], fromNet: true }); }
+    if (typeof m[1] === 'string' && m[1].startsWith('fx')) { const u = G.units.find(x => x.id === m[2]), a = G.units.find(x => x.id === m[4]); if (u && u === G.player) { if (m[1] === 'fxeagle') flyEagle(u, m[6], champOf(u.ti).ult); else if (m[1] === 'fxram') flyRam(u, m[6], champOf(u.ti).sp1); else if (m[1] === 'fxramend') endRam(u, m[6]); } if (u) bus.emit('fxmsg', { k: m[1], u, a, heavy: !!m[3], byAI: !!m[5], q: m[6], fromNet: true }); }
     else { showMsg(m[1], m.slice(2)); bus.emit('msgIn', { k: m[1], a: m.slice(2) }); } // (CASTLE10: the castle moments on joined phones too, render/castlefx.js)
   }
 }
@@ -463,7 +464,8 @@ export function clientTick(dt) {
     const mv = import.meta.env.DEV && window.__moveOverride ? window.__moveOverride() : readMove(dt);
     for (const u of G.units) if (u.slowT > 0) u.slowT -= dt; // (a parry's slow beat, for the two men in it)
     const mdt = me.slowT > 0 ? dt * PARRY.slow : dt;
-    if (me.eagle) eagleStep(me, dt); // (C3d: his Eagle's fall, flown here as the host lands it)
+    if (me.ram) ramStep(me, dt); // (C3b: his rush, run here; the host's hits)
+    else if (me.eagle) eagleStep(me, dt); // (C3d: his Eagle's fall, flown here as the host lands it)
     else if (me.marchT > 0 && !(mv.mag > .3) && !mv.attackHeld && !mv.block) { if (!G.introOn) marchStep(me, mdt); } // (F7: stepping out, once the opening is over)
     else { me.marchT = 0; driveCaptain(me, mv, mdt); }
     if (mv.block && !C.blkPrev && !me.mounted) { C.inp.par++; C.sendNow = true; C.blkAt = performance.now(); } C.blkPrev = !!mv.block; // (a Block press: the host opens a parry window)
@@ -494,7 +496,7 @@ export function clientTick(dt) {
         t.predHitAt = performance.now();
       }
     }
-    if (C.atkBuf > 0 && C.localCd <= 0 && !me.mounted && !me.eagle) actions.attack();
+    if (C.atkBuf > 0 && C.localCd <= 0 && !me.mounted && !me.eagle && !me.ram) actions.attack();
   }
   const k = Math.min(1, dt * 15);
   // (P0.7) everyone else is drawn a moment in the past: two snapshot gaps plus however late snapshots are running

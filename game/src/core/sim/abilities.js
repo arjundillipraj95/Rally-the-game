@@ -21,7 +21,7 @@ export function blocked(ti, slot) {
   const d = slotDef(ti, slot), s = G.teams[ti], u = s && s.leader;
   if (!d) return 'none'; if (!unlocked(ti, slot)) return 'level'; if (slot !== 'armyUlt' && cdLeft(ti, slot) > 0) return 'cd';
   if (!u || u.dead) return 'down';
-  if (u.eagle || u.stun > 0 || u.carrying || u.duelId || u.execT > 0 || u.execV || u.flood || (u.mounted && d.needFoot)) return 'busy';
+  if (u.eagle || u.ram || u.stun > 0 || u.carrying || u.duelId || u.execT > 0 || u.execV || u.flood || (u.mounted && d.needFoot)) return 'busy';
   return '';
 }
 // fire a slot (host and solo): aim is { x, z } on the ground, or none (his facing / the nearest foe in range)
@@ -29,7 +29,7 @@ export function useAbility(ti, slot, aim) {
   if (G.role === 'client' || blocked(ti, slot)) return false;
   const d = slotDef(ti, slot), u = G.teams[ti].leader;
   if (u.mounted && !d.mounted) dismount(u, false);
-  const at = aim && Number.isFinite(aim.x) ? aim : B.autoAim(u, d.range || 8);
+  const at = aim && Number.isFinite(aim.x) ? aim : B.aimOf(u, d);
   u.face = Math.atan2(at.x - u.x, at.z - u.z);
   d.run(u, at, B);
   if (slot !== 'armyUlt') cds(ti)[slot] = d.cd || 0;

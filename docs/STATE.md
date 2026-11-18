@@ -389,7 +389,12 @@ Last updated: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pag
   half damage in the air, nothing stops it; 60 s), `render/eaglefx.js` (gold circle, eagle shadow, dust ring), numbers on
   Titus's page. Clip: today's leapSmash (sword-first) until a shield-first one. A joined phone flies its own arc.
   Fixed on the way: a joined phone's jump height and held attack never reached the host (lost behind a comment, netgame).
-  r_C3d, r_C3d-join. Next: C3b, C3c, C3e, C3f.
+  r_C3d, r_C3d-join.
+- C3b Ram of Cassius built (18 Nov): `core/sim/ram.js` (tap rushes the way he faces: 0.15 s wind-up, 5 m in 0.35 s, 8 m from
+  the saddle still mounted; soldiers 20, shoved aside, stumble 0.3 s; first champion 35, back 2 m, stun 0.5 s, into a
+  wall/gate/rock 70 and 1 s; walls stop it; a braced spear line stops it and takes it, the horse takes their blows x1.2;
+  +5%/level from 3; 6 s), path drawn in `render/ramfx.js`, clip shieldBash. hit() records `b.hurt` (last blow, for tests).
+  r_C3b, r_C3b-join. Next: C3c, C3e, C3f.
 - Arjun 17 Nov (for S1-12, designer to fold into the design doc): the lobby is 60 s and picks the champion with the lane: filter
   by class, then a picture grid like League or Unite. Today's design says 25 s and no grid.
 - Fixes 17 Nov (Arjun's list), on launch26: FIX1 lobby (not reproduced as reported; made robust: the service resends the

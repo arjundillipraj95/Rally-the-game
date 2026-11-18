@@ -3,7 +3,7 @@
 import { LEVELS } from '../config.js';
 import { G } from '../core/state.js';
 import { SLOTS, blocked, cdLeft, slotDef, useAbility } from '../core/sim/abilities.js';
-import { autoAim } from '../champions/blocks.js';
+import { aimOf } from '../champions/blocks.js';
 import { actions, C } from './netgame.js';
 import { isClient } from './session.js';
 import { floatText } from '../render/effects.js';
@@ -16,7 +16,7 @@ actions.ability = k => {
   if (why === 'cd') { floatText(p.x, p.y + 3.2, p.z, `${Math.ceil(cdLeft(G.myTi, slot))} s`, '#fff'); return; }
   if (why) return;
   if (isClient()) {
-    const d = slotDef(G.myTi, slot), at = autoAim(p, d.range || 8), s = G.teams[G.myTi];
+    const d = slotDef(G.myTi, slot), at = aimOf(p, d), s = G.teams[G.myTi];
     C.inp.ab[k]++; C.inp.abAt[k] = [r2(at.x), r2(at.z)]; C.sendNow = true;
     (s.cds || (s.cds = {}))[slot] = d.cd || 0; // (shown at once; the host's count follows)
     return;
