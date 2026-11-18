@@ -16,6 +16,21 @@ const MAP = { hips: 'Hips', spine: 'Spine', chest: 'Spine2', neck: 'Neck', head:
 const CODE_OF = Object.fromEntries(Object.entries(MAP).map(([c, m]) => [m, c]));
 const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _e = new THREE.Euler(), _m = new THREE.Matrix4(), _v = new THREE.Vector3(), Z = new THREE.Vector3(0, 0, 1);
 
+// (C3i) the leap with the shield arm brought up in front as he comes down: the leap-smash, its left arm turned to the
+// raised-shield pose from a quarter of the way in (fully by over half), the rest as it was. Eagle's fall lands shield first.
+const SHIELD_ARM = ['LeftShoulder', 'LeftArm', 'LeftForeArm', 'LeftHand'];
+function shieldFirst(leap, guard) {
+  const q = new THREE.Quaternion(), g = new THREE.Quaternion(), w = t => { const k = Math.min(1, Math.max(0, (t - .3) / .35)); return k * k * (3 - 2 * k); };
+  const up = leap.up.tracks.map(t => {
+    const bone = t.name.split('.')[0]; if (!SHIELD_ARM.includes(bone) || !t.name.endsWith('.quaternion')) return t;
+    const gt = guard.up.tracks.find(x => x.name === t.name); if (!gt) return t;
+    const gv = gt.createInterpolant(new Float32Array(4)).evaluate(.5); g.set(gv[0], gv[1], gv[2], gv[3]);
+    const vals = t.values.slice();
+    for (let i = 0; i < t.times.length; i++) { q.fromArray(vals, i * 4).slerp(g, w(t.times[i])).toArray(vals, i * 4); }
+    return new THREE.QuaternionKeyframeTrack(t.name, t.times.slice(), vals);
+  });
+  return { name: 'eagleFall', dur: leap.dur, lo: new THREE.AnimationClip('eagleFall.lo', leap.dur, leap.lo.tracks), up: new THREE.AnimationClip('eagleFall.up', leap.dur, up), hips: leap.hips };
+}
 // a body file: the skinned body, and its clips cut in two (legs, upper body)
 export function loadClipBody(url) {
   return new GLTFLoader().loadAsync(url).then(g => {
@@ -27,6 +42,7 @@ export function loadClipBody(url) {
       const ht = c.tracks.find(t => t.name === 'Hips.quaternion');
       clips[c.name] = { name: c.name, dur: c.duration, lo: new THREE.AnimationClip(c.name + '.lo', c.duration, lo), up: new THREE.AnimationClip(c.name + '.up', c.duration, up), hips: ht.createInterpolant(new Float32Array(4)) };
     }
+    if (clips.leapSmash && clips.blockIdle) clips.eagleFall = shieldFirst(clips.leapSmash, clips.blockIdle); // (C3i: Titus's Eagle's fall)
     mesh.material.metalness = 0; mesh.material.roughness = .8; mesh.geometry.userData.material = mesh.material;
     // (the body's middle, in the space it was modelled in: the file stands him centred, the model is a little off)
     const x0 = _v.setFromMatrixPosition(_m.copy(mesh.skeleton.boneInverses[0]).invert()).x - mesh.skeleton.bones[0].position.x;

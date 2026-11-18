@@ -420,6 +420,8 @@ Last updated: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pag
   tier looks, shield-first leap clip, his lines as bubbles, the battle screen, lock body sizes, ship.
 - C3h soldier tier looks built (18 Nov): `render/rig/tierlook.js` recolours the steel by tier (Princeps darker + red crest,
   Triarius bronze + short cloak; archers leather cap, then bronze helmet). Bigger quiver not done.
+- C3i Eagle's fall lands shield first (18 Nov): clip `eagleFall` made at load from leapSmash with the shield arm turned to
+  the blockIdle pose from 0.3 s (cliprig.js shieldFirst). Cloak flare not done (his cloak has no bones of its own).
 - Arjun 17 Nov (for S1-12, designer to fold into the design doc): the lobby is 60 s and picks the champion with the lane: filter
   by class, then a picture grid like League or Unite. Today's design says 25 s and no grid.
 - Fixes 17 Nov (Arjun's list), on launch26: FIX1 lobby (not reproduced as reported; made robust: the service resends the
