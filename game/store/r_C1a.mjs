@@ -29,7 +29,7 @@ await B.click('#friendsBtn'); await sleep(800); await B.waitForSelector('[data-j
 await B.waitForFunction(() => window.__fb && window.__fb.G.state === 'play' && window.__fb.G.player, null, { timeout: 60000 }); await sleep(3000);
 const a = await A.evaluate(() => { const G = window.__fb.G; return { champs: G.champs.join(), my: G.champs[G.myTi], w: G.player && G.player.weapon }; });
 const b = await B.evaluate(() => { const G = window.__fb.G; return { champs: G.champs.join(), my: G.champs[G.myTi], ti: G.myTi, wpnHidden: document.getElementById('wpn').hidden }; });
-ok(a.my === 'legionary', `host plays the default champion (${a.my}, ${a.w})`);
+ok(a.my === 'titus', `host plays the default champion (${a.my}, ${a.w}; Titus since C3f)`);
 ok(a.champs.split(',').filter(c => c === 'tester').length >= 3, `bots play ?botchamp= (${a.champs})`);
 ok(a.champs === b.champs, `joined phone sees every army's champion as the host does`);
 ok(b.my === 'tester' && b.wpnHidden, `joined phone took a bot's seat: ${b.my}, weapon switch hidden ${b.wpnHidden}`);

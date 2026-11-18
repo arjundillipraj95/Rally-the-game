@@ -405,7 +405,10 @@ Last updated: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pag
   front 1 m; front blows turned, ults 30%, arrows nothing, no knock-about, a charge into the front stalls; drum beat
   and path in `render/testudofx.js`. Bots sound army ults from a full horn now (aiAbilities). Fixed: an unblockable
   blow went through a computer captain's guard at a quarter (melee). Drag aiming waits for S1-15.
-  r_C3e, r_C3e-join. Next: C3f Titus the default.
+  r_C3e, r_C3e-join.
+- C3f Titus the default (18 Nov): CHAMP def and bot = titus; the legionary by ?champ=legionary (r_C1d now asks for him),
+  a saved choice kept. r_C3f. C3 done on launch26; waiting for Arjun to play it and say ship.
+  Known: r_C1e's army-size check fails before and after C3 (sizes changed since C1e); r_C1c's bot check is flaky.
 - Arjun 17 Nov (for S1-12, designer to fold into the design doc): the lobby is 60 s and picks the champion with the lane: filter
   by class, then a picture grid like League or Unite. Today's design says 25 s and no grid.
 - Fixes 17 Nov (Arjun's list), on launch26: FIX1 lobby (not reproduced as reported; made robust: the service resends the

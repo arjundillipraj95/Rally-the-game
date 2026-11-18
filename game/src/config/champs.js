@@ -3,7 +3,7 @@
 // Re-exported by config.js.
 
 // (C1a) the champion you play when none is chosen; bots play `bot` (?botchamp= for tests).
-export const CHAMP = { def: 'legionary', bot: 'legionary' };
+export const CHAMP = { def: 'titus', bot: 'titus' }; // (C3f: Titus for you and the bots unless chosen otherwise; the legionary by ?champ=legionary)
 
 // (C1b) the shared level path, levels 1-10 from XP in the match. next[L-1]: XP from level L to L+1. unlock: the
 // level each slot opens at. grow: health and damage each level adds (5%: level 10 is +45%). Kept through death.

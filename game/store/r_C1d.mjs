@@ -4,7 +4,7 @@
 import { chromium } from 'playwright';
 import { open, frames } from './stage.mjs';
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
-const page = await open(browser, 640, 360, { q: '?crown2=1' });
+const page = await open(browser, 640, 360, { q: '?crown2=1&champ=legionary&botchamp=legionary' }); // (C3f: Titus is the default now; these rules were written on the legionary)
 page.on('pageerror', e => console.log('ERR', e.message));
 await page.click('#segMode button[data-v="crown"]'); await page.click('#goBtn'); await frames(page, 2);
 const out = await page.evaluate(async () => {
