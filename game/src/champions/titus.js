@@ -10,7 +10,14 @@ export default {
   mount: { kind: 'horse', hp: 200, spd: 11.2 }, // Roman battle horse: health, m/s riding
   recruits: ['foot', 'arch'], spearmen: true, // his footmen carry the spear from the start
   influence: null, // shield discipline: the designer decides
-  sp2: null, armyUlt: null,
+  armyUlt: null,
+  // Shield of Cassius (C3c, agreed 17 Nov): tap raises the scutum for up to `up` s, tap again drops it. Blocks all from
+  // a front arc of `arc` rad, for him and his side in a zone `zone` m behind (`rideZone` from the saddle), `zw` m to
+  // either side. He can't attack; moves at `pace`, turning `turn` rad/s toward where he walks (never round to walk
+  // backward). An ult breaks it and lands at `ultX`. Recharge `cd` s from when it drops.
+  sp2: { name: 'Shield of Cassius', short: 'Shield', cd: 10, up: 4, toggle: true, mounted: true, arc: 2 * Math.PI / 3, zone: 6, rideZone: 4, zw: 2.5, pace: .7, turn: 2.5, ultX: .3,
+    ai: (u, foe, fd, B) => (!!foe.leader && fd < 6 && u.hp < u.max * .75) || B.circle(u, u.x, u.z, 14).filter(o => o.kind === 'arch').length >= 4,
+    run(u, at, B) { B.raise(u, this); } },
   // Ram of Cassius (C3b, agreed 17 Nov): tap rushes the way he faces; a `wind` s wind-up, then `dist` m in `dur` s
   // (`rideDist` m from the saddle, still mounted), `w` m either side of his line. Soldiers: `soldier`, shoved aside at
   // `shove` m/s, stumbling `stumble` s. The first champion: `champ`, knocked back `kb` m, stunned `stun` s; into a

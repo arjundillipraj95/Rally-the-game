@@ -143,7 +143,7 @@ function leapSlam(p) {
 // The player captain's Attack: what it does depends on the weapon in hand and whether you're in the
 // air. Presses that land during a cooldown are buffered briefly instead of being dropped.
 export function captainAttack(p) {
-  if (p && (p.eagle || p.ram)) return; // (C3d, C3b: in his leap or his rush)
+  if (p && (p.eagle || p.ram || p.scutum)) return; // (C3d, C3b: in his leap or his rush; C3c: shield raised)
   const had = p && p.pending; captainAttack0(p);
   if (p && p.pending && p.pending !== had && p.pending.side != null && !p.pending.heavy) p.pending.t = Math.max(p.pending.t, DUEL_DIR.tell);
 }

@@ -40,7 +40,7 @@ function land(u, E) {
   const d = E.d, champ = d.champ * (1 + d.lvlUp * Math.max(0, levelOf(u.ti) - 7));
   for (const o of G.units) {
     if (o.dead || o === u || Math.hypot(o.x - E.x, o.z - E.z) > d.r + (o.r || 0)) continue;
-    if (isEnemy(u, o)) hit(u, o, 1, { fixed: o.leader ? champ : d.soldier, unblockable: true, unparryable: true, stun: o.leader ? .22 : d.down, kb: 1.3 });
+    if (isEnemy(u, o)) hit(u, o, 1, { fixed: o.leader ? champ : d.soldier, ult: true, unblockable: true, unparryable: true, stun: o.leader ? .22 : d.down, kb: 1.3 });
     else guard(o, d); // (his side's men and champions)
   }
   guard(u, d);

@@ -24,6 +24,7 @@ import { xpTick } from './levels.js';
 import { abilityTick } from './abilities.js';
 import { eagleStep } from './eagle.js';
 import { ramStep } from './ram.js';
+import { scutumTick, scutumPace } from './scutum.js';
 import { botFortify } from './ai26.js'; // (CASTLE9)
 import { thinkLeader } from './ai.js';
 import { aiPick, thinkSoldier } from './soldier.js';
@@ -327,11 +328,12 @@ export function update(dt, input) {
     if (u.dead) { fallStep(u, dt); continue; }
     if (u.chasmT > 0) { const Ch = FEEL.chasm; if (Ch.fall - u.chasmT > Ch.teeter) { u.x += u.dvx * dt; u.z += u.dvz * dt; u.vy -= Ch.g * dt; u.y += u.vy * dt; } continue; } // (F7: teetering at the rim, then the drop)
     if (u.flood && !u.remote) continue; // (F7a: the flood moves him, in c2Water)
+    if (u.scutum) scutumTick(u, dt); // (C3c: shield raised: its time and his facing)
     if (u.ram && ramStep(u, dt)) continue; // (C3b: his rush moves him)
     if (u.eagle && eagleStep(u, dt)) continue; // (C3d: his leap moves him; a joined phone's is flown there, landed here)
     if (u.remote) { u.y = groundY(u.x, u.z) + (u.jy || 0); continue; } // moved by their own phone
     if (u.rest) continue; // (F4: standing still at his spot)
-    integrate(u, u.slowT > 0 ? dt * PARRY.slow : dt, u.z);
+    integrate(u, (u.slowT > 0 ? dt * PARRY.slow : dt) * scutumPace(u), u.z); // (C3c: slower behind the shield)
   }
   G.units = G.units.filter(u => !(u.dead && u.deadT > FEEL.death.body && !(u.y > groundY(u.x, u.z) + .3))); // (F5: the fallen are taken away once they've lain and sunk, never out of the air)
 

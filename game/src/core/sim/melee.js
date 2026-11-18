@@ -1,5 +1,6 @@
 // Battle rules: who is near (grid), stamina, sword swings, clashes and the blow landing.
 import { takenX } from './eagle.js';
+import { shields, coverOf, dropScutum, blockedBy } from './scutum.js';
 import { STAMINA, DUEL_DIR, FEEL, NEUTRAL, CROWN, TEAMS, STATS, DIFF, CASTLE_REACH, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, EVADE, GUARD, MORALE, RALLY, CAPTAIN_COMBAT, STREAK, BASH, LAST, VCHARGE } from '../../config.js';
 import { COUNTER } from '../../config.js';
 import { G, isEnemy, isEnemyTi, colorOf, rules } from '../state.js';
@@ -205,6 +206,9 @@ export function hit(a, b, mult = 1, extra) {
     if (b.leader && a.leader && !b.evadedAt) { b.evadedAt = G.T; gainRally(b, EVADE.rally); fx('fxmsg', { k: 'fxevade', u: b, a }); }
     return;
   }
+  let shieldX = 1; // (C3c: the Shield of Cassius: blocked from its front, or an ult breaks it and lands at a share)
+  const S = shields.length ? coverOf(b, a.x, a.z) : null;
+  if (S) { if (!(extra && extra.ult)) { blockedBy(S, b, a); return; } shieldX = S.scutum.d.ultX; dropScutum(S, 'ult'); }
   // a riposte: the couple of blows after a parry land harder and can't be blocked
   if (a.ripN > 0 && a.riposteT > G.T) { a.ripN--; mult *= PARRY.riposteMult; extra = Object.assign({}, extra, { unblockable: true }); }
   let heavy = !!(extra && extra.heavy);
@@ -232,7 +236,7 @@ export function hit(a, b, mult = 1, extra) {
   if (!a.leader && G.teams[a.ti] && G.teams[a.ti].vcT > G.T) dmg *= VCHARGE.dmg; // (charging in behind a volley)
   if (G.mode === 'conquest' && G.teams[colorOf(a.ti)].breached && lastStand(a)) dmg *= LAST.dmg; // (backs to the wall)
   if (extra && extra.fixed != null) dmg = extra.fixed; // (C3d: an ult's set damage)
-  dmg *= takenX(b); // (C3d: Eagle's fall in the air, and shield-up after it)
+  dmg *= takenX(b) * shieldX; // (C3d: Eagle's fall in the air, and shield-up after it; C3c)
   b.lastHit = G.T;
   const spearedHorse = spearman(a) || (a.leader && a.weapon === 'spear');
   if (a.mounted && b.kind === 'arch') dmg *= COUNTER.mult; // (C1d the counter rule: cavalry on archers)

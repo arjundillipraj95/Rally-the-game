@@ -629,7 +629,7 @@ function pose(u, dt) {
       const rest = -.35 + armSw * (1 - a.ready) - .5 * a.ready + .03 * Math.sin(a.idle * 2.1 + 1);
       a.wArmX = near(a.wArmX, rest, Math.min(1, dt * 10)); a.wArmZ = near(a.wArmZ, 0, Math.min(1, dt * 10));
     }
-    blocking = ((u.human && u.blocking) || u.blockT > 0) && !u.mounted;
+    blocking = ((u.human && u.blocking) || u.blockT > 0 || !!u.scutumUp) && !u.mounted; // (C3c: the Shield of Cassius)
     const over = u.shieldwall && u.kind === 'foot';
     a.over = near(a.over, over ? 1 : 0, k8);
     const shieldRest = u.carrying ? -.1 : -.35 - armSw * (1 - a.ready) - .45 * a.ready;

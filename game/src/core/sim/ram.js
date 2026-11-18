@@ -11,6 +11,7 @@ import { levelOf } from '../../champions/stats.js';
 import { hit } from './melee.js';
 import { integrate } from './move.js';
 import { braced, horseDamage, push } from './army.js';
+import { shields, coverOf, blockedBy } from './scutum.js';
 import { fx, sound } from './util.js';
 
 const fmt = (...v) => v.map(n => n.toFixed(2)).join(',');
@@ -56,6 +57,8 @@ function contacts(u, R) {
   for (const o of G.units) {
     if (o.dead || R.hit.has(o.id) || !isEnemy(u, o)) continue;
     const s = ahead(o, .4); if (s == null) continue;
+    const S = shields.length ? coverOf(o, R.x, R.z) : null;
+    if (S) { blockedBy(S, o, u); R.hit.add(o.id); if (o.leader || o === S) return true; continue; } // (C3c: a raised scutum stops it)
     if (o.leader) { champ(u, o, R, k); return true; }
     if (o.kind === 'foot' && braced(o) && faces(o)) { // a braced spear line: it stops here, and lands on the front of it
       for (const f of G.units) if (!f.dead && isEnemy(u, f) && f.kind === 'foot' && braced(f) && faces(f) && ahead(f, 1.2) != null) {

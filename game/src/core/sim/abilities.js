@@ -10,6 +10,7 @@ import { levelOf } from '../../champions/stats.js';
 import * as B from '../../champions/blocks.js';
 import { dismount } from './army.js';
 import { say } from './util.js';
+import { dropScutum } from './scutum.js';
 
 export const SLOTS = ['sp1', 'sp2', 'ult', 'armyUlt'];
 export const slotDef = (ti, slot) => champOf(ti)[slot] || null;
@@ -19,7 +20,7 @@ export const unlocked = (ti, slot) => levelOf(ti) >= LEVELS.unlock[slot];
 // why a slot can't fire now ('' when it can): none, level, cd, down, busy
 export function blocked(ti, slot) {
   const d = slotDef(ti, slot), s = G.teams[ti], u = s && s.leader;
-  if (!d) return 'none'; if (!unlocked(ti, slot)) return 'level'; if (slot !== 'armyUlt' && cdLeft(ti, slot) > 0) return 'cd';
+  if (!d) return 'none'; if (!unlocked(ti, slot)) return 'level'; { const v = u || (ti === G.myTi ? G.player : null); if (d.toggle && v && v.scutum && !v.dead) return ''; } if (slot !== 'armyUlt' && cdLeft(ti, slot) > 0) return 'cd'; // (C3c: tap again drops it)
   if (!u || u.dead) return 'down';
   if (u.eagle || u.ram || u.stun > 0 || u.carrying || u.duelId || u.execT > 0 || u.execV || u.flood || (u.mounted && d.needFoot)) return 'busy';
   return '';
@@ -28,11 +29,13 @@ export function blocked(ti, slot) {
 export function useAbility(ti, slot, aim) {
   if (G.role === 'client' || blocked(ti, slot)) return false;
   const d = slotDef(ti, slot), u = G.teams[ti].leader;
+  if (d.toggle && u.scutum) { dropScutum(u, 'tap'); return true; } // (C3c: tapped again)
+  if (u.scutum) dropScutum(u, 'other'); // (another ability: the shield comes down first)
   if (u.mounted && !d.mounted) dismount(u, false);
   const at = aim && Number.isFinite(aim.x) ? aim : B.aimOf(u, d);
   u.face = Math.atan2(at.x - u.x, at.z - u.z);
   d.run(u, at, B);
-  if (slot !== 'armyUlt') cds(ti)[slot] = d.cd || 0;
+  if (slot !== 'armyUlt') cds(ti)[slot] = (d.cd || 0) + (d.toggle ? d.up || 0 : 0); // (C3c: a raised shield's recharge counts from when it drops)
   u.atkT = G.T; // (MAP5: seen once he strikes)
   say('ability', ti, SLOTS.indexOf(slot)); // (every phone: its sound and name)
   return true;

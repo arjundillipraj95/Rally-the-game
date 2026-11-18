@@ -394,7 +394,12 @@ Last updated: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pag
   the saddle still mounted; soldiers 20, shoved aside, stumble 0.3 s; first champion 35, back 2 m, stun 0.5 s, into a
   wall/gate/rock 70 and 1 s; walls stop it; a braced spear line stops it and takes it, the horse takes their blows x1.2;
   +5%/level from 3; 6 s), path drawn in `render/ramfx.js`, clip shieldBash. hit() records `b.hurt` (last blow, for tests).
-  r_C3b, r_C3b-join. Next: C3c, C3e, C3f.
+  r_C3b, r_C3b-join.
+- C3c Shield of Cassius built (18 Nov): `core/sim/scutum.js` (up to 4 s, tap again drops; 120 deg front blocks blows,
+  arrows, specials, castle shots for him and his side 6 m behind (4 m mounted); no attacking, 70% pace, faces front
+  backing off; an ult breaks it, lands at 30%; recharge 10 s from the drop), his men on Follow shelter in the zone
+  (soldier.js shelter), `render/scutumfx.js` draws the zone. Ults mark their blows `ult`. Button shows 14 s while up.
+  r_C3c, r_C3c-join. Next: C3e Testudo march, C3f.
 - Arjun 17 Nov (for S1-12, designer to fold into the design doc): the lobby is 60 s and picks the champion with the lane: filter
   by class, then a picture grid like League or Unite. Today's design says 25 s and no grid.
 - Fixes 17 Nov (Arjun's list), on launch26: FIX1 lobby (not reproduced as reported; made robust: the service resends the

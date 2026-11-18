@@ -427,7 +427,7 @@ export function drawHero(u, a, dt) {
   const R = h.R, sp = u.execA && !h.U && (h.exT || 0) < EXEC.slide ? ANIM.loco.runAbove * 1.3 : Math.hypot(u.vx || 0, u.vz || 0), mv = Math.min(1, sp / 4); // (F7: the executioner's two steps)
   h.run += dt * sp / (2.0 * h.sc * 1.5); // (the stride keeps time with the ground: one stride (two steps) per 2 m at his size, so his feet don't skate)
   if (u.dead) return drawFallen(u, a, h, dt);
-  const blocking = (u.human && u.blocking) || u.blockT > 0, hurt = u.hp < h.hp - ANIM.impact.minDmg;
+  const blocking = (u.human && u.blocking) || u.blockT > 0 || !!u.scutumUp, hurt = u.hp < h.hp - ANIM.impact.minDmg;
   if (blocking && u.hp < h.hp - .5) h.blockHitT = G.T; // (a blow taken on the shield: it jolts)
   h.hp = u.hp;
   let { P, rate, roll, tag } = pickPose(u, a, h, dt, sp, mv, blocking);

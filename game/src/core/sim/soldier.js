@@ -18,6 +18,16 @@ function slotPos(anchor, front, idx, isArch, meleeN) {
   const f = anchor.face, fx = Math.sin(f), fz = Math.cos(f), rx = Math.cos(f), rz = -Math.sin(f);
   return [anchor.x - fx * back + rx * lat, anchor.z - fz * back + rz * lat];
 }
+// (C3c) behind a raised Shield of Cassius: four across in the zone behind him, facing his way; archers shoot from there,
+// footmen strike what reaches them
+function shelter(u, L, dt, range) {
+  const S = L.scutum, f = S.face, i = u.slot || 0, row = Math.floor(i / 4), lat = (i % 4 - 1.5) * 1.1, back = 1.3 + row * 1.1, fx = Math.sin(f), fz = Math.cos(f);
+  const gx = L.x - fx * back + fz * lat, gz = L.z - fz * back - fx * lat, foe = u.foe, fd = u.fd;
+  const d = go(u, gx, gz, speedOf(u) * 1.15, dt, .2);
+  if (u.kind === 'arch' && foe && fd <= range && d < 1.5) { u.aim = true; faceTo(u, foe.x, foe.z, dt, 8); if (u.shootCd <= 0 && u.stun <= 0 && Math.abs(angDiff(u.face, Math.atan2(foe.x - u.x, foe.z - u.z))) < .3) { shoot(u, foe); u.shootCd = u.shootBase * rnd(.85, 1.2); } return; }
+  if (foe && fd < u.r + foe.r + u.reach) { faceTo(u, foe.x, foe.z, dt); startSwing(u, foe); return; }
+  if (d < 1) u.face = turn(u.face, f, dt * 6);
+}
 // A held line: footmen shoulder to shoulder across the spot, seven to a rank, archers two paces behind.
 export const HOLD_W = 7;
 export function holdPos(a, idx, isArch, meleeN, archN = HOLD_W) {
@@ -93,6 +103,7 @@ export function thinkSoldier(u, dt) {
     if (rider) { moveToward(u, u.x, u.z, 0, dt); faceTo(u, rider.x, rider.z, dt, 10); if (rd < u.r + rider.r + u.reach) startSwing(u, rider); u.holding = myOrder === 'hold'; return; }
   }
   if (myOrder === 'hold' && s.holdPt) { holdPlace(u, s.holdPt, dt, range); return; }
+  if (myOrder === 'follow' && leaderUp && L.scutum) { shelter(u, L, dt, range); return; } // (C3c: in behind his raised scutum)
   const engage = myOrder === 'charge' || myOrder === 'focus' ? 45 : u.kind === 'arch' ? range : myOrder === 'hold' ? 8 : 10;
   // a duel between captains: leave it to them. Pick another man, or stand back and watch.
   if (u.foe && u.foe.duel && u.kind !== 'arch') {
