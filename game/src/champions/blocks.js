@@ -4,6 +4,7 @@ import { G, isEnemy } from '../core/state.js';
 import { hit } from '../core/sim/melee.js';
 import { push } from '../core/sim/army.js';
 import { throwJavelin } from '../core/sim/missiles.js';
+import { startEagle } from '../core/sim/eagle.js';
 
 const foes = (u, keep) => G.units.filter(o => !o.dead && !o.rest && isEnemy(o, u) && !(o.fog && o.bush >= 0) && keep(o));
 // where a tap aims: the nearest enemy champion in range, else the nearest enemy, else straight ahead
@@ -33,3 +34,5 @@ export const buff = (u, key, t) => { (u.fxT || (u.fxT = {}))[key] = G.T + t; };
 export const buffOn = (u, key) => !!(u && u.fxT && u.fxT[key] > G.T);
 // his own soldiers within r of him
 export const ownMen = (u, r) => G.units.filter(o => !o.dead && o.ti === u.ti && !o.leader && Math.hypot(o.x - u.x, o.z - u.z) < r);
+// a leap onto a spot: Eagle's fall (core/sim/eagle.js), the page's ult its numbers
+export const leap = (u, at, d) => startEagle(u, at, d);

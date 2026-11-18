@@ -154,6 +154,7 @@ export function buyUpgrade(ti, id) {
 export const orderOf = ti => { const s = G.teams[ti], L = s.leader, up = L && !L.dead; return s.human ? (s.order || 'follow') : s.shieldwallT > 0 && up ? 'shieldwall' : s.aiHold && s.holdPt && up ? 'hold' : up ? 'follow' : 'charge'; };
 export function canRespawn(ti) { const s = G.teams[ti]; return G.warmup ? true : G.mode === 'crown' ? true : G.mode === 'conquest' ? G.teams[colorOf(ti)].alive : G.mode === 'dm' ? s.tickets > 0 : true; }
 export function push(u, vx, vz, stun) {
+  if (u.eagle) return; // (C3d: nothing moves him off his leap)
   if (u.remote) { u.kick.vx += vx; u.kick.vz += vz; u.kick.st = Math.max(u.kick.st, stun || 0); u.kick.dirty = true; }
   else { u.vx += vx; u.vz += vz; }
   if (stun) u.stun = Math.max(u.stun, stun);

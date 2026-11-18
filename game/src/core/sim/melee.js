@@ -1,4 +1,5 @@
 // Battle rules: who is near (grid), stamina, sword swings, clashes and the blow landing.
+import { takenX } from './eagle.js';
 import { STAMINA, DUEL_DIR, FEEL, NEUTRAL, CROWN, TEAMS, STATS, DIFF, CASTLE_REACH, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, EVADE, GUARD, MORALE, RALLY, CAPTAIN_COMBAT, STREAK, BASH, LAST, VCHARGE } from '../../config.js';
 import { COUNTER } from '../../config.js';
 import { G, isEnemy, isEnemyTi, colorOf, rules } from '../state.js';
@@ -208,7 +209,7 @@ export function hit(a, b, mult = 1, extra) {
   if (a.ripN > 0 && a.riposteT > G.T) { a.ripN--; mult *= PARRY.riposteMult; extra = Object.assign({}, extra, { unblockable: true }); }
   let heavy = !!(extra && extra.heavy);
   // a captain's blow from behind: harder, and he reels (enemy captains too: circle him)
-  const back = a.leader && !a.mounted && behind(b, a);
+  const back = a.leader && !a.mounted && behind(b, a) && !(extra && extra.fixed != null); // (C3d: a set amount, wherever it comes from)
   if (back) { mult *= BACKSTAB.mult; extra = Object.assign({}, extra, { stun: Math.max((extra && extra.stun) || 0, BACKSTAB.stun), unparryable: true }); if (a.human || b.human) fx('fxmsg', { k: 'fxback', u: b, a }); }
   // a captain's Block tapped just before the blow lands turns it aside
   if (a.isMe && G.capStats) G.capStats.blows++;
@@ -230,6 +231,8 @@ export function hit(a, b, mult = 1, extra) {
   dmg *= inflDmg(a) * inflTaken(b, Math.abs(angDiff(b.face, Math.atan2(a.x - b.x, a.z - b.z))) < 1.1); // (C1e: the champions' influence)
   if (!a.leader && G.teams[a.ti] && G.teams[a.ti].vcT > G.T) dmg *= VCHARGE.dmg; // (charging in behind a volley)
   if (G.mode === 'conquest' && G.teams[colorOf(a.ti)].breached && lastStand(a)) dmg *= LAST.dmg; // (backs to the wall)
+  if (extra && extra.fixed != null) dmg = extra.fixed; // (C3d: an ult's set damage)
+  dmg *= takenX(b); // (C3d: Eagle's fall in the air, and shield-up after it)
   b.lastHit = G.T;
   const spearedHorse = spearman(a) || (a.leader && a.weapon === 'spear');
   if (a.mounted && b.kind === 'arch') dmg *= COUNTER.mult; // (C1d the counter rule: cavalry on archers)

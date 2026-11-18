@@ -1,4 +1,5 @@
 // Battle rules: arrows, javelins and volleys.
+import { takenX } from './eagle.js';
 import { FEEL, NEUTRAL, TEAMS, STATS, JAVELIN, VOLLEY, RALLY, VCHARGE } from '../../config.js';
 import { COUNTER } from '../../config.js';
 import { G, isEnemyTi, colorOf } from '../state.js';
@@ -70,6 +71,7 @@ function arrowHit(a, b) {
   if (blocked) { spark(b.x, b.y + 1.3, b.z, '#e8d9b0', 4); sound('thud', b.x, b.z); b.blockT = Math.max(b.blockT, .2); return; }
   if (b.leader && b.armour > 0) dmg = soak(b, dmg, false);
   champHit(a.shooter, b); // (CASTLE3: turret aggro)
+  dmg *= takenX(b); // (C3d)
   b.hp -= dmg; spark(b.x, b.y + 1.3, b.z, b.neutral ? NEUTRAL.css : TEAMS[colorOf(b.ti)].css, 4); sound('hit', b.x, b.z);
   push(b, 0, 0, .12);
   if (b.isMe) { fx('shake', FEEL.hurt.arrowShake); fx('buzz', FEEL.hurt.arrowBuzz); }

@@ -27,6 +27,7 @@ import { freshGates } from '../core/sim/forts.js';
 import { applyChamp, champHp, champReach, paceOf } from '../champions/stats.js';
 import { unitRow } from '../champions/army.js';
 import { SLOTS, useAbility } from '../core/sim/abilities.js';
+import { eagleStep, flyEagle } from '../core/sim/eagle.js';
 
 export const C = {}; // client-side state
 if (import.meta.env.DEV) window.__netC = C; // dev-only: lets tests watch the client's snapshots
@@ -172,7 +173,7 @@ export function netHostReadInputs() {
     const last = NET.inp[ti] || (NET.inp[ti] = { atk: 0, chg: 0, ride: 0, vly: 0, par: 0, ahN: 0, hold: '', rec: [0, 0, 0], ab: [0, 0, 0], up: UPGRADES.map(() => 0) }); // (one count per upgrade: a short list once lost the Horse)
     if (L && !L.dead && Array.isArray(pr.cap) && pr.cap[0] === L.id) {
       L.x = +pr.cap[1]; L.z = +pr.cap[2]; L.face = +pr.cap[3]; L.vx = +pr.cap[4]; L.vz = +pr.cap[5];
-      L.blocking = !!pr.blk; L.stickSide = (pr.gs | 0) || 0; // (in a duel: which way their stick points, for their guard and their blow) L.jy = Math.max(0, +pr.cap[6] || 0); L.ahHeld = !!pr.ah;
+      L.blocking = !!pr.blk; L.stickSide = (pr.gs | 0) || 0; L.jy = Math.max(0, +pr.cap[6] || 0); L.ahHeld = !!pr.ah; // (stickSide, in a duel: which way their stick points, for their guard and their blow) (C3d: jy and ahHeld were lost behind that comment)
       const w = WEAPONS[pr.cap[7] | 0]; if (w && L.weapon !== w && champOf(ti).weapons.includes(w)) { L.weapon = w; s.weapon = w; }
     }
     if (typeof pr.par === 'number' && pr.par > last.par) { if (L && !L.dead) blockPress(L); last.par = pr.par; } // Block pressed: a parry window
@@ -420,7 +421,7 @@ function clientApply(hp) {
   }
   for (const m of (hp.m || [])) if (m[0] > C.lastMsgN) {
     C.lastMsgN = m[0];
-    if (typeof m[1] === 'string' && m[1].startsWith('fx')) { const u = G.units.find(x => x.id === m[2]), a = G.units.find(x => x.id === m[4]); if (u) bus.emit('fxmsg', { k: m[1], u, a, heavy: !!m[3], byAI: !!m[5], q: m[6], fromNet: true }); }
+    if (typeof m[1] === 'string' && m[1].startsWith('fx')) { const u = G.units.find(x => x.id === m[2]), a = G.units.find(x => x.id === m[4]); if (u && m[1] === 'fxeagle' && u === G.player) flyEagle(u, m[6], champOf(u.ti).ult); if (u) bus.emit('fxmsg', { k: m[1], u, a, heavy: !!m[3], byAI: !!m[5], q: m[6], fromNet: true }); }
     else { showMsg(m[1], m.slice(2)); bus.emit('msgIn', { k: m[1], a: m.slice(2) }); } // (CASTLE10: the castle moments on joined phones too, render/castlefx.js)
   }
 }
@@ -462,7 +463,8 @@ export function clientTick(dt) {
     const mv = import.meta.env.DEV && window.__moveOverride ? window.__moveOverride() : readMove(dt);
     for (const u of G.units) if (u.slowT > 0) u.slowT -= dt; // (a parry's slow beat, for the two men in it)
     const mdt = me.slowT > 0 ? dt * PARRY.slow : dt;
-    if (me.marchT > 0 && !(mv.mag > .3) && !mv.attackHeld && !mv.block) { if (!G.introOn) marchStep(me, mdt); } // (F7: stepping out, once the opening is over)
+    if (me.eagle) eagleStep(me, dt); // (C3d: his Eagle's fall, flown here as the host lands it)
+    else if (me.marchT > 0 && !(mv.mag > .3) && !mv.attackHeld && !mv.block) { if (!G.introOn) marchStep(me, mdt); } // (F7: stepping out, once the opening is over)
     else { me.marchT = 0; driveCaptain(me, mv, mdt); }
     if (mv.block && !C.blkPrev && !me.mounted) { C.inp.par++; C.sendNow = true; C.blkAt = performance.now(); } C.blkPrev = !!mv.block; // (a Block press: the host opens a parry window)
     // holding Attack: shown here at once (sword raised, spear planted, javelin drawn); the host acts on the release
@@ -492,7 +494,7 @@ export function clientTick(dt) {
         t.predHitAt = performance.now();
       }
     }
-    if (C.atkBuf > 0 && C.localCd <= 0 && !me.mounted) actions.attack();
+    if (C.atkBuf > 0 && C.localCd <= 0 && !me.mounted && !me.eagle) actions.attack();
   }
   const k = Math.min(1, dt * 15);
   // (P0.7) everyone else is drawn a moment in the past: two snapshot gaps plus however late snapshots are running

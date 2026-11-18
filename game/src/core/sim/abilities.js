@@ -21,7 +21,7 @@ export function blocked(ti, slot) {
   const d = slotDef(ti, slot), s = G.teams[ti], u = s && s.leader;
   if (!d) return 'none'; if (!unlocked(ti, slot)) return 'level'; if (slot !== 'armyUlt' && cdLeft(ti, slot) > 0) return 'cd';
   if (!u || u.dead) return 'down';
-  if (u.stun > 0 || u.carrying || u.duelId || u.execT > 0 || u.execV || u.flood || (u.mounted && d.needFoot)) return 'busy';
+  if (u.eagle || u.stun > 0 || u.carrying || u.duelId || u.execT > 0 || u.execV || u.flood || (u.mounted && d.needFoot)) return 'busy';
   return '';
 }
 // fire a slot (host and solo): aim is { x, z } on the ground, or none (his facing / the nearest foe in range)
@@ -50,7 +50,7 @@ export function aiAbilities(u, foe, fd) {
   for (const slot of ['ult', 'sp2', 'sp1']) {
     if (blocked(u.ti, slot)) continue;
     const d = slotDef(u.ti, slot), want = d.ai ? d.ai(u, foe, fd, B) : foe.leader ? fd < (d.range || 6) : B.circle(u, u.x, u.z, d.range || 6).length >= 3;
-    if (want && Math.random() < .5 && useAbility(u.ti, slot, { x: foe.x, z: foe.z })) return true;
+    if (want && Math.random() < .5 && useAbility(u.ti, slot, want.x != null ? want : { x: foe.x, z: foe.z })) return true; // (a page's ai may name its own aim: { x, z })
   }
   return false;
 }

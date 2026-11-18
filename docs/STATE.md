@@ -384,7 +384,12 @@ Last updated: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pag
   gladius, war horse (`warhorse.js`, re-pivoted legs), new spearman and archer bodies for everyone's soldiers (near ~6k tris,
   far 800-tri figures). Scripts in `tools/models/titus/` (build_body.py <captain> <mesh> <out.blend> [soldier|archer]).
   Open: soldier tier looks on the new bodies (upgrades don't show yet); neutral soldiers now grey new bodies (Arjun to confirm).
-  Next: C3d Eagle's fall (animation first), then C3b, C3c, C3e, C3f.
+- C3d Eagle's fall built (17 Nov, Arjun's go): `core/sim/eagle.js` (leap onto the spot marked at the jump, 0.2 s crouch,
+  0.8 s arc 3 m high, slam at 1 s; 100 to champions +5%/level from 7, 40 to soldiers down 1 s, allies 20% less for 4 s,
+  half damage in the air, nothing stops it; 60 s), `render/eaglefx.js` (gold circle, eagle shadow, dust ring), numbers on
+  Titus's page. Clip: today's leapSmash (sword-first) until a shield-first one. A joined phone flies its own arc.
+  Fixed on the way: a joined phone's jump height and held attack never reached the host (lost behind a comment, netgame).
+  r_C3d, r_C3d-join. Next: C3b, C3c, C3e, C3f.
 - Arjun 17 Nov (for S1-12, designer to fold into the design doc): the lobby is 60 s and picks the champion with the lane: filter
   by class, then a picture grid like League or Unite. Today's design says 25 s and no grid.
 - Fixes 17 Nov (Arjun's list), on launch26: FIX1 lobby (not reproduced as reported; made robust: the service resends the
