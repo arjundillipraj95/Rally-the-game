@@ -21,6 +21,7 @@ import { aimShaft } from './rig/shaft.js';
 import { spearman } from '../champions/army.js';
 import { champOf } from '../champions/index.js';
 import { warHorse, cloneHorse } from './warhorse.js';
+import { tierLook } from './rig/tierlook.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 // the war horse's legs (render/warhorse.js hangs each leg's bones from pivots by these names)
@@ -90,7 +91,7 @@ function make(u) {
   const cl = !soldier && champOf(u.ti).look, shieldRaw = cl && cl.shield ? SRC.champShields[cl.shield] || null : null, swordRaw = cl && cl.sword ? SRC.champShields[cl.sword] || null : null; // (C3: his own shield and sword)
   const own = clipsOn && cl && cl.model ? SRC.models[cl.model] : null; // (C3: his own body, helmet and cloak in it)
   const sp = u.kind === 'foot' && SRC.models.spearman, ab = u.kind === 'arch' && SRC.models.archer; // (C3: the soldiers' new bodies, on the shared skeleton and clips)
-  const R = sp ? rigClip(SRC.models.spearman, { team, weapon, pack: { shield, noHelmet: true, small: true } })
+  const R = sp ? rigClip(SRC.models.spearman, { team, weapon, pack: { shield, noHelmet: true, small: true, cape: (u.tier | 0) >= 2 ? 2 : 0 } }) // (C3h: the Triarius's short cloak)
     : ab ? rigClip(SRC.models.archer, { team, weapon, pack: { noShield: true, noHelmet: true } }) // (his quiver and helmet are in his body)
     : soldier ? rigCaptain(SRC.soldier, { body: 'soldier', team, weapon, pack: u.kind === 'arch' ? { noShield: true } : { shield } })
     : own ? rigClip(own, { team, weapon, pack: { shield, shieldRaw, swordRaw, noHelmet: true } })
@@ -98,6 +99,7 @@ function make(u) {
   if (!soldier && !own) { const a = SRC.armours[armourFile(L ? pick('armour', L[SLOT_IX.armour]) : '')]; (R.clip ? addClipArmour : addArmour)(R, a.geo, a.mat); }
   else if (!sp && !ab && ((u.kind === 'foot' && u.tier >= 2) || u.neutral)) { const a = SRC.armours[armourFile(L ? pick('armour', L[SLOT_IX.armour]) : '')]; addArmour(R, a.geo, a.mat); } // (the Armour upgrade: your army's armour over the tunic; the mountain's neutral soldiers always wear the steel, M1)
   if (u.kind === 'arch' && !ab) archerGear(R, team, u.tier | 0);
+  if (sp || ab) tierLook(R, u.kind, u.tier | 0); // (C3h: an upgraded soldier's colours and clothes)
   R.root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
   const sc = soldier ? SCALE * SOLDIER_SCALE : SCALE;
   R.root.scale.setScalar(sc);
