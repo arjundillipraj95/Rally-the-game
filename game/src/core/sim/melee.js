@@ -1,6 +1,7 @@
 // Battle rules: who is near (grid), stamina, sword swings, clashes and the blow landing.
 import { takenX } from './eagle.js';
 import { shields, coverOf, dropScutum, blockedBy } from './scutum.js';
+import { testudoX } from './testudo.js';
 import { STAMINA, DUEL_DIR, FEEL, NEUTRAL, CROWN, TEAMS, STATS, DIFF, CASTLE_REACH, HOLD, PARRY, HEAVY, SHIELD, BACKSTAB, EXEC, EVADE, GUARD, MORALE, RALLY, CAPTAIN_COMBAT, STREAK, BASH, LAST, VCHARGE } from '../../config.js';
 import { COUNTER } from '../../config.js';
 import { G, isEnemy, isEnemyTi, colorOf, rules } from '../state.js';
@@ -209,6 +210,7 @@ export function hit(a, b, mult = 1, extra) {
   let shieldX = 1; // (C3c: the Shield of Cassius: blocked from its front, or an ult breaks it and lands at a share)
   const S = shields.length ? coverOf(b, a.x, a.z) : null;
   if (S) { if (!(extra && extra.ult)) { blockedBy(S, b, a); return; } shieldX = S.scutum.d.ultX; dropScutum(S, 'ult'); }
+  if (b.testudo) { const tx = testudoX(b, a.x, a.z, extra && extra.ult); if (!tx) { blockedBy(null, b, a); return; } shieldX *= tx; } // (C3e: the testudo's front)
   // a riposte: the couple of blows after a parry land harder and can't be blocked
   if (a.ripN > 0 && a.riposteT > G.T) { a.ripN--; mult *= PARRY.riposteMult; extra = Object.assign({}, extra, { unblockable: true }); }
   let heavy = !!(extra && extra.heavy);
@@ -244,7 +246,7 @@ export function hit(a, b, mult = 1, extra) {
   let kb = (a.leader ? (a.mounted ? 10 : 8) : 5) * (extra && extra.kb || 1) * (!a.leader && G.teams[a.ti] && G.teams[a.ti].vcT > G.T ? VCHARGE.kb : 1);
   const frontal = Math.abs(angDiff(b.face, Math.atan2(a.x - b.x, a.z - b.z))) < 1.1;
   const held = frontal && b.holding && !b.human; // a footman standing his place in a held line
-  let blocked = onGuard;
+  let blocked = onGuard && !(extra && extra.unblockable); // (C3b: an unblockable blow went through a computer captain's guard at a quarter)
   if (frontal && b.stun <= 0 && !b.mounted && !b.carrying && !(extra && extra.unblockable)) {
     if (b.human) blocked = b.blocking && readOk;
     else if (a.leader && b.kind === 'foot') blocked = !!b.guardUp; // (against a captain: exactly when his shield is up)

@@ -17,7 +17,7 @@ const o = await page.evaluate(async () => {
   const ox = (wob.x - cw.x) / Math.hypot(wob.x - cw.x, wob.z - cw.z), oz = (wob.z - cw.z) / Math.hypot(wob.x - cw.x, wob.z - cw.z), out = v => [wob.x + ox * v, wob.z + oz * v], inward = Math.atan2(-ox, -oz);
   const base = () => { [p.x, p.z] = out(14); p.face = inward + Math.PI; };
   L.gainXp(me, 420, 't'); r.lvl = G.teams[me].lvl; const k = 1 + .05 * Math.max(0, r.lvl - 3); r.k = k;
-  const ready = () => { for (let i = 0; i < 120 && (p.duelId || p.execT > 0 || p.ram || p.eagle); i++) F.step(1); base(); p.hp = p.max; G.teams[me].cds.sp1 = 0; p.stun = 0; p.iframeT = 0; p.marchT = 0; p.shieldT = 0; p.armour = 0; p.vx = p.vz = 0; };
+  const ready = () => { for (let i = 0; i < 120 && (p.duelId || p.execT > 0 || p.ram || p.eagle); i++) F.step(1); base(); p.hp = p.max; p.cd = 9; p.atkBuf = 0; G.teams[me].cds.sp1 = 0; p.stun = 0; p.iframeT = 0; p.marchT = 0; p.shieldT = 0; p.armour = 0; p.vx = p.vz = 0; };
   const keep = []; const hold = () => { for (const [u, x, z] of keep) { u.x = x; u.z = z; u.vx = u.vz = 0; } };
   const watch = (us, n, each) => { const h = us.map(u => ({ hp: u.hp, x: u.x, z: u.z, first: null })); for (let i = 0; i < n; i++) { F.step(1); if (each) each(); us.forEach((u, j) => { const w = h[j]; if (w.first == null && u.hp < w.hp - .01) w.first = { dmg: +(w.hp - u.hp).toFixed(1), stun: +u.stun.toFixed(2), dx: u.x - w.x, dz: u.z - w.z }; w.hp = u.hp; w.x = u.x; w.z = u.z; }); } return h.map(w => w.first || { dmg: 0, stun: 0, dx: 0, dz: 0 }); };
   const at = (d, s = 0) => [p.x + Math.sin(p.face) * d + Math.cos(p.face) * s, p.z + Math.cos(p.face) * d - Math.sin(p.face) * s];
@@ -36,7 +36,7 @@ const o = await page.evaluate(async () => {
   for (const u of archers) { u.dead = true; u.hp = 0; }
   // 2. the enemy champion 3 m ahead: 35, knocked back 2 m, stunned, the rush ends on her
   F.step(30 * 7); stage(); ready(); [E.x, E.z] = at(3); E.face = p.face + Math.PI; const e0 = { hp: E.hp, x: E.x, z: E.z }, x1 = p.x, z1 = p.z, f1 = p.face;
-  E.hurt = null; F.ability(0); let ran = 0, first = null; const [g] = watch([E], 18, () => { if (!p.ram && !ran) ran = Math.hypot(p.x - x1, p.z - z1); if (!first && E.hurt && E.hurt.by === p.id) first = E.hurt; if (!first) E.iframeT = 0; });
+  E.hurt = null; F.ability(0); let ran = 0, first = null; const [g] = watch([E], 18, () => { if (!p.ram && !ran) ran = Math.hypot(p.x - x1, p.z - z1); if (!first && E.hurt && E.hurt.by === p.id && E.hurt.T === G.T && !p.ram) first = E.hurt; if (!first) E.iframeT = 0; p.cd = 9; });
   r.champ = { dmg: first ? +first.dmg.toFixed(1) : 0, back: +(g.dx * Math.sin(f1) + g.dz * Math.cos(f1)).toFixed(2), stun: g.stun, ran: +ran.toFixed(2) };
   // 3. a castle wall: stand her 1 m before it and him 3 m before her
   r.rock = true;

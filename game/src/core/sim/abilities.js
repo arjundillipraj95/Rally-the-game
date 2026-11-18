@@ -8,7 +8,7 @@ import { G } from '../state.js';
 import { champOf } from '../../champions/index.js';
 import { levelOf } from '../../champions/stats.js';
 import * as B from '../../champions/blocks.js';
-import { dismount } from './army.js';
+import { dismount, rallyCry } from './army.js';
 import { say } from './util.js';
 import { dropScutum } from './scutum.js';
 
@@ -50,6 +50,8 @@ export function abilityTick(dt) {
 // champion is within its range, or three enemies
 export function aiAbilities(u, foe, fd) {
   if (!foe || G.role === 'client') return false;
+  { const s = G.teams[u.ti], d = slotDef(u.ti, 'armyUlt'); // (C3e: his army ult from a full horn, when its page says so)
+    if (d && (s.rally || 0) >= 100 && unlocked(u.ti, 'armyUlt') && Math.random() < .3 && (!d.ai || d.ai(u, foe, fd, B)) && rallyCry(u.ti)) return true; }
   for (const slot of ['ult', 'sp2', 'sp1']) {
     if (blocked(u.ti, slot)) continue;
     const d = slotDef(u.ti, slot), want = d.ai ? d.ai(u, foe, fd, B) : foe.leader ? fd < (d.range || 6) : B.circle(u, u.x, u.z, d.range || 6).length >= 3;

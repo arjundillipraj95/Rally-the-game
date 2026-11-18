@@ -24,6 +24,7 @@ import { xpTick } from './levels.js';
 import { abilityTick } from './abilities.js';
 import { eagleStep } from './eagle.js';
 import { ramStep } from './ram.js';
+import { testudoStalls, testudoTick } from './testudo.js';
 import { scutumTick, scutumPace } from './scutum.js';
 import { botFortify } from './ai26.js'; // (CASTLE9)
 import { thinkLeader } from './ai.js';
@@ -101,6 +102,7 @@ export function update(dt, input) {
   execMark();
   staminaTick(dt);
   abilityTick(dt); // (C1c: the slots recharge)
+  testudoTick(dt); // (C3e: testudo blocks marching)
   xpTick(dt, underAttack); // (C1b: the trickle near a fight for a castle, or in the arena)
   // Duo battles can field twice the soldiers of a solo one; searching fewer new paths per frame
   // as the field gets crowded keeps worst-case frame cost bounded instead of growing with it.
@@ -260,6 +262,10 @@ export function update(dt, input) {
       const dx = o.x - r.x, dz = o.z - r.z; if (Math.abs(dx) > 4 || Math.abs(dz) > 4) continue;
       const d = Math.hypot(dx, dz);
       const toO = Math.atan2(dx, dz), ahead = Math.abs(angDiff(r.face, toO)) < 1.2, st = ahead && sp > 4 ? stance(o, r, onHold(o)) : 'bowl';
+      if (sp > 4 && d < o.r + r.r + 1.1 && testudoStalls(o, r)) { // (C3e: a charge into a testudo's front stalls)
+        r.charge = 0; if (r.remote) r.kick.halt = 1; push(r, -r.vx * .8, -r.vz * .8, .4); sound('clang', o.x, o.z);
+        fx('float', { x: o.x, y: o.y + 2.8, z: o.z, text: 'Testudo!', color: TEAMS[colorOf(o.ti)].css }); break;
+      }
       // F9 spearmen on Hold, still and facing him: any rider at speed is stopped on the spears and thrown
       if (st === 'stop' && d < o.r + r.r + 1.6) {
         r.charge = 0; if (r.remote) r.kick.halt = 1; horseDamage(r, CHARGE.stopHorse); push(r, -Math.sin(r.face) * 6, -Math.cos(r.face) * 6, .5); if (r.mounted) dismount(r, true);
@@ -330,7 +336,8 @@ export function update(dt, input) {
     if (u.flood && !u.remote) continue; // (F7a: the flood moves him, in c2Water)
     if (u.scutum) scutumTick(u, dt); // (C3c: shield raised: its time and his facing)
     if (u.ram && ramStep(u, dt)) continue; // (C3b: his rush moves him)
-    if (u.eagle && eagleStep(u, dt)) continue; // (C3d: his leap moves him; a joined phone's is flown there, landed here)
+    if (u.eagle && eagleStep(u, dt)) continue;
+    if (u.testudo) continue; // (C3e: the block places its men) // (C3d: his leap moves him; a joined phone's is flown there, landed here)
     if (u.remote) { u.y = groundY(u.x, u.z) + (u.jy || 0); continue; } // moved by their own phone
     if (u.rest) continue; // (F4: standing still at his spot)
     integrate(u, (u.slowT > 0 ? dt * PARRY.slow : dt) * scutumPace(u), u.z); // (C3c: slower behind the shield)

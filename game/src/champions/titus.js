@@ -10,7 +10,13 @@ export default {
   mount: { kind: 'horse', hp: 200, spd: 11.2 }, // Roman battle horse: health, m/s riding
   recruits: ['foot', 'arch'], spearmen: true, // his footmen carry the spear from the start
   influence: null, // shield discipline: the designer decides
-  armyUlt: null,
+  // Testudo march (C3e, agreed 17 Nov), from the full horn: his soldiers within `r` m lock shields in `form` s (heal
+  // `heal`), march `dist` m in `march` s the way he faces (`gap` m apart) and shout, shoving enemies within `shoutR` m
+  // of the front `shove` m. From a front of `arc` rad blows are turned (an ult lands at `ultX`); arrows do nothing.
+  armyUlt: { name: 'Testudo march', short: 'Testudo', aimFace: true, range: 10, r: 15, form: .6, march: 4, dist: 10, heal: .25, gap: .95,
+    arc: 2 * Math.PI / 3, ultX: .3, shove: 1, shoutR: 2,
+    ai: (u, foe, fd, B) => fd < 12 && B.ownMen(u, 15).length >= 4, // (a computer Titus: with his men round him and a fight close)
+    run(u, at, B) { B.testudo(u, at, this); } },
   // Shield of Cassius (C3c, agreed 17 Nov): tap raises the scutum for up to `up` s, tap again drops it. Blocks all from
   // a front arc of `arc` rad, for him and his side in a zone `zone` m behind (`rideZone` from the saddle), `zw` m to
   // either side. He can't attack; moves at `pace`, turning `turn` rad/s toward where he walks (never round to walk

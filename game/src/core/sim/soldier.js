@@ -70,6 +70,7 @@ function holdPlace(u, H, dt, range) {
   u.holding = u.kind === 'foot' && d < 1.6;
 }
 export function thinkSoldier(u, dt) {
+  if (u.testudo) return; // (C3e: locked in the testudo, the block moves him)
   if (u.windup > 0) { moveToward(u, u.x, u.z, 0, dt); return; }
   const s = G.teams[u.ti], L = s.leader, leaderUp = L && !L.dead;
   // a broken army runs for home, weapons forgotten

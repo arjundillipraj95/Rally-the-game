@@ -48,4 +48,5 @@ export function coverOf(b, ax, az) {
   return null;
 }
 // a blow or missile met by it: shown as Blocked, with a thud, on every phone
+// (S: the shield's holder, or none for the testudo)
 export function blockedBy(S, b, a) { fx('fxmsg', { k: 'fxblk', u: b, a: a && a.id != null ? a : null }); sound('thud', b.x, b.z); b.blockT = Math.max(b.blockT || 0, .2); }

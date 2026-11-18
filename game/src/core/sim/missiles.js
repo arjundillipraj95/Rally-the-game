@@ -62,6 +62,7 @@ function arrowHit(a, b) {
   if (b.shieldwall && frontal && !a.bolt && !a.turret && (b.kind === 'foot' || Math.random() < .6)) { spark(b.x, b.y + 2.2, b.z, '#e8d9b0', 4); sound('thud', b.x, b.z); return; }
   b.lastHit = G.T;
   if (a.unhorse && b.mounted) { horseDamage(b, dmg); if (b.mounted) dismount(b, true); gainRally(a.shooter, RALLY.unhorse); fx('fxmsg', { k: 'fxunhorse', u: b }); return; } // a full-draw javelin knocks a rider clean off
+  if (b.testudo && !a.bolt) { blockedBy(null, b, a.shooter); return; } // (C3e: arrows do nothing on the testudo's roof)
   if (shields.length) { const S = coverOf(b, a.x0 ?? b.x - (a.vx || 0), a.z0 ?? b.z - (a.vz || 0)); if (S) { blockedBy(S, b, a.shooter); return; } } // (C3c: the Shield of Cassius stops it, castle shots too)
   if (!a.javelin && !a.turret && b.kind === 'foot') dmg *= COUNTER.mult; // (C1d the counter rule: arrows on infantry)
   if (b.mounted) { horseDamage(b, dmg); return; } // (C1d: a mounted champion's horse takes every arrow)

@@ -7,6 +7,7 @@ import { throwJavelin } from '../core/sim/missiles.js';
 import { startEagle } from '../core/sim/eagle.js';
 import { startRam } from '../core/sim/ram.js';
 import { raiseScutum } from '../core/sim/scutum.js';
+import { startTestudo } from '../core/sim/testudo.js';
 
 const foes = (u, keep) => G.units.filter(o => !o.dead && !o.rest && isEnemy(o, u) && !(o.fog && o.bush >= 0) && keep(o));
 // where a tap aims: the nearest enemy champion in range, else the nearest enemy, else straight ahead
@@ -44,3 +45,5 @@ export const ram = (u, at, d) => startRam(u, at, d);
 export const aimOf = (u, d) => d.aimFace ? { x: u.x + Math.sin(u.face) * (d.range || 5), z: u.z + Math.cos(u.face) * (d.range || 5) } : autoAim(u, d.range || 8);
 // a shield raised for a while: Shield of Cassius (core/sim/scutum.js)
 export const raise = (u, d) => raiseScutum(u, d);
+// an army's shields locked into a marching block: Testudo march (core/sim/testudo.js)
+export const testudo = (u, at, d) => startTestudo(u, at, d);

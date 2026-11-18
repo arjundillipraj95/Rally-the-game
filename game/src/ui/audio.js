@@ -298,6 +298,7 @@ function musicTick(dt, heat, enemiesNear, move = 0, hp = 1) {
 export function musicCue(kind) {
   if (!ac || !musicOn) return; const t = ac.currentTime + .03;
   switch (kind) {
+    case 'drum': mdrum(t, .8, .85); break; // (C3e: the testudo's war drum, one beat)
     case 'clash': mdrum(t, .9, .9); mhorn(N.D4, t, .6, .06); mhorn(N.A4, t, .6, .05); break;
     case 'routEnemy': mdrum(t, .7); mhorn(N.D4, t, .25); mhorn(N.A4, t + .25, .25); mhorn(N.D5, t + .5, 1.1); break;
     case 'routMine': mdrum(t, .6, .8); mhorn(N.A3, t, .45, .06); mhorn(N.F3, t + .45, .45, .06); mhorn(N.D3, t + .9, 1.3, .06); break;
