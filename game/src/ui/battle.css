@@ -85,3 +85,11 @@ body.bs #feed{top:56px;}
 body.bs .sbar .tray.up{display:flex;flex-wrap:wrap;width:max-content;left:50%;right:auto;transform:translateX(-50%);grid-template-columns:none;}
 body.bs .sbar .tray.up .ucol{display:flex;flex-direction:column;}
 body.bs .sbar .tray.up button{width:96px;}
+
+/* BS2 the minimap takes taps (a ping); the quick-chat wheel: the lines round a ring under the chat button */
+body.bs #mini{pointer-events:auto;cursor:crosshair;}
+body.bs #shoutTray{display:grid;grid-template-columns:repeat(2,auto);gap:5px;padding:8px;border-radius:16px;background:rgba(16,14,8,.5);border:1px solid #b68a2e;}
+body.bs #shoutTray[hidden]{display:none;}
+body.bs #shoutTray button{border-radius:999px;border:1px solid rgba(255,231,163,.55);background:rgba(16,14,8,.4);color:#fff;font:800 11px var(--body);padding:7px 10px;}
+body.bs #shoutTray button.ping{border-color:#ffd36e;color:#ffe7a3;}
+body.bs .pad .ab.locked .abI{display:none;}

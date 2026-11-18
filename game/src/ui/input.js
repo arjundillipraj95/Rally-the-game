@@ -9,7 +9,8 @@ import { floatText } from '../render/effects.js';
 import { aimStart, aimMove, aimEnd, aimCancel } from './volleyaim.js';
 import { holdStart, holdMove, holdEnd, holdCancel, hold as holdSt } from './holdaim.js';
 import * as AB from './abilaim.js';
-import { RALLY } from '../config.js';
+import { RALLY, PINGS } from '../config.js';
+import { miniToWorld } from './pings.js';
 
 const $ = id => document.getElementById(id);
 export const inp = { joy: { active: false, id: null, ox: 0, oy: 0, x: 0, y: 0 }, look: { id: null, lx: 0, ly: 0 }, keys: {}, attackHeld: false, blockHeld: false, trayIsOpen: false, upIsOpen: false };
@@ -191,7 +192,8 @@ export function bindInput(actions) {
   tapBtn($('recBtn'), () => trayOpen(!inp.trayIsOpen));
   const shoutOpen = on => { $('shoutTray').hidden = !on; $('shoutBtn').classList.toggle('open', on); };
   tapBtn($('shoutBtn'), () => shoutOpen($('shoutTray').hidden));
-  document.querySelectorAll('#shoutTray button').forEach(b => tapBtn(b, () => { A.shout(+b.dataset.s); shoutOpen(false); }));
+  document.querySelectorAll('#shoutTray button').forEach(b => tapBtn(b, () => { const n = +b.dataset.s, p = G.player; A.shout(n, n >= PINGS.from && p ? (n === PINGS.from ? { x: p.x + Math.sin(p.face) * 8, z: p.z + Math.cos(p.face) * 8 } : { x: p.x, z: p.z }) : null); shoutOpen(false); })); // (BS2: a ping marks a place: ahead of you for Attack, where you stand for the rest)
+  $('mini').addEventListener('pointerdown', e => { if (!document.body.classList.contains('bs')) return; e.preventDefault(); e.stopPropagation(); const pt = miniToWorld(e); if (pt) A.shout(PINGS.from, pt); }); // (BS2: tap the minimap: Attack here!)
   document.querySelectorAll('#tray button').forEach(b => tapBtn(b, () => A.recruit(b.dataset.kind)));
   tapBtn($('upBtn'), () => upOpen(!inp.upIsOpen));
   document.querySelectorAll('#upTray button').forEach(b => tapBtn(b, () => A.upgrade(b.dataset.up)));

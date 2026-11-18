@@ -195,7 +195,7 @@ export function netHostReadInputs() {
       if (pr.ord === 'focus') setOrder(ti, 'focus', Array.isArray(pr.foc) ? { x: +pr.foc[0], z: +pr.foc[1], id: pr.foc[2] | 0 } : null);
     }
     if (typeof pr.rly === 'number' && pr.rly > (last.rly || 0)) { const q = Array.isArray(pr.abAt) && pr.abAt[3]; rallyCry(ti, q ? { x: +q[0], z: +q[1] } : null); last.rly = pr.rly; } // the rally horn
-    if (typeof pr.sh === 'number' && pr.sh > (last.sh || 0)) { last.sh = pr.sh; if (SHOUTS[pr.shK | 0]) bus.emit('msg', { k: 'callout', a: [ti, pr.shK | 0] }); } // a quick shout
+    if (typeof pr.sh === 'number' && pr.sh > (last.sh || 0)) { last.sh = pr.sh; if (SHOUTS[pr.shK | 0]) bus.emit('msg', { k: 'callout', a: Number.isFinite(pr.shX) ? [ti, pr.shK | 0, +pr.shX, +pr.shZ] : [ti, pr.shK | 0] }); } // a quick shout
     if (Array.isArray(pr.ab)) for (let k = 0; k < 3; k++) if ((pr.ab[k] | 0) > last.ab[k]) { last.ab[k] = pr.ab[k] | 0; useAbility(ti, SLOTS[k], Array.isArray(pr.abAt) && pr.abAt[k] ? { x: +pr.abAt[k][0], z: +pr.abAt[k][1] } : null); } // (C1c: a press of a special or the ult)
     if (Array.isArray(pr.rec)) for (let k = 0; k < 3; k++) while ((pr.rec[k] | 0) > last.rec[k]) { last.rec[k]++; recruit(ti, RECRUITS[k]); }
   }
@@ -535,7 +535,7 @@ export function clientTick(dt) {
   // send my captain and my buttons
   if ((performance.now() - C.sendAt > 66 || C.sendNow) && G.state === 'play') {
     C.sendAt = performance.now(); C.sendNow = false;
-    const pres = { role: 'player', gs: (G.player && G.player.stickSide) | 0, sh: C.inp.sh || 0, shK: C.inp.shK || 0, want: G.myTi, nick: session.myNick || 'Captain', ph: 'play', seed: G.seed, evN: C.inp.evN, evK: C.inp.evK, rly: C.inp.rly, rb: C.inp.rb, bsh: C.inp.bsh, dl: C.inp.dl, dlId: C.inp.dlId, foc: C.inp.foc, par: C.inp.par, ahN: C.inp.ahN, ahD: C.inp.ahD, ah: C.inp.ah, atk: C.inp.atk, ride: C.inp.ride, vly: C.inp.vly, vat: C.inp.vat, chg: C.inp.chg, ab: C.inp.ab, abAt: C.inp.abAt, rec: C.inp.rec, up: C.inp.up, ord: C.inp.ord, hold: C.inp.hold, face: C.inp.face, blk: inp.blockHeld ? 1 : 0 };
+    const pres = { role: 'player', gs: (G.player && G.player.stickSide) | 0, sh: C.inp.sh || 0, shK: C.inp.shK || 0, shX: C.inp.shX, shZ: C.inp.shZ, want: G.myTi, nick: session.myNick || 'Captain', ph: 'play', seed: G.seed, evN: C.inp.evN, evK: C.inp.evK, rly: C.inp.rly, rb: C.inp.rb, bsh: C.inp.bsh, dl: C.inp.dl, dlId: C.inp.dlId, foc: C.inp.foc, par: C.inp.par, ahN: C.inp.ahN, ahD: C.inp.ahD, ah: C.inp.ah, atk: C.inp.atk, ride: C.inp.ride, vly: C.inp.vly, vat: C.inp.vat, chg: C.inp.chg, ab: C.inp.ab, abAt: C.inp.abAt, rec: C.inp.rec, up: C.inp.up, ord: C.inp.ord, hold: C.inp.hold, face: C.inp.face, blk: inp.blockHeld ? 1 : 0 };
     if (me && !me.dead) pres.cap = [me.id, r2(me.x), r2(me.z), r2(me.face), r1(me.vx), r1(me.vz), r2(me.jy || 0), Math.max(0, WEAPONS.indexOf(me.weapon || 'sword'))];
     NET.room.presence(pres).catch(() => {});
   }
@@ -670,10 +670,11 @@ function predictAttack(p) {
 
 // ---------- player actions (solo, host and client) ----------
 export const actions = {
-  shout(n) { // a quick shout (one every two seconds)
-    if (G.state !== 'play' || !SHOUTS[n] || performance.now() - (C.shoutAt || 0) < 2000) return; C.shoutAt = performance.now();
-    if (isClient()) { C.inp.sh = (C.inp.sh || 0) + 1; C.inp.shK = n; C.sendNow = true; showMsg('callout', [G.myTi, n]); return; }
-    bus.emit('msg', { k: 'callout', a: [G.myTi, n] });
+  shout(n, pt) { // a quick shout (one every two seconds); pt: a ping's place (BS2)
+    if (G.state !== 'play' || !SHOUTS[n] || performance.now() - (C.shoutAt || 0) < 1000) return; C.shoutAt = performance.now();
+    const a = pt ? [G.myTi, n, Math.round(pt.x * 10) / 10, Math.round(pt.z * 10) / 10] : [G.myTi, n];
+    if (isClient()) { C.inp.sh = (C.inp.sh || 0) + 1; C.inp.shK = n; C.inp.shX = pt ? a[2] : null; C.inp.shZ = pt ? a[3] : null; C.sendNow = true; showMsg('callout', a); return; }
+    bus.emit('msg', { k: 'callout', a });
   },
   attack() {
     const p = G.player; if (!p || p.dead || G.state !== 'play') return;

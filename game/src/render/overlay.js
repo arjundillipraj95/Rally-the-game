@@ -2,6 +2,7 @@
 // the banner pointer, the joystick and the red tint while you are down. Also the minimap.
 import { body, bodyOf } from '../core/body.js';
 import { champOf } from '../champions/index.js'; // (BS4: the minimap's faces)
+import { drawPingsMini } from '../ui/pings.js'; // (BS2)
 import * as THREE from 'three';
 import { TEAMS, DUEL, STREAK, RHYTHM, ARMOUR, STAMINA, DUEL_DIR, FEEL, NEUTRAL } from '../config.js';
 import { bus } from '../core/state.js';
@@ -400,6 +401,7 @@ function drawMini() {
   }
   if (fogGrid()) drawFogMini(k);
   for (const u of G.units) { if (u.dead || u.leader || u.fog || u.neutral) continue; mctx.fillStyle = TEAMS[colorOf(u.ti)].css; mctx.fillRect(u.x * k - 1.75, u.z * k - 1.75, 3.5, 3.5); }
+  drawPingsMini(mctx, k); // (BS2)
   // captains stand out: your side's in a white ring (a bigger one for a player), the enemy's in a dark one
   const me = G.player, now = performance.now() / 1000;
   for (const u of G.units) {

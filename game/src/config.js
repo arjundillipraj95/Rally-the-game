@@ -190,7 +190,8 @@ export const CALM = {
   bubbles: 1, bubbleGap: 5, // (speech bubbles: one at a time, and a longer pause between)
 };
 // Quick shouts (in battle, instead of typing): your captain calls it out, your side sees it in the feed
-export const SHOUTS = ['Follow me!', 'Defend!', 'Attack their castle!', 'Good game!'];
+export const SHOUTS = ['Follow me!', 'Defend!', 'Attack their castle!', 'Good game!', 'Attack here!', 'Defend here!', 'Help!', 'On my way!']; // (BS2: 4+ are pings, at a place)
+export const PINGS = { from: 4, life: 5 }; // (BS2: a ping shows `life` s on the minimap and the ground)
 export const STATS = {
   captain: { hp: INF * UNITS.hp.champ, dmg: INF * UNITS.hit.champ, reach: 1.3,  cd: .6,  spd: 6.2, r: .62, block: .3 }, // (SPD1: = CAPTAIN_SPD.foot)
   foot:    { hp: INF, dmg: HIT, reach: 1.25, cd: .95, spd: 5.4, r: .55, block: .35, cost: 40, name: 'Footman' },
