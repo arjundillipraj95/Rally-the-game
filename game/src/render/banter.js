@@ -5,6 +5,7 @@ import { SHOUTS, CALM } from '../config.js';
 // Kept rare on purpose: a line every now and then lands, a wall of them is noise.
 import { G, bus, isEnemyTi, colorOf } from '../core/state.js';
 import { camTarget } from './camera.js';
+import { champOf } from '../champions/index.js';
 
 // F18 tone (Arjun, 13 Nov): Roman, proud, battle-hardened. Mostly real battle calls; a dry aside now and
 // then (about one line in five), never a gag.
@@ -31,9 +32,12 @@ const LINES = {
   taken: ['The castle is ours!', 'Raise the banner!', 'Nice walls. We’ll keep them.', 'Another one for us!', 'Somebody fetch the flag!'], // (CASTLE5)
   held: ['Held!', 'They broke on our walls!', 'Nobody passes.', 'Back to your camp!', 'Not today!'],
 };
+// (C3j) a champion's own army lines, when his page has them, for these moments (the rest stay the shared ones)
+const ARMY = { follow: 'march', march: 'march', charge: 'charge', hold: 'hold', shieldwall: 'testudo', testudo: 'testudo', capDown: 'fell', cheer: 'taken', taken: 'taken', breach: 'attacked', flee: 'rout', kill: 'kill', back: 'back', upgraded: 'upgraded', archers: 'archers', crown: 'crown' };
+const poolOf = (kind, u) => { const L = u && !u.neutral && champOf(u.ti).lines, k = ARMY[kind]; if (kind === 'self') return L ? L.self : null; return (L && k && L.army[k]) || LINES[kind]; };
 const recent = [];
-function pick(kind) {
-  const pool = LINES[kind]; let line, n = 0;
+function pick(kind, u) {
+  const pool = poolOf(kind, u); let line, n = 0;
   do { line = pool[(Math.random() * pool.length) | 0]; } while (recent.includes(line) && ++n < 6);
   recent.push(line); if (recent.length > 10) recent.shift();
   return line;
@@ -43,11 +47,11 @@ export const bubbles = []; // {u, text, t, dur, big}
 let quietT = 2, marchT = 12;
 // Put words in a soldier's mouth. `force` skips the pacing (the player's own orders).
 export function say(u, kind, force = false) {
-  if (!u || !LINES[kind]) return;
+  if (!u || !poolOf(kind, u)) return;
   const crown = G.mode === 'crown' && !force;
   if (!force && (quietT > 0 || bubbles.length >= (crown ? CALM.bubbles : 3))) return;
   if (bubbles.some(b => b.u === u)) return;
-  bubbles.push({ u, text: pick(kind), t: 0, dur: kind === 'launch' ? 1.4 : 2.1, big: force });
+  bubbles.push({ u, text: pick(kind, u), t: 0, dur: kind === 'launch' ? 1.4 : kind === 'self' ? 2.6 : 2.1, big: force });
   quietT = force ? .6 : crown ? CALM.bubbleGap : 1.3 + Math.random() * 1.2;
 }
 
@@ -61,6 +65,7 @@ export function banterTick(dt) {
     const d = Math.hypot(u.x - T.x, u.z - T.z);
     let s = seen.get(u);
     if (!s) { s = { hp: u.hp, dead: u.dead, stars: false }; seen.set(u, s); continue; }
+    if (u.leader && s.dead && !u.dead && d < 30) { const L = champOf(u.ti).lines; if (L) { setTimeout(() => say(u, 'self', true), 300); const m = G.units.find(o => !o.dead && !o.leader && o.ti === u.ti && Math.hypot(o.x - u.x, o.z - u.z) < 14); if (m) setTimeout(() => say(m, 'back', true), 1400); } } // (C3j: he's back)
     if (d < 26) {
       if (u.dead && !s.dead && u.launch && Math.random() < .2) say(u, 'launch');
       else if (!u.dead && s.hp - u.hp > u.max * .3 && Math.random() < .12) say(u, 'clout');
@@ -116,6 +121,7 @@ bus.on('shownMsg', m => {
     const ours = m.a[0] === G.ALLY[colorOf(G.myTi)], u = someone(myMen(T0, 20));
     if (u) setTimeout(() => say(u, ours ? 'cheer' : 'lost', ours), 400);
   }
+  if (T0 && (m.k === 'upgrade' && m.a[0] === G.myTi || m.k === 'chestTaken' && m.a[0] === G.ALLY[colorOf(G.myTi)])) { const u = someone(myMen(T0, 20)); if (u) setTimeout(() => say(u, m.k === 'upgrade' ? 'upgraded' : 'crown', true), 400); } // (C3j)
   if (T0 && m.k === 'castleDown') { const u = someone(myMen(T0, 20)); if (u) setTimeout(() => say(u, colorOf(m.a[0]) === colorOf(G.myTi) ? 'lost' : 'cheer', true), 400); }
   if (T0 && (m.k === 'breach' || m.k === 'gateBroken')) { const u = someone(G.units.filter(o => !o.dead && !o.leader && colorOf(o.ti) === colorOf(m.a[0]) && Math.hypot(o.x - T0.x, o.z - T0.z) < 24)); if (u) say(u, 'breach'); }
   if (T0 && m.k === 'duelOn') { const u = someone(G.units.filter(o => !o.dead && !o.leader && (o.ti === m.a[0] || o.ti === m.a[1]) && Math.hypot(o.x - T0.x, o.z - T0.z) < 26)); if (u) setTimeout(() => say(u, 'duel', true), 900); }
@@ -123,9 +129,16 @@ bus.on('shownMsg', m => {
   const ti = m.a[0], T = camTarget(); if (!T) return;
   const men = G.units.filter(o => !o.dead && !o.leader && o.ti === ti && Math.hypot(o.x - T.x, o.z - T.z) < 24);
   if (men.length) setTimeout(() => say(men[(Math.random() * men.length) | 0], 'capDown'), 500);
+  const kt = m.a[1]; if (kt == null || kt < 0 || !G.teams[kt]) return; // (C3j: the killer's side: his men chant, he has a word)
+  const K = G.teams[kt].leader; if (!K || K.dead || !champOf(kt).lines || Math.hypot(K.x - T.x, K.z - T.z) > 26) return;
+  setTimeout(() => say(K, 'self', true), 700);
+  const km = someone(G.units.filter(o => !o.dead && !o.leader && o.ti === kt && Math.hypot(o.x - T.x, o.z - T.z) < 24)); if (km) setTimeout(() => say(km, 'kill', true), 1500);
 });
 
 // an execution or a ride-down near you: the onlookers wince
+bus.on('fxmsg', d => { // (C3j: an ult called: he has a word; a testudo forming: his men call it)
+  if ((d.k === 'fxeagle' || d.k === 'fxtestudo') && d.u) { const T = camTarget(); if (T && Math.hypot(d.u.x - T.x, d.u.z - T.z) < 26) { if (d.k === 'fxeagle') say(d.u, 'self', true); else { const m = someone(G.units.filter(o => !o.dead && !o.leader && o.ti === d.u.ti && Math.hypot(o.x - d.u.x, o.z - d.u.z) < 15)); if (m) say(m, 'testudo', true); } } }
+});
 bus.on('fxmsg', d => {
   if (d.k !== 'fxexec' && d.k !== 'fxridedown' && d.k !== 'fxstreak') return;
   const u = d.u, T = camTarget(); if (!u || !T || Math.hypot(u.x - T.x, u.z - T.z) > 24) return;

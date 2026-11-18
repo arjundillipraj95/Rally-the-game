@@ -13,6 +13,28 @@ export default {
   // Testudo march (C3e, agreed 17 Nov), from the full horn: his soldiers within `r` m lock shields in `form` s (heal
   // `heal`), march `dist` m in `march` s the way he faces (`gap` m apart) and shout, shoving enemies within `shoutR` m
   // of the front `shove` m. From a front of `arc` rad blows are turned (an ult lands at `ultX`); arrows do nothing.
+  // his lines and his army's (design doc, Titus card: dry humour, he loves Rome), shown as speech bubbles (C3j) until
+  // they are recorded: his own when he comes back, kills a champion or calls an ult; his men's by the moment
+  lines: {
+    self: ['I would have built Rome in a day.', 'Rome forgot. Rome will remember.', 'For my father!', 'The eagle goes where I go. Keep up.',
+      'Hold the line. I\'ll be back to inspect it.', 'Exiled, not defeated.', 'The Senate sends its regards. I return them.',
+      'A Cassius never retreats. He relocates.', 'Shields up. Opinions down.', 'The Crown, then home. In that order.'],
+    army: {
+      march: ['Move, move, spears!', 'Left, right, left. Mostly left.', 'Wherever he goes, we go. Sadly.', 'Keep pace with the general!', 'My feet signed up for this. I didn\'t.'],
+      charge: ['For Titus! For Rome!', 'Pila first, questions later!', 'Charge! Wait, all of us?', 'Into them, lads!', 'Last one there carries the eagle!'],
+      hold: ['Spears down! Brace!', 'We hold. It\'s what we do.', 'Nobody passes. Nobody.', 'Plant your feet, Marcus!'],
+      testudo: ['Testudo!', 'Shields up, heads down!', 'Lock them tight, I can see daylight!', 'Step. Drum. Step. Drum.', 'Arrows? We don\'t hear arrows.'],
+      kill: ['Go Titus! Go Titus! Go Titus!', 'Did you see that?!', 'That\'s our general!', 'Rome remembers that one.'],
+      fell: ['The general\'s down!', 'Hold until he\'s back!', 'He\'s only resting!'],
+      back: ['He\'s back! Look busy!', 'The general rides again!', 'Told you he was resting.'],
+      taken: ['The castle is ours!', 'Raise the eagle!', 'Nice walls. We\'ll keep them.', 'Somebody tell the Senate.', 'Another one for Rome!'],
+      attacked: ['They\'re at the gate!', 'To the walls!', 'We\'ll be back for it!', 'Not our castle! Not today!'],
+      upgraded: ['New shields! Finally!', 'Promoted! Same pay.', 'Triarii now. Show some respect.'],
+      archers: ['Loose!', 'Aim for the shiny ones!', 'Cretan arrows, Roman targets.'],
+      rout: ['Back! Back!', 'This is a tactical walk!', 'Regroup on the eagle!'],
+      crown: ['The Sceptre! Grab it!', 'The Crown! Up the mountain!', 'Titus, Crown, home. In that order.'],
+    },
+  },
   armyUlt: { name: 'Testudo march', short: 'Testudo', aimFace: true, range: 10, r: 15, form: .6, march: 4, dist: 10, heal: .25, gap: .95,
     arc: 2 * Math.PI / 3, ultX: .3, shove: 1, shoutR: 2,
     ai: (u, foe, fd, B) => fd < 12 && B.ownMen(u, 15).length >= 4, // (a computer Titus: with his men round him and a fight close)

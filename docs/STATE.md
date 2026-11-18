@@ -421,6 +421,7 @@ Last updated: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pag
 - C3h soldier tier looks built (18 Nov): `render/rig/tierlook.js` recolours the steel by tier (Princeps darker + red crest,
   Triarius bronze + short cloak; archers leather cap, then bronze helmet). Bigger quiver not done.
 - C3i Eagle's fall lands shield first (18 Nov): clip `eagleFall` made at load from leapSmash with the shield arm turned to
+- C3j Titus's lines (18 Nov): his 10 lines and his army's from the design doc live on his page (`lines.self`, `lines.army`); `banter.js` picks his men's lines by moment (charge, hold, testudo, castle taken, upgrade, kill, his fall and return, chest) and his own on a comeback, a champion kill and Eagle's fall. Text bubbles until recorded. Test `r_C3j.mjs`.
   the blockIdle pose from 0.3 s (cliprig.js shieldFirst). Cloak flare not done (his cloak has no bones of its own).
 - Arjun 17 Nov (for S1-12, designer to fold into the design doc): the lobby is 60 s and picks the champion with the lane: filter
   by class, then a picture grid like League or Unite. Today's design says 25 s and no grid.
