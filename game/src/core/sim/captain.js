@@ -1,6 +1,7 @@
 // Battle rules: the captain's moves (attack, charge, jump, evade, javelins, bash).
 import { STAMINA, DUEL_DIR, TEAMS, CASTLE_REACH, CHARGE, SHIELD, EVADE, WEAPONS, CAPTAIN_COMBAT, STREAK, BASH, RHYTHM, PUSH } from '../../config.js';
 import { G, isEnemy } from '../state.js';
+import { tryPull } from './pulldown.js'; // (PULL1)
 import { spearBlow, spearReach } from '../spearhit.js';
 import { groundY, angDiff } from '../world.js';
 import { fx, sound, spark } from './util.js';
@@ -151,6 +152,7 @@ function captainAttack0(p) {
   if (!p || p.dead || p.carrying) return;
   if (p.cd > 0 || p.stun > 0) { p.atkBuf = .4; return; }
   p.atkBuf = 0;
+  if (tryPull(p)) return; // (PULL1: a rider going by, on the beat: pulled down)
   const wpn = p.weapon || 'sword';
   if (p.mounted) {
     if (p.human) return; // (a captain on horseback strikes when Attack is let go: a tap swipes, a hold times a ride-by)

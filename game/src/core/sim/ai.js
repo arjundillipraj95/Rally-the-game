@@ -15,6 +15,7 @@ import { captainAttack, captainJump } from './captain.js';
 import { faceTo, go, moveToward } from './move.js';
 import { champOf } from '../../champions/index.js';
 import { aiAbilities } from './abilities.js';
+import { aiPull } from './pulldown.js';
 
 // ---------- AI ----------
 function planLeader(u, s) {
@@ -134,6 +135,7 @@ function aiPunish(u, foe, fd) {
 function aiCaptainFight(u, foe, fd, dt) {
   const war = G.diff >= 2;
   if (u.windup > 0) { moveToward(u, u.x, u.z, 0, dt); return; }
+  if (!u.mounted && aiPull(u)) return; // (PULL1)
   if (aiPunish(u, foe, fd)) return;
   if (aiGuard(u, foe, fd, dt)) return;
   if (aiAbilities(u, foe, fd)) return; // (C1c: his special attacks and ult)

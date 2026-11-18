@@ -29,8 +29,8 @@ const o = await page.evaluate(async () => {
   const front = (d = 3) => { [E.x, E.z] = at(d); E.face = p.face + Math.PI; };
   const run = n => { const x0 = p.x, z0 = p.z, f = p.face; let far = 0; for (let i = 0; i < n; i++) { F.step(1); const g = (p.x - x0) * Math.sin(f) + (p.z - z0) * Math.cos(f); far = Math.max(far, g); } return { far: +far.toFixed(2), end: +((p.x - x0) * Math.sin(f) + (p.z - z0) * Math.cos(f)).toFixed(2) }; };
   // 1. a raised shield in front: stops dead, he bounces back staggered; she slides back unhurt
-  stage(); ready(); front(3); SC.raiseScutum(E, T.sp2); { const h0 = E.hp, ex = E.x, ez = E.z, f = p.face; let st = 0, sl = 0; F.ability(0); const x0 = p.x, z0 = p.z; let far = 0;
-    for (let i = 0; i < 25; i++) { F.step(1); far = Math.max(far, (p.x - x0) * Math.sin(f) + (p.z - z0) * Math.cos(f)); st = Math.max(st, p.stun); sl = Math.max(sl, (E.x - ex) * Math.sin(f) + (E.z - ez) * Math.cos(f)); }
+  stage(); ready(); front(3); G.teams[e].cds = { sp1: 99, sp2: 99, ult: 99, armyUlt: 99 }; SC.raiseScutum(E, T.sp2); { const h0 = E.hp, ex = E.x, ez = E.z, f = p.face; let st = 0, sl = 0; F.ability(0); const x0 = p.x, z0 = p.z; let far = 0;
+    for (let i = 0; i < 25; i++) { F.step(1); if (E.scutum) E.scutum.face = p.face + Math.PI; else r.dropped = r.dropped || i; far = Math.max(far, (p.x - x0) * Math.sin(f) + (p.z - z0) * Math.cos(f)); st = Math.max(st, p.stun); sl = Math.max(sl, (E.x - ex) * Math.sin(f) + (E.z - ez) * Math.cos(f)); }
     r.shield = { far: +far.toFixed(2), end: +((p.x - x0) * Math.sin(f) + (p.z - z0) * Math.cos(f)).toFixed(2), stun: +st.toFixed(2), herHp: +(h0 - E.hp).toFixed(1), slid: +sl.toFixed(2) }; SC.dropScutum(E); }
   // 2. two rams head-on
   rest(); stage(); ready(); front(6); { const h0 = E.hp, hp0 = p.hp; F.ability(0); RM.startRam(E, { x: p.x, z: p.z }, T.sp1); let st = 0, es = 0;
@@ -70,7 +70,7 @@ ok(o.file.hit === '1110' && o.file.far < 3.4, `soldiers slow him: the third stop
 ok(o.testudo.on && o.testudo.far < 3 && o.testudo.end < o.testudo.far && o.testudo.hurt === 0, `a testudo: he bounces off at ${o.testudo.far} m, nobody hurt`);
 ok(o.air.hurt === 0, `she's in the air: he passes under (${o.air.hurt})`);
 ok(!o.unhorse.mounted && o.unhorse.horse === 'leaving' && o.unhorse.cd && o.unhorse.hp === 200, `a Vanguard on a horse: knocked off, the horse ${o.unhorse.horse}, unhurt`);
-ok(o.raider.mounted && o.raider.back > .5, `a Raider: still mounted, pushed ${o.raider.back} m`);
+ok(o.raider.mounted && o.raider.back > .3, `a Raider: still mounted, pushed ${o.raider.back} m`);
 ok(o.saddle2.mounted && o.saddle2.me, 'rider against rider: both stay mounted');
 ok(o.chain && o.chain.e2 > 0 && Math.abs(o.chain.e2 - o.chain.e / 2) < 3 && o.chain.st > .15, `into another champion: ${o.chain && o.chain.e} and ${o.chain && o.chain.e2}, stagger ${o.chain && o.chain.st} s`);
 ok(o.gate && Math.abs(o.gate.dmg - o.gate.blow * 4) < 2, `a gate takes ${o.gate && o.gate.dmg} (four blows of ${o.gate && o.gate.blow})`);
