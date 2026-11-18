@@ -413,6 +413,11 @@ Last updated: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pag
   drawing only plus the testudo and shelter spacing; `?bodyc=&bodys=` tries a pair on the preview, kept on the phone
   (`core/body.js`). Arjun to lock in the pair. Next: the battle screen ticket (design doc "Battle screen", mockup
   https://claude.ai/artifact/6fdoSRg8mwApXsC6SQiRaS).
+- C3g abilities' feel (18 Nov, Arjun played: the ram and the field didn't land): 3D effects in place of flat overlay
+  drawings (`render/fxkit.js` decals and barrier): ram path, dust and streak, BASH!/WALL SLAM! with shockwave, shake,
+  hit-stop; a golden barrier and lit zone for the shield, flashing on blocks, shattering on an ult; the eagle's glowing
+  circle closing in, shadow, double shockwave; testudo path, lock glint, drum pulses. Rest of Titus in this chat:
+  tier looks, shield-first leap clip, his lines as bubbles, the battle screen, lock body sizes, ship.
 - Arjun 17 Nov (for S1-12, designer to fold into the design doc): the lobby is 60 s and picks the champion with the lane: filter
   by class, then a picture grid like League or Unite. Today's design says 25 s and no grid.
 - Fixes 17 Nov (Arjun's list), on launch26: FIX1 lobby (not reproduced as reported; made robust: the service resends the

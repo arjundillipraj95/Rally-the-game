@@ -1,31 +1,45 @@
-// C3c what Shield of Cassius shows, on every phone, from the fxscutum moments: his shield held up (unit.scutumUp, the
-// block pose) and the zone it covers behind him, shaded, with its front arc. Drawn on the overlay canvas.
+// C3c/C3g what Shield of Cassius shows, on every phone, from the fxscutum moments: his shield held up (unit.scutumUp,
+// the block pose), a curved golden barrier over his front arc, the zone it covers behind him softly lit on the
+// ground, a flash and sparks on the barrier for every blow it stops, and the barrier shattering when it drops.
 import { bus, G } from '../core/state.js';
-import { groundY } from '../core/world.js';
 import { champOf } from '../champions/index.js';
+import { body } from '../core/body.js';
+import { spark } from './effects.js';
+import { zoneTex, decal, place, drop, barrier, dropBarrier } from './fxkit.js';
 
-const live = new Map(); // unit id -> { u, d, until }
+const live = new Map(); // unit id -> { u, d, until, wall, zone, flash }
+function off(id, shatter) {
+  const L = live.get(id); if (!L) return;
+  const u = L.u; u.scutumUp = false;
+  if (shatter) for (let i = 0; i < 5; i++) { const a = (u.face || 0) + (i - 2) * .45; spark(u.x + Math.sin(a) * 1.3, (u.y || 0) + 1.2 * body.champ, u.z + Math.cos(a) * 1.3, '#ffe7a3', 4); }
+  dropBarrier(L.wall); drop(L.zone); live.delete(id);
+}
 bus.on('fxmsg', e => {
   if (!e.u) return;
-  if (e.k === 'fxscutum') { const d = champOf(e.u.ti).sp2; if (!d) return; live.set(e.u.id, { u: e.u, d, until: G.T + d.up + .3 }); e.u.scutumUp = true; }
-  else if (e.k === 'fxscutumoff') { live.delete(e.u.id); e.u.scutumUp = false; }
-});
-function shape(ctx, proj, pts) {
-  ctx.beginPath(); let n = 0;
-  for (const [x, z] of pts) { const [sx, sy, ok] = proj(x, groundY(x, z) + .1, z); if (!ok) return false; if (n++) ctx.lineTo(sx, sy); else ctx.moveTo(sx, sy); }
-  ctx.closePath(); return true;
-}
-export function drawScutum(ctx, proj) {
-  if (!live.size) return;
-  ctx.save();
-  for (const [id, L] of live) {
-    const u = L.u; if (u.dead || G.T > L.until) { live.delete(id); u.scutumUp = false; continue; }
-    const d = L.d, f = u.face || 0, sx = Math.sin(f), sz = Math.cos(f), len = u.mounted ? d.rideZone : d.zone, w = d.zw;
-    const at = (s, b) => [u.x + sz * s + sx * b, u.z - sx * s + sz * b];
-    if (shape(ctx, proj, [at(-w, .4), at(w, .4), at(w, -len), at(-w, -len)])) { ctx.fillStyle = 'rgba(150,200,255,.18)'; ctx.fill(); ctx.setLineDash([6, 6]); ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(190,225,255,.6)'; ctx.stroke(); ctx.setLineDash([]); }
-    const arc = []; for (let i = 0; i <= 16; i++) { const a = f - d.arc / 2 + d.arc * i / 16; arc.push([u.x + Math.sin(a) * 1.6, u.z + Math.cos(a) * 1.6]); }
-    ctx.beginPath(); let n = 0; for (const [x, z] of arc) { const [px, py, ok] = proj(x, groundY(x, z) + .1, z); if (!ok) { n = -1; break; } if (n++) ctx.lineTo(px, py); else ctx.moveTo(px, py); }
-    if (n > 0) { ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(255,226,150,.85)'; ctx.stroke(); }
+  if (e.k === 'fxscutum') {
+    const d = champOf(e.u.ti).sp2; if (!d) return; off(e.u.id, false);
+    const len = e.u.mounted ? d.rideZone : d.zone;
+    const L = { u: e.u, d, until: G.T + d.up + .3, wall: barrier(1.35 * body.champ, 2.3 * body.champ, d.arc), zone: decal(zoneTex, d.zw * 2, len, { from: 0 }), flash: 0 };
+    live.set(e.u.id, L); e.u.scutumUp = true;
+  } else if (e.k === 'fxscutumoff') off(e.u.id, e.q === 'ult');
+  else if (e.k === 'fxblk' && live.size) { // a blow stopped: the barrier of whoever covers that man flashes
+    for (const L of live.values()) {
+      const u = L.u, dx = e.u.x - u.x, dz = e.u.z - u.z; if (Math.hypot(dx, dz) > (L.d.zone + 1.5)) continue;
+      L.flash = 1; const a = e.a ? Math.atan2(e.a.x - u.x, e.a.z - u.z) : u.face || 0;
+      spark(u.x + Math.sin(a) * 1.35 * body.champ, (u.y || 0) + 1.2 * body.champ, u.z + Math.cos(a) * 1.35 * body.champ, '#fff1c2', 8);
+    }
   }
-  ctx.restore();
+});
+// every frame (render/overlay.js): the barrier and the zone follow him; the barrier breathes and flashes
+export function drawScutum(ctx, proj, dt = 1 / 30) {
+  if (!live.size) return;
+  for (const [id, L] of live) {
+    const u = L.u; if (u.dead || G.T > L.until) { off(id, false); continue; }
+    const f = u.face || 0, y = u.y || 0;
+    L.wall.position.set(u.x, y, u.z); L.wall.rotation.y = f;
+    L.flash = Math.max(0, L.flash - dt * 4);
+    L.wall.material.opacity = .2 + .06 * Math.sin(G.T * 6) + .5 * L.flash;
+    place(L.zone, u.x, u.z, f + Math.PI, .08); // (the zone runs back from him)
+    L.zone.material.opacity = .85;
+  }
 }
