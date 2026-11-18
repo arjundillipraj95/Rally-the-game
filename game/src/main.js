@@ -14,6 +14,7 @@ import { fogTick, fogGrid, seenAt } from './render/fog.js';
 import { updateSeeThrough } from './render/seethrough.js';
 import { drawVolleyAim } from './ui/volleyaim.js';
 import { drawHoldAim, drawJavAim, drawRideAim } from './ui/holdaim.js';
+import { drawAbilAim } from './ui/abilaim.js';
 import { duelTagTick } from './ui/dueltag.js';
 import { updateCritters } from './render/critters.js';
 import { drawHorses } from './render/horses.js';
@@ -79,7 +80,7 @@ function drawScene(dt) {
   if (import.meta.env.DEV && window.__camAt) { const c = window.__camAt; camera.position.set(c[0], c[1], c[2]); camera.lookAt(c[3], c[4], c[5]); } // (dev: fixed shots of the scenery)
   updateSeeThrough(dt, camera.position, camTarget());
   drawAura(G.player, auraRange(G.myTi), grassTime());
-  drawVolleyAim(grassTime()); drawHoldAim(grassTime()); drawJavAim(); drawRideAim();
+  drawVolleyAim(grassTime()); drawHoldAim(grassTime()); drawJavAim(); drawRideAim(); drawAbilAim();
   const tg = camTarget(); followSun(tg ? tg.x : 0, tg ? tg.z : 0, grassTime());
 }
 initFeed({ nickFor: ti => nickFor(ti) }); setNamer(nickFor); initDeath({ nickFor: ti => nickFor(ti) });
@@ -147,7 +148,7 @@ window.__fb = {
   step(n, dt = 1 / 30, drive) { const inp = drive ? Object.assign({ wx: 0, wz: 0, mag: 0, block: false, attackHeld: false, camYaw: 0 }, drive === true ? {} : drive) : null; for (let i = 0; i < n && G.state === 'play'; i++) update(dt, inp); },
   ride() { if (G.player) { G.player.lastHit = -9; actions.ride(); } },
   volley(pt) { actions.volley(pt); }, order(o, pt) { actions.order(o, pt); }, rally() { actions.rally(); },
-  attack() { actions.attack(); }, duel() { actions.duel(); }, jump() { actions.jump(); }, weapon(w) { actions.weapon(w); }, ability(k) { actions.ability(k); }, upgrade(id) { actions.upgrade(id); },
+  attack() { actions.attack(); }, duel() { actions.duel(); }, jump() { actions.jump(); }, weapon(w) { actions.weapon(w); }, ability(k, at) { actions.ability(k, at); }, abilityReady(k) { return actions.abilityReady(k); }, upgrade(id) { actions.upgrade(id); },
   fort(c, lv) { G.teams[c].up.fort = lv; applyFort(c); },
   feel: feelStats, death: deathState, nick: ti => nickFor(ti), hitstop: () => S.hitstopN, slowmo: () => S.slowmo, camTarget, camera,
   tlTick, tlPack, ledger, voiceState, voiceLevels, voiceCalls, setOrder, rideRelease, findPath, gatePos, orderVolley, mkUnit, challenge, canChallenge, G, W, c2Points, die, cam, scene, renderer, camera, audio: () => audioStats(),

@@ -78,6 +78,7 @@
   .lbl{font:800 clamp(8px,2.6vh,10px) var(--body);letter-spacing:.07em;text-transform:uppercase;text-shadow:0 1px 2px #000;line-height:1;}
   #atk{right:0;bottom:0;width:var(--A);height:var(--A);background:rgba(224,53,43,.34);border-color:rgba(255,196,188,.9);border-width:2.5px;}
   #atk.held{background:rgba(224,53,43,.6);}
+  .ab.cancel{background:rgba(200,30,20,.55);border-color:#ff6a5a;} /* (C3l: let go here to cancel the aim) */
   #atk svg{width:44%;height:44%;}
   #blk{right:calc(var(--A) + var(--g));bottom:calc((var(--A) - var(--B)) / 2);width:var(--B);height:var(--B);background:rgba(58,92,240,.26);}
   #blk.held{background:rgba(58,92,240,.55);}

@@ -1,0 +1,11 @@
+import { chromium } from 'playwright';
+import { open, frames } from './stage.mjs';
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const page = await open(browser, 844, 390, { q: '?crown2=1&champ=titus&botchamp=titus' });
+await page.click('#segMode button[data-v="crown"]'); await page.click('#goBtn'); await frames(page, 4);
+await page.evaluate(async () => { const F = window.__fb, { G } = F, L = await import('/src/core/sim/levels.js'), p = G.player; L.gainXp(G.myTi, 3000, 't'); G.T = 40; F.step(1);
+  for (let i = 0; i < 120; i++) { p.x += Math.sin(p.face) * .1; p.z += Math.cos(p.face) * .1; } p.face += 1.4; window.__aim.cam.yaw = p.face; window.__frame(30); });
+const b = await page.locator('#ab1').boundingBox(), x = b.x + b.width / 2, y = b.y + b.height / 2;
+await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x - 10, y - 90, { steps: 6 }); await frames(page, 3);
+console.log(JSON.stringify(await page.evaluate(() => window.__aim.shown()))); await page.screenshot({ path: '/tmp/c3l_a.png' }); await page.mouse.up(); await frames(page, 6); await page.screenshot({ path: '/tmp/c3l_b.png' });
+await browser.close();

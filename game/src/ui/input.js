@@ -8,6 +8,7 @@ import { initAudio } from './audio.js';
 import { floatText } from '../render/effects.js';
 import { aimStart, aimMove, aimEnd, aimCancel } from './volleyaim.js';
 import { holdStart, holdMove, holdEnd, holdCancel, hold as holdSt } from './holdaim.js';
+import * as AB from './abilaim.js';
 import { RALLY } from '../config.js';
 
 const $ = id => document.getElementById(id);
@@ -90,7 +91,14 @@ export function bindInput(actions) {
   holdBtn($('blk'), () => { inp.blockHeld = true; }, () => { inp.blockHeld = false; });
   tapBtn($('mnt'), () => A.ride());
   tapBtn($('jmp'), () => A.jump());
-  [1, 2, 3].forEach(k => tapBtn($('ab' + k), () => A.ability && A.ability(k - 1))); // (C1c)
+  [1, 2, 3].forEach(k => { // (C1c; C3l: press and drag to aim, let go to fire, back onto the button to cancel; a tap fires as before)
+    const el = $('ab' + k);
+    el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); initAudio(); if (!A.abilityReady || A.abilityReady(k - 1)) { try { el.setPointerCapture(e.pointerId); } catch (_) {} AB.aimStart(k - 1, el, e); } });
+    el.addEventListener('pointermove', e => AB.aimMove(e));
+    el.addEventListener('pointerup', () => { const at = AB.aimEnd(); if (at && A.ability) A.ability(k - 1, at.x != null ? at : null); });
+    el.addEventListener('pointercancel', () => AB.aimCancel());
+    el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); A.ability && A.ability(k - 1); } });
+  });
   // Weapon: press opens the wheel; slide onto a weapon and let go to take it, or let go on the button
   // and tap one. Either way it's one quick gesture, not cycling through the ones you don't want.
   const wpn = $('wpn'), chips = [...document.querySelectorAll('#wheel button')];
