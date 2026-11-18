@@ -82,7 +82,7 @@ export function drawAbilAim() {
     if (!slab || Math.abs(slab.userData.len - len) > .05) { drop(slab); slab = decal(slabTex, wd, len, { add: false, from: 0, opacity: op }); slab.userData.len = len; }
     place(slab, p.x, p.z, a, .14);
   } else {
-    const at = point(); if (!at) return; const r = slot === 'sp2' ? 1.6 : d.r || 2;
+    const at = point(); if (!at) return; const r = slot === 'sp2' ? 1.6 : slot === 'armyUlt' ? 3 : d.r || 2;
     if (!ring) ring = decal(ringTex, r * 2, r * 2, { add: false, from: .5, opacity: op, color: 0xdfeaff });
     place(ring, slot === 'sp2' ? p.x + Math.sin(a) * 1.6 : at.x, slot === 'sp2' ? p.z + Math.cos(a) * 1.6 : at.z, a, .14);
   }

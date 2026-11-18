@@ -1,0 +1,87 @@
+/* BS1-BS4 the battle screen (agreed 18 Nov, design doc "Battle screen"; mockup in the design canvas): see-through
+   buttons with bronze rims. Right thumb: Attack in the corner, Special 1 left of it, Special 2 above, the ult on top
+   with its charge ring; no Block or Evade buttons (in a duel Special 1 is Block, Special 2 is Evade). Bottom row,
+   centred, no tray: the army count, Recruit, Upgrade, Ride in the middle, Follow, the army ult with its horn bar.
+   Fortify shows while you stand in a castle you hold. Top: the minimap left with faces, the sides' circles and the
+   clock in the middle (tap for how the points add up), gold, quick chat, voice and menu right.
+   Only with body.bs: a champion with specials (see ui/battlehud.js). */
+body.bs{--bronze:rgba(232,199,122,.9);--bronzeD:rgba(122,86,28,.8);--glass:rgba(16,14,8,.38);--cream:#ffe7a3;}
+
+/* ---- right thumb ---- */
+body.bs .pad{--A:clamp(66px,26vh,104px);--S:calc(var(--A) * .6);--U:calc(var(--A) * .7);--g:calc(var(--A) * .12);
+  width:calc(var(--A) + var(--g) + var(--S) * 1.1);height:calc(var(--A) + var(--g) * 1.6 + var(--U) + 14px);}
+body.bs #blk,body.bs #jmp{display:none;}
+body.bs #wpn.onew{display:none;}
+body.bs .pad .rbtn{border:3px solid var(--bronze);box-shadow:0 4px 10px rgba(0,0,0,.35),inset 0 2px 0 rgba(255,255,255,.22);}
+body.bs #atk{background:rgba(140,36,22,.48);border-width:4px;border-color:rgba(255,232,180,.9);}
+body.bs #atk.held{background:rgba(190,50,30,.7);}
+body.bs .pad .ab{width:var(--S);height:var(--S);background:rgba(28,44,86,.28);}
+body.bs .pad .ab .abI{width:44%;height:44%;color:#fff;}
+body.bs .pad .ab .abC{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:clamp(14px,5vh,19px);}
+body.bs .pad .ab.wait .abI{opacity:.35;}
+body.bs #ab3 .abI{color:#ffe7a3;width:48%;height:48%;}
+body.bs #ab1{right:calc(var(--A) + var(--g));bottom:calc(var(--g) * .3);}
+body.bs #ab2{right:calc(var(--A) * .72 + var(--g));bottom:calc(var(--A) * .72 + var(--g));}
+body.bs #ab3{width:var(--U);height:var(--U);right:calc((var(--A) - var(--U)) / 2 - var(--g) * .4);bottom:calc(var(--A) + var(--g) * 1.6);background:rgba(110,30,18,.32);border-color:transparent;}
+body.bs #ab3::before{content:'';position:absolute;inset:-5px;border-radius:50%;pointer-events:none;
+  background:conic-gradient(#ffd36e calc(var(--chg,1) * 360deg), rgba(40,30,14,.55) 0);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 5px));mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 5px));}
+body.bs #ab3.ready{box-shadow:0 0 16px rgba(255,211,110,.6),0 4px 10px rgba(0,0,0,.45);}
+body.bs .pad .ab.wait{background:rgba(30,30,36,.5);}
+body.bs .pad .ab .lbl{position:absolute;bottom:-13px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:9px;}
+body.bs .pad .ab.duelSw{background:rgba(58,92,240,.4);}
+body.bs .pad .ab.duelSw.held{background:rgba(58,92,240,.7);}
+
+/* ---- bottom row ---- */
+body.bs .sbar{gap:6px;align-items:flex-end;}
+body.bs .sbtn{border:1.5px solid rgba(255,231,163,.55);background:var(--glass);box-shadow:0 2px 8px rgba(0,0,0,.35);}
+body.bs .sbtn svg{stroke:var(--cream);}
+body.bs .sbtn span{color:#fff;}
+body.bs #squadBox{background:transparent;border:none;text-shadow:0 1px 3px #000;}
+body.bs #squadMix{color:var(--cream);}
+body.bs #vly{display:none;}
+#armyBtn{position:relative;overflow:hidden;}
+body.bs #armyBtn{border:2px solid #ffd36e;background:rgba(120,34,20,.42);min-width:clamp(56px,18vh,70px);}
+#armyBar{position:absolute;left:0;bottom:0;width:100%;height:4px;background:rgba(0,0,0,.45);}
+#armyBar b{display:block;height:100%;width:0;background:linear-gradient(90deg,#ffb347,#ffe7a3);}
+#armyBtn.ready{box-shadow:0 0 14px rgba(255,211,110,.6);animation:armyPulse 1.2s ease-in-out infinite;}
+@keyframes armyPulse{50%{box-shadow:0 0 22px rgba(255,211,110,.9);}}
+#armyBtn.cancel{background:rgba(200,30,20,.55);border-color:#ff6a5a;}
+
+/* Fortify: one button, over the bottom row, while you stand in a castle you hold */
+#fortBtn{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(max(8px, env(safe-area-inset-bottom,0px)) + clamp(46px,15vh,62px));
+  height:34px;padding:0 14px;border-radius:17px;border:2px solid #ffd36e;background:rgba(16,14,8,.45);color:#ffe7a3;
+  font:800 11px var(--body);letter-spacing:.05em;display:flex;align-items:center;gap:6px;text-shadow:0 1px 2px #000;box-shadow:0 0 12px rgba(255,211,110,.35);cursor:pointer;pointer-events:auto;}
+#fortBtn svg{width:16px;height:16px;}
+#fortBtn[aria-disabled="true"]{opacity:.55;}
+
+/* the Upgrade popup: small and see-through, over the button, one row per soldier type and Armour */
+body.bs #upTray{background:rgba(16,14,8,.42);border:1px solid rgba(255,231,163,.5);border-radius:14px;padding:6px;gap:6px;
+  -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);max-width:min(420px,60vw);}
+body.bs #upTray .ucol h4{font-size:10px;margin:0 0 3px;color:var(--cream);}
+body.bs #upTray button{padding:5px 8px;min-height:0;background:rgba(255,255,255,.06);border:1px solid rgba(255,231,163,.35);}
+body.bs #upTray button span{display:none;}
+body.bs #upTray button{min-width:0;width:auto;}
+body.bs #upTray button b{font-size:14px;}
+body.bs #upTray .ucol{min-width:0;}
+body.bs #upTray{max-width:min(330px,46vw);}
+body.bs #upTray button.bsHide,body.bs #upTray .ucol.bsHide{display:none;}
+
+/* ---- top ---- */
+body.bs #mini{left:max(10px, env(safe-area-inset-left,0px));right:auto;top:10px;width:104px;height:104px;border-radius:14px;
+  border:3px solid #c9a24f;background:rgba(26,34,20,.6);box-shadow:0 4px 10px rgba(0,0,0,.55);box-sizing:border-box;}
+body.bs #points{display:none;}
+body.bs #points.open{display:grid;left:50%;transform:translateX(-50%);top:52px;z-index:6;pointer-events:auto;}
+body.bs #clock{cursor:pointer;pointer-events:auto;border:1px solid #b68a2e;}
+body.bs #pauseBtn,body.bs #shoutBtn,body.bs #micBtn{top:10px;border-radius:50%;border-color:#b68a2e;background:rgba(16,14,8,.45);}
+body.bs #pauseBtn{right:max(12px, env(safe-area-inset-right,0px));}
+body.bs #shoutBtn{right:calc(max(12px, env(safe-area-inset-right,0px)) + 42px);}
+body.bs #micBtn{right:calc(max(12px, env(safe-area-inset-right,0px)) + 84px);}
+body.bs #goldTag{top:10px;right:calc(max(12px, env(safe-area-inset-right,0px)) + 126px);border-radius:17px;padding:4px 12px;font-size:15px;}
+body.bs #feed{top:56px;}
+@media (max-height:430px){ body.bs #mini{width:84px;height:84px;} body.bs #pauseBtn,body.bs #shoutBtn,body.bs #micBtn{top:8px;width:32px;height:32px;}
+  body.bs #shoutBtn{right:calc(max(12px, env(safe-area-inset-right,0px)) + 38px);} body.bs #micBtn{right:calc(max(12px, env(safe-area-inset-right,0px)) + 76px);}
+  body.bs #goldTag{top:8px;right:calc(max(12px, env(safe-area-inset-right,0px)) + 114px);} }
+body.bs .sbar .tray.up{display:flex;flex-wrap:wrap;width:max-content;left:50%;right:auto;transform:translateX(-50%);grid-template-columns:none;}
+body.bs .sbar .tray.up .ucol{display:flex;flex-direction:column;}
+body.bs .sbar .tray.up button{width:96px;}

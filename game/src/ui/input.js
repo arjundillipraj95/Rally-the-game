@@ -90,13 +90,26 @@ export function bindInput(actions) {
   holdBtn($('atk'), () => { inp.attackHeld = true; A.attack(); }, () => { inp.attackHeld = false; });
   holdBtn($('blk'), () => { inp.blockHeld = true; }, () => { inp.blockHeld = false; });
   tapBtn($('mnt'), () => A.ride());
+  { // (BS2) the army ult: a tap sounds it the way you face, a drag places it, back onto the button cancels; not full: says so
+    const el = $('armyBtn');
+    el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); initAudio();
+      if (!el.classList.contains('ready')) { A.rally(); return; } try { el.setPointerCapture(e.pointerId); } catch (_) {} AB.aimStart(3, el, e); });
+    el.addEventListener('pointermove', e => AB.aimMove(e));
+    el.addEventListener('pointerup', () => { const at = AB.aimEnd(); if (at) A.rally(at.x != null ? at : null); });
+    el.addEventListener('pointercancel', () => AB.aimCancel());
+  }
+  tapBtn($('fortBtn'), () => A.upgrade('fort')); // (BS3)
   tapBtn($('jmp'), () => A.jump());
   [1, 2, 3].forEach(k => { // (C1c; C3l: press and drag to aim, let go to fire, back onto the button to cancel; a tap fires as before)
     const el = $('ab' + k);
-    el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); initAudio(); if (!A.abilityReady || A.abilityReady(k - 1)) { try { el.setPointerCapture(e.pointerId); } catch (_) {} AB.aimStart(k - 1, el, e); } });
+    // (BS1) in a duel, Special 1 is Block (held) and Special 2 is Evade (a tap)
+    const duelSw = () => k < 3 && el.classList.contains('duelSw');
+    el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); initAudio();
+      if (duelSw()) { el.classList.add('held'); if (k === 1) inp.blockHeld = true; else A.jump(); return; }
+      if (!A.abilityReady || A.abilityReady(k - 1)) { try { el.setPointerCapture(e.pointerId); } catch (_) {} AB.aimStart(k - 1, el, e); } });
     el.addEventListener('pointermove', e => AB.aimMove(e));
-    el.addEventListener('pointerup', () => { const at = AB.aimEnd(); if (at && A.ability) A.ability(k - 1, at.x != null ? at : null); });
-    el.addEventListener('pointercancel', () => AB.aimCancel());
+    el.addEventListener('pointerup', () => { el.classList.remove('held'); if (k === 1) inp.blockHeld = false; const at = AB.aimEnd(); if (at && A.ability) A.ability(k - 1, at.x != null ? at : null); });
+    el.addEventListener('pointercancel', () => { el.classList.remove('held'); if (k === 1) inp.blockHeld = false; AB.aimCancel(); });
     el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); A.ability && A.ability(k - 1); } });
   });
   // Weapon: press opens the wheel; slide onto a weapon and let go to take it, or let go on the button

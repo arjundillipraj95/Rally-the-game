@@ -148,7 +148,7 @@ window.__fb = {
   // drive: also run the player captain with an idle stick (or a given one), so jumps and buffered attacks advance
   step(n, dt = 1 / 30, drive) { const inp = drive ? Object.assign({ wx: 0, wz: 0, mag: 0, block: false, attackHeld: false, camYaw: 0 }, drive === true ? {} : drive) : null; for (let i = 0; i < n && G.state === 'play'; i++) update(dt, inp); },
   ride() { if (G.player) { G.player.lastHit = -9; actions.ride(); } },
-  volley(pt) { actions.volley(pt); }, order(o, pt) { actions.order(o, pt); }, rally() { actions.rally(); },
+  volley(pt) { actions.volley(pt); }, order(o, pt) { actions.order(o, pt); }, rally(pt) { actions.rally(pt); },
   attack() { actions.attack(); }, duel() { actions.duel(); }, jump() { actions.jump(); }, weapon(w) { actions.weapon(w); }, ability(k, at) { actions.ability(k, at); }, abilityReady(k) { return actions.abilityReady(k); }, upgrade(id) { actions.upgrade(id); },
   fort(c, lv) { G.teams[c].up.fort = lv; applyFort(c); },
   feel: feelStats, death: deathState, nick: ti => nickFor(ti), hitstop: () => S.hitstopN, slowmo: () => S.slowmo, camTarget, camera,

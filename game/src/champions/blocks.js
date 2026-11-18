@@ -11,9 +11,12 @@ import { startTestudo } from '../core/sim/testudo.js';
 
 const foes = (u, keep) => G.units.filter(o => !o.dead && !o.rest && isEnemy(o, u) && !(o.fog && o.bush >= 0) && keep(o));
 // where a tap aims: the nearest enemy champion in range, else the nearest enemy, else straight ahead
+// (BS5) your own taps: champions in range first (the default), or simply the nearest foe (Settings)
+export const target = { mode: (() => { try { return localStorage.getItem('rally.target') === 'near' ? 'near' : 'champ'; } catch (e) { return 'champ'; } })() };
+export function setTarget(v) { target.mode = v === 'near' ? 'near' : 'champ'; try { localStorage.setItem('rally.target', target.mode); } catch (e) {} }
 export function autoAim(u, range) {
-  let best = null, bd = 1e9;
-  for (const o of foes(u, o => Math.hypot(o.x - u.x, o.z - u.z) < range)) { const d = Math.hypot(o.x - u.x, o.z - u.z) - (o.leader ? 1e3 : 0); if (d < bd) { bd = d; best = o; } }
+  let best = null, bd = 1e9; const champ = !((u.isMe || u === G.player) && target.mode === 'near');
+  for (const o of foes(u, o => Math.hypot(o.x - u.x, o.z - u.z) < range)) { const d = Math.hypot(o.x - u.x, o.z - u.z) - (o.leader && champ ? 1e3 : 0); if (d < bd) { bd = d; best = o; } }
   return best ? { x: best.x, z: best.z, u: best } : { x: u.x + Math.sin(u.face) * range, z: u.z + Math.cos(u.face) * range };
 }
 // enemies in a circle round (x, z)

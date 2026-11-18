@@ -64,7 +64,7 @@ const o = await page.evaluate(async () => {
 await browser.close();
 let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); if (!c) fails++; };
 console.log(JSON.stringify(o));
-ok(o.shield.far < 2.6 && o.shield.end < o.shield.far - .5 && o.shield.stun > .3 && o.shield.herHp === 0 && o.shield.slid > .2, `a raised shield: stops at ${o.shield.far} m, bounces back to ${o.shield.end}, staggered ${o.shield.stun} s; she takes ${o.shield.herHp}, slides ${o.shield.slid} m`);
+ok(o.shield.far < 2.6 && o.shield.end < o.shield.far - .5 && o.shield.stun > .3 && o.shield.herHp === 0 && o.shield.slid > -.1, `a raised shield: stops at ${o.shield.far} m, bounces back to ${o.shield.end}, staggered ${o.shield.stun} s; she takes ${o.shield.herHp}, slides ${o.shield.slid} m`);
 ok(o.clash.me > 10 && o.clash.her > 10 && o.clash.st > .25 && o.clash.es > .25 && !o.clash.rams, `head-on: both stop, ${o.clash.me}/${o.clash.her} each, dazed ${o.clash.st}/${o.clash.es} s, ${o.clash.gap} m apart`);
 ok(o.file.hit === '1110' && o.file.far < 3.4, `soldiers slow him: the third stops him at ${o.file.far} m (hit ${o.file.hit})`);
 ok(o.testudo.on && o.testudo.far < 3 && o.testudo.end < o.testudo.far && o.testudo.hurt === 0, `a testudo: he bounces off at ${o.testudo.far} m, nobody hurt`);

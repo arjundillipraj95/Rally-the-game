@@ -4,6 +4,7 @@ import { G, rules, matchTime, modeDesc, targetFor, SLOT_NAME } from '../core/sta
 import { quality, saveSetting } from '../render/quality.js';
 import { clearCritters } from '../render/critters.js';
 import { setShake, shakeEnabled } from '../render/camera.js';
+import { target, setTarget } from '../champions/blocks.js';
 import { initAudio, sfx, setMusic, musicEnabled, setVibe, vibeEnabled } from '../ui/audio.js';
 import { portal, onPortal } from '../portal.js';
 import { initOrient } from '../ui/orient.js';
@@ -83,6 +84,7 @@ seg('segMusic', v => { setMusic(v === 'on'); pressSeg('segMusic', v); });
 pressSeg('segMusic', musicEnabled() ? 'on' : 'off');
 seg('segVibe', v => { setVibe(v === 'on'); pressSeg('segVibe', v); });
 pressSeg('segVibe', vibeEnabled() ? 'on' : 'off');
+seg('segTarget', v => { setTarget(v); pressSeg('segTarget', v); }); pressSeg('segTarget', target.mode); // (BS5)
 seg('segShake', v => { setShake(v === 'on'); pressSeg('segShake', v); });
 pressSeg('segShake', shakeEnabled() ? 'on' : 'off');
 seg('segQuality', v => {

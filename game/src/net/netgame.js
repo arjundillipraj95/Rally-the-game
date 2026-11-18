@@ -194,7 +194,7 @@ export function netHostReadInputs() {
       if (pr.ord === 'hold') setOrder(ti, 'hold', Array.isArray(pr.hold) ? { x: +pr.hold[0], z: +pr.hold[1], face: +pr.hold[2] } : null);
       if (pr.ord === 'focus') setOrder(ti, 'focus', Array.isArray(pr.foc) ? { x: +pr.foc[0], z: +pr.foc[1], id: pr.foc[2] | 0 } : null);
     }
-    if (typeof pr.rly === 'number' && pr.rly > (last.rly || 0)) { rallyCry(ti); last.rly = pr.rly; } // the rally horn
+    if (typeof pr.rly === 'number' && pr.rly > (last.rly || 0)) { const q = Array.isArray(pr.abAt) && pr.abAt[3]; rallyCry(ti, q ? { x: +q[0], z: +q[1] } : null); last.rly = pr.rly; } // the rally horn
     if (typeof pr.sh === 'number' && pr.sh > (last.sh || 0)) { last.sh = pr.sh; if (SHOUTS[pr.shK | 0]) bus.emit('msg', { k: 'callout', a: [ti, pr.shK | 0] }); } // a quick shout
     if (Array.isArray(pr.ab)) for (let k = 0; k < 3; k++) if ((pr.ab[k] | 0) > last.ab[k]) { last.ab[k] = pr.ab[k] | 0; useAbility(ti, SLOTS[k], Array.isArray(pr.abAt) && pr.abAt[k] ? { x: +pr.abAt[k][0], z: +pr.abAt[k][1] } : null); } // (C1c: a press of a special or the ult)
     if (Array.isArray(pr.rec)) for (let k = 0; k < 3; k++) while ((pr.rec[k] | 0) > last.rec[k]) { last.rec[k]++; recruit(ti, RECRUITS[k]); }
@@ -224,7 +224,7 @@ export function clientStart(hp) {
   G.holds = makeHolds(G.layout); G.duels = [];
   G.c2 = null; if (G.mode === 'crown' && G.map.id === 'mount') { G.cgates = {}; for (const cw of (G.layout.cwalls || [])) G.cgates[cw.hid] = freshGates(0); c2Begin(clientMk); }
   Object.assign(C, { seatSig: "", off: null, back: null, snapHt: null, byId: new Map(), lastN: -1, lastMsgN: (hp.m && hp.m.length) ? hp.m[hp.m.length - 1][0] : 0, meId: null, meInit: false, kickN: 0, localCd: 0, lastSnapAt: performance.now(),
-    inp: { rb: 0, bsh: 0, dl: 0, dlId: null, atk: 0, ride: 0, vly: 0, chg: 0, evN: 0, evK: '', par: 0, ahN: 0, ahD: 0, ah: false, rly: 0, foc: null, vat: null, rec: [0, 0, 0], ab: [0, 0, 0], abAt: [null, null, null], up: UPGRADES.map(() => 0), ord: 'follow', hold: null, face: 0 }, sendAt: 0, sendNow: false, pred: null, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
+    inp: { rb: 0, bsh: 0, dl: 0, dlId: null, atk: 0, ride: 0, vly: 0, chg: 0, evN: 0, evK: '', par: 0, ahN: 0, ahD: 0, ah: false, rly: 0, foc: null, vat: null, rec: [0, 0, 0], ab: [0, 0, 0], abAt: [null, null, null, null], up: UPGRADES.map(() => 0), ord: 'follow', hold: null, face: 0 }, sendAt: 0, sendNow: false, pred: null, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
   for (const u of G.units) if (u.neutral) C.byId.set(u.id, u); // (F4: the mountain's neutral men, made with the battle above)
   G.player = null;
   cam.yaw = Math.atan2(-TEAMS[colorOf(G.myTi)].pos[0], -TEAMS[colorOf(G.myTi)].pos[1]); cam.pitch = CAM_PITCH;
@@ -751,11 +751,11 @@ export const actions = {
   },
   // no argument: step to the next order; with one: set it
   // sound the rally horn (when it's full)
-  rally() {
+  rally(pt) { // pt: where the army ult was dragged to (BS2), or nothing
     const p = G.player, me = G.teams[G.myTi]; if (G.state !== 'play' || !p || p.dead || !me) return;
     if ((me.rally || 0) < 100) { floatText(p.x, p.y + 3.2, p.z, 'The rally horn fills as you fight well', '#fff'); return; }
-    if (isClient()) { C.inp.rly++; C.sendNow = true; me.rally = 0; return; }
-    rallyCry(G.myTi);
+    if (isClient()) { C.inp.rly++; C.inp.abAt[3] = pt ? [Math.round(pt.x * 100) / 100, Math.round(pt.z * 100) / 100] : null; C.sendNow = true; me.rally = 0; return; }
+    rallyCry(G.myTi, pt);
   },
   // pt (hold only): where to put the line, {x, z, face}; without one it forms in front of the captain.
   // 'focus' (with pt {x, z, id}): attack that enemy group

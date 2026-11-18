@@ -41,7 +41,7 @@ export function useAbility(ti, slot, aim) {
   return true;
 }
 // the army ult, from a full horn (army.js rallyCry): true when his champion has one and fired it
-export function useArmyUlt(ti) { return !!slotDef(ti, 'armyUlt') && unlocked(ti, 'armyUlt') && useAbility(ti, 'armyUlt'); }
+export function useArmyUlt(ti, at) { return !!slotDef(ti, 'armyUlt') && unlocked(ti, 'armyUlt') && useAbility(ti, 'armyUlt', at); }
 export function abilityTick(dt) {
   if (G.role === 'client') return;
   G.teams.forEach((s, ti) => { if (!s.active || !s.cds) return; for (const k of SLOTS) if (s.cds[k] > 0) s.cds[k] -= dt; });

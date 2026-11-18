@@ -47,9 +47,9 @@ export function moraleTick(dt) {
   });
   G.teams.forEach((s, ti) => { if (s.active) moraleBounds(s, ti); }); // (CASTLE8: a fallen nexus caps it, the Crown floors it)
 }
-export function rallyCry(ti) {
+export function rallyCry(ti, at) {
   const s = G.teams[ti], L = s && s.leader; if (!L || L.dead || (s.rally || 0) < 100) return false;
-  if (useArmyUlt(ti)) { s.rally = 0; return true; } // (C1c: a champion with an army ult sounds it instead)
+  if (useArmyUlt(ti, at)) { s.rally = 0; return true; } // (C1c: a champion with an army ult sounds it instead)
   s.rally = 0; s.morale = Math.min(100, s.morale + RALLY.morale); s.routT = 0;
   for (const u of G.units) if (!u.dead && u.ti === ti && !u.leader && Math.hypot(u.x - L.x, u.z - L.z) < RALLY.r) { u.rallyT = RALLY.buffT; u.stun = Math.min(u.stun, 0); }
   const shaken = new Set();

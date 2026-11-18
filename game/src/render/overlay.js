@@ -1,6 +1,7 @@
 // The 2D layer drawn over the 3D view: sparks, floating text, health bars, names,
 // the banner pointer, the joystick and the red tint while you are down. Also the minimap.
 import { body, bodyOf } from '../core/body.js';
+import { champOf } from '../champions/index.js'; // (BS4: the minimap's faces)
 import * as THREE from 'three';
 import { TEAMS, DUEL, STREAK, RHYTHM, ARMOUR, STAMINA, DUEL_DIR, FEEL, NEUTRAL } from '../config.js';
 import { bus } from '../core/state.js';
@@ -403,9 +404,11 @@ function drawMini() {
   const me = G.player, now = performance.now() / 1000;
   for (const u of G.units) {
     if (u.dead || !u.leader || u === me || u.fog) continue;
-    const ally = !isEnemyTi(u.ti, G.myTi), r = u.human ? 7.5 : 6;
+    const ally = !isEnemyTi(u.ti, G.myTi), r = u.human ? 11 : 10; // (BS4: a face for each captain, his champion's initial, upright)
     mctx.beginPath(); mctx.arc(u.x * k, u.z * k, r, 0, Math.PI * 2); mctx.fillStyle = TEAMS[colorOf(u.ti)].css; mctx.fill();
     mctx.lineWidth = ally ? 3 : 2; mctx.strokeStyle = ally ? '#ffffff' : 'rgba(10,8,6,.9)'; mctx.stroke();
+    mctx.save(); mctx.translate(u.x * k, u.z * k); mctx.rotate(-(cam.yaw + Math.PI)); mctx.fillStyle = '#fff'; mctx.font = '900 12px Inter, sans-serif'; mctx.textAlign = 'center'; mctx.textBaseline = 'middle';
+    mctx.fillText((champOf(u.ti).name || '?')[0], 0, 1); mctx.restore();
   }
   // you: a white arrow pointing the way you face, in a pulsing ring
   if (me && !me.dead) {
