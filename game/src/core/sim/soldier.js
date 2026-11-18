@@ -1,4 +1,5 @@
 // Battle rules: formations and soldiers' thinking.
+import { body } from '../body.js';
 import { CROWN2, TEAMS, CASTLE_REACH, JAVELIN, HEAVY } from '../../config.js';
 import { G, isEnemy, isEnemyTi, colorOf, activeArmies, gateOff } from '../state.js';
 import { gatePos, rnd, angDiff, turn } from '../world.js';
@@ -21,7 +22,7 @@ function slotPos(anchor, front, idx, isArch, meleeN) {
 // (C3c) behind a raised Shield of Cassius: four across in the zone behind him, facing his way; archers shoot from there,
 // footmen strike what reaches them
 function shelter(u, L, dt, range) {
-  const S = L.scutum, f = S.face, i = u.slot || 0, row = Math.floor(i / 4), lat = (i % 4 - 1.5) * 1.1, back = 1.3 + row * 1.1, fx = Math.sin(f), fz = Math.cos(f);
+  const S = L.scutum, f = S.face, i = u.slot || 0, k = body.soldier, row = Math.floor(i / 4), lat = (i % 4 - 1.5) * 1.1 * k, back = (1.3 + row * 1.1) * k, fx = Math.sin(f), fz = Math.cos(f); // (SIZE1: k, room for bigger men)
   const gx = L.x - fx * back + fz * lat, gz = L.z - fz * back - fx * lat, foe = u.foe, fd = u.fd;
   const d = go(u, gx, gz, speedOf(u) * 1.15, dt, .2);
   if (u.kind === 'arch' && foe && fd <= range && d < 1.5) { u.aim = true; faceTo(u, foe.x, foe.z, dt, 8); if (u.shootCd <= 0 && u.stun <= 0 && Math.abs(angDiff(u.face, Math.atan2(foe.x - u.x, foe.z - u.z))) < .3) { shoot(u, foe); u.shootCd = u.shootBase * rnd(.85, 1.2); } return; }

@@ -1,5 +1,6 @@
 // The 2D layer drawn over the 3D view: sparks, floating text, health bars, names,
 // the banner pointer, the joystick and the red tint while you are down. Also the minimap.
+import { body, bodyOf } from '../core/body.js';
 import * as THREE from 'three';
 import { TEAMS, DUEL, STREAK, RHYTHM, ARMOUR, STAMINA, DUEL_DIR, FEEL, NEUTRAL } from '../config.js';
 import { bus } from '../core/state.js';
@@ -114,7 +115,7 @@ export function drawOverlay(opts) {
     for (const u of G.units) {
       if (u.dead || u.fog || u === player || (u.hp >= u.max - .5 && !u.leader && !u.boss)) continue;
       const d = Math.hypot(u.x - camera.position.x, u.z - camera.position.z); if (d > 34) continue;
-      const [sx, sy, ok] = proj(u.x, u.y + (u.leader ? 3.2 : 2.8) + (u.mounted ? 1.2 : 0), u.z); if (!ok) continue;
+      const [sx, sy, ok] = proj(u.x, u.y + (u.leader ? 3.2 : 2.8) * bodyOf(u) + (u.mounted ? 1.2 * body.champ : 0), u.z); if (!ok) continue;
       const w = u.leader || u.boss ? 40 : 26;
       ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, sy, w, 4);
       ctx.fillStyle = u.neutral ? NEUTRAL.css : TEAMS[colorOf(u.ti)].css; ctx.fillRect(sx - w / 2, sy, w * Math.max(0, u.hp / u.max), 4);
@@ -181,7 +182,7 @@ function drawPows() {
 // Speech bubbles over soldiers' heads: white, rounded, a little tail, popping in and fading out.
 function drawBubbles() {
   for (const b of bubbles) {
-    const u = b.u, [sx, sy0, ok] = proj(u.x, u.y + (u.leader ? 3.3 : 2.9) + (u.dead ? -1.2 : 0) + (u.mounted ? 1.2 : 0), u.z); if (!ok) continue;
+    const u = b.u, [sx, sy0, ok] = proj(u.x, u.y + (u.leader ? 3.3 : 2.9) * bodyOf(u) + (u.dead ? -1.2 : 0) + (u.mounted ? 1.2 * body.champ : 0), u.z); if (!ok) continue;
     const pop = Math.min(1, b.t / .12), fade = Math.min(1, (b.dur - b.t) / .3), sy = sy0 - 10 * (1 - pop);
     ctx.globalAlpha = Math.max(0, fade);
     ctx.font = `800 ${b.big ? 15 : 13}px "Barlow Semi Condensed", sans-serif`;
@@ -201,7 +202,7 @@ function drawFinish() {
   for (const u of G.units) {
     if (!u.leader || u.dead || u.fog || !u.execReady || !isEnemyTi(u.ti, me.ti)) continue;
     if (Math.hypot(u.x - me.x, u.z - me.z) > (me.mounted ? 18 : 9)) continue;
-    const [sx, sy, ok] = proj(u.x, u.y + 3.5, u.z); if (!ok) continue;
+    const [sx, sy, ok] = proj(u.x, u.y + 3.5 * body.champ, u.z); if (!ok) continue;
     const p = 1 + .1 * Math.sin(now * 9), sz = Math.round(17 * p);
     ctx.textAlign = 'center'; ctx.font = `900 italic ${sz}px Bangers, Impact, sans-serif`; ctx.lineWidth = 5; ctx.strokeStyle = '#1a0606';
     ctx.strokeText(txt, sx, sy); ctx.fillStyle = '#ff3b2e'; ctx.fillText(txt, sx, sy);
@@ -267,7 +268,7 @@ function drawStars() {
   for (const u of G.units) {
     if (u.dead || u.fog || !u.seesStars) continue;
     const d = Math.hypot(u.x - camera.position.x, u.z - camera.position.z); if (d > 30) continue;
-    const sz = clamp(260 / d, 9, 20), hy = u.y + (u.leader ? 2.75 : 2.4) + (u.mounted ? 1.2 : 0);
+    const sz = clamp(260 / d, 9, 20), hy = u.y + (u.leader ? 2.75 : 2.4) * bodyOf(u) + (u.mounted ? 1.2 * body.champ : 0); // (SIZE1: over the bigger heads)
     for (let k = 0; k < 3; k++) {
       const a = now * 5 + k * 2.094 + u.id, [sx, sy, ok] = proj(u.x + Math.cos(a) * .45, hy + Math.sin(a * 2) * .06, u.z + Math.sin(a) * .45); if (!ok) continue;
       ctx.font = `${sz}px sans-serif`; ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.strokeText('★', sx, sy); ctx.fillStyle = '#ffd84a'; ctx.fillText('★', sx, sy);

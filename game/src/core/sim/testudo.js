@@ -4,6 +4,7 @@
 // knocks them about; from the front blows are turned (an ult lands at a share and doesn't break it); arrows do
 // nothing (the roof); flanks and back are open; a horse charge into the front stalls. Walls halt the march. Numbers
 // on his page (armyUlt). The host runs it; every phone sees it from the fxtestudo moments (render/testudofx.js).
+import { body } from '../body.js';
 import { G, isEnemy } from '../state.js';
 import { angDiff, groundY } from '../world.js';
 import { integrate } from './move.js';
@@ -16,10 +17,10 @@ export function startTestudo(u, at, d) {
     .sort((a, b) => (a.kind === 'arch') - (b.kind === 'arch')); // (shields on the outside rows first)
   if (!men.length) return false;
   const a = Math.hypot(at.x - u.x, at.z - u.z) > .5 ? Math.atan2(at.x - u.x, at.z - u.z) : u.face, dx = Math.sin(a), dz = Math.cos(a);
-  const cols = Math.min(men.length, Math.max(3, Math.ceil(Math.sqrt(men.length * 1.5)))), rows = Math.ceil(men.length / cols);
+  const gap = d.gap * body.soldier, cols = Math.min(men.length, Math.max(3, Math.ceil(Math.sqrt(men.length * 1.5)))), rows = Math.ceil(men.length / cols);
   const cx = men.reduce((s, o) => s + o.x, 0) / men.length, cz = men.reduce((s, o) => s + o.z, 0) / men.length;
-  const B = { ti: u.ti, t: 0, d, men, fx: cx + dx * rows * d.gap / 2, fz: cz + dz * rows * d.gap / 2, dx, dz, face: a, cols, gone: 0, dist: d.dist, healed: false, lead: u };
-  men.forEach((o, i) => { o.testudo = B; o.tSlot = { lat: (i % cols - (cols - 1) / 2) * d.gap, back: Math.floor(i / cols) * d.gap }; o.foe = null; o.swing = 0; });
+  const B = { ti: u.ti, t: 0, d, men, fx: cx + dx * rows * gap / 2, fz: cz + dz * rows * gap / 2, gap, dx, dz, face: a, cols, gone: 0, dist: d.dist, healed: false, lead: u };
+  men.forEach((o, i) => { o.testudo = B; o.tSlot = { lat: (i % cols - (cols - 1) / 2) * gap, back: Math.floor(i / cols) * gap }; o.foe = null; o.swing = 0; }); // (SIZE1: gap, wider apart for bigger men)
   live.push(B);
   fx('fxmsg', { k: 'fxtestudo', u, q: [a.toFixed(2), d.form + d.march, ...men.map(o => o.id)].join(',') });
   sound('clang', cx, cz);
@@ -47,7 +48,7 @@ function end(B, i, shout) {
   live.splice(i, 1);
   for (const o of B.men) { if (o.testudo === B) o.testudo = null; }
   if (shout) { // the shout: the enemies just in front are shoved back
-    const half = (B.cols - 1) / 2 * B.d.gap + .8;
+    const half = (B.cols - 1) / 2 * B.gap + .8;
     for (const o of G.units) {
       if (o.dead || !isEnemy(o, B.men[0] || B.lead)) continue;
       const rx = o.x - B.fx, rz = o.z - B.fz, f = rx * B.dx + rz * B.dz, s = rx * B.dz - rz * B.dx;

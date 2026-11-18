@@ -409,6 +409,10 @@ Last updated: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pag
 - C3f Titus the default (18 Nov): CHAMP def and bot = titus; the legionary by ?champ=legionary (r_C1d now asks for him),
   a saved choice kept. r_C3f. C3 done on launch26; waiting for Arjun to play it and say ship.
   Known: r_C1e's army-size check fails before and after C3 (sizes changed since C1e); r_C1c's bot check is flaky.
+- SIZE1 bigger bodies (18 Nov, Arjun's go): BODY_SIZE champ 1.4, soldier 1.3 (config/champs.js; horses with the champion),
+  drawing only plus the testudo and shelter spacing; `?bodyc=&bodys=` tries a pair on the preview, kept on the phone
+  (`core/body.js`). Arjun to lock in the pair. Next: the battle screen ticket (design doc "Battle screen", mockup
+  https://claude.ai/artifact/6fdoSRg8mwApXsC6SQiRaS).
 - Arjun 17 Nov (for S1-12, designer to fold into the design doc): the lobby is 60 s and picks the champion with the lane: filter
   by class, then a picture grid like League or Unite. Today's design says 25 s and no grid.
 - Fixes 17 Nov (Arjun's list), on launch26: FIX1 lobby (not reproduced as reported; made robust: the service resends the

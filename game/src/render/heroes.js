@@ -3,6 +3,7 @@
 // heavy wind-up, a bash, a parry, reeling from a clout). On by default; ?models=0 in the address (or
 // localStorage 'rally.models' = '0') turns it off and the game looks as before.
 // Captains only for now: a few skinned meshes are cheap; soldiers (hundreds) need baked instancing.
+import { body } from '../core/body.js';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { TEAMS, NEUTRAL, ANIM, EXEC, FEEL } from '../config.js';
@@ -24,7 +25,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 
 // the war horse's legs (render/warhorse.js hangs each leg's bones from pivots by these names)
 const LEGS = { frontL: 1, frontR: 1, backL: 1, backR: 1 };
-const HORSE_SCALE = .85; // (the raw horse is about 3.2 units long; a man on foot is about 2.4 in game)
+const HORSE_SCALE = .85 * body.champ; // (the raw horse is about 3.2 units long; a man on foot is about 2.4 in game; SIZE1: with his champion)
 // the legs of a rider in the saddle: thighs forward over the horse, shins bent down its flanks
 const RIDE = { thigh_L: [-1.25, 0, 0], thigh_R: [-1.25, 0, 0], shin_L: [1.45, 0, 0], shin_R: [1.45, 0, 0] };
 
@@ -35,8 +36,8 @@ export const heroesOn = () => on && !!SRC;
 let clipsOn = true;
 try { clipsOn = new URLSearchParams(location.search).get('clips') !== '0' && localStorage.getItem('rally.clips') !== '0'; } catch (e) { /* on */ }
 
-const SCALE = 1.22; // (the old captain stood about 2.4 tall; the model is 1.96)
-const SOLDIER_SCALE = .8; // (a foot soldier stands about 80% of the captain's height)
+const SCALE = 1.22 * body.champ; // (the old captain stood about 2.4 tall; the model is 1.96; SIZE1: drawn bigger on the same map)
+const SOLDIER_SCALE = .8 * body.soldier / body.champ; // (a foot soldier stood about 80% of the captain's height; SIZE1: the two grow apart)
 let SRC = null;
 // the look's choices (core/look.js) become pack pieces: helmet, armour and shield. The weapon stays the
 // one you fight with (gameplay), so it is not a look here.
@@ -452,6 +453,7 @@ export function drawHero(u, a, dt) {
   return true;
 }
 // which blow his clips are playing (null between blows), for the swoosh
+export const heroScale = u => { const h = live.get(u); return h ? h.R.root.scale.x : 0; }; // (SIZE1: the size a unit is drawn at: tests read it)
 export const heroBlow = u => { const h = live.get(u); return h && h.swClip && h.swT != null && G.T - h.swT < .38 + ANIM.swingTail ? h.swClip : null; };
 // where his weapon's blade is in the world this frame (base, tip): false if he isn't drawn on the clip skeleton
 export function heroBlade(u, base, tip) {
