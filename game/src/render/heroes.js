@@ -10,7 +10,7 @@ import { G, colorOf } from '../core/state.js';
 import { scene } from './scene.js';
 import { groundY } from '../core/world.js';
 import { rigCaptain, addArmour, applyPose, moveAt, mixPose, CLIPS, POSES, teamMaterial } from './rig/captainrig.js';
-import { loadClipBody, rigClip, addClipArmour, play, tick, head, ended } from './rig/cliprig.js';
+import { loadClipBody, hipClips, rigClip, addClipArmour, play, tick, head, ended } from './rig/cliprig.js';
 import { SLOTS, SLOT_IX } from '../core/look.js';
 import { still, facing } from '../core/charge.js';
 import { batchOn, abOn, abOld } from './batch.js';
@@ -18,12 +18,13 @@ import { foldGear, foldShow } from './rig/fold.js';
 import { strikeYaw, lookAlong } from './rig/strikeface.js';
 import { aimShaft } from './rig/shaft.js';
 import { spearman } from '../champions/army.js';
+import { champOf } from '../champions/index.js';
+import { warHorse, cloneHorse } from './warhorse.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
-// the warhorse's leg joints, in its own (Z-up) model space: each leg swings from the top of its upper part
-const LEGS = { frontL: [-.34, -.63, 1.2], frontR: [.34, -.63, 1.2], backL: [-.36, .58, 1.2], backR: [.36, .58, 1.2] };
+// the war horse's legs (render/warhorse.js hangs each leg's bones from pivots by these names)
+const LEGS = { frontL: 1, frontR: 1, backL: 1, backR: 1 };
 const HORSE_SCALE = .85; // (the raw horse is about 3.2 units long; a man on foot is about 2.4 in game)
-// the saddle seat, in the horse's raw model: its top 2.28 up, its middle .08 behind centre (raw +y is backward)
-const SEAT_TOP = 2.28 * HORSE_SCALE, SEAT_Z = -.08 * HORSE_SCALE;
 // the legs of a rider in the saddle: thighs forward over the horse, shins bent down its flanks
 const RIDE = { thigh_L: [-1.25, 0, 0], thigh_R: [-1.25, 0, 0], shin_L: [1.45, 0, 0], shin_R: [1.45, 0, 0] };
 
@@ -40,6 +41,7 @@ let SRC = null;
 // the look's choices (core/look.js) become pack pieces: helmet, armour and shield. The weapon stays the
 // one you fight with (gameplay), so it is not a look here.
 const PACK = { helmet: ['blue_crest', 'gold_ridge', 'red_crest'], shield: ['red_scutum', 'blue_oval', 'blue_kite'] };
+const CHAMP_SHIELDS = ['scutum_titus', 'gladius_titus'], CHAMP_MODELS = ['titus', 'spearman', 'archer']; // (his own pieces: shields and swords) // (C3: a champion's own shield, from his page's look; models/<name>.glb)
 // the armour choices: the painted armour in its finishes (C2: 'Burnished iron', once 'Leather & fur', is dark worked iron; 'leather' stays for the archers' jerkin) (the tint multiplies its painted steel)
 const ARMOUR_FINISH = { steel: [0xffffff, .35, .45], bronze: [0xe0a458, .55, .38], leather: [0x9a6238, 0, .85], iron: [0xb4a08c, .65, .32], black: [0x3b3e46, .6, .3] };
 // C1: a helmet's metal (dome, cheek guards) is the colour of the armour finish the player picked
@@ -58,39 +60,19 @@ if (on) {
     loadClipBody(ANIM.file), ...['models/soldier.glb', 'models/armour_segmented.glb'].map(mesh$),
     ...PACK.helmet.map(n => scene$(`models/pack/captain_helmet_${n}.glb`)),
     ...PACK.shield.map(n => scene$(`models/pack/captain_shield_${n}.glb`)),
-    scene$('models/horse.glb'), mesh$('models/soldier_lod.glb')
+    scene$('models/horse_war.glb'), mesh$('models/soldier_lod.glb'), ...CHAMP_SHIELDS.map(n => scene$(`models/${n}.glb`)), ...CHAMP_MODELS.map(n => loadClipBody(`models/${n}_anim.glb`)), scene$('models/spearman_lod.glb'), scene$('models/archer_lod.glb')
   ]).then(all => {
-    const [cap, sd, ar, ...rest] = all, b = cap.mesh, helmets = rest.slice(0, 3), shields = rest.slice(3, 6), horse = rest[6], lod = rest[7].geometry;
+    const [cap, sd, ar, ...rest] = all, b = cap.mesh, helmets = rest.slice(0, 3), shields = rest.slice(3, 6), horse = rest[6], lod = rest[7].geometry, champShields = rest.slice(8, 8 + CHAMP_SHIELDS.length), champModels = rest.slice(8 + CHAMP_SHIELDS.length, 8 + CHAMP_SHIELDS.length + CHAMP_MODELS.length), spearLod = farFigure(rest[8 + CHAMP_SHIELDS.length + CHAMP_MODELS.length]), archLod = farFigure(rest[9 + CHAMP_SHIELDS.length + CHAMP_MODELS.length]);
     { const P = lod.attributes.position; let x0 = 1e9, x1 = -1e9; for (let i = 0; i < P.count; i++) { const y = P.getY(i); if (y > -.2 && y < -.15) { x0 = Math.min(x0, P.getX(i)); x1 = Math.max(x1, P.getX(i)); } } if (x1 > x0) lod.translate(-(x0 + x1) / 2, 0, 0); } // (centred on the waist, as the rig centres the full one)
     sd.material.metalness = 0; sd.material.roughness = .8; sd.geometry.userData.material = sd.material;
     const by = (list, names) => Object.fromEntries(names.map((n, i) => [n, list[i]]));
-    SRC = { cap, body: b.geometry, soldier: sd.geometry, soldierMat: sd.material, lod, horse: horseTemplate(horse),
+    SRC = { cap, body: b.geometry, soldier: sd.geometry, soldierMat: sd.material, lod, ...(w => ({ horse: w.tpl, seat: w.seat }))(warHorse(horse, HORSE_SCALE)), // (C3: the war horse)
       armours: Object.fromEntries(Object.entries(ARMOUR_FINISH).map(([n, [c, mt, rg]]) => { const m = ar.material.clone(); m.color.set(c); m.metalness = mt; m.roughness = rg; return [n, { geo: ar.geometry, mat: m }]; })),
-      helmets: by(helmets, PACK.helmet), shields: by(shields, PACK.shield) };
+      helmets: by(helmets, PACK.helmet), shields: by(shields, PACK.shield), champShields: by(champShields, CHAMP_SHIELDS),
+      models: by(champModels.map(m => ({ ...m, clips: hipClips(cap, m), own: true, ref: cap })), CHAMP_MODELS), spearLod, archLod }; // (C3: his own body plays the captain's clips; the spearman's far figure)
   }).catch(e => { console.warn('captain models failed to load', e); on = false; });
 }
 
-// the warhorse, built once: its legs are regrouped under joints so they can swing; each rider gets a copy
-function horseTemplate(sc) {
-  const H = new THREE.Group(); H.rotation.x = -Math.PI / 2; H.scale.setScalar(HORSE_SCALE); // (Z-up to Y-up: the horse faces +z)
-  const pivots = {}, body = new THREE.Group(); H.add(body);
-  for (const k of Object.keys(LEGS)) { const p = new THREE.Group(); p.name = 'leg_' + k; p.position.set(...LEGS[k]); H.add(p); pivots[k] = p; }
-  const meshes = []; sc.traverse(o => { if (o.isMesh) meshes.push(o); });
-  // each leg: the upper part swings from the shoulder or hip; the rest (leg, sock, hoof) from a knee at
-  // the top of the lower leg, so it can fold as the hoof lifts
-  const knees = {};
-  for (const k of Object.keys(LEGS)) {
-    const low = meshes.find(m => m.name === k + '_leg'); if (!low) continue;
-    low.geometry.computeBoundingBox(); const b = low.geometry.boundingBox, at = [(b.min.x + b.max.x) / 2, (b.min.y + b.max.y) / 2, b.max.z - .04];
-    const kn = new THREE.Group(); kn.name = 'knee_' + k; kn.position.set(at[0] - LEGS[k][0], at[1] - LEGS[k][1], at[2] - LEGS[k][2]); pivots[k].add(kn); knees[k] = { g: kn, at };
-  }
-  for (const m of meshes) {
-    const k = Object.keys(LEGS).find(k => m.name.startsWith(k + '_'));
-    if (k && knees[k] && !m.name.endsWith('_upper')) { const a = knees[k].at; m.position.set(-a[0], -a[1], -a[2]); knees[k].g.add(m); }
-    else if (k) { m.position.set(-LEGS[k][0], -LEGS[k][1], -LEGS[k][2]); pivots[k].add(m); } else body.add(m);
-  }
-  const tpl = new THREE.Group(); tpl.add(H); return tpl;
-}
 let FRAME = 0; // (frames drawn: what was drawn this frame stays up, the rest is taken down)
 const live = new Map(); // unit -> { R, weapon, team, run, moveName, moveT, hp, sc, U, legs }
 const KIND = ['forehand', 'backhand', 'overhead', 'thrust', 'spin', 'heavy', 'bash'];
@@ -100,23 +82,29 @@ function weaponOf(u) { if (u.kind === 'arch') return 'bow'; if (u.weapon) return
 const lookOf = u => (G.looks && G.looks[u.ti]) || null;
 // the colour an army's cloth, shield face and hood are tinted to: its team's, or the neutral grey (M1: the mountain's garrisons and camps)
 const hexOf = u => u.neutral ? NEUTRAL.hex : TEAMS[colorOf(u.ti)].hex;
-const keyOf = u => { const L = lookOf(u); return [hexOf(u), u.kind, u.tier | 0, L ? [L[SLOT_IX.helm], L[SLOT_IX.armour], L[SLOT_IX.shield], L[SLOT_IX.cape]].join('.') : ''].join('|'); };
+const keyOf = u => { const L = lookOf(u); return [hexOf(u), u.kind, u.leader ? champOf(u.ti).id : '', u.tier | 0, L ? [L[SLOT_IX.helm], L[SLOT_IX.armour], L[SLOT_IX.shield], L[SLOT_IX.cape]].join('.') : ''].join('|'); };
 function make(u) {
   const weapon = weaponOf(u), team = hexOf(u), soldier = u.kind !== 'captain', L = lookOf(u);
   const shieldName = L ? pick('shield', L[SLOT_IX.shield]) : '', shield = SRC.shields[shieldFile(shieldName)];
-  const R = soldier ? rigCaptain(SRC.soldier, { body: 'soldier', team, weapon, pack: u.kind === 'arch' ? { noShield: true } : { shield } })
-    : (clipsOn ? rigClip : rigCaptain)(clipsOn ? SRC.cap : SRC.body, { team, weapon, pack: { shield, helmet: L ? SRC.helmets[helmFile(pick('helm', L[SLOT_IX.helm]))] || null : SRC.helmets.red_crest, cape: capeOf(L), helmetMetal: HELM_METAL[armourFile(L ? pick('armour', L[SLOT_IX.armour]) : '')] } });
-  if (!soldier) { const a = SRC.armours[armourFile(L ? pick('armour', L[SLOT_IX.armour]) : '')]; (R.clip ? addClipArmour : addArmour)(R, a.geo, a.mat); }
-  else if ((u.kind === 'foot' && u.tier >= 2) || u.neutral) { const a = SRC.armours[armourFile(L ? pick('armour', L[SLOT_IX.armour]) : '')]; addArmour(R, a.geo, a.mat); } // (the Armour upgrade: your army's armour over the tunic; the mountain's neutral soldiers always wear the steel, M1)
-  if (u.kind === 'arch') archerGear(R, team, u.tier | 0);
+  const cl = !soldier && champOf(u.ti).look, shieldRaw = cl && cl.shield ? SRC.champShields[cl.shield] || null : null, swordRaw = cl && cl.sword ? SRC.champShields[cl.sword] || null : null; // (C3: his own shield and sword)
+  const own = clipsOn && cl && cl.model ? SRC.models[cl.model] : null; // (C3: his own body, helmet and cloak in it)
+  const sp = u.kind === 'foot' && SRC.models.spearman, ab = u.kind === 'arch' && SRC.models.archer; // (C3: the soldiers' new bodies, on the shared skeleton and clips)
+  const R = sp ? rigClip(SRC.models.spearman, { team, weapon, pack: { shield, noHelmet: true, small: true } })
+    : ab ? rigClip(SRC.models.archer, { team, weapon, pack: { noShield: true, noHelmet: true } }) // (his quiver and helmet are in his body)
+    : soldier ? rigCaptain(SRC.soldier, { body: 'soldier', team, weapon, pack: u.kind === 'arch' ? { noShield: true } : { shield } })
+    : own ? rigClip(own, { team, weapon, pack: { shield, shieldRaw, swordRaw, noHelmet: true } })
+    : (clipsOn ? rigClip : rigCaptain)(clipsOn ? SRC.cap : SRC.body, { team, weapon, pack: { shield, shieldRaw, helmet: L ? SRC.helmets[helmFile(pick('helm', L[SLOT_IX.helm]))] || null : SRC.helmets.red_crest, cape: capeOf(L), helmetMetal: HELM_METAL[armourFile(L ? pick('armour', L[SLOT_IX.armour]) : '')] } });
+  if (!soldier && !own) { const a = SRC.armours[armourFile(L ? pick('armour', L[SLOT_IX.armour]) : '')]; (R.clip ? addClipArmour : addArmour)(R, a.geo, a.mat); }
+  else if (!sp && !ab && ((u.kind === 'foot' && u.tier >= 2) || u.neutral)) { const a = SRC.armours[armourFile(L ? pick('armour', L[SLOT_IX.armour]) : '')]; addArmour(R, a.geo, a.mat); } // (the Armour upgrade: your army's armour over the tunic; the mountain's neutral soldiers always wear the steel, M1)
+  if (u.kind === 'arch' && !ab) archerGear(R, team, u.tier | 0);
   R.root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
   const sc = soldier ? SCALE * SOLDIER_SCALE : SCALE;
   R.root.scale.setScalar(sc);
   const fold = batchOn() ? foldGear(R, [R.shield, R.cape, R.slide]) : null; // (F17c: the spear's slide joint moves too: aimed and slid in his grip) // (F1b: his gear in one or two draws; ?f1=0 the old pieces)
   const h = { R, fold, weapon, team, key: keyOf(u), run: 0, moveName: null, moveT: 0, hp: u.hp, blockHitT: -1, sc, mounted: !!u.mounted, U: null, legs: null };
   if (u.mounted) { // on the warhorse: the rider sits on the saddle, and the unit moves as one
-    const hc = SRC.horse.clone(true), U = new THREE.Group();
-    U.add(hc); U.add(R.root); R.root.position.set(0, SEAT_TOP + (.38 + .04) * sc, SEAT_Z); // (his hips, .38 below his root, on the seat)
+    const hc = cloneHorse(SRC.horse, team), U = new THREE.Group();
+    U.add(hc); U.add(R.root); R.root.position.set(0, SRC.seat.top + (.38 + .04) * sc, SRC.seat.z); // (his hips, .38 below his root, on the seat)
     h.U = U; h.legs = legsOf(hc);
     scene.add(U);
   } else scene.add(R.root);
@@ -190,7 +178,7 @@ export function drawFreeHorses(list, dt) {
     if (h.state === 'ridden') continue;
     seen.add(h.key);
     let m = freeH.get(h.key);
-    if (!m) { const hc = SRC.horse.clone(true); hc.traverse(o => { if (o.isMesh) o.castShadow = true; }); scene.add(hc); m = { root: hc, legs: legsOf(hc), run: 0 }; freeH.set(h.key, m); }
+    if (!m) { const hc = cloneHorse(SRC.horse, h.ti != null && TEAMS[colorOf(h.ti)] ? TEAMS[colorOf(h.ti)].hex : null); scene.add(hc); m = { root: hc, legs: legsOf(hc), run: 0 }; freeH.set(h.key, m); }
     const sp = h.spd || 0; m.run += dt * (.55 + sp * .12);
     const down = h.state === 'dead' ? Math.min(1, (h.t || 0) * 2.5) : 0; // (a fallen horse rolls onto its side)
     const [bob, pitch] = gait(m.legs, down ? 0 : sp, dt);
@@ -204,10 +192,17 @@ export function drawFreeHorses(list, dt) {
 // skeleton), with a stride bob and a lean when moving. Hundreds cost a few draw calls.
 const FAR_MAX = 600, far = new Map(); let farReset = true, farDrawn = false;
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _e = new THREE.Euler();
-function farBatch(hex) {
-  let b = far.get(hex);
-  if (!b) { b = new THREE.InstancedMesh(SRC.lod, teamMaterial(SRC.soldierMat, hex, .26), FAR_MAX); b.count = 0; b.frustumCulled = false; b.castShadow = true; scene.add(b); far.set(hex, b); }
+function farBatch(hex, kind) {
+  const L = kind === 'foot' ? SRC.spearLod : kind === 'arch' ? SRC.archLod : null, key = hex + (L ? kind : ''); let b = far.get(key);
+  if (!b) { b = new THREE.InstancedMesh(L ? L.geo : SRC.lod, L ? L.mats(hex) : teamMaterial(SRC.soldierMat, hex, .26), FAR_MAX); b.count = 0; b.frustumCulled = false; b.castShadow = true; scene.add(b); far.set(key, b); }
   return b;
+}
+// (C3) a far figure from its file: its parts in one geometry (one draw per material), the team cloth tinted
+function farFigure(sc) {
+  const parts = []; sc.updateMatrixWorld(true); sc.traverse(o => { if (o.isMesh) parts.push(o); });
+  const geo = mergeGeometries(parts.map(o => o.geometry.clone().applyMatrix4(o.matrixWorld)), true);
+  geo.computeBoundingBox(); geo.translate(0, -.998 - geo.boundingBox.min.y, 0); // (feet on the ground, where the old figure's were)
+  return { geo, mats: hex => parts.map(o => { const m = o.material.clone(); m.metalness = 0; m.roughness = .85; if (/team/i.test(m.name)) m.color.set(hex); return m; }) };
 }
 // a distant archer's hood: a rounded cap in his army's colour with its point, over the helmet (as up close)
 let HOOD_GEO = null; const HOOD_AT = new THREE.Matrix4().makeTranslation(0, .6, -.04), _m2 = new THREE.Matrix4();
@@ -227,13 +222,13 @@ export function drawFar(u, a) {
   if (on && !SRC) return true; // (still loading: hidden rather than the old figure)
   if (!heroesOn()) return false;
   if (farReset) { for (const b of far.values()) b.count = 0; farReset = false; }
-  const b = farBatch(hexOf(u)); if (b.count >= FAR_MAX) return false;
+  const b = farBatch(hexOf(u), u.kind); if (b.count >= FAR_MAX) return false;
   const sc = SCALE * SOLDIER_SCALE, sp = Math.hypot(u.vx || 0, u.vz || 0), moving = sp > .3;
   const bob = moving ? Math.abs(Math.sin(G.T * 9 + (u.id || 0) * 1.7)) * .08 : 0;
   _p.set(u.x, (u.y || 0) + (a.lift || 0) - (a.sink || 0) + .998 * sc + bob, u.z);
   _e.set(moving ? .12 : 0, u.face + (a.yaw || 0), 0, 'YXZ'); _q.setFromEuler(_e); _s.setScalar(sc);
   b.setMatrixAt(b.count++, _m.compose(_p, _q, _s)); farDrawn = true;
-  if (u.kind === 'arch') { const hb = farHoodBatch(hexOf(u)); if (hb.count < FAR_MAX) hb.setMatrixAt(hb.count++, _m2.multiplyMatrices(_m, HOOD_AT)); }
+  if (u.kind === 'arch' && !SRC.archLod) { const hb = farHoodBatch(hexOf(u)); if (hb.count < FAR_MAX) hb.setMatrixAt(hb.count++, _m2.multiplyMatrices(_m, HOOD_AT)); }
   return true;
 }
 // a man going down: knocked over (or launched, tumbling, limbs flailing) and lying where he fell. The body

@@ -380,6 +380,10 @@ Last updated: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pag
   soldiers are the baseline and a champion's soldiers take every stat by his own share off the base champion (`champions/army.js`
   `shares`/`unitRow`: Titus's men +20% health, -14% hit rate, -5% pace, +8% reach): this replaces the planned C1h army shift.
   Fixed on the way: C1g's upgrade path no longer set the captain's tier (`applyFootTier`). r_C3a, r_C3a-join, r_C1a (lists Titus).
+- C3 art in (17 Nov): Titus's own body (`titus_anim.glb`, Hunyuan mesh rigged on the shared skeleton, clips' hips scaled per body),
+  gladius, war horse (`warhorse.js`, re-pivoted legs), new spearman and archer bodies for everyone's soldiers (near ~6k tris,
+  far 800-tri figures). Scripts in `tools/models/titus/` (build_body.py <captain> <mesh> <out.blend> [soldier|archer]).
+  Open: soldier tier looks on the new bodies (upgrades don't show yet); neutral soldiers now grey new bodies (Arjun to confirm).
   Next: C3d Eagle's fall (animation first), then C3b, C3c, C3e, C3f.
 - Arjun 17 Nov (for S1-12, designer to fold into the design doc): the lobby is 60 s and picks the champion with the lane: filter
   by class, then a picture grid like League or Unite. Today's design says 25 s and no grid.

@@ -155,13 +155,15 @@ export function addGear(bones, { body = 'captain', weapon = 'sword', team = null
   {
     // a sword in the right fist (blade forward along +z), a shield on the left forearm, a helmet on the head
     const steel = new THREE.MeshStandardMaterial({ color: 0xd8dde2, metalness: .6, roughness: .3 }), gold = new THREE.MeshStandardMaterial({ color: 0xe0b040, metalness: .5, roughness: .4 }), leather = new THREE.MeshStandardMaterial({ color: 0x5a3a20 });
-    const sw = pack && pack.weapon ? packPiece(pack.weapon, FIT.weapon[weapon] || FIT.weapon.sword) : makeWeapon(weapon); sw.position.set(-.08, 0, 0); if (pack && pack.weapon) { sw.rotation.x = Math.PI / 2; sw.position.z = -(FIT.weapon[weapon] || FIT.weapon.sword).grip; }
+    const sw = pack && pack.swordRaw && weapon === 'sword' ? (o => { o.scale.setScalar(FIT.champSword.s); o.traverse(m => { if (m.isMesh) { m.castShadow = true; m.material = m.material.clone(); m.material.metalness = Math.min(m.material.metalness, .5); } }); return o; })(pack.swordRaw.clone(true)) // (C3: a champion's own sword, in metres, the point along +z)
+      : pack && pack.weapon ? packPiece(pack.weapon, FIT.weapon[weapon] || FIT.weapon.sword) : makeWeapon(weapon); sw.position.set(-.08, 0, 0); if (pack && pack.weapon) { sw.rotation.x = Math.PI / 2; sw.position.z = -(FIT.weapon[weapon] || FIT.weapon.sword).grip; }
     else { if (weapon === 'sword') sw.scale.setScalar(1.3); /* (a touch big, so the blade reads at game distance) */ } // (the grip in the fist, the point along the hand's +z)
     bones.hand_R.add(sw);
     // the shield: gripped in the left fist, its face along the hand's +z, its long side along +y.
     // Which way both point is set per pose (see aimGear): the wrist turns to match.
     const sh = new THREE.Group(); sh.position.set(-.1, 0, .12); bones.hand_L.add(sh); shieldAt = sh;
-    if (pack && pack.shield) { const p = packPiece(pack.shield, FIT.shield, team); p.position.z = FIT.shield.grip; sh.add(p); }
+    if (pack && pack.shieldRaw) { const p = pack.shieldRaw.clone(true), F = FIT.champShield; p.rotation.y = Math.PI; p.scale.setScalar(F.s); p.position.z = F.grip; p.traverse(m => { if (m.isMesh) m.castShadow = true; }); sh.add(p); } // (C3: a champion's own shield, modelled in metres, its face along -z, origin at the grip)
+    else if (pack && pack.shield) { const F = pack.small ? FIT.spearShield : FIT.shield, p = packPiece(pack.shield, F, team); p.position.z = F.grip; sh.add(p); } // (C3: the new spearman carries it smaller and closer)
     else if (pack && pack.noShield) { /* (the archer's left hand is empty: it holds the bow) */ }
     else {
     sh.add(new THREE.Mesh(new THREE.BoxGeometry(.5, .7, .06), new THREE.MeshStandardMaterial({ color: teamCol, roughness: .6 })));
@@ -173,7 +175,7 @@ export function addGear(bones, { body = 'captain', weapon = 'sword', team = null
       // the pack's steel came out chalk-white in daylight: a deeper, polished steel, with a sheen
       p.traverse(m => { if (!m.isMesh || /crest|plume/i.test(m.name)) return; const c = m.material.color, hsl = {}; c.getHSL(hsl); if (hsl.s < .25) { c.multiplyScalar(.62); m.material.metalness = .55; m.material.roughness = .32; } });
     }
-    else if (body === 'captain') {
+    else if (body === 'captain' && !(pack && pack.noHelmet)) { // (C3: a champion's own body wears its own helmet)
     const helm = new THREE.Mesh(new THREE.SphereGeometry(.355, 24, 14, 0, Math.PI * 2, 0, Math.PI * .55), steel); helm.position.set(0, .33, -.03); helm.rotation.x = -.3; helm.scale.set(.97, .96, 1.06); bones.head.add(helm); // (tilted back: the rim rides above the brows and comes down over the nape, like a galea)
     const crest = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: teamCol })); crest.scale.set(.05 / .97, .2 / .96, .28 / 1.06); crest.position.set(0, .34, 0); helm.add(crest); // (rides the helmet's own top, so it follows the tilt)
     }
@@ -195,6 +197,9 @@ export function bareRig(weapon = 'sword') {
 export const FIT = {
   helmet: { s: [.68, .8, .74], at: [0, .32, -.03], tilt: -.28 },
   shield: { s: .6, grip: .1 },
+  spearShield: { s: .5, grip: .05 },
+  champShield: { s: .82, grip: .02 },
+  champSword: { s: 1.1 }, // (C3: a champion's own sword in metres, at his scale) // (C3: a champion's own shield in metres: his scale and how far in front of the fist)
   weapon: { sword: { s: .72, grip: .05 }, spear: { s: 1.12, grip: .75 }, jav: { s: .92, grip: .62 } },
 };
 // a piece from the pack: cloned, turned upright, scaled; its main colour (the one that isn't

@@ -5,6 +5,7 @@ export default {
   id: 'titus', name: 'Titus Cassius', cls: 'vanguard', origin: 'Roman',
   stats: { hp: 480, dmg: 30, rate: 1.2, reach: 1.4, spd: 5.9 },
   weapons: ['sword'], // gladius and scutum
+  look: { shield: 'scutum_titus', sword: 'gladius_titus', model: 'titus' }, // his own pieces (models/<name>.glb, <model>_anim.glb: body, helmet, cloak); team-colour areas stay shared
   combo: { bash: true, stun: .45 }, // slash, slash, shield bash: his boosted hit (1.5x, as every champion's third), a stagger of `stun` s
   mount: { kind: 'horse', hp: 200, spd: 11.2 }, // Roman battle horse: health, m/s riding
   recruits: ['foot', 'arch'], spearmen: true, // his footmen carry the spear from the start

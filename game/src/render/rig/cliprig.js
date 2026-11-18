@@ -34,23 +34,38 @@ export function loadClipBody(url) {
   });
 }
 
+// where the code rig's hand, head, chest and forearm sit, in the space of the bone each hangs on, on this body as it stands in its file
+const SOCKS = ['hand_R', 'hand_L', 'head', 'chest', 'foreArm_L'];
+function sockLocals(S) {
+  if (S.sockL) return S.sockL;
+  const J = jointsOf('captain'), g = cloneSkinned(S.scene), root = new THREE.Group(); root.add(g); root.updateMatrixWorld(true);
+  const mx = {}; g.traverse(o => { if (o.isBone) mx[o.name] = o; });
+  S.sockL = Object.fromEntries(SOCKS.map(n => [n, new THREE.Matrix4().copy(mx[MAP[n]].matrixWorld).invert().multiply(new THREE.Matrix4().makeTranslation(...J[n]))]));
+  return S.sockL;
+}
+// (C3) a champion's own body plays the captain's clips: his hips stand at their own height above the floor, so the
+// clips' hip track is raised and stretched about the floor by his hip height over the captain's (feet stay on the ground)
+export function hipClips(cap, own, floor = -.998) {
+  const hy = S => S.mesh.skeleton.bones.find(b => b.name === 'Hips').position.y, k = (hy(own) - floor) / (hy(cap) - floor);
+  const scale = c => { const n = c.clone(); for (const t of n.tracks) if (t.name === 'Hips.position') for (let i = 0; i < t.values.length; i += 3) { t.values[i] *= k; t.values[i + 1] = floor + (t.values[i + 1] - floor) * k; t.values[i + 2] *= k; } return n; };
+  return Object.fromEntries(Object.entries(cap.clips).map(([n, c]) => [n, { ...c, lo: scale(c.lo), up: scale(c.up) }]));
+}
 // one captain: a copy of the body with his own skeleton, his gear on it, and a mixer
 export function rigClip(S, { weapon = 'sword', team = null, pack = null } = {}) {
   const inner = cloneSkinned(S.scene); let mesh = null; inner.traverse(o => { if (o.isSkinnedMesh && !mesh) mesh = o; });
-  mesh.geometry = mesh.geometry.clone(); // (his own: the armour tucks the body in under it)
-  mesh.material = team != null && S.material.map ? teamMaterial(S.material, team, .23) : S.material.clone();
+  if (S.own) inner.traverse(o => { if (o.isSkinnedMesh) { o.material = o.material.clone(); o.material.metalness = 0; o.material.roughness = .8; if (team != null && /team/i.test(o.material.name)) o.material.color.set(team); } }); // (C3: a champion's own body: its team cloth tinted)
+  else {
+    mesh.geometry = mesh.geometry.clone(); // (his own: the armour tucks the body in under it)
+    mesh.material = team != null && S.material.map ? teamMaterial(S.material, team, .23) : S.material.clone();
+  }
   const list = mesh.skeleton.bones, mx = Object.fromEntries(list.map(b => [b.name, b]));
   const root = new THREE.Group(); root.add(inner); root.updateMatrixWorld(true);
   // as he stands in the file (the T-pose): each bone's turn of its own and in the world, and who it hangs from
   const rest = list.map(b => ({ q: b.quaternion.clone(), wq: b.getWorldQuaternion(new THREE.Quaternion()), parent: list.indexOf(b.parent), code: CODE_OF[b.name] || null }));
   const hips = mx.Hips, hipsRest = hips.position.clone();
   // sockets: where the code rig's hand, head and chest bones sit and point, hung on this skeleton's bones, so the same gear fits
-  const J = jointsOf('captain'), sock = {};
-  for (const n of ['hand_R', 'hand_L', 'head', 'chest', 'foreArm_L']) {
-    const s = new THREE.Object3D(), b = mx[MAP[n]]; s.name = 'sock_' + n;
-    _m.copy(b.matrixWorld).invert().multiply(new THREE.Matrix4().makeTranslation(J[n][0], J[n][1], J[n][2])).decompose(s.position, s.quaternion, s.scale);
-    b.add(s); sock[n] = s;
-  }
+  const SL = sockLocals(S.ref || S), sock = {}; // (C3: a champion's own body takes the captain's sockets, from the same bones)
+  for (const n of SOCKS) { const s = new THREE.Object3D(); s.name = 'sock_' + n; SL[n].decompose(s.position, s.quaternion, s.scale); mx[MAP[n]].add(s); sock[n] = s; }
   // the shield: gripped in the fist for the code's poses (which turn the wrist to face it); for the clips it
   // is strapped along the forearm, facing out from the back of the hand, as the clips were made
   const gear = addGear(sock, { body: 'captain', weapon, team, pack }), shield = gear.shield;
