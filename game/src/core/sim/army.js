@@ -201,7 +201,10 @@ export function mountUp(u, h) {
 export function dismount(u, thrown) {
   if (!u.mounted) return;
   const h = u.horse; u.mounted = false; u.horse = null; u.r = STATS.captain.r; u.charge = 0;
-  if (thrown) {
+  if (thrown === 'off') { // (C3k: knocked out of the saddle: the horse bolts unhurt, he waits the horse's recharge)
+    h.state = 'leaving'; h.t = 0; u.horseCd = horseCooldown(u.ti);
+    if (u.human) say('horseDown', u.ti);
+  } else if (thrown) {
     h.state = 'dead'; h.t = 0; h.fall = Math.random() < .5 ? 1 : -1;
     u.horseCd = horseCooldown(u.ti); u.horseHp = horseMax(u.ti);
     push(u, Math.sin(u.face + Math.PI / 2) * 5, Math.cos(u.face + Math.PI / 2) * 5, 1.0);

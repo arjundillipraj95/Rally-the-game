@@ -53,6 +53,11 @@ export default {
   // Damage +`lvlUp` a level from 3. Recharge `cd` s.
   sp1: { name: 'Ram of Cassius', short: 'Ram', cd: 6, range: 5, aimFace: true, mounted: true, wind: .15, dist: 5, rideDist: 8, dur: .35, w: .7,
     soldier: 20, shove: 6, stumble: .3, champ: 35, kb: 2, stun: .5, wall: 70, wallStun: 1, horseX: 1.2, lvlUp: .05,
+    // (C3k) bounced off a shield, a braced line or a testudo: `recoil` m back, `recoilStun` s; the holder slides `slide` m;
+    // the spears bite `braceHurt`; head-on with another ram: `clashKb` m apart, `clashStun` s; each soldier in the way takes
+    // `slow` off his pace and path, the `men`th stops him; a gate takes `gateX` of his blows; a rider he can't unseat is
+    // pushed `horsePush` m; a champion knocked into another: that one takes `chainX`, stunned `chainStun` s
+    recoil: 1, recoilStun: .4, slide: .5, braceHurt: 15, clashKb: 1.5, clashStun: .35, slow: .15, men: 3, gateX: 4, horsePush: 1.5, chainX: .5, chainStun: .25,
     run(u, at, B) { B.ram(u, at, this); } },
   // Eagle's fall (C3d, agreed 17 Nov): a leap of up to `range` m onto the spot marked when he jumps (tap: the nearest
   // enemy champion); a `crouch` s crouch, an `air` s arc `h` m high, the slam, `after` s to stand. Within `r` m of it:

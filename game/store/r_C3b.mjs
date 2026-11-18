@@ -70,13 +70,14 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); 
 console.log(JSON.stringify(o));
 const w = (v, a, t = 1.5) => Math.abs(v - a) < t;
 ok(o.lv1 === 'level' && o.lvl >= 3 && o.cd === 6, `locked at level 1; at level ${o.lvl} it fires, recharge ${o.cd} s`);
-ok(o.wind < .05 && w(o.ran, 5, .3) && !o.ramOn, `wind-up in place (${o.wind} m), then ${o.ran} m`);
+ok(o.wind < .05 && o.ran > 3.4 && o.ran < 5 && !o.ramOn, // (C3k: each soldier in the way slows him)
+   `wind-up in place (${o.wind} m), then ${o.ran} m`);
 ok(o.arch.every(a => w(a.dmg, 20 * o.k) && a.stun > .2 && a.side > .3 && a.fwd < .6), `soldiers in the path: ${o.arch.map(a => a.dmg + ' dmg, ' + a.side + ' m aside, ' + a.fwd + ' m on').join('; ')}, stumbling`);
 ok(o.again === 'cd', `then recharging (${o.again})`);
 ok(w(o.champ.dmg, 35 * o.k) && w(o.champ.back, 2, .6) && o.champ.stun > .4 && o.champ.ran < 4.5, `the champion: ${o.champ.dmg}, back ${o.champ.back} m, stunned ${o.champ.stun} s, the rush ends at ${o.champ.ran} m`);
 ok(o.rock && w(o.wall.dmg, 70 * o.k) && o.wall.stun > .9, `into a castle wall: ${o.rock && o.wall.dmg}, stunned ${o.rock && o.wall.stun} s`);
 ok(o.rock && o.stopRock.gap < 1.2 && !o.stopRock.ram, `a wall stops the rush (${o.rock && o.stopRock.gap} m from it)`);
-ok(o.brace.ran < o.lineAt && o.brace.dmg.split('/').filter(v => w(+v, 20 * o.k)).length >= 2 && o.brace.me === 0, `a braced line (${o.braced}, at ${o.lineAt} m) stops it at ${o.brace.ran} m; its front takes ${o.brace.dmg}; he takes ${o.brace.me}`);
+ok(o.brace.ran < o.lineAt && o.brace.dmg.split('/').filter(v => w(+v, 20 * o.k)).length >= 2 && w(o.brace.me, 15, 4), `a braced line (${o.braced}, at ${o.lineAt} m) stops it at ${o.brace.ran} m; its front takes ${o.brace.dmg}; he takes ${o.brace.me}`);
 ok(w(o.saddle.ran, 8, .4) && o.saddle.mounted, `from the saddle: ${o.saddle.ran} m, still mounted`);
 ok(o.horse.hp < 200 - o.horse.dmg * 1.2 * 2 + 1, `braced spears hit the horse (${o.horse.hp} of 200 left)`);
 ok(o.bot, 'a computer Titus uses it');
