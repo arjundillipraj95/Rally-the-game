@@ -21,7 +21,7 @@ import { aimShaft } from './rig/shaft.js';
 import { spearman } from '../champions/army.js';
 import { champOf } from '../champions/index.js';
 import { warHorse, cloneHorse } from './warhorse.js';
-import { tierLook } from './rig/tierlook.js';
+import { tierLook, archerQuiver } from './rig/tierlook.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 // the war horse's legs (render/warhorse.js hangs each leg's bones from pivots by these names)
@@ -100,6 +100,7 @@ function make(u) {
   else if (!sp && !ab && ((u.kind === 'foot' && u.tier >= 2) || u.neutral)) { const a = SRC.armours[armourFile(L ? pick('armour', L[SLOT_IX.armour]) : '')]; addArmour(R, a.geo, a.mat); } // (the Armour upgrade: your army's armour over the tunic; the mountain's neutral soldiers always wear the steel, M1)
   if (u.kind === 'arch' && !ab) archerGear(R, team, u.tier | 0);
   if (sp || ab) tierLook(R, u.kind, u.tier | 0); // (C3h: an upgraded soldier's colours and clothes)
+  if (ab) archerQuiver(R); // (Q1)
   R.root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
   const sc = soldier ? SCALE * SOLDIER_SCALE : SCALE;
   R.root.scale.setScalar(sc);

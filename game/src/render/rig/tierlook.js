@@ -30,6 +30,17 @@ function tierMaterial(src, kind, tier) {
 }
 const crestGeo = (() => { const g = new THREE.CylinderGeometry(.17, .17, .045, 16, 1, false, -Math.PI / 2, Math.PI); g.rotateZ(Math.PI / 2); return g; })(); // (a half disc, front to back)
 const crestMat = new THREE.MeshStandardMaterial({ color: 0xb3241b, roughness: .9 });
+// (Q1) an archer's quiver, bigger than the one in his model so it reads at a distance: a leather tube across his back,
+// a dozen white-fletched arrows out of the top (on the chest socket: +y up the spine, -z his back)
+const quiverGeo = new THREE.CylinderGeometry(.1, .085, .62, 12), quiverMat = new THREE.MeshStandardMaterial({ color: 0x6b4423, roughness: .85 });
+const fletchGeo = new THREE.ConeGeometry(.035, .13, 5), fletchMat = new THREE.MeshStandardMaterial({ color: 0xf2efe6, roughness: .7 });
+export function archerQuiver(R) {
+  if (!R.bones || !R.bones.chest) return;
+  const q = new THREE.Group(); q.position.set(.1, .02, -.2); q.rotation.z = -.45; q.rotation.x = -.12;
+  const t = new THREE.Mesh(quiverGeo, quiverMat); t.castShadow = true; q.add(t);
+  for (let i = 0; i < 9; i++) { const f = new THREE.Mesh(fletchGeo, fletchMat), a = i * 2.4, r = .045 * Math.sqrt(i / 9 + .1); f.position.set(Math.cos(a) * r, .38 + (i % 3) * .03, Math.sin(a) * r); q.add(f); }
+  R.bones.chest.add(q);
+}
 // dress one rigged soldier (R from rigClip) for his kind and tier
 export function tierLook(R, kind, tier) {
   if (!tier) return;
