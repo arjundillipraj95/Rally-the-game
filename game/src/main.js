@@ -46,6 +46,7 @@ import './app/fxbus.js';
 import { perfS } from './app/endscreen.js';
 import { demo, intro, introTick, seedDemo, setHomeView, startIntro } from './app/home.js';
 import { toast } from './app/friends.js';
+import './app/champpage.js'; // (LORE1)
 import { pressSeg, renderSoloSeats, renderTargets, updateDesc } from './app/menus.js';
 
 // ---------- loop ----------

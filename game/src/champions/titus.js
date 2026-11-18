@@ -3,6 +3,9 @@
 // off the base (champions/army.js).
 export default {
   id: 'titus', name: 'Titus Cassius', cls: 'vanguard', origin: 'Roman',
+  // (LORE1) his page: lore from the design doc's Titus card; difficulty in stars (of 3); Melee or Ranged
+  lore: 'Eldest son of Lucius Cassius, a beloved consul-general who died mysteriously. The Senate banished his family; Titus swore to return to Rome only with the Crown. He still loves Rome.',
+  difficulty: 2, ranged: false, title: 'The Exile of Rome',
   stats: { hp: 480, dmg: 30, rate: 1.2, reach: 1.4, spd: 5.9 },
   weapons: ['sword'], // gladius and scutum
   look: { shield: 'scutum_titus', sword: 'gladius_titus', model: 'titus' }, // his own pieces (models/<name>.glb, <model>_anim.glb: body, helmet, cloak); team-colour areas stay shared
