@@ -22,7 +22,7 @@ import { $, S, hideVeil, resetSolo, saveSoloAl, showVeil, soloDuo } from './stat
 import { buildCrests, newTip, renderMissSub } from './endscreen.js';
 import { homeView, pressFmt, seedDemo, setHomeView, showFmtRank, soloStart } from './home.js';
 import { renderFriends, toast } from './friends.js';
-import { CHAMP_IDS, champDef, myChamp, setMyChamp } from '../champions/index.js';
+import { champDef, myChamp, myBackup, ownedIds, setMain, setBackup } from '../champions/index.js';
 import { aimChampPref, setAimChamp } from '../core/sim/ranged.js'; // (RANGE1)
 import { setSoundLevel, soundLevel } from '../ui/audio.js';
 
@@ -75,9 +75,17 @@ export const pressSeg = (id, v) => $(id).querySelectorAll('button').forEach(b =>
 if (!ALL_MAPS) { focusMenus($); G.mode = 'crown'; G.target = targetFor('crown'); S.soloMap = MAPS.mount; pressSeg('segMode', 'crown'); renderTargets(); updateDesc(); } // (CL2: the Mountain is the live map)
 seg('segDiff', v => { G.diff = +v; });
 // (C1a) your champion, until the lobby's pick (S1-12): one button each
-$('segChamp').innerHTML = CHAMP_IDS.map(id => `<button type="button" data-v="${id}" aria-pressed="false">${champDef(id).name}</button>`).join('');
-seg('segChamp', v => { setMyChamp(v); pressSeg('segChamp', v); });
-pressSeg('segChamp', myChamp());
+// (MENU4) Settings > Champion: your main and backup, from the champions you own (Titus the main at the start)
+export function renderChampSettings() {
+  const ids = ownedIds(), main = myChamp(), back = myBackup(), b = (id, on, label) => `<button type="button" data-v="${id}" aria-pressed="${on}">${label}</button>`;
+  $('segMain').innerHTML = ids.map(id => b(id, id === main, champDef(id).name.split(' ')[0])).join('');
+  $('segBack').innerHTML = b('', !back, 'None') + ids.filter(id => id !== main).map(id => b(id, id === back, champDef(id).name.split(' ')[0])).join('');
+  $('backNote').textContent = ids.length > 1 ? 'Highlighted if a teammate locks your main first.' : `Own a second champion to set a backup. Until then, if a teammate locks ${champDef(main).name.split(' ')[0]} first, you get a champion of a class your side lacks.`;
+}
+$('segMain').addEventListener('click', e => { const t = e.target.closest('button'); if (t && setMain(t.dataset.v)) renderChampSettings(); });
+$('segBack').addEventListener('click', e => { const t = e.target.closest('button'); if (t && setBackup(t.dataset.v || null)) renderChampSettings(); });
+renderChampSettings();
+$('setBtn').addEventListener('click', renderChampSettings);
 // (RANGE1) a ranged champion's Targeting: the nearest enemy (default) or champions first
 seg('segAim', v => { setAimChamp(v === 'champ'); pressSeg('segAim', v); });
 pressSeg('segAim', aimChampPref() ? 'champ' : 'near');
