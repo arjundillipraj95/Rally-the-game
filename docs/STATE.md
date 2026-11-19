@@ -452,3 +452,9 @@ Last updated: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pag
 - (fixed in AI1) A computer captain sometimes stood at the glacier at night without striking.
 - High only: a black wedge down the left edge at the Crown start. Not reproduced on 13 Nov (F14): F1a's exact
   seed, 844x390, High, frames 60-420, with and without `?f1=ab`: edges clean. Likely gone with later map work; Arjun says if he sees it.
+- C4 Devi built (18 Nov, Arjun: "Complete all and then ship to main"): page `champions/devi.js`, specials `core/sim/deviShots.js`
+  (Piercing shot, Evade, Tiger's volley, Arrow storm), her archer line (fire arrows x3 on throwers, Vil Veeran 26 m), render
+  `render/rig/champgear.js` (bow, arrows, her horse, duel daggers, clip names), storm mark on the wire, archers call it.
+  Settings "Arrows aim at" (was a duplicate segTarget id). Check by eye: bow/arrow fit in her hands, horse_devi seat.
+  Open: thrower crew figures and creak/fire sounds (C2 leftovers); r_C1a's #segChamp check is stale since MENU4.
+  Tests: a long-running Vite can stamp a module `?t=` and split it in two (r_RANGE1 failed): restart servers.sh first.

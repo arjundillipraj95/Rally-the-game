@@ -33,7 +33,9 @@ const MAXS = 32;
 const ballMesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.35, 1), new THREE.MeshLambertMaterial({ color: 0x5b5148 }), MAXS);
 const markMesh = new THREE.InstancedMesh(new THREE.RingGeometry(.86, 1, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xd8432b, transparent: true, opacity: .7, depthWrite: false }), MAXS);
 const fireMesh = new THREE.InstancedMesh(new THREE.CircleGeometry(1, 12).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xff7a1f, transparent: true, opacity: .55, depthWrite: false, blending: THREE.AdditiveBlending }), MAXS * 3);
-for (const m of [ballMesh, markMesh, fireMesh]) { m.frustumCulled = false; m.count = 0; scene.add(m); }
+// (C4) an arrow storm's mark: a red ring on the ground, pulsing for its warning, steady while it rains
+const stormMesh = new THREE.InstancedMesh(new THREE.RingGeometry(.93, 1, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xe0281e, transparent: true, opacity: .75, depthWrite: false }), 8);
+for (const m of [ballMesh, markMesh, fireMesh, stormMesh]) { m.frustumCulled = false; m.count = 0; scene.add(m); }
 const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), S = new THREE.Vector3();
 export function drawThrowers() {
   const seen = new Set();
@@ -65,4 +67,9 @@ export function drawThrowers() {
     V.set(x, groundY(x, z) + .1 + k * .01, z); M.compose(V, Q.identity(), S.set(s, 1, s)); fireMesh.setMatrixAt(f, M);
   }
   fireMesh.count = f; fireMesh.instanceMatrix.needsUpdate = true;
+  let w = 0;
+  for (const st of G.storms || []) { if (w >= 8) break;
+    const age = G.T - st.T0, k = st.r * (age < st.warn ? 1 + .06 * Math.sin(G.T * 14) : 1);
+    V.set(st.x, groundY(st.x, st.z) + .1, st.z); M.compose(V, Q.identity(), S.set(k, 1, k)); stormMesh.setMatrixAt(w++, M); }
+  stormMesh.count = w; stormMesh.instanceMatrix.needsUpdate = true;
 }

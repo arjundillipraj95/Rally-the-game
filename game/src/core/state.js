@@ -19,7 +19,7 @@ export const G = {
   T: 0,
   units: [],
   horses: [],
-  arrows: [], stones: [], fires: [], stoneN: 0, // (C2: stones in the air, fire pots' flames)
+  arrows: [], stones: [], fires: [], storms: [], stoneN: 0, // (C2: stones in the air, fire pots' flames)
   teams: [],
   flag: null,
   bounty: -1,

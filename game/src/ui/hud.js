@@ -142,6 +142,7 @@ export function updateHud(lastSnapAt) {
   document.querySelectorAll('#upTray button').forEach(b => {
     const id = b.dataset.up, def = UPGRADES.find(u => u.id === id), max = def ? def.cost.length : 0;
     if (id.startsWith('thr')) { const hide = !champOf(G.myTi).recruits.includes('thrower'); if (b.hidden !== hide) { b.hidden = hide; $('ucolThr').hidden = hide; } if (hide) return; } // (C2: his stone throwers')
+    { const N = champOf(G.myTi).upNames, k = G.myTi + ':' + champOf(G.myTi).id; if (b.dataset.nm !== k) { b.dataset.nm = k; if (!b.dataset.n0) { b.dataset.n0 = b.querySelector('b').textContent; b.dataset.d0 = b.querySelector('span').textContent; } const n = N && N[id]; b.querySelector('b').textContent = n ? n[0] : b.dataset.n0; b.querySelector('span').textContent = n ? n[1] : b.dataset.d0; } } // (C4: her archers' own names)
     if (id === 'aura') { const hide = isC2(); if (b.hidden !== hide) b.hidden = hide; if (hide) return; } // (C1e: the mountain has no aura; influence does it)
     if (id === 'tower') { const hide = G.mode !== 'crown'; if (b.hidden !== hide) b.hidden = hide; if (hide) return; } // (the Crown's watchtowers)
     const vh = id === 'fort' && isC2() && !castleHere(G.myTi) ? villageHere(G.myTi) : null;

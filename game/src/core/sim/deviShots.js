@@ -72,7 +72,7 @@ export function startEvade(u, at, d) {
   u.vx = Math.sin(a) * v; u.vz = Math.cos(a) * v; u.dashT = d.dur; u.iframeT = d.dur;
   if (!u.mounted) u.face = a; // (on foot she turns with it; the horse simply goes)
   u.evade = { kind: 'dash', t: G.T, a }; u.lastEvadeT = G.T; u.dashStop = G.T + d.dur; // (stopped when the dash ends: 5 m, not a slide)
-  sound('cloth', u.x, u.z);
+  sound('swing', u.x, u.z);
 }
 // a tap's aim: away from the nearest enemy (or back the way she faces)
 export function awayAim(u, dist) {
@@ -109,6 +109,7 @@ function volleyStep(u, dt) {
 // ---------- Arrow storm ----------
 export function startStorm(u, at, d) {
   (G.storms || (G.storms = [])).push({ id: ++G.stoneN, ti: u.ti, x: at.x, z: at.z, r: d.r, T0: G.T, warn: d.warn, dur: d.dur, d, next: 0 });
+  fx('fxmsg', { k: 'fxstorm', u, q: `${at.x.toFixed(2)},${at.z.toFixed(2)}` }); // (her men call it: banter)
   fx('fxmsg', { k: 'fxstorm', u, x: at.x, z: at.z });
   for (const t of G.units) if (!t.dead && t.ti === u.ti && t.kind === 'thrower') { t.mark = { x: at.x, z: at.z }; t.markT = d.warn + d.dur; } // (her throwers' next stones in it)
 }

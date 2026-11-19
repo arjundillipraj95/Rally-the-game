@@ -132,7 +132,7 @@ export function addClipArmour(R, srcGeo, material) {
 // put a clip on a layer ('lo' or 'up'). key: what set it off (the same key again changes nothing).
 export function play(R, part, name, key, { fade = ANIM.fade, loop = true, at = 0 } = {}) {
   const L = R[part]; if (L.key === key) return L.list[0];
-  const C = R.S.clips[name], act = R.mixer.clipAction(C[part]), was = L.list.findIndex(e => e.act === act);
+  const C = R.S.clips[(R.cmap && R.S.clips[R.cmap[name]]) ? R.cmap[name] : name], act = R.mixer.clipAction(C[part]), was = L.list.findIndex(e => e.act === act);
   let w = L.list.length ? 0 : 1; if (was >= 0) { w = L.list[was].w; L.list.splice(was, 1); } // (the same clip again: it starts over, keeping its share)
   act.reset(); act.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, Infinity); act.clampWhenFinished = true; act.time = at; act.setEffectiveWeight(w); act.play();
   const e = { act, name, w, C, loop }; L.list.unshift(e); L.key = key; L.fade = fade;

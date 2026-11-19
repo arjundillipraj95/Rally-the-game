@@ -95,7 +95,8 @@ function encodeSnap() {
     return [['shut', 'open', 'night'].indexOf(K.phase), K.chest, ch ? Math.round(ch.hp) : 0, one(K.chestPts), one(K.crownPts), [0, 1, 2, 3].map(a => Object.values(K.kills[a] || {}).reduce((n, v) => n + v, 0)).join('.'), K.breaks.filter(b => b.kind !== 'chest').map(b => b.post ? b.units.reduce((m, u, k) => m | (u && !u.dead ? 1 << k : 0), 0) : Math.max(0, Math.round(b.hp))).join('.'), K.floodAt == null ? '' : Math.round(K.floodAt * 10), [0, 1, 2, 3].map(a => Object.entries(K.kills[a] || {}).map(([ti, v]) => ti + '_' + v).join('+')).join('.'), [0, 1, 2, 3].map(a => (K.nexusPts && K.nexusPts[a]) || 0).join('.'), [0, 1, 2, 3].map(a => (K.shards && K.shards[a]) || 0).join('.')].join(','); })() : ''; // (CASTLE8: nexus points, field 9; CASTLE6: shards, field 10) // (F7a: when the lake's countdown began)
   // (C2) stones in the air (s: id, from, to, how far along, fire pot, whose) and fire pots burning (f: id, where, seconds left)
   const sf = [...G.stones.map(st => ['s', b36(st.id), encX(st.x0), encX(st.z0), encX(st.x1), encX(st.z1), b36(st.t * 100), st.fire ? 1 : 0, st.sh ? b36(st.sh.id) : ''].join(',')),
-    ...G.fires.map(f => ['f', b36(f.id), encX(f.x), encX(f.z), b36(Math.max(0, f.until - G.T) * 10)].join(','))].join(';');
+    ...G.fires.map(f => ['f', b36(f.id), encX(f.x), encX(f.z), b36(Math.max(0, f.until - G.T) * 10)].join(',')),
+    ...(G.storms || []).map(w => ['w', b36(w.id), encX(w.x), encX(w.z), b36(w.r * 10), b36(Math.max(0, G.T - w.T0) * 10), b36(w.warn * 10), b36(w.dur * 10), w.ti].join(','))].join(';'); // (C4: arrow storms, marked for everyone)
   return [Math.round(G.T * 10), teams, us.join(';'), ars.join(';'), hs.join(';'), fl, pl, G.bounty, hd, cp, fo, du, wt, cx, c2, sf].join('|');
 }
 // a remote player's blow landing (or landing on them) goes out at once rather than waiting for the
@@ -413,7 +414,7 @@ function clientApply(hp) {
   }
   if (C.arrowIds.size > 400) C.arrowIds = new Set([...C.arrowIds].slice(-200));
   { // (C2) the stones and fire pots, as the host has them (new stones: its thrower swings its arm here too)
-    const have = new Map(G.stones.map(s => [s.id, s])), stones = [], fires = [];
+    const have = new Map(G.stones.map(s => [s.id, s])), stones = [], fires = [], storms = [];
     for (const row of (secs[15] || '').split(';')) {
       const f = row.split(','); if (f[0] === 's') {
         const id = p36(f[1]), old = have.get(id), t = p36(f[6]) / 100; if (G.stoneLanded && G.stoneLanded.has(id)) continue;
@@ -421,8 +422,9 @@ function clientApply(hp) {
         const sh = f[8] ? C.byId.get(p36(f[8])) : null; if (sh) sh.throwT = G.T;
         stones.push({ id, x0: decX(f[2]), z0: decX(f[3]), y0: 2.6 + groundY(decX(f[2]), decX(f[3])), x1: decX(f[4]), z1: decX(f[5]), t, fire: f[7] === '1', sh }); if (sh) sfx.thud && sfx.thud(sh.x, sh.z);
       } else if (f[0] === 'f') fires.push({ id: p36(f[1]), x: decX(f[2]), z: decX(f[3]), r: STONE.fire.r, until: G.T + p36(f[4]) / 10 });
+      else if (f[0] === 'w') storms.push({ id: p36(f[1]), x: decX(f[2]), z: decX(f[3]), r: p36(f[4]) / 10, T0: G.T - p36(f[5]) / 10, warn: p36(f[6]) / 10, dur: p36(f[7]) / 10, ti: +f[8] });
     }
-    G.stones = stones; G.fires = fires;
+    G.stones = stones; G.fires = fires; G.storms = storms;
   }
   const hs = secs[4] ? secs[4].split(';').map(r => r.split(',')) : [];
   C.coming.length = Math.min(C.coming.length, hs.length);

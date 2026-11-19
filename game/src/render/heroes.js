@@ -22,6 +22,8 @@ import { spearman } from '../champions/army.js';
 import { champOf } from '../champions/index.js';
 import { warHorse, cloneHorse } from './warhorse.js';
 import { tierLook, archerQuiver } from './rig/tierlook.js';
+import { loadChampGear, champGear, champHorse, duelLook, champSwing } from './rig/champgear.js';
+import { CHAMPS } from '../champions/index.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 // the war horse's legs (render/warhorse.js hangs each leg's bones from pivots by these names)
@@ -43,7 +45,7 @@ let SRC = null;
 // the look's choices (core/look.js) become pack pieces: helmet, armour and shield. The weapon stays the
 // one you fight with (gameplay), so it is not a look here.
 const PACK = { helmet: ['blue_crest', 'gold_ridge', 'red_crest'], shield: ['red_scutum', 'blue_oval', 'blue_kite'] };
-const CHAMP_SHIELDS = ['scutum_titus', 'gladius_titus'], CHAMP_MODELS = ['titus', 'spearman', 'archer']; // (his own pieces: shields and swords) // (C3: a champion's own shield, from his page's look; models/<name>.glb)
+const CHAMP_SHIELDS = ['scutum_titus', 'gladius_titus'], CHAMP_MODELS = ['titus', 'spearman', 'archer', 'devi', 'archer_chola']; // (his own pieces: shields and swords) // (C3: a champion's own shield, from his page's look; models/<name>.glb)
 // the armour choices: the painted armour in its finishes (C2: 'Burnished iron', once 'Leather & fur', is dark worked iron; 'leather' stays for the archers' jerkin) (the tint multiplies its painted steel)
 const ARMOUR_FINISH = { steel: [0xffffff, .35, .45], bronze: [0xe0a458, .55, .38], leather: [0x9a6238, 0, .85], iron: [0xb4a08c, .65, .32], black: [0x3b3e46, .6, .3] };
 // C1: a helmet's metal (dome, cheek guards) is the colour of the armour finish the player picked
@@ -71,7 +73,8 @@ if (on) {
     SRC = { cap, body: b.geometry, soldier: sd.geometry, soldierMat: sd.material, lod, ...(w => ({ horse: w.tpl, seat: w.seat }))(warHorse(horse, HORSE_SCALE)), // (C3: the war horse)
       armours: Object.fromEntries(Object.entries(ARMOUR_FINISH).map(([n, [c, mt, rg]]) => { const m = ar.material.clone(); m.color.set(c); m.metalness = mt; m.roughness = rg; return [n, { geo: ar.geometry, mat: m }]; })),
       helmets: by(helmets, PACK.helmet), shields: by(shields, PACK.shield), champShields: by(champShields, CHAMP_SHIELDS),
-      models: by(champModels.map(m => ({ ...m, clips: hipClips(cap, m), own: true, ref: cap })), CHAMP_MODELS), spearLod, archLod }; // (C3: his own body plays the captain's clips; the spearman's far figure)
+      models: by(champModels.map(m => ({ ...m, clips: hipClips(cap, m), own: true, ref: cap })), CHAMP_MODELS), spearLod, archLod };
+    loadChampGear(CHAMPS, warHorse, HORSE_SCALE); // (C4i: bows, arrows and horses of their own) // (C3: his own body plays the captain's clips; the spearman's far figure)
   }).catch(e => { console.warn('captain models failed to load', e); on = false; });
 }
 
@@ -84,15 +87,15 @@ function weaponOf(u) { if (u.kind === 'arch') return 'bow'; if (u.weapon) return
 const lookOf = u => (G.looks && G.looks[u.ti]) || null;
 // the colour an army's cloth, shield face and hood are tinted to: its team's, or the neutral grey (M1: the mountain's garrisons and camps)
 const hexOf = u => u.neutral ? NEUTRAL.hex : TEAMS[colorOf(u.ti)].hex;
-const keyOf = u => { const L = lookOf(u); return [hexOf(u), u.kind, u.leader ? champOf(u.ti).id : '', u.tier | 0, L ? [L[SLOT_IX.helm], L[SLOT_IX.armour], L[SLOT_IX.shield], L[SLOT_IX.cape]].join('.') : ''].join('|'); };
+const keyOf = u => { const L = lookOf(u); return [hexOf(u), u.kind, u.leader || u.kind === 'arch' ? champOf(u.ti).id : '', u.tier | 0, L ? [L[SLOT_IX.helm], L[SLOT_IX.armour], L[SLOT_IX.shield], L[SLOT_IX.cape]].join('.') : ''].join('|'); };
 function make(u) {
   const weapon = weaponOf(u), team = hexOf(u), soldier = u.kind !== 'captain', L = lookOf(u);
   const shieldName = L ? pick('shield', L[SLOT_IX.shield]) : '', shield = SRC.shields[shieldFile(shieldName)];
   const cl = !soldier && champOf(u.ti).look, shieldRaw = cl && cl.shield ? SRC.champShields[cl.shield] || null : null, swordRaw = cl && cl.sword ? SRC.champShields[cl.sword] || null : null; // (C3: his own shield and sword)
   const own = clipsOn && cl && cl.model ? SRC.models[cl.model] : null; // (C3: his own body, helmet and cloak in it)
-  const sp = u.kind === 'foot' && SRC.models.spearman, ab = u.kind === 'arch' && SRC.models.archer; // (C3: the soldiers' new bodies, on the shared skeleton and clips)
+  const sp = u.kind === 'foot' && SRC.models.spearman, ab = u.kind === 'arch' && ((cla => cla && SRC.models[cla])(champOf(u.ti).look && champOf(u.ti).look.archer) || SRC.models.archer), abOwn = ab && ab !== SRC.models.archer; // (C3: the soldiers' new bodies, on the shared skeleton and clips)
   const R = sp ? rigClip(SRC.models.spearman, { team, weapon, pack: { shield, noHelmet: true, small: true, cape: (u.tier | 0) >= 2 ? 2 : 0 } }) // (C3h: the Triarius's short cloak)
-    : ab ? rigClip(SRC.models.archer, { team, weapon, pack: { noShield: true, noHelmet: true } }) // (his quiver and helmet are in his body)
+    : ab ? rigClip(ab, { team, weapon, pack: { noShield: true, noHelmet: true } }) // (his quiver and helmet are in his body)
     : soldier ? rigCaptain(SRC.soldier, { body: 'soldier', team, weapon, pack: u.kind === 'arch' ? { noShield: true } : { shield } })
     : own ? rigClip(own, { team, weapon, pack: { shield, shieldRaw, swordRaw, noHelmet: true } })
     : (clipsOn ? rigClip : rigCaptain)(clipsOn ? SRC.cap : SRC.body, { team, weapon, pack: { shield, shieldRaw, helmet: L ? SRC.helmets[helmFile(pick('helm', L[SLOT_IX.helm]))] || null : SRC.helmets.red_crest, cape: capeOf(L), helmetMetal: HELM_METAL[armourFile(L ? pick('armour', L[SLOT_IX.armour]) : '')] } });
@@ -100,15 +103,16 @@ function make(u) {
   else if (!sp && !ab && ((u.kind === 'foot' && u.tier >= 2) || u.neutral)) { const a = SRC.armours[armourFile(L ? pick('armour', L[SLOT_IX.armour]) : '')]; addArmour(R, a.geo, a.mat); } // (the Armour upgrade: your army's armour over the tunic; the mountain's neutral soldiers always wear the steel, M1)
   if (u.kind === 'arch' && !ab) archerGear(R, team, u.tier | 0);
   if (sp || ab) tierLook(R, u.kind, u.tier | 0); // (C3h: an upgraded soldier's colours and clothes)
-  if (ab) archerQuiver(R); // (Q1)
+  if (ab && !abOwn) archerQuiver(R); // (Q1; her own archers carry theirs in the body)
+  const cg = own ? champGear(R, cl) : null; // (C4i: her bow and arrows, her clip names)
   R.root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
   const sc = soldier ? SCALE * SOLDIER_SCALE : SCALE;
   R.root.scale.setScalar(sc);
   const fold = batchOn() ? foldGear(R, [R.shield, R.cape, R.slide]) : null; // (F17c: the spear's slide joint moves too: aimed and slid in his grip) // (F1b: his gear in one or two draws; ?f1=0 the old pieces)
-  const h = { R, fold, weapon, team, key: keyOf(u), run: 0, moveName: null, moveT: 0, hp: u.hp, blockHitT: -1, sc, mounted: !!u.mounted, U: null, legs: null };
+  const h = { R, cg, cl: own ? cl : null, fold, weapon, team, key: keyOf(u), run: 0, moveName: null, moveT: 0, hp: u.hp, blockHitT: -1, sc, mounted: !!u.mounted, U: null, legs: null };
   if (u.mounted) { // on the warhorse: the rider sits on the saddle, and the unit moves as one
-    const hc = cloneHorse(SRC.horse, team), U = new THREE.Group();
-    U.add(hc); U.add(R.root); R.root.position.set(0, SRC.seat.top + (.38 + .04) * sc, SRC.seat.z); // (his hips, .38 below his root, on the seat)
+    const H = (!soldier && champHorse(cl)) || { tpl: SRC.horse, seat: SRC.seat }, hc = cloneHorse(H.tpl, team), U = new THREE.Group();
+    U.add(hc); U.add(R.root); R.root.position.set(0, H.seat.top + (.38 + .04) * sc, H.seat.z); // (his hips, .38 below his root, on the seat)
     h.U = U; h.legs = legsOf(hc);
     scene.add(U);
   } else scene.add(R.root);
@@ -362,12 +366,13 @@ function locoClip(u, h, sp) {
 }
 function clipHero(u, a, h, dt, sp, blocking, hurt, P, rate, tag) {
   const R = h.R, T = G.T, C = SRC.cap.clips, kind = u.swingKind | 0;
+  if (h.cg) duelLook(R, h.cg, h.cl, !!u.duelId); // (C4g: daggers in a duel)
   // what has just happened
   if (u.swing > (h.swPrev || 0) + .05) { // a blow begun: the sword's combo, thrust and boosted blows have clips
     h.swN = (h.swN || 0) + 1; h.swT = T - Math.max(0, .38 - u.swing); // (F25: from the moment the rules began it, so it lands on their frame)
     const boosted = (u.evade && T - u.evade.t < ANIM.boostWithin) || (u.pending && u.pending.leap);
     const set = h.weapon === 'sword' ? ANIM.swingKind : ANIM.weaponSwing[h.weapon]; // (F17: spear and javelins have clips too)
-    h.swClip = set && kind < set.length ? (boosted && h.weapon === 'sword' && kind < 2 ? ANIM.boost : h.weapon === 'spear' && kind === 3 && u.combo === 1 ? ANIM.spearSweep : set[kind]) : null; // (F17c: the spear's second press, the sweep)
+    h.swClip = set && kind < set.length ? (boosted && h.weapon === 'sword' && kind < 2 ? ANIM.boost : h.weapon === 'spear' && kind === 3 && u.combo === 1 ? ANIM.spearSweep : set[kind]) : null; if (h.cl) h.swClip = champSwing(h.cl, kind, !!u.duelId, h.swClip); // (F17c: the spear's second press, the sweep)
   }
   h.swPrev = u.swing || 0;
   if (blocking && !h.wasBlocking) h.blkN = (h.blkN || 0) + 1; h.wasBlocking = blocking;
