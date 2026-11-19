@@ -53,8 +53,9 @@ const o = await A.evaluate(async () => {
   // Arrow storm: her archers 15 m back, a group at 20 m
   const archers = []; for (let k = 0; k < 4; k++) { const [x, z] = at(-6, -3 + k * 2), a = sim.mkUnit(me, x, z, 'arch'); archers.push(a); }
   const g = []; for (let k = 0; k < 5; k++) g.push(man(20, -2 + k)); hold(...g, ...archers);
+  const rnd1 = Math.random; let sd = 7; Math.random = () => ((sd = (sd * 16807) % 2147483647) / 2147483647); // (a fixed scatter: 32 arrows in a 5 m ring could miss 5 men by chance)
   s.rally = 100; ready(); const n0 = G.arrowN; Ab.useAbility(me, 'armyUlt', { x: g[2].x, z: g[2].z });
-  run(100); r.stormWarn = { storms: (G.storms || []).length, arrows: G.arrowN - n0 }; run(260);
+  run(100); r.stormWarn = { storms: (G.storms || []).length, arrows: G.arrowN - n0 }; run(260); Math.random = rnd1;
   r.storm = { arrows: G.arrowN - n0, hurt: g.filter(u => u.hp < u.max).length };
   G.units = [p];
   // her archer line

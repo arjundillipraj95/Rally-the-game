@@ -47,7 +47,7 @@ await B.evaluate(() => { const el = document.getElementById('atk'); el.dispatchE
 await sleep(500);
 const h = await A.evaluate(ti => { clearInterval(window.__pin); const G = window.__fb.G, L = G.teams[ti].leader;
   return { shots: G.arrowN - window.__a0, taken: Math.round(window.__hp0 - window.__dummy.hp), aim: !!L.aimChamp }; }, ti);
-ok(h.shots >= 3 && h.taken >= 60, `holding Attack on the joined phone: the host shot ${h.shots} arrows, ${h.taken} damage`);
+ok(h.shots >= 3 && h.taken >= 40, `holding Attack on the joined phone: the host shot ${h.shots} arrows, ${h.taken} damage (40+: two landed; the last may still be in the air)`);
 ok(homing.t > 0, `her arrows home in on the joined phone too (${homing.t} of ${homing.n} seen carry their mark)`);
 ok(pace.on && Math.abs(pace.spd - 5.9 * .65) < .1, `she moves at ${pace.spd.toFixed(2)} m/s on her phone while shooting`);
 ok(h.aim, `her Targeting setting (Champions first) reached the host`);

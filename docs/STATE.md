@@ -485,3 +485,6 @@ Last updated: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pag
 - SPLIT2 (19 Nov): render/heroes.js (493) split by job, behaviour unchanged: `heroload.js` (models loaded, `make` a
   figure, looks, far figures' geometry), `herohorse.js` (gaits, riderless horses), `herofar.js` (distant batches),
   `heroes.js` (posing, clips, the fallen; re-exports drawFar/drawFreeHorses). 277/139/67/48 lines.
+- TEST5 (19 Nov): r_C1a reads Settings > Main (MENU4) and the champion list, not the gone #segChamp; r_RANGE1-join
+  passes at 6 shots/40+ damage (was 60, borderline 56-67); r_C4's Arrow storm runs on a fixed scatter (0 of 5 hurt
+  happened by chance: 32 arrows over a 5 m ring). Note for design: the storm reliably hurts only 2-4 of 5 men there.
