@@ -23,6 +23,7 @@ import { buildCrests, newTip, renderMissSub } from './endscreen.js';
 import { homeView, pressFmt, seedDemo, setHomeView, showFmtRank, soloStart } from './home.js';
 import { renderFriends, toast } from './friends.js';
 import { CHAMP_IDS, champDef, myChamp, setMyChamp } from '../champions/index.js';
+import { aimChampPref, setAimChamp } from '../core/sim/ranged.js'; // (RANGE1)
 import { setSoundLevel, soundLevel } from '../ui/audio.js';
 
 // ---------- menus ----------
@@ -77,6 +78,9 @@ seg('segDiff', v => { G.diff = +v; });
 $('segChamp').innerHTML = CHAMP_IDS.map(id => `<button type="button" data-v="${id}" aria-pressed="false">${champDef(id).name}</button>`).join('');
 seg('segChamp', v => { setMyChamp(v); pressSeg('segChamp', v); });
 pressSeg('segChamp', myChamp());
+// (RANGE1) a ranged champion's Targeting: the nearest enemy (default) or champions first
+seg('segAim', v => { setAimChamp(v === 'champ'); pressSeg('segAim', v); });
+pressSeg('segAim', aimChampPref() ? 'champ' : 'near');
 // (FIX2) how loud the game is
 seg('segVol', v => { setSoundLevel(v); pressSeg('segVol', v); });
 pressSeg('segVol', soundLevel());

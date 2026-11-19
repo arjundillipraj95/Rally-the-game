@@ -18,6 +18,7 @@ import { holdsTick, updateFlag } from './holds.js';
 import { c2BreakInReach, c2Tick } from './crown2.js';
 import { neutralFoe, thinkNeutral } from './neutral.js';
 import { CC, captainAttack, chargeTimers, javMax, stepJump } from './captain.js';
+import { rangedTick, aimChampPref } from './ranged.js'; // (RANGE1)
 import { fallStep, integrate, moveToward, setPathBudget } from './move.js';
 import { respawnSpot, underAttack } from './respawn.js'; // (CASTLE7)
 import { xpTick } from './levels.js';
@@ -159,6 +160,7 @@ export function update(dt, input) {
     if (p.marchT > 0 && !(input.mag > .3) && !input.attackHeld && !input.block) marchStep(p, pdt); // (F7: stepping out, until the stick says otherwise)
     else { p.marchT = 0; driveCaptain(p, input, pdt); }
     if (input.block && !p.blkPrev) blockPress(p); p.blkPrev = !!input.block;
+    p.aimChamp = aimChampPref(); // (RANGE1: the Targeting setting)
     attackHold(p, !!input.attackHeld, pdt);
     if (p.atkBuf > 0 && p.cd <= 0 && p.stun <= 0 && !p.mounted) captainAttack(p);
   }
@@ -211,6 +213,7 @@ export function update(dt, input) {
     heavyTick(u, dt); if (u.human) braceTick(u, dt); if (!u.leader) shieldTick(u, dt); else execTick(u, dt);
     if (u.swing > 0) u.swing -= dt;
     if (u.pending) { u.pending.t -= dt; if (u.pending.t <= 0) resolveSwing(u); }
+    if (u.rSecond) rangedTick(u); // (RANGE1: the third shot's second arrow)
     if (u.rt <= 0) { u.rt = rnd(.25, .4); [u.foe, u.fd] = u.neutral ? neutralFoe(u) : nearestFoe(u, 50); }
     if (u.foe && u.foe.dead) { u.foe = null; u.fd = 1e9; }
     if (u.foe) u.fd = Math.hypot(u.foe.x - u.x, u.foe.z - u.z);

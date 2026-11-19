@@ -119,10 +119,12 @@ export function plazaGateFor(x, z) {
 }
 export const insidePlaza = u => Math.hypot(u.x, u.z) < CROWN.wallR - 1;
 // the nearest standing section of an enemy palisade within a man's reach, in front of him
+// a palisade or gate he may hack at (or she may shoot at, RANGE1): standing, and an enemy's
+export const wallFoe = (u, o) => !(!o.pal || o.off || o.plazaWall || (G.c2 && o.plazaGate != null) || (o.cgate != null && G.holds[o.cgate].owner === allianceOf(u.ti)) || (o.plazaGate == null && o.cgate == null && !isEnemyTi(o.c, u.ti)));
 export function wallInReach(u, cone = 1.3) {
   let best = null, bd = 1e9;
   for (const o of nearObstacles(u.x, u.z)) {
-    if (!o.pal || o.off || o.plazaWall || (G.c2 && o.plazaGate != null) || (o.cgate != null && G.holds[o.cgate].owner === allianceOf(u.ti)) || (o.plazaGate == null && o.cgate == null && !isEnemyTi(o.c, u.ti))) continue;
+    if (!wallFoe(u, o)) continue;
     const d = Math.hypot(o.x - u.x, o.z - u.z); if (d > u.r + o.r + u.reach + .4 || d > bd) continue;
     if (Math.abs(angDiff(u.face, Math.atan2(o.x - u.x, o.z - u.z))) > cone) continue;
     bd = d; best = o;

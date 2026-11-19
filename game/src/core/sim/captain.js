@@ -10,6 +10,7 @@ import { footTier, orderOf, push } from './army.js';
 import { aiDmg, nearestEnemyCastle, spendSt, startSweep, startSwing } from './melee.js';
 import { duelFoe, execTarget, startExec } from './duel.js';
 import { throwJavelin } from './missiles.js';
+import { rangedOf, rangedShot } from './ranged.js'; // (RANGE1)
 import { die } from './score.js';
 import { towerInReach, wallInReach } from './forts.js';
 import { c2BreakInReach } from './crown2.js';
@@ -153,6 +154,11 @@ function captainAttack0(p) {
   if (p.cd > 0 || p.stun > 0) { p.atkBuf = .4; return; }
   p.atkBuf = 0;
   if (tryPull(p)) return; // (PULL1: a rider going by, on the beat: pulled down)
+  if (rangedOf(p) && !p.duelId) { // (RANGE1: a ranged champion shoots; in a duel she fights close, C4g)
+    const v = p.human && !p.mounted ? execTarget(p) : null; // (a beaten captain in reach: finish him, as a melee champion does)
+    if (v) startExec(p, v); else rangedShot(p);
+    return;
+  }
   const wpn = p.weapon || 'sword';
   if (p.mounted) {
     if (p.human) return; // (a captain on horseback strikes when Attack is let go: a tap swipes, a hold times a ride-by)

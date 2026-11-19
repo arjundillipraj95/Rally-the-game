@@ -1,6 +1,6 @@
 // Battle rules: orders, morale and rally, recruiting, upgrades, speed, horses.
 import { moraleBounds } from './nexus.js'; // (CASTLE8)
-import { CROWN2, CROWN, STATS, HUMAN_CAPTAIN, CAPTAIN_SPD, HORSE_HP, HORSE_CD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, CHARGE, EXEC, FORT, HOLD_ATK, MORALE, RALLY, AURA, LAST, ARMOUR, CASTLE26 } from '../../config.js';
+import { RANGED, CROWN2, CROWN, STATS, HUMAN_CAPTAIN, CAPTAIN_SPD, HORSE_HP, HORSE_CD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, CHARGE, EXEC, FORT, HOLD_ATK, MORALE, RALLY, AURA, LAST, ARMOUR, CASTLE26 } from '../../config.js';
 import { G, isEnemy, colorOf, capOf, isC2 } from '../state.js';
 import { groundY, clamp, rnd, angDiff, W, groundSlow } from '../world.js';
 import { fx, say, sound, spark } from './util.js';
@@ -181,6 +181,7 @@ export function speedOf(u) {
   if (u.routing) s *= 1.1;
   if (u.heavyCharge > 0) s *= .55;
   if (u.bracing) s *= HOLD_ATK.braceSlow;
+  if (u.firingT > G.T && !u.mounted) s *= RANGED.pace; // (RANGE1: shooting, she plants her feet to loose)
   return s;
 }
 export function summonHorse(u) {

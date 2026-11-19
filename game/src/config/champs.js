@@ -38,7 +38,7 @@ export const COUNTER = { mult: 1.2 };
 // (C1e) army size by class: at the start, and what each middle and outer castle the side holds adds.
 export const ARMY = {
   vanguard: { start: 5, mid: 5, outer: 3 },
-  striker: { start: 3, mid: 3, outer: 3 },
+  striker: { start: 4, mid: 3, outer: 3 }, // (RANGE1, Arjun 18 Nov: 4 to start, +3 a castle; a stone thrower's 5 places after the first castle)
   raider: { start: 3, mid: 3, outer: 3 },
 };
 
@@ -52,3 +52,12 @@ export const CHAMP_LIMITS = {
   hp: [280, 560], dmg: [20, 45], rate: [1, 2.2], dps: [34, 52], reach: [1.1, 2], rangedReach: [10, 16], spd: [5.6, 7.2], horse: [10, 12.5],
   budget: .05, ranged: .3, shift: .2,
 };
+
+// (RANGE1) a ranged champion's basic attack (design doc, Devi card, 18 Nov). Range, damage and rate are the page's own
+// (stats.reach, dmg, rate; page.ranged.third: each of the third shot's two arrows). Arrows fly `speed` m/s and home in
+// on their mark; the third shot's second arrow follows `thirdGap` s after the first. Shooting while walking: she draws
+// on the move and plants her feet to loose, so she moves at `pace` of her speed while she keeps shooting (`hold` s after a
+// shot). Riding faster than `gallop` m/s, Attack held doesn't repeat: one ride-by shot a press. A computer ranged
+// champion keeps `keep` m from a melee champion and closes to `close` of her range. Targeting: the nearest enemy, or
+// champions first (the player's setting, 'rally-aim').
+export const RANGED = { speed: 40, thirdGap: .1, pace: .65, hold: .15, gallop: 8, keep: 9, close: .8 };

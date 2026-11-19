@@ -6,6 +6,7 @@ import { fx, sound, spark } from './util.js';
 import { hl } from './match.js';
 import { dismount, gainRally, horseDamage, loseHeart, push } from './army.js';
 import { hit, spendSt, startSweep, startSwing } from './melee.js';
+import { rangedOf, rangedHold } from './ranged.js'; // (RANGE1)
 import { CC, die, javTarget, softAim, throwJavelin } from './step.js'; // (later files: through the entry, so files still load in the old order)
 
 // ---------- fighting on horseback ----------
@@ -145,6 +146,7 @@ export function heavyTick(u, dt) {
 // release arrives as one event with the time they held it).
 export function attackHold(p, held, dt, remote) {
   if (!p || p.dead || p.carrying) { p.ahT = 0; p.heavyCharge = 0; p.bracing = false; p.javDraw = 0; p.rideReady = false; return; }
+  if (rangedOf(p) && !p.duelId) { rangedHold(p, held, dt); return; } // (RANGE1: held, a ranged champion keeps shooting)
   const w = p.weapon || 'sword';
   if (p.mounted) { // on horseback: lock on and time the pass (sword, spear), or draw a javelin
     p.heavyCharge = 0; p.bracing = false;

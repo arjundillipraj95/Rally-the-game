@@ -30,6 +30,7 @@ import { SLOTS, useAbility } from '../core/sim/abilities.js';
 import { eagleStep, flyEagle } from '../core/sim/eagle.js';
 import { endRam, flyRam, ramStep } from '../core/sim/ram.js';
 import { scutumPace, scutumTick, showScutum } from '../core/sim/scutum.js';
+import { aimChampPref } from '../core/sim/ranged.js'; // (RANGE1)
 
 export const C = {}; // client-side state
 if (import.meta.env.DEV) window.__netC = C; // dev-only: lets tests watch the client's snapshots
@@ -71,7 +72,7 @@ function encodeSnap() {
     if (u.jy > .05) row.push(b36(u.jy * 10));
     us.push(row.join(','));
   }
-  const ars = G.arrows.filter(a => !a.stuck && !a.done).slice(-18).map(a => [b36(a.id), encX(a.x0), encX(a.z0), b36(a.y0 * 10), encX(a.x1), encX(a.z1), b36(a.y1 * 10 + 20), b36(a.dur * 100), b36(a.peak * 10), b36(a.t * 100), a.ti, a.bolt ? 1 : 0].join(',')); // (FIX4: a ballista bolt is drawn as one)
+  const ars = G.arrows.filter(a => !a.stuck && !a.done).slice(-18).map(a => [b36(a.id), encX(a.x0), encX(a.z0), b36(a.y0 * 10), encX(a.x1), encX(a.z1), b36(a.y1 * 10 + 20), b36(a.dur * 100), b36(a.peak * 10), b36(a.t * 100), a.ti, a.bolt ? 1 : 0, a.tg && !a.tg.dead ? b36(a.tg.id) : ''].join(',')); // (FIX4: a ballista bolt is drawn as one) (RANGE1: whom a champion's arrow homes in on)
   const hs = G.horses.filter(h => h.state === 'coming').map(h => [encX(h.x), encX(h.z), encF(h.face), h.ti].join(','));
   const f = G.flag;
   const fl = f ? [f.state === 'home' ? 0 : f.state === 'dropped' ? 1 : f.state === 'cased' ? 3 : 2, encX(f.x), encX(f.z), f.carrier ? b36(f.carrier.id) : '', Math.round((f.casing || 0) * 99)].join(',') : '';
@@ -175,7 +176,7 @@ export function netHostReadInputs() {
     const last = NET.inp[ti] || (NET.inp[ti] = { atk: 0, chg: 0, ride: 0, vly: 0, par: 0, ahN: 0, hold: '', rec: [0, 0, 0], ab: [0, 0, 0], up: UPGRADES.map(() => 0) }); // (one count per upgrade: a short list once lost the Horse)
     if (L && !L.dead && Array.isArray(pr.cap) && pr.cap[0] === L.id) {
       L.x = +pr.cap[1]; L.z = +pr.cap[2]; L.face = +pr.cap[3]; L.vx = +pr.cap[4]; L.vz = +pr.cap[5];
-      L.blocking = !!pr.blk; L.stickSide = (pr.gs | 0) || 0; L.jy = Math.max(0, +pr.cap[6] || 0); L.ahHeld = !!pr.ah; // (stickSide, in a duel: which way their stick points, for their guard and their blow) (C3d: jy and ahHeld were lost behind that comment)
+      L.blocking = !!pr.blk; L.stickSide = (pr.gs | 0) || 0; L.jy = Math.max(0, +pr.cap[6] || 0); L.ahHeld = !!pr.ah; L.aimChamp = !!pr.ac; // (RANGE1: their Targeting setting) // (stickSide, in a duel: which way their stick points, for their guard and their blow) (C3d: jy and ahHeld were lost behind that comment)
       const w = WEAPONS[pr.cap[7] | 0]; if (w && L.weapon !== w && champOf(ti).weapons.includes(w)) { L.weapon = w; s.weapon = w; }
     }
     if (typeof pr.par === 'number' && pr.par > last.par) { if (L && !L.dead) blockPress(L); last.par = pr.par; } // Block pressed: a parry window
@@ -403,7 +404,7 @@ function clientApply(hp) {
   if (G.player && G.player.dead) G.player = null;
   if (secs[3]) for (const row of secs[3].split(';')) {
     const f = row.split(','), id = p36(f[0]); if (C.arrowIds.has(id)) continue; C.arrowIds.add(id);
-    const a = makeArrow({ id, x0: decX(f[1]), z0: decX(f[2]), y0: p36(f[3]) / 10, x1: decX(f[4]), z1: decX(f[5]), y1: (p36(f[6]) - 20) / 10, dur: p36(f[7]) / 100, peak: p36(f[8]) / 10, ti: +f[10], t: p36(f[9]) / 100 }); a.bolt = f[11] === '1';
+    const a = makeArrow({ id, x0: decX(f[1]), z0: decX(f[2]), y0: p36(f[3]) / 10, x1: decX(f[4]), z1: decX(f[5]), y1: (p36(f[6]) - 20) / 10, dur: p36(f[7]) / 100, peak: p36(f[8]) / 10, ti: +f[10], t: p36(f[9]) / 100 }); a.bolt = f[11] === '1'; if (f[12]) a.tg = C.byId.get(p36(f[12])) || null; // (RANGE1: it homes in here too)
     G.arrows.push(a); if (a.bolt) bus.emit('boltShot', a); else sfx.bow(a.x0, a.z0);
   }
   if (C.arrowIds.size > 400) C.arrowIds = new Set([...C.arrowIds].slice(-200));
@@ -535,7 +536,7 @@ export function clientTick(dt) {
   // send my captain and my buttons
   if ((performance.now() - C.sendAt > 66 || C.sendNow) && G.state === 'play') {
     C.sendAt = performance.now(); C.sendNow = false;
-    const pres = { role: 'player', gs: (G.player && G.player.stickSide) | 0, sh: C.inp.sh || 0, shK: C.inp.shK || 0, shX: C.inp.shX, shZ: C.inp.shZ, want: G.myTi, nick: session.myNick || 'Captain', ph: 'play', seed: G.seed, evN: C.inp.evN, evK: C.inp.evK, rly: C.inp.rly, rb: C.inp.rb, bsh: C.inp.bsh, dl: C.inp.dl, dlId: C.inp.dlId, foc: C.inp.foc, par: C.inp.par, ahN: C.inp.ahN, ahD: C.inp.ahD, ah: C.inp.ah, atk: C.inp.atk, ride: C.inp.ride, vly: C.inp.vly, vat: C.inp.vat, chg: C.inp.chg, ab: C.inp.ab, abAt: C.inp.abAt, rec: C.inp.rec, up: C.inp.up, ord: C.inp.ord, hold: C.inp.hold, face: C.inp.face, blk: inp.blockHeld ? 1 : 0 };
+    const pres = { role: 'player', ac: aimChampPref() ? 1 : 0, gs: (G.player && G.player.stickSide) | 0, sh: C.inp.sh || 0, shK: C.inp.shK || 0, shX: C.inp.shX, shZ: C.inp.shZ, want: G.myTi, nick: session.myNick || 'Captain', ph: 'play', seed: G.seed, evN: C.inp.evN, evK: C.inp.evK, rly: C.inp.rly, rb: C.inp.rb, bsh: C.inp.bsh, dl: C.inp.dl, dlId: C.inp.dlId, foc: C.inp.foc, par: C.inp.par, ahN: C.inp.ahN, ahD: C.inp.ahD, ah: C.inp.ah, atk: C.inp.atk, ride: C.inp.ride, vly: C.inp.vly, vat: C.inp.vat, chg: C.inp.chg, ab: C.inp.ab, abAt: C.inp.abAt, rec: C.inp.rec, up: C.inp.up, ord: C.inp.ord, hold: C.inp.hold, face: C.inp.face, blk: inp.blockHeld ? 1 : 0 };
     if (me && !me.dead) pres.cap = [me.id, r2(me.x), r2(me.z), r2(me.face), r1(me.vx), r1(me.vz), r2(me.jy || 0), Math.max(0, WEAPONS.indexOf(me.weapon || 'sword'))];
     NET.room.presence(pres).catch(() => {});
   }

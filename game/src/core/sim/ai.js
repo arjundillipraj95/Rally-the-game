@@ -1,6 +1,7 @@
 // Battle rules: computer captains.
 import { circleAt } from './capture.js'; // (CASTLE4)
-import { CROWN26, TEAMS, CASTLE_REACH, HEAVY, GUARD, CTRL } from '../../config.js';
+import { CROWN26, TEAMS, CASTLE_REACH, HEAVY, GUARD, CTRL, RANGED } from '../../config.js';
+import { rangedOf, rangeOf } from './ranged.js'; // (RANGE1)
 import { G, isEnemy, isEnemyTi, colorOf, gateOff, rules } from '../state.js';
 import { spearReach } from '../spearhit.js';
 import { gatePos, rnd, angDiff, W, mountK, mountHomeA } from '../world.js';
@@ -132,10 +133,22 @@ function aiPunish(u, foe, fd) {
   if (!u.punishRoll || u.cd > 0 || u.stun > 0 || fd > u.r + foe.r + u.reach + .5) return false;
   u.guardT = 0; captainAttack(u); return true;
 }
+// (RANGE1) a computer ranged champion: her specials first; she keeps RANGED.keep m from a melee champion (backing off,
+// still shooting), closes to RANGED.close of her range, and shoots whatever is nearest in range
+function aiRanged(u, foe, fd, dt) {
+  if (aiAbilities(u, foe, fd)) return;
+  const R = rangeOf(u), keep = foe.leader && !rangedOf(foe) ? RANGED.keep : 0;
+  if (keep && fd < keep) { const a = Math.atan2(u.x - foe.x, u.z - foe.z); go(u, u.x + Math.sin(a) * 4, u.z + Math.cos(a) * 4, speedOf(u), dt, .2); }
+  else if (fd > R * RANGED.close) go(u, foe.x, foe.z, speedOf(u), dt, R * RANGED.close);
+  else moveToward(u, u.x, u.z, 0, dt);
+  faceTo(u, foe.x, foe.z, dt, 12);
+  if (u.cd <= 0 && u.stun <= 0) captainAttack(u);
+}
 function aiCaptainFight(u, foe, fd, dt) {
   const war = G.diff >= 2;
   if (u.windup > 0) { moveToward(u, u.x, u.z, 0, dt); return; }
   if (!u.mounted && aiPull(u)) return; // (PULL1)
+  if (rangedOf(u) && !u.duelId) { aiRanged(u, foe, fd, dt); return; } // (RANGE1)
   if (aiPunish(u, foe, fd)) return;
   if (aiGuard(u, foe, fd, dt)) return;
   if (aiAbilities(u, foe, fd)) return; // (C1c: his special attacks and ult)
@@ -186,8 +199,10 @@ export function thinkLeader(u, s, dt) {
   s.thinkT -= dt;
   if (s.thinkT <= 0 || !s.plan) { s.thinkT = rnd(1.2, 2.4); planLeader(u, s); aiHold(u, s); }
   const foe = u.foe, fd = u.fd;
-  if (foe && (u.duelId || (fd < (u.mounted ? 12 : 10) && !u.carrying && !(s.plan && s.plan.kind === 'escort' && fd > 5)))) {
-    if (u.mounted) {
+  const rg = rangedOf(u) && !u.duelId; // (RANGE1: a ranged champion fights from her range, on foot)
+  if (foe && (u.duelId || (fd < (rg ? rangeOf(u) : u.mounted ? 12 : 10) && !u.carrying && !(s.plan && s.plan.kind === 'escort' && fd > 5)))) {
+    if (rg) { if (u.mounted) dismount(u, false); else aiRanged(u, foe, fd, dt); }
+    else if (u.mounted) {
       if (spearNear(u, 7)) dismount(u, false);
       const inv = 1 / Math.max(fd, .1);
       go(u, foe.x + (foe.x - u.x) * inv * 4, foe.z + (foe.z - u.z) * inv * 4, speedOf(u), dt, .1);

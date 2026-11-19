@@ -15,6 +15,7 @@ import { die } from './step.js'; // (later files: through the entry, so files st
 import { drumDmg } from './buffs.js';
 import { champHit } from './turret.js'; // (CASTLE3)
 import { inflDmg, inflTaken } from '../../champions/influence.js';
+import { hitWall, hitTower } from './step.js'; // (RANGE1: a champion's arrow at a gate or a structure; later files: through the entry)
 
 export function shoot(u, tg, fromY = 1.6) {
   if (G.c2 && u.kind === 'arch' && inFord(u.x, u.z)) return; // (the mountain's river: no bow work up to your knees in it)
@@ -42,7 +43,10 @@ function arrowHit(a, b) {
   if (b.execT > 0 || b.iframeT > 0) return;
   const shooter = a.shooter;
   let dmg, loc = 'body';
-  if (a.javelin || a.turret) { // (CASTLE3: a castle's shot is flat damage, no head roll)
+  if (a.champ) { // (RANGE1: a champion's arrow: her blow, flat, no head roll)
+    dmg = a.jd * aiDmg(a.ti) * drumDmg(a.ti);
+    if (shooter && b.leader && !shooter.dead) shooter.rTg = b; // (she stays on a champion she has hit)
+  } else if (a.javelin || a.turret) { // (CASTLE3: a castle's shot is flat damage, no head roll)
     dmg = (a.jd || JAVELIN.dmg) * rnd(.85, 1.15) * aiDmg(a.ti) * drumDmg(a.ti); // (CAMP1: the war drum)
   } else {
     // shooter is missing .arrow/.jitter for a castle tower's arrows (a bare {x,z,ti,tower}
@@ -59,15 +63,15 @@ function arrowHit(a, b) {
   const frontal = Math.abs(angDiff(b.face, Math.atan2(a.x0 - b.x, a.z0 - b.z))) < 1.1;
   dmg *= inflDmg(shooter) * inflTaken(b, frontal); // (C1e: the champions' influence)
   // a shieldwall turns arrows from the front only — locked shields don't cover the sides or back
-  if (b.shieldwall && frontal && !a.bolt && !a.turret && (b.kind === 'foot' || Math.random() < .6)) { spark(b.x, b.y + 2.2, b.z, '#e8d9b0', 4); sound('thud', b.x, b.z); return; }
+  if (b.shieldwall && frontal && !a.bolt && !a.turret && (b.kind === 'foot' || a.champ || Math.random() < .6)) { spark(b.x, b.y + 2.2, b.z, '#e8d9b0', 4); sound('thud', b.x, b.z); return; }
   b.lastHit = G.T;
   if (a.unhorse && b.mounted) { horseDamage(b, dmg); if (b.mounted) dismount(b, true); gainRally(a.shooter, RALLY.unhorse); fx('fxmsg', { k: 'fxunhorse', u: b }); return; } // a full-draw javelin knocks a rider clean off
   if (b.testudo && !a.bolt) { blockedBy(null, b, a.shooter); return; } // (C3e: arrows do nothing on the testudo's roof)
   if (shields.length) { const S = coverOf(b, a.x0 ?? b.x - (a.vx || 0), a.z0 ?? b.z - (a.vz || 0)); if (S) { blockedBy(S, b, a.shooter); return; } } // (C3c: the Shield of Cassius stops it, castle shots too)
-  if (!a.javelin && !a.turret && b.kind === 'foot') dmg *= COUNTER.mult; // (C1d the counter rule: arrows on infantry)
+  if (!a.javelin && !a.turret && !a.champ && b.kind === 'foot') dmg *= COUNTER.mult; // (C1d the counter rule: soldiers' arrows on infantry; RANGE1: not a champion's)
   if (b.mounted) { horseDamage(b, dmg); return; } // (C1d: a mounted champion's horse takes every arrow)
   let blocked = false;
-  if (frontal && !b.mounted && !b.carrying && loc !== 'head' && !a.bolt && !a.turret) { // (CASTLE2: a ballista bolt goes through a shield)
+  if (frontal && !b.mounted && !b.carrying && loc !== 'head' && !a.bolt && !a.turret && !a.champ) { // (RANGE1: a plain shield doesn't turn a champion's arrow) // (CASTLE2: a ballista bolt goes through a shield)
     if (b.kind === 'foot' && !a.plunge && Math.random() < .7) blocked = true; // (a plain shield; arrows plunging from a tower come in over it)
     if (b.leader && (b.human ? b.blocking : Math.random() < .35)) blocked = true;
   }
@@ -135,6 +139,7 @@ export function arrowsTick(dt, authoritative) {
   for (const a of G.arrows) {
     if (a.stuck) { a.life -= dt; continue; }
     a.t += dt / a.dur;
+    if (a.tg && !a.tg.dead) { a.x1 = a.tg.x; a.z1 = a.tg.z; a.y1 = groundY(a.tg.x, a.tg.z) + 1.1; } // (RANGE1: a champion's arrow homes in)
     const t = Math.min(1, a.t);
     const x = a.x0 + (a.x1 - a.x0) * t, z = a.z0 + (a.z1 - a.z0) * t, y = a.y0 + (a.y1 - a.y0) * t + a.peak * 4 * t * (1 - t);
     a.px = a.x; a.py = a.y; a.pz = a.z; a.x = x; a.y = y; a.z = z;
@@ -144,13 +149,17 @@ export function arrowsTick(dt, authoritative) {
     if (y < 15 && a.t > .12) { // trees, walls, buildings and ridges stop arrows
       for (const tr of nearBlockers(x, z)) {
         if (tr.off || y > tr.h + groundY(tr.x, tr.z) || (tr.gate && !gateShut(tr))) continue;
-        if (a.home && (tr.x - a.home.x) ** 2 + (tr.z - a.home.z) ** 2 < a.home.r2) continue; // (CASTLE3: a castle's shots fly over its own keep and walls)
+        if (a.home && (tr.x - a.home.x) ** 2 + (tr.z - a.home.z) ** 2 < a.home.r2) continue;
+        if (a.bld && tr === a.bld) continue; // (RANGE1: the gate it's shot at takes it on landing) // (CASTLE3: a castle's shots fly over its own keep and walls)
         if (Math.abs(tr.x - x) < tr.r && Math.abs(tr.z - z) < tr.r && Math.hypot(tr.x - x, tr.z - z) < tr.r) { a.stuck = true; a.life = 2; sound('thud', x, z); spark(x, y, z, '#8a7a62', 3); break; }
       }
       if (a.stuck) continue;
     }
     if (a.t >= 1) {
-      if (authoritative) {
+      if (authoritative && a.champ && (a.bld || a.tg)) { // (RANGE1: on its mark, wherever he went)
+        if (a.bld) { const sh = a.shooter; if (sh && !sh.dead) { if (a.bld.pal) hitWall(sh, a.bld); else hitTower(sh, a.bld); } a.done = true; }
+        else if (!a.tg.dead) { arrowHit(a, a.tg); a.done = true; } else { a.stuck = true; a.life = 3; }
+      } else if (authoritative) {
         let best = null, bd = 1.0;
         for (const o of G.units) { if (o.dead || !isEnemyTi(o.ti, a.ti) || (o.duelId && !(a.shooter && a.shooter.duelId === o.duelId))) continue; const d = Math.hypot(o.x - a.x1, o.z - a.z1) - (o.mounted ? .5 : 0); if (d < bd) { bd = d; best = o; } }
         if (a.volley) { const s = G.teams[a.ti]; if (s && G.units.some(o => !o.dead && isEnemyTi(o.ti, a.ti) && Math.hypot(o.x - a.x1, o.z - a.z1) < 6)) { if (!(s.vLandT > G.T - .5) && s.human && s.leader && !s.leader.dead) fx('fxmsg', { k: 'fxvland', u: s.leader }); s.vLandT = G.T; } } // (a volley's come down among them)

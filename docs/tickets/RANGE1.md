@@ -1,7 +1,7 @@
 # RANGE1 Ranged basic attack for champions
 
 Model: O · Written by the owner 18 Nov from the design doc (rev 159: Devi card, "Base champion", Battle screen) and the code on `launch26` (ff672e6)
-Status: ready, questions answered 18 Nov (waiting for Arjun's go). Needed before C4 (Devi); every later Striker uses it.
+Status: built 18 Nov (r_RANGE1, r_RANGE1-join); shipped to main with launch26 on Arjun's word. Needed before C4 (Devi); every later Striker uses it.
 
 ## What to build
 A champion page with `ranged: { ... }` shoots instead of swinging. Numbers live on the page (Devi: 24 a shot at 1.75/s, 14 m).
