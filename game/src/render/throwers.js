@@ -3,12 +3,17 @@
 // ground under it; the arm swings up as it throws (u.throwT) and winds back down over the reload. A broken one tips
 // and sinks. A stone in the air: a dark ball on its arc, and a ring where it will land that tightens as it comes (every
 // side sees it: that's the answer, walk out). A fire pot: flickering flame patches on the ground.
+// C2b: two crewmen at the back of each (the soldier's far figure, team cloth): leaning on the winch as the arm comes
+// down, stepping back as it lets go; a slam and whoosh when it throws, timber creaks while it winds, fires crackle.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { STONE, TEAMS } from '../config.js';
 import { G, colorOf } from '../core/state.js';
 import { groundY } from '../core/world.js';
 import { scene } from './scene.js';
+import { sfx } from '../ui/audio.js';
+import { SRC, SCALE, SOLDIER_SCALE } from './heroload.js';
+import { NEUTRAL } from '../config.js';
 
 let proto = null;
 new GLTFLoader().loadAsync('models/onager.glb').then(g => { proto = g.scene; }).catch(() => { /* drawn as soon as it loads */ });
@@ -37,8 +42,30 @@ const fireMesh = new THREE.InstancedMesh(new THREE.CircleGeometry(1, 12).rotateX
 const stormMesh = new THREE.InstancedMesh(new THREE.RingGeometry(.93, 1, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xe0281e, transparent: true, opacity: .75, depthWrite: false }), 8);
 for (const m of [ballMesh, markMesh, fireMesh, stormMesh]) { m.frustumCulled = false; m.count = 0; scene.add(m); }
 const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), S = new THREE.Vector3();
+// C2b: the crew, one batch per army colour; where they stand behind the arm (m, in the onager's frame) and how they lean
+const CREW = { at: [[-1.05, -1.9], [1.05, -1.9]], wind: .45, back: -.25, max: 64 }, crews = new Map();
+function crewBatch(hex) {
+  let b = crews.get(hex); if (b) return b; const L = SRC && SRC.spearLod; if (!L) return null;
+  b = new THREE.InstancedMesh(L.geo, L.mats(hex), CREW.max); b.count = 0; b.frustumCulled = false; b.castShadow = true; scene.add(b); crews.set(hex, b); return b;
+}
+const E = new THREE.Euler();
+export const crewDrawn = () => [...crews.values()].reduce((s, b) => s + b.count, 0); // (tests)
+function drawCrew(u, r) {
+  const hex = u.neutral ? NEUTRAL.hex : TEAMS[colorOf(u.ti)].hex, b = crewBatch(hex); if (!b || b.count >= CREW.max - 1) return;
+  const t = G.T - (u.throwT ?? -9), down = Math.max(1, (u.shootBase || STONE.flight) * .7), sc = SCALE * SOLDIER_SCALE;
+  const winding = t > .25 && t < .25 + down, lean = t >= 0 && t < .5 ? CREW.back * Math.sin(Math.PI * t / .5) : winding ? CREW.wind * (.8 + .2 * Math.sin(G.T * 6 + u.id)) : 0;
+  const sn = Math.sin(u.face), cs = Math.cos(u.face);
+  CREW.at.forEach(([lx, lz], i) => {
+    const x = u.x + cs * lx + sn * lz, z = u.z - sn * lx + cs * lz;
+    V.set(x, groundY(x, z) + .998 * sc - Math.abs(lean) * .15, z); E.set(lean, u.face + (i ? -.25 : .25), 0, 'YXZ'); Q.setFromEuler(E); S.setScalar(sc);
+    M.compose(V, Q, S); b.setMatrixAt(b.count++, M);
+  });
+  // its sounds, from what the drawing shows (every phone): the throw, then creaks as the arm winds down
+  if (r.lastThrow !== u.throwT) { if (r.lastThrow !== undefined && t < .3) sfx.throwRelease(u.x, u.z); r.lastThrow = u.throwT; }
+  if (winding && G.T > (r.creakT || 0)) { r.creakT = G.T + .45 + Math.random() * .4; sfx.creak(u.x, u.z); }
+}
 export function drawThrowers() {
-  const seen = new Set();
+  const seen = new Set(); for (const b of crews.values()) b.count = 0;
   if (proto) for (const u of G.units) {
     if (u.kind !== 'thrower' || u.fog) continue;
     const gone = u.dead ? u.deadT || 0 : 0; if (gone > 4) continue; // (deadT: seconds since it broke)
@@ -46,7 +73,9 @@ export function drawThrowers() {
     r.root.position.set(u.x, y - Math.min(1.2, gone * .4), u.z); r.root.rotation.set(u.dead ? Math.min(.35, gone * .3) : 0, u.face, 0, 'YXZ');
     if (r.arm) r.arm.rotation.x = u.dead ? .2 : armAngle(u);
     r.ring.position.set(u.x, y + .06, u.z); r.ring.visible = !u.dead;
+    if (!u.dead) drawCrew(u, r);
   }
+  for (const b of crews.values()) b.instanceMatrix.needsUpdate = true;
   for (const [id, r] of rigs) if (!seen.has(id)) { scene.remove(r.root); scene.remove(r.ring); r.ring.material.dispose(); rigs.delete(id); }
   // stones on their arcs, and where each lands
   let n = 0;
@@ -67,6 +96,7 @@ export function drawThrowers() {
     V.set(x, groundY(x, z) + .1 + k * .01, z); M.compose(V, Q.identity(), S.set(s, 1, s)); fireMesh.setMatrixAt(f, M);
   }
   fireMesh.count = f; fireMesh.instanceMatrix.needsUpdate = true;
+  for (const fi of G.fires) if (Math.random() < .12) sfx.crackle(fi.x, fi.z); // (C2b: the pots crackle; the nearest are loudest)
   let w = 0;
   for (const st of G.storms || []) { if (w >= 8) break;
     const age = G.T - st.T0, k = st.r * (age < st.warn ? 1 + .06 * Math.sin(G.T * 14) : 1);

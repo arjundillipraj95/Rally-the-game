@@ -493,3 +493,8 @@ Last updated: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pag
   forward (+X is forward on this rig): now `ANIM.skyLean` [-.45, -.3] leans them back. r_ARCH4; look.mjs close-ups.
 - ARCH5 (19 Nov): fire-arrow flame 0.26 m -> 0.5 m and twice as wide, its base on the head licking back along the
   shaft, plus a hot pale core inside (`render/arrowfx.js`, `core` mesh). Seen in look.mjs close-ups.
+- C2b (19 Nov): stone-thrower crew and sounds. Two crewmen at the back of each (the spearman's far figure in team
+  cloth, one batch per colour), leaning on the winch as the arm winds down, stepping back on the throw. Sounds
+  (no recording exists, so built from the bank and synthesis, `sfx.throwRelease/creak/crackle`), played from the
+  drawing so every phone hears them; the sim's 'heavy' on the throw is gone. r_C2b. Open: Devi's army crews wear the
+  Roman spearman (no Chola crew figure yet).

@@ -60,7 +60,7 @@ function throwStone(u, m) {
   u.stones = (u.stones | 0) + 1;
   const fire = !!u.fire && u.stones % STONE.fireEvery === 0;
   G.stones.push({ id: ++G.stoneN, x0: u.x, z0: u.z, y0: (u.y || 0) + 2.6, x1: m.x, z1: m.z, t: 0, ti: u.ti, sh: u, dmg: u.dmg, fire, bld: m.bld || null, brk: m.brk || null });
-  u.shootCd = u.shootBase; u.throwT = G.T; sound('heavy', u.x, u.z);
+  u.shootCd = u.shootBase; u.throwT = G.T; // (C2b: its slam and whoosh are played where it is drawn, render/throwers.js)
 }
 // each step: the stones in the air (a joined phone flies its copies, the host lands them)
 export function stonesTick(dt, authoritative) {

@@ -468,6 +468,26 @@ export const sfx = {
   },
   heavy(x, z) { if (!gateS('hv', 80)) return; play('heavy', x, z, { vol: 1, jit: .06, send: .25 }); tone(85, .28, .35, 'sine', 38, 0, at(x, z), .3); },
   die(x, z) { if (!gateS('di', 90)) return; play('fall', x, z, { vol: .75, delay: .18, rate: .9 }); play('cloth', x, z, { vol: .3, delay: .1 }); },
+  // ---- C2b: the stone thrower. No recording of one: built from the bank and synthesis ----
+  // the arm let go: a heavy wooden slam into the crossbar, the frame shuddering, a whoosh as the stone leaves
+  throwRelease(x, z) {
+    if (!gateS('tr', 120)) return; const pl = at(x, z);
+    play('thud', x, z, { vol: .9, rate: .55, jit: .05, send: .3 }); play('heavy', x, z, { vol: .5, rate: .7, delay: .03, send: .3 });
+    tone(70, .3, .4, 'sine', 38, 0, pl, .3); noise(.35, 900, .8, .22, 'bandpass', 260, pl, .04, .25);
+  },
+  // the arm winched back down: a short creak of rope and timber (a few rubbed pitches, wavering)
+  creak(x, z) {
+    if (!gateS('ck', 260)) return; const pl = at(x, z); if (pl.v < .2) return;
+    const f = 140 + Math.random() * 90;
+    tone(f, .22, .07, 'sawtooth', f * (.82 + Math.random() * .1), 0, pl, .15); tone(f * 1.51, .18, .035, 'sawtooth', f * 1.3, .03, pl, .15);
+    noise(.2, 1500, 6, .06, 'bandpass', 1100, pl, 0, .1);
+  },
+  // a fire pot burning: a few dry pops over a low roar
+  crackle(x, z) {
+    if (!gateS('fk', 90)) return; const pl = at(x, z); if (pl.v < .15) return;
+    noise(.3, 420, .7, .1, 'lowpass', 0, pl, 0, .15);
+    for (let i = 0, n = 2 + (Math.random() * 3 | 0); i < n; i++) noise(.012 + Math.random() * .02, 2500 + Math.random() * 3000, 1.5, .18, 'bandpass', 0, pl, Math.random() * .25, .1);
+  },
   wall(x, z) { if (gateS('wa', 100)) play('wall', x, z, { vol: .75, rate: .85, send: .35 }) || noise(.2, 500, 1.2, .3, 'lowpass', 0, at(x, z)); },
   bow(x, z) { if (gateS('bo', 60)) play('bow', x, z, { vol: .5, jit: .12, send: .15 }) || noise(.25, 2600, 2, .06, 'bandpass', 900, at(x, z)); },
   bolt(x, z) { if (!gateS('bt', 120)) return; play('bow', x, z, { vol: .95, rate: .5, send: .25 }); play('thud', x, z, { vol: .6, rate: .6 }); }, // (FIX4: a ballista's deep twang)
