@@ -249,8 +249,9 @@ function drawFallen(u, a, h, dt) {
   if (air) { const f = r.fl || 0; P = { ...LIMP, upperArm_R: [Math.sin(f) * 1.2, 0, Math.cos(f * .7) * .8], upperArm_L: [Math.sin(f + 2) * 1.2, 0, -Math.cos(f * .7 + 1) * .8], thigh_R: [Math.sin(f + 1) * .9, 0, -.2], thigh_L: [Math.sin(f + 3.5) * .9, 0, .2], shin_R: [.6, 0, 0], shin_L: [.6, 0, 0] }; }
   const top = h.U || R.root;
   if (R.clip && !h.U && !air && h.fell !== 'code') { // F8: a captain cut down where he stands plays his death (launched or ridden down: the code's tumble, below)
+    const late = !h.fell && (u.deadT || 0) > 1.5; // (CORPSE1: first drawn after he fell: already lying, not falling again)
     if (!h.fell) { h.fell = 'clip'; const back = u.hitAng != null && Math.cos(u.hitAng - u.face) < 0; h.an = { key: 'death', steps: [back ? ANIM.death.back : ANIM.death.front] }; } // (struck from behind, he pitches forward)
-    for (const part of ['lo', 'up']) play(R, part, h.an.steps[0], 'death', { fade: ANIM.fast, loop: false }).act.timeScale = ANIM.death.rate;
+    for (const part of ['lo', 'up']) { const e = play(R, part, h.an.steps[0], 'death', { fade: late ? 0 : ANIM.fast, loop: false }); e.act.timeScale = ANIM.death.rate; if (late) e.act.time = e.C.dur - 1e-3; }
     tick(R, dt, { code: false });
     top.rotation.set(0, u.face + (a.yaw || 0), 0);
     top.position.set(u.x, (u.y || 0) + (a.lift || 0) * .4 - (a.sink || 0) + .998 * h.sc, u.z);
@@ -430,7 +431,7 @@ export function drawHero(u, a, dt) {
   // while the new models load, the old captain stays hidden (no flash of the old one)
   if (on && !SRC) return !u.dead && (u.kind === 'captain' || u.kind === 'foot' || u.kind === 'arch');
   if (!heroesOn() || (u.kind !== 'captain' && u.kind !== 'foot' && u.kind !== 'arch') || u.hidden) return false;
-  if (u.dead && (!a.rag || (u.deadT || 0) > 14)) return false; // (the fallen: drawn as they go down and lie there; the sinking last moments are left to the old figure's fade)
+  if (u.dead && !a.rag) return false; // (the fallen: drawn as they go down, lie there and sink (CORPSE1: to the end, never the old figure))
   let h = live.get(u);
   if (h && (h.weapon !== weaponOf(u) || h.key !== keyOf(u) || h.mounted !== !!u.mounted)) { drop(h); live.delete(u); h = null; }
   if (!h) { h = make(u); live.set(u, h); }

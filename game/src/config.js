@@ -614,7 +614,7 @@ export const QUALITY = {
   calmR: 25, calmS: 2, fightScale: .8,
   // PERF1c: full models for at most this many men near the camera (by level; the rest are the light far figure),
   // and how many m nearer a man already full ranks, so the edge doesn't flicker (render/crowd.js)
-  full: { low: 24, medium: 32, high: 40 }, fullKeep: 2,
+  full: { low: 24, medium: 32, high: 40 }, fullKeep: 2, corpses: { low: 8, medium: 12, high: 16 }, // (CORPSE1: the fallen near you drawn in the new bodies, the nearest this many)
 };
 
 // F18 grounded knockback: a captain's killing blow throws a soldier this far (m/s across, m/s up); was 8.5-12 and 9-12
