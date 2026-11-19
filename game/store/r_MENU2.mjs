@@ -1,5 +1,5 @@
 // MENU2 the Champions screen: the 9-champion roster grid with its states (owned, not owned with lock and price,
-// coming soon, ★ main, B backup), class tabs, the selected champion in 3D in the window (art for one still to come),
+// coming soon, ★ main, B backup), class tabs, the selected champion's art in the centre (MENU5),
 // Set as main / Set as backup, Back. Test champions (window.__champs) make Hrolf (free) and the Roman Raider (to buy)
 // playable. Screenshots in /tmp/menu/.
 import { chromium } from 'playwright';
@@ -20,9 +20,9 @@ ok(T.length === 9, `the launch roster: ${T.length} tiles`);
 ok(/owned/.test(by('titus').c) && by('titus').main && /sel/.test(by('titus').c), 'Titus: owned, ★ your main, selected on open');
 ok(/soon/.test(by('devi').c) && /soon/.test(by('sigrun').c), 'Devi and Sigrun: Coming soon (no page yet)');
 ok(/locked/.test(by('romraider').c) && by('romraider').lock.includes('6,000'), `a champion to buy: greyed, lock and ${by('romraider').lock}`);
-// the 3D figure stands in the window
-const inWin = await page.evaluate(() => { const { camera, G } = window.__fb, THREE = window.__f8.THREE, c = G.units.find(u => u.kind === 'captain' && u.demo), v = new THREE.Vector3(c.x, c.y + 1.2, c.z).project(camera), x = (v.x + 1) / 2 * innerWidth, r = document.getElementById('csModel').getBoundingClientRect(); return { x: Math.round(x), l: Math.round(r.left), r: Math.round(r.right), ch: G.champs[G.myTi] }; });
-ok(inWin.x > inWin.l && inWin.x < inWin.r && inWin.ch === 'titus', `Titus in 3D inside the window (x ${inWin.x} in ${inWin.l}-${inWin.r})`);
+// (MENU5: the centre shows his 2D art, not the 3D figure)
+const art0 = await page.evaluate(() => (document.querySelector('.csart .csimg') || {}).getAttribute?.('src') || '');
+ok(/splash\/titus/.test(art0), `Titus's story art in the centre (${art0})`);
 await page.screenshot({ path: '/tmp/menu/r_MENU2_titus.png' });
 // tabs
 await page.click('#champScreen [data-tab="striker"]'); T = await tiles();
@@ -30,12 +30,12 @@ ok(T.length === 3 && T.every(t => ['devi', 'romstriker', 'vikstriker'].includes(
 await page.click('#champScreen [data-tab="all"]');
 // one still to come: his art in the window
 await page.click('.ptile[data-id="devi"]'); await frames(page, 4);
-const art = await page.evaluate(() => { const a = document.querySelector('.csart'); return { shown: !a.hidden, bg: a.style.backgroundImage, txt: document.querySelector('.csinfo').textContent }; });
-ok(art.shown && /splash\/devi/.test(art.bg) && /Coming soon/.test(art.txt), 'Devi selected: her splash in the window, Coming soon');
+const art = await page.evaluate(() => ({ src: document.querySelector('.csart .csimg').getAttribute('src'), soon: document.querySelector('.csart').classList.contains('soon'), txt: document.querySelector('.csinfo').textContent }));
+ok(/splash\/devi/.test(art.src) && art.soon && /Coming soon/.test(art.txt), 'Devi selected: her art in the centre (greyed), Coming soon');
 await page.screenshot({ path: '/tmp/menu/r_MENU2_devi.png' });
 // set Hrolf as main, Titus as backup
 await page.click('.ptile[data-id="hrolf"]'); await frames(page, 4);
-ok(await page.evaluate(() => window.__fb.G.champs[window.__fb.G.myTi]) === 'hrolf', 'selecting Hrolf puts him on the stage');
+
 await page.click('.csinfo [data-act="main"]');
 await page.click('.ptile[data-id="titus"]'); await page.click('.csinfo [data-act="backup"]'); T = await tiles();
 const saved = await page.evaluate(() => [localStorage.getItem('rally-champ'), localStorage.getItem('rally-backup')]);

@@ -453,6 +453,8 @@ Last updated: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pag
 - CORPSE1: the fallen stay in the new bodies: one who fell out of sight (light far figure) is drawn full when near (nearest `QUALITY.corpses`, render/crowd.js), already lying (death clip at its end), and through the sinking (the old figure no longer takes deadT > 14). The light far figure itself is still the old look: its own ticket. r_CORPSE1.
 - SIZE2: `BODY_SIZE` champ 1.3, soldier 1.45 (Arjun's option A; was 1.4/1.3). r_SIZE1 defaults updated; its "drawn" sizes read 0 (heroScale) already before 18 Nov: stale check, to look at.
 
+- MENU5 Champions screen v2: his 2D art in the centre (splash, else portrait, else silhouette; the 3D window is gone), Stats / Army / Lore tabs; Army from the champion's `army` (titus.js: tier names) else the generic UPGRADES. r_MENU5 (r_MENU2 updated). home.js's 'champs' camera slide is now unused.
+
 ## Known bugs
 - (fixed in AI1) A computer captain sometimes stood at the glacier at night without striking.
 - High only: a black wedge down the left edge at the Crown start. Not reproduced on 13 Nov (F14): F1a's exact
