@@ -79,7 +79,11 @@ bindInput(actions); bindTutorial();
 // he stays in view beside it. Two "+" places stand either side of him for friends.
 S.soloMap = G.map; // the map picked for Battle the computer
 S.soloPick = null; // (its mode, length and target, put back when a Crown battle has borrowed G)
-export let demoT = 0, homeCap = null, homeView = 'home'; // 'home' | 'sheet' | 'ward'
+export let demoT = 0, homeCap = null, homeView = 'home'; // 'home' | 'sheet' | 'ward' | 'champs' (MENU2)
+let champSx = -2.2, champYaw = 0; // (MENU2: the camera's slide that puts him in the Champions screen's window; his turn there)
+// (MENU2/3) which champion stands on your stage: your main, or the one the Champions screen shows
+export function previewChamp(id) { (G.champs || (G.champs = []))[G.myTi] = id; }
+export const homeTurn = d => { champYaw += d; };
 const homeV = { sx: 0, k: 0 }; // (the camera's eased slide)
 export function seedDemo() {
   if (S.soloPick) { G.mode = S.soloPick.mode; G.time = S.soloPick.time; G.target = S.soloPick.target; S.soloPick = null; }
@@ -89,6 +93,7 @@ export function seedDemo() {
   G.teams = newTeams([0, 0, 0, 0]);
   G.looks = assignLooks({ [G.myTi]: prefs.look }, 7);
   G.crests = []; G.crests[G.myTi] = progress.crest;
+  G.champs = []; G.champs[G.myTi] = myChamp(); // (MENU3: your main on the stage)
   buildWorldView(G.layout); clearEffects(); clearFeel(); deathReset(); clearHorses(); clearProps();
   // out in the meadow in front of his castle, looking back at it (the camera stands between): behind him,
   // the open valley, the flock and the shepherd
@@ -116,15 +121,20 @@ function homeCamera(dt) {
   const c = homeCap; if (!c) { orbitCamera(demoT); return; }
   const d = Math.hypot(c.x, c.z) || 1, fx = c.x / d, fz = c.z / d, rx = -fz, rz = fx; // (from him toward the camera, and sideways)
   const wide = innerWidth / Math.max(1, innerHeight) > 1.5;
-  const want = homeView === 'home' ? -2.2 : homeView === 'ward' || homeView === 'friends' ? (wide ? 1.7 : 1.3) : (wide ? -4.4 : -2.4); // (beside the sheet: right of the wardrobe, left of the setup)
+  const want = homeView === 'champs' ? champSx : homeView === 'home' ? -2.2 : homeView === 'ward' || homeView === 'friends' ? (wide ? 1.7 : 1.3) : (wide ? -4.4 : -2.4); // (beside the sheet: right of the wardrobe, left of the setup)
   homeV.sx += (want - homeV.sx) * Math.min(1, dt * 5);
   // the captain turns to face you, swaying a little in the wardrobe so the cape shows
-  const sway = homeView === 'ward' || homeView === 'friends' ? Math.sin(demoT * .7) * .75 : Math.sin(demoT * .3) * .12;
-  c.face = Math.atan2(fx, fz) + sway; c.vx = c.vz = 0;
-  const gy = groundY(c.x, c.z), dist = homeView === 'ward' || homeView === 'friends' ? 5.2 : 6.4, ty = gy + (homeView === 'ward' || homeView === 'friends' ? 1.3 : 1.45);
+  const sway = homeView === 'ward' || homeView === 'friends' || homeView === 'champs' ? Math.sin(demoT * .7) * .75 : Math.sin(demoT * .3) * .12;
+  c.face = Math.atan2(fx, fz) + (homeView === 'champs' ? champYaw : sway); c.vx = c.vz = 0;
+  if (homeView !== 'champs') champYaw *= Math.max(0, 1 - dt * 4); // (turned back to face you after)
+  const gy = groundY(c.x, c.z), dist = homeView === 'champs' ? 6.2 : homeView === 'ward' || homeView === 'friends' ? 5.2 : 6.4, ty = gy + (homeView === 'ward' || homeView === 'friends' ? 1.3 : 1.45);
   const tx = c.x + rx * homeV.sx, tz = c.z + rz * homeV.sx;
   camera.position.set(tx + fx * dist, ty + 1.15, tz + fz * dist);
   camera.lookAt(tx, ty, tz);
+  if (homeView === 'champs') { // (MENU2: slide until he stands in the middle of the screen's model window)
+    const m = $('csModel'), r = m && m.getBoundingClientRect();
+    if (r && r.width) { camera.updateMatrixWorld(); _v.set(c.x, gy + 1.2, c.z).project(camera); const px = (_v.x + 1) / 2 * innerWidth; champSx -= (px - (r.left + r.width / 2)) / innerWidth * 6 * Math.min(1, dt * 6); champSx = Math.max(-9, Math.min(9, champSx)); }
+  }
   // the "+" places beside him, one on each side (as in a game lobby), on screen where they stand in the
   // world. On a narrow screen both come in closer, evenly, so the right one stays clear of the Play panel.
   const pr = $('home').querySelector('.hplay').getBoundingClientRect();
@@ -177,7 +187,7 @@ export function demo(dt) {
 export function setHomeView(v, tabsShown) {
   if (import.meta.env.DEV && window.__testSheet && v === 'home') { v = 'sheet'; tabsShown = ['tabBattle']; } // (dev: older tests drive the setup sheet)
   homeView = v;
-  $('home').hidden = v !== 'home'; $('homeSheet').hidden = v !== 'sheet'; $('ward').hidden = v !== 'ward'; $('friendsPanel').hidden = v !== 'friends'; $('missPanel').hidden = v !== 'missions'; $('shopPanel').hidden = v !== 'shop';
+  $('home').hidden = v !== 'home'; $('homeSheet').hidden = v !== 'sheet'; $('ward').hidden = v !== 'ward'; $('friendsPanel').hidden = v !== 'friends'; $('missPanel').hidden = v !== 'missions'; $('shopPanel').hidden = v !== 'shop'; if ($('champScreen')) $('champScreen').hidden = v !== 'champs';
   $('ovTitle').classList.toggle('homing', v !== 'sheet'); $('ovTitle').classList.toggle('sheet', v === 'sheet');
   if (v === 'sheet') {
     tabs.forEach(t => { t.hidden = !tabsShown.includes(t.dataset.tab); });
