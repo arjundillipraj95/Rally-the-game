@@ -43,7 +43,7 @@ function onMsg(m) {
 }
 // the calls the home screen makes
 export const online = {
-  nick: n => send({ t: 'nick', nick: n }), look: l => send({ t: 'look', look: l }),
+  nick: n => send({ t: 'nick', nick: n }), look: l => send({ t: 'look', look: l }), ch: (main, backup) => send({ t: 'ch', ch: main, bk: backup || '' }), // (MENU4)
   addFriend: code => send({ t: 'friendAdd', code }), accept: id => send({ t: 'friendAccept', id }), decline: id => send({ t: 'friendDecline', id }), remove: id => send({ t: 'friendRemove', id }),
   invite: id => send({ t: 'invite', id }), acceptInvite: from => send({ t: 'accept', from }), join: id => send({ t: 'join', id }), leaveParty: () => send({ t: 'partyLeave' }), kick: id => send({ t: 'partyKick', id }), voice: vp => { ON.vp = vp; send({ t: 'voice', vp }); },
   queue: fmt => send({ t: 'queue', fmt, wait: window.__testLobbyWait }), // (wait: tests only, a local service honours it)

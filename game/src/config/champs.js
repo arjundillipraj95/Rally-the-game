@@ -5,6 +5,23 @@
 // (C1a) the champion you play when none is chosen; bots play `bot` (?botchamp= for tests).
 export const CHAMP = { def: 'titus', bot: 'titus' };
 
+// (MENU2) the launch roster (design doc "Champions", agreed 17 Nov), in grid order: 6 free (two per culture, two per
+// class) and 3 to earn or buy. `name` null = still to name. A champion is playable once his page is in
+// src/champions/; until then his tile says Coming soon. `price` in Silver (6,000 in his release season); `free` =
+// free this week (rotation). Owned: every free champion, plus `ROSTER_OWNED` (dev and tests; the shop fills it later).
+export const ROSTER = [
+  { id: 'titus', name: 'Titus', culture: 'Roman', cls: 'vanguard', launch: 'free' },
+  { id: 'hrolf', name: 'Hrolf', culture: 'Viking', cls: 'vanguard', launch: 'free' },
+  { id: 'devi', name: 'Devi', culture: 'Chola', cls: 'striker', launch: 'free' },
+  { id: 'romstriker', name: null, culture: 'Roman', cls: 'striker', launch: 'free' },
+  { id: 'sigrun', name: 'Sigrun', culture: 'Viking', cls: 'raider', launch: 'free' },
+  { id: 'varma', name: 'Varma', culture: 'Chola', cls: 'raider', launch: 'free' },
+  { id: 'cholavan', name: null, culture: 'Chola', cls: 'vanguard', launch: 'buy', price: 6000 },
+  { id: 'vikstriker', name: null, culture: 'Viking', cls: 'striker', launch: 'buy', price: 6000 },
+  { id: 'romraider', name: null, culture: 'Roman', cls: 'raider', launch: 'buy', price: 6000 },
+];
+export const ROSTER_FREE_WEEK = []; // (ids free to play this week; none yet)
+
 // (SIZE1) how much bigger than the models' first size bodies are drawn, on the same map: champions (and their horses)
 // and soldiers apart. Drawing only: reach, speeds, ranges and collision stay in metres. The preview tries others by
 // ?bodyc=&bodys= (core/body.js); Arjun locks in the pair.

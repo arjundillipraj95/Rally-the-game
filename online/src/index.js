@@ -11,6 +11,7 @@ import { turnResponse } from './turn.js';
 
 const FMT_CAP = [1, 2, 3]; // captains per side: Solo, Duo, Trio
 const LOBBY_WAIT = 60e3, READY_WAIT = 10e3, VERSUS_MS = 10e3, LANES = ['L', 'J', 'R'], LATE_JOIN = 60e3, QUEUE_JOIN = 110e3, PARTY_MAX = 3; // (searchers drop into a battle in its first 110 s: the game takes late captains for 120) // (a friend can join a running battle in its first minute)
+const cleanCh = v => String(v || '').replace(/[^a-z]/g, '').slice(0, 16); // (MENU4: a champion id)
 const CODE = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const rid = (n, set = CODE) => { const b = new Uint8Array(n); crypto.getRandomValues(b); return [...b].map(x => set[x % set.length]).join(''); };
 const cleanNick = s => String(s || '').replace(/[^\p{L}\p{N} _.-]/gu, '').trim().slice(0, 16) || 'Captain';
@@ -80,10 +81,10 @@ export class Hub {
     if (m.nick) a.nick = cleanNick(m.nick);
     await this.save(id, a);
     const old = this.live.get(id); if (old && old !== s) { this.send(old, { t: 'kicked', msg: 'Signed in somewhere else' }); try { old.ws.close(); } catch (e) {} }
-    Object.assign(s, { id, nick: a.nick, look: String(m.look || '').slice(0, 12), where: 'home', party: null, room: null, queued: null });
+    Object.assign(s, { id, nick: a.nick, look: String(m.look || '').slice(0, 12), ch: cleanCh(m.ch) || a.main || '', where: 'home', party: null, room: null, queued: null });
     this.live.set(id, s);
     try { noteSeen(this.sql, id, fresh); } catch (e) {}
-    this.send(s, { t: 'me', id, key: a.key, nick: a.nick, crowns: a.crowns });
+    this.send(s, { t: 'me', id, key: a.key, nick: a.nick, crowns: a.crowns, main: a.main || null, backup: a.backup || null }); // (MENU4: main and backup champion, kept on the account)
     // (FIX1) a phone that comes back while still seated in a lobby (its old link not yet closed) picks it up again;
     // one that isn't seated anywhere is told so (a stale lobby on the phone would never update)
     let seatedIn = null; for (const room of this.rooms.values()) if (!room.started && room.sides.some(sd => sd.includes(id))) seatedIn = room;
@@ -93,6 +94,7 @@ export class Hub {
   }
   async m_nick(s, m) { const a = await this.acct(s.id); a.nick = s.nick = cleanNick(m.nick); await this.save(s.id, a); this.notifyFriends(s.id); this.partyUpdate(s.party); }
   async m_voice(s, m) { s.vp = String(m.vp || '').replace(/[^\w-]/g, '').slice(0, 64); this.partyUpdate(s.party); } // (party voice, V2: this phone's voice link id, shared with its party)
+  async m_ch(s, m) { const a = await this.acct(s.id); s.ch = a.main = cleanCh(m.ch); a.backup = cleanCh(m.bk); await this.save(s.id, a); this.partyUpdate(s.party); } // (MENU4: your main and backup)
   async m_look(s, m) { s.look = String(m.look || '').slice(0, 12); this.partyUpdate(s.party); }
   async m_crowns(s, m) { const a = await this.acct(s.id); if (Array.isArray(m.crowns)) a.crowns = m.crowns.slice(0, 3).map(n => Math.max(0, Math.min(99999, n | 0))); await this.save(s.id, a); }
 
@@ -139,7 +141,7 @@ export class Hub {
   partyOf(s) { return s.party ? this.parties.get(s.party) : null; }
   partyUpdate(pid) {
     const p = pid && this.parties.get(pid); if (!p) return;
-    const members = p.members.map(id => { const x = this.live.get(id); return { id, nick: x ? x.nick : '?', look: x ? x.look : '', leader: id === p.leader, vp: (x && x.vp) || '' }; });
+    const members = p.members.map(id => { const x = this.live.get(id); return { id, nick: x ? x.nick : '?', look: x ? x.look : '', ch: x ? x.ch || '' : '', leader: id === p.leader, vp: (x && x.vp) || '' }; });
     for (const id of p.members) this.to(id, { t: 'party', id: p.id, leader: p.leader, members });
   }
   async m_invite(s, m) {
@@ -277,7 +279,7 @@ export class Hub {
     for (const [mine, sd0] of room.sides.entries()) for (const id of sd0) {
       if (id == null) continue;
       // your own army's lanes only: the enemies' plans stay hidden until the versus screen
-      const sides = room.sides.map((sd, c) => sd.map(x => { if (x == null) return null; const y = this.live.get(x), q = (room.p || {})[x] || {}; if (y) (room.nicks || (room.nicks = {}))[x] = y.nick; return { id: x, nick: y ? y.nick : (room.nicks || {})[x] || 'Captain', look: y ? y.look : '', ready: !!q.ready, lane: c === mine ? q.lane || null : null, away: !y }; })); // (FIX1 away: his link dropped, his seat kept)
+      const sides = room.sides.map((sd, c) => sd.map(x => { if (x == null) return null; const y = this.live.get(x), q = (room.p || {})[x] || {}; if (y) (room.nicks || (room.nicks = {}))[x] = y.nick; return { id: x, nick: y ? y.nick : (room.nicks || {})[x] || 'Captain', look: y ? y.look : '', ch: y ? y.ch || '' : '', ready: !!q.ready, lane: c === mine ? q.lane || null : null, away: !y }; })); // (FIX1 away: his link dropped, his seat kept)
       this.to(id, { t: 'lobby', v: 2, room: room.id, fmt: room.fmt, sides, endsIn, me: id });
     }
   }
@@ -301,7 +303,7 @@ export class Hub {
     room.host = all[0]; room.code = 'M' + rid(7); // (a battle code for the phones' own link-up)
     room.seats = {}; room.sides.forEach((sd, c) => sd.forEach((id, k) => { if (id != null) room.seats[id] = c + 4 * k; }));
     const lanes = Object.fromEntries(all.map(i => [i, (room.p[i] || {}).lane || null])); // (the versus screen shows every army's plan)
-    for (const id of all) { const x = this.live.get(id); x.where = 'battle'; this.send(x, { t: 'start', room: room.id, fmt: room.fmt, host: room.host, code: room.code, seats: room.seats, nicks: Object.fromEntries(all.map(i => [i, this.live.get(i).nick])), lanes, vs: VERSUS_MS }); }
+    for (const id of all) { const x = this.live.get(id); x.where = 'battle'; this.send(x, { t: 'start', room: room.id, fmt: room.fmt, host: room.host, code: room.code, seats: room.seats, nicks: Object.fromEntries(all.map(i => [i, this.live.get(i).nick])), chs: Object.fromEntries(all.map(i => [i, this.live.get(i).ch || ''])), lanes, vs: VERSUS_MS }); } // (MENU1: chs = each player's main, for the versus screen)
     for (const id of all) this.notifyFriends(id);
   }
   // leaving a battle before it ends: once is life; again within the hour means a short wait (a minute

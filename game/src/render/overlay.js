@@ -2,6 +2,7 @@
 // the banner pointer, the joystick and the red tint while you are down. Also the minimap.
 import { body, bodyOf } from '../core/body.js';
 import { champOf } from '../champions/index.js'; // (BS4: the minimap's faces)
+import { faceImage } from '../ui/portraits.js';
 import { drawPingsMini } from '../ui/pings.js'; // (BS2)
 import * as THREE from 'three';
 import { TEAMS, DUEL, STREAK, RHYTHM, ARMOUR, STAMINA, DUEL_DIR, FEEL, NEUTRAL } from '../config.js';
@@ -410,7 +411,10 @@ function drawMini() {
     mctx.beginPath(); mctx.arc(u.x * k, u.z * k, r, 0, Math.PI * 2); mctx.fillStyle = TEAMS[colorOf(u.ti)].css; mctx.fill();
     mctx.lineWidth = ally ? 3 : 2; mctx.strokeStyle = ally ? '#ffffff' : 'rgba(10,8,6,.9)'; mctx.stroke();
     mctx.save(); mctx.translate(u.x * k, u.z * k); mctx.rotate(-(cam.yaw + Math.PI)); mctx.fillStyle = '#fff'; mctx.font = '900 12px Inter, sans-serif'; mctx.textAlign = 'center'; mctx.textBaseline = 'middle';
-    mctx.fillText((champOf(u.ti).name || '?')[0], 0, 1); mctx.restore();
+    const fi = faceImage(champOf(u.ti).id); // (MENU1: his champion's face, ringed in his army's colour; the initial until it loads)
+    if (fi) { mctx.beginPath(); mctx.arc(0, 0, r - 2, 0, Math.PI * 2); mctx.clip(); mctx.drawImage(fi, -(r - 2), -(r - 2), 2 * (r - 2), 2 * (r - 2)); }
+    else mctx.fillText((champOf(u.ti).name || '?')[0], 0, 1);
+    mctx.restore();
   }
   // you: a white arrow pointing the way you face, in a pulsing ring
   if (me && !me.dead) {

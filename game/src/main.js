@@ -1,4 +1,5 @@
 import './app/load.js';
+import { myChamp } from './champions/index.js';
 import { G, bus, colorOf, targetFor, isEnemyTi } from './core/state.js';
 import { rideRelease, orderVolley, challenge, canChallenge, mkUnit, update, endMatch, auraRange, endStep, setOrder, applyFort, c2Points, die } from './core/sim.js';
 import { gatePos, W } from './core/world.js';
@@ -158,6 +159,6 @@ window.__fb = {
 addEventListener('resize', onResize);
 G.time = prefs.time; G.target = prefs.tgt[G.mode] ?? targetFor(G.mode); pressSeg('segTime', prefs.time); resetSolo(); renderSoloSeats(); renderTargets();
 applyShadowQuality(); onResize(); updateDesc(); updateQualityNote(); setHomeView('home'); seedDemo();
-if (!(import.meta.env.DEV && window.__testSheet)) startOnline(() => ({ look: lookCode(prefs.look) })); requestAnimationFrame(loop);
+if (!(import.meta.env.DEV && window.__testSheet)) startOnline(() => ({ look: lookCode(prefs.look), ch: myChamp() })); requestAnimationFrame(loop); // (MENU4: ch = your main, for your party, lobby and versus)
 // the games site (if we're on one): its SDK, its mute setting, and our pause during its ads
 portalInit({ mute: m => setMuted(m), pause: p => { S.paused = p; } }).then(() => { portal.loadingStart(); requestAnimationFrame(() => portal.loadingStop()); });
