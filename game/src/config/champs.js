@@ -25,7 +25,7 @@ export const ROSTER_FREE_WEEK = []; // (ids free to play this week; none yet)
 // (SIZE1) how much bigger than the models' first size bodies are drawn, on the same map: champions (and their horses)
 // and soldiers apart. Drawing only: reach, speeds, ranges and collision stay in metres. The preview tries others by
 // ?bodyc=&bodys= (core/body.js); Arjun locks in the pair.
-export const BODY_SIZE = { champ: 1.4, soldier: 1.3 }; // (C3f: Titus for you and the bots unless chosen otherwise; the legionary by ?champ=legionary)
+export const BODY_SIZE = { champ: 1.3, soldier: 1.45 }; // (SIZE2 18 Nov, Arjun's option A: soldiers about shoulder height on a champion; was 1.4 / 1.3) // (C3f: Titus for you and the bots unless chosen otherwise; the legionary by ?champ=legionary)
 
 // (C1b) the shared level path, levels 1-10 from XP in the match. next[L-1]: XP from level L to L+1. unlock: the
 // level each slot opens at. grow: health and damage each level adds (5%: level 10 is +45%). Kept through death.
