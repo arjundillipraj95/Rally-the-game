@@ -15,7 +15,8 @@ export function shares(ti) {
 }
 export function unitRow(ti, kind, tier = 0) {
   const rows = kind === 'foot' ? FOOT_TIERS : kind === 'arch' ? ARCH_TIERS : kind === 'thrower' ? THROWER_TIERS : null; if (!rows) return null; // (C2: and stone throwers)
-  const t = rows[tier] || rows[0], k = shares(ti); if (!k) return t;
+  const P = champOf(ti).tiers && champOf(ti).tiers[kind], t0 = rows[tier] || rows[0], o = P && P[tier]; // (C4: a champion's own line: names and changes)
+  const t = o ? { ...t0, ...o, dmg: t0.dmg * (o.dmgX || 1), arrow: t0.arrow != null ? t0.arrow * (o.dmgX || 1) : t0.arrow } : t0, k = shares(ti); if (!k) return t;
   return { ...t, hp: t.hp * k.hp, dmg: t.dmg * k.dmg, arrow: t.arrow != null ? t.arrow * k.dmg : t.arrow, cd: t.cd * k.gap, shoot: t.shoot != null ? t.shoot * k.gap : t.shoot,
     spd: t.spd * k.spd, reach: t.reach * k.reach, range: t.range != null ? t.range * k.range : t.range };
 }

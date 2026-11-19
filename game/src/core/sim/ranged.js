@@ -67,7 +67,7 @@ function loose(u, tg, mult) {
 }
 // a shot (when the bow is ready): face the mark, loose; every third, two arrows. False: nothing to shoot at.
 export function rangedShot(u) {
-  if (!u || u.dead || u.cd > 0 || u.stun > 0 || u.carrying) return false;
+  if (!u || u.dead || u.cd > 0 || u.stun > 0 || u.carrying || u.tvolley || u.pierce) return false; // (C4: not while a special shoots)
   const P = rangedOf(u); if (!P) return false;
   const tg = rangedTarget(u); if (!tg) return false;
   u.face = Math.atan2(tg.x - u.x, tg.z - u.z);

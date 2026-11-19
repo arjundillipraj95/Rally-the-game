@@ -39,7 +39,7 @@ export function throwJavelin(u, tg, dmg) {
   sound('bow', u.x, u.z);
 }
 export function makeArrow(a) { a.x = a.x0; a.y = a.y0; a.z = a.z0; a.px = a.x0; a.py = a.y0; a.pz = a.z0; return a; }
-function arrowHit(a, b) {
+export function arrowHit(a, b) {
   if (b.execT > 0 || b.iframeT > 0) return;
   const shooter = a.shooter;
   let dmg, loc = 'body';
@@ -68,6 +68,7 @@ function arrowHit(a, b) {
   if (a.unhorse && b.mounted) { horseDamage(b, dmg); if (b.mounted) dismount(b, true); gainRally(a.shooter, RALLY.unhorse); fx('fxmsg', { k: 'fxunhorse', u: b }); return; } // a full-draw javelin knocks a rider clean off
   if (b.testudo && !a.bolt) { blockedBy(null, b, a.shooter); return; } // (C3e: arrows do nothing on the testudo's roof)
   if (shields.length) { const S = coverOf(b, a.x0 ?? b.x - (a.vx || 0), a.z0 ?? b.z - (a.vz || 0)); if (S) { blockedBy(S, b, a.shooter); return; } } // (C3c: the Shield of Cassius stops it, castle shots too)
+  if (shooter && shooter.fireArrows && b.kind === 'thrower') dmg *= 3; // (C4: Agni Villalar's fire arrows on siege engines)
   if (!a.javelin && !a.turret && !a.champ && b.kind === 'foot') dmg *= COUNTER.mult; // (C1d the counter rule: soldiers' arrows on infantry; RANGE1: not a champion's)
   if (b.mounted) { horseDamage(b, dmg); return; } // (C1d: a mounted champion's horse takes every arrow)
   let blocked = false;
@@ -156,7 +157,8 @@ export function arrowsTick(dt, authoritative) {
       if (a.stuck) continue;
     }
     if (a.t >= 1) {
-      if (authoritative && a.champ && (a.bld || a.tg)) { // (RANGE1: on its mark, wherever he went)
+      if (a.vis) { a.done = true; } // (C4: a special's arrow: its harm was dealt on its line)
+      else if (authoritative && a.champ && (a.bld || a.tg)) { // (RANGE1: on its mark, wherever he went)
         if (a.bld) { const sh = a.shooter; if (sh && !sh.dead) { if (a.bld.pal) hitWall(sh, a.bld); else hitTower(sh, a.bld); } a.done = true; }
         else if (!a.tg.dead) { arrowHit(a, a.tg); a.done = true; } else { a.stuck = true; a.life = 3; }
       } else if (authoritative) {

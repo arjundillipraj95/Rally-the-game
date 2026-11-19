@@ -21,6 +21,7 @@ import { neutralFoe, thinkNeutral } from './neutral.js';
 import { CC, captainAttack, chargeTimers, javMax, stepJump } from './captain.js';
 import { rangedTick, aimChampPref } from './ranged.js'; // (RANGE1)
 import { stonesTick } from './thrower.js'; // (C2)
+import { deviTick } from './deviShots.js'; // (C4)
 import { fallStep, integrate, moveToward, setPathBudget } from './move.js';
 import { respawnSpot, underAttack } from './respawn.js'; // (CASTLE7)
 import { xpTick } from './levels.js';
@@ -50,6 +51,11 @@ export { faceTo, go, integrate, moveToward } from './move.js'; // (for earlier f
 // You keep moving and steering while swinging; in the air you keep your momentum with light control.
 export function driveCaptain(p, input, dt) {
   if (p.execT > 0 || p.execA || p.execV) { p.blocking = false; return; } // (an execution: the moment holds still)
+  if (p.tvolley || p.pierce) { // (C4: planted for Tiger's volley or a Piercing shot's draw; the stick turns her, at the volley's rate)
+    const V = p.tvolley; if (V && input.mag > .5) { V.aim = null; // (a clear push of the stick takes over from her mark)
+      const want = Math.atan2(input.wx, input.wz), df = Math.atan2(Math.sin(want - p.face), Math.cos(want - p.face)); p.face += Math.sign(df) * Math.min(Math.abs(df), V.d.turn * dt); }
+    p.vx = p.vz = 0; p.blocking = false; return;
+  }
   const air = (p.jy || 0) > .01;
   p.blocking = !!input.block && !p.mounted && !air;
   const dfoe = duelFoeOf(p);
@@ -367,6 +373,7 @@ export function update(dt, input) {
 
   arrowsTick(dt, true);
   stonesTick(dt, true); // (C2: stones in the air, the fire on the ground)
+  deviTick(dt); // (C4: Piercing shot, Tiger's volley, Arrow storm)
   if (G.c2) c2Tick(dt); else updateFlag(dt);
   updateControlPoints(dt); holdsTick(dt);
   checkTime();

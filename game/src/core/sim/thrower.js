@@ -96,8 +96,10 @@ function land(st) {
   if (st.fire) G.fires.push({ id: ++G.stoneN, x, z, r: STONE.fire.r, until: G.T + STONE.fire.life, ti: st.ti, sh: st.sh });
 }
 // a stone's (or the fire's) damage on one man: the testudo halves it, a mounted champion's horse takes it
-function hurt(b, dmg, sh, ti, cause) {
-  if (b.testudo) dmg *= STONE.testudo;
+// (C4: Devi's shots use it too, with testudo = 1)
+export function hurt(b, dmg, sh, ti, cause, testudo = STONE.testudo) {
+  if (b.testudo) dmg *= testudo;
+  if (b.iframeT > 0 || b.execT > 0) return;
   if (b.mounted) { horseDamage(b, dmg); return; }
   if (b.leader && b.armour > 0) dmg = soak(b, dmg, true);
   if (sh && !sh.dead) champHit(sh, b);

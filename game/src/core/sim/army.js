@@ -117,7 +117,7 @@ function applyArchTier(ti) {
   for (const u of G.units) {
     if (u.dead || u.ti !== ti || u.kind !== 'arch') continue;
     const nmax = t.hp * inflHp(ti); u.hp = Math.min(nmax, Math.max(1, u.hp + (nmax - u.max))); u.max = nmax;
-    u.dmg = t.dmg; u.spd = t.spd; u.range = t.range; u.shootBase = t.shoot; u.arrow = t.arrow; u.jitter = t.jitter; u.tier = tier; u.gap = t.cd;
+    u.dmg = t.dmg; u.spd = t.spd; u.range = t.range; u.shootBase = t.shoot; u.arrow = t.arrow; u.jitter = t.jitter; u.tier = tier; u.gap = t.cd; u.fireArrows = !!t.fireArrows; // (C4)
   }
 }
 // (C2) fire pots and reinforcing reach the stone throwers already in the field
@@ -194,6 +194,8 @@ export function speedOf(u) {
   if (u.heavyCharge > 0) s *= .55;
   if (u.bracing) s *= HOLD_ATK.braceSlow;
   if (u.firingT > G.T && !u.mounted) s *= RANGED.pace; // (RANGE1: shooting, she plants her feet to loose)
+  if (u.slowUntil > G.T) s *= u.slowK; // (C4: hit by a Piercing shot)
+  if (u.haltUntil > G.T || u.tvolley || u.pierce) s = 0; // (C4: a galloping horse stopped dead; her feet planted for the volley and the draw)
   return s;
 }
 export function summonHorse(u) {

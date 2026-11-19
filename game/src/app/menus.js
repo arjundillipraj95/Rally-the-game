@@ -96,7 +96,7 @@ seg('segMusic', v => { setMusic(v === 'on'); pressSeg('segMusic', v); });
 pressSeg('segMusic', musicEnabled() ? 'on' : 'off');
 seg('segVibe', v => { setVibe(v === 'on'); pressSeg('segVibe', v); });
 pressSeg('segVibe', vibeEnabled() ? 'on' : 'off');
-seg('segTarget', v => { setTarget(v); pressSeg('segTarget', v); }); pressSeg('segTarget', target.mode); // (BS5)
+seg('segSpecAim', v => { setTarget(v); pressSeg('segSpecAim', v); }); pressSeg('segSpecAim', target.mode); // (BS5) (C4: its own id; it shared #segTarget with the mode's target picker)
 seg('segShake', v => { setShake(v === 'on'); pressSeg('segShake', v); });
 pressSeg('segShake', shakeEnabled() ? 'on' : 'off');
 seg('segQuality', v => {

@@ -8,6 +8,7 @@ import { startEagle } from '../core/sim/eagle.js';
 import { startRam } from '../core/sim/ram.js';
 import { raiseScutum } from '../core/sim/scutum.js';
 import { startTestudo } from '../core/sim/testudo.js';
+import { startPierce, startEvade, startVolley, startStorm, awayAim } from '../core/sim/deviShots.js'; // (C4)
 
 const foes = (u, keep) => G.units.filter(o => !o.dead && !o.rest && isEnemy(o, u) && !(o.fog && o.bush >= 0) && keep(o));
 // where a tap aims: the nearest enemy champion in range, else the nearest enemy, else straight ahead
@@ -45,8 +46,14 @@ export const leap = (u, at, d) => startEagle(u, at, d);
 // a shield-first rush along a path: Ram of Cassius (core/sim/ram.js)
 export const ram = (u, at, d) => startRam(u, at, d);
 // where a press aims: straight ahead for a page that says so (aimFace), else autoAim
-export const aimOf = (u, d) => d.aimFace ? { x: u.x + Math.sin(u.face) * (d.range || 5), z: u.z + Math.cos(u.face) * (d.range || 5) } : autoAim(u, d.range || 8);
+export const aimOf = (u, d) => d.aimAway ? awayAim(u, d.dist || 5) : d.aimFace ? { x: u.x + Math.sin(u.face) * (d.range || 5), z: u.z + Math.cos(u.face) * (d.range || 5) } : autoAim(u, d.range || 8);
 // a shield raised for a while: Shield of Cassius (core/sim/scutum.js)
 export const raise = (u, d) => raiseScutum(u, d);
 // an army's shields locked into a marching block: Testudo march (core/sim/testudo.js)
 export const testudo = (u, at, d) => startTestudo(u, at, d);
+// (C4) Devi's: an arrow through a line, a dash, a planted stream of arrows, her archers' storm (core/sim/deviShots.js)
+export const pierce = (u, at, d) => startPierce(u, at, d);
+export const evade = (u, at, d) => startEvade(u, at, d);
+export const tigerVolley = (u, at, d) => startVolley(u, at, d);
+export const storm = (u, at, d) => startStorm(u, at, d);
+export const away = (u, dist) => awayAim(u, dist);

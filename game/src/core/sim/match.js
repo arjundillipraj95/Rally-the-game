@@ -42,6 +42,7 @@ export function mkUnit(ti, x, z, kind, human = false) {
     neutral: false, post: null, pk: 0, px: 0, pz: 0, pface: 0, rest: false, tface: 0 }; // (F4: a garrison's man fills these in; every unit has them so they all share one shape)
   if (u.leader) applyChamp(u); // (C1d: his page's health and blow)
   else if (kind === 'foot' || kind === 'arch' || kind === 'thrower') { u.max *= inflHp(ti); u.hp = u.max; } // (C1e: his champion's influence)
+  if (kind === 'arch') u.fireArrows = !!base.fireArrows; // (C4: her Agni Villalar)
   if (kind === 'thrower') { u.fire = !!base.fire; u.stones = 0; u.throwT = -9; } // (C2: fire pots; stones thrown; the arm's last swing)
   G.units.push(u); return u;
 }
