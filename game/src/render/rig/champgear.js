@@ -54,6 +54,7 @@ export function duelLook(R, g, cl, on) {
   if (!g || g.duel === on) return; g.duel = on;
   if (g.bow) g.bow.visible = !on; if (g.back) g.back.visible = on; if (g.arrow2) g.arrow2.visible = on;
   R.cmap = on ? {} : g.cmap; // (in a duel she moves as the captain does, no bow held)
+  for (const L of [R.lo, R.up]) if (L) L.key = null; // (DUEL4: the clip playing now is picked again from the new names, standing still too)
 }
 // the clip a blow plays: her own for this kind (a dagger one in a duel), else the rig's
 export function champSwing(cl, kind, inDuel, fallback) {

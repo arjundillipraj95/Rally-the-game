@@ -479,3 +479,6 @@ Last updated: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pag
 - ARCH3 (19 Nov, on main): arrows in an arrow's proportions (0.9 m, thin shaft, small head, three feathers), a little
   larger with camera distance; a soft trail from the feathers that fades out; fire arrows carry a flickering flame
   (`render/arrowfx.js`). Open: the flame is small (0.26 m cone).
+- DUEL4 (19 Nov, Arjun: Devi didn't go back to her bow after a duel): the rig kept the clip it was playing when the
+  duel flipped (same move key), so standing still or strafing on she stayed in the dagger stance. `duelLook` now
+  clears both layers' keys. r_DUEL4 (draw, time, win: daggers in, then shots, bow in hand, bowIdle).

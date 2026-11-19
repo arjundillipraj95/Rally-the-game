@@ -491,3 +491,4 @@ export function sweepHeroes() {
   for (const [u, h] of live) if (h.seen !== FRAME) { if (u.dead || !G.units.includes(u)) { drop(h); live.delete(u); } else (h.U || h.R.root).visible = false; }
   FRAME++;
 }
+export const heroOf = u => live.get(u) || null; // (tests: a captain's rig as drawn)
