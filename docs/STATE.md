@@ -455,6 +455,8 @@ Last updated: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pag
 
 - MENU5 Champions screen v2: his 2D art in the centre (splash, else portrait, else silhouette; the 3D window is gone), Stats / Army / Lore tabs; Army from the champion's `army` (titus.js: tier names) else the generic UPGRADES. r_MENU5 (r_MENU2 updated). home.js's 'champs' camera slide is now unused.
 
+- RAM2 Ram of Cassius feel (Arjun's GIF, option c): the charge plays blockIdle (scutum out) over running legs, leaning 0.2 rad (`ANIM.acts.ram`); a gold starburst + chips where the shield meets the champion (fxkit `starburst`); open ground: stagger (impact clip, 2 m skid), into a wall: knockdown for the wall stun (FALL1); aim slab 1.5x wider, gold rim, chevrons, end bar, fades in (ui/abilaim.js). r_RAM2.
+
 ## Known bugs
 - (fixed in AI1) A computer captain sometimes stood at the glacier at night without striking.
 - High only: a black wedge down the left edge at the Crown start. Not reproduced on 13 Nov (F14): F1a's exact

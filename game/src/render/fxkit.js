@@ -56,3 +56,23 @@ export function barrier(r, h, arc, color = 0xffd36e) {
   m.add(rim); m.renderOrder = 3; m.frustumCulled = false; scene.add(m); return m;
 }
 export function dropBarrier(m) { if (!m) return; scene.remove(m); m.geometry.dispose(); m.material.dispose(); const r = m.children[0]; if (r) { r.geometry.dispose(); r.material.dispose(); } }
+// (RAM2) the impact: a gold-white starburst that flashes up and fades in a quarter second, facing the camera
+const starTex = tex(128, 128, g => {
+  const c = 64; g.translate(c, c);
+  const glow = g.createRadialGradient(0, 0, 2, 0, 0, 60); glow.addColorStop(0, 'rgba(255,255,240,1)'); glow.addColorStop(.35, 'rgba(255,215,110,.85)'); glow.addColorStop(1, 'rgba(255,170,40,0)');
+  g.fillStyle = glow; g.beginPath(); g.arc(0, 0, 60, 0, Math.PI * 2); g.fill();
+  g.fillStyle = 'rgba(255,240,190,.95)';
+  for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2 + (i % 2) * .12, L = i % 2 ? 40 : 62; g.beginPath(); g.moveTo(Math.cos(a - .09) * 10, Math.sin(a - .09) * 10); g.lineTo(Math.cos(a) * L, Math.sin(a) * L); g.lineTo(Math.cos(a + .09) * 10, Math.sin(a + .09) * 10); g.closePath(); g.fill(); }
+});
+const bursts = []; let made = 0;
+export function starburst(x, y, z, size = 2.2) {
+  const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: starTex, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending }));
+  m.position.set(x, y, z); m.renderOrder = 4; m.material.rotation = Math.random() * Math.PI; scene.add(m); bursts.push({ m, t0: performance.now(), size }); made++;
+}
+export function drawBursts() { // (every frame)
+  for (let i = bursts.length - 1; i >= 0; i--) { const b = bursts[i], t = (performance.now() - b.t0) / 260;
+    if (t >= 1) { scene.remove(b.m); b.m.material.dispose(); bursts.splice(i, 1); continue; }
+    b.m.scale.setScalar(b.size * (.45 + .75 * Math.min(1, t * 3))); b.m.material.opacity = t < .25 ? 1 : 1 - (t - .25) / .75; }
+}
+export const burstCount = () => made; // (tests: how many have flashed)
+if (import.meta.env.DEV) window.__bursts = burstCount;

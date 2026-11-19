@@ -9,7 +9,7 @@ import { bus, G } from '../core/state.js';
 import { champOf } from '../champions/index.js';
 import { body } from '../core/body.js';
 import { spark, puff, trail, dust, shockwave, pow } from './effects.js';
-import { pathTex, decal, place, drop } from './fxkit.js';
+import { pathTex, decal, place, drop, starburst, drawBursts } from './fxkit.js';
 
 const skids = []; // { u, dx, dz, t0 }: a champion sliding back from the hit, kicking up dust
 let edge = null; // your own screen's red edge, when you're the one rammed
@@ -34,6 +34,12 @@ bus.on('fxmsg', e => {
   else if (e.k === 'fxramhit' || e.k === 'fxramwall') {
     const u = e.u, wall = e.k === 'fxramwall', y = (u.y || 0) + 1.1 * body.champ;
     spark(u.x, y, u.z, '#ffd36e', wall ? 26 : 16); shockwave(u.x, u.z, wall ? 5 : 3, 0xffd36e);
+    { // (RAM2: the shield meets him: a gold starburst where they touch, wood and grit flying on through)
+      const A = e.a || u, l = Math.hypot(u.x - A.x, u.z - A.z) || 1, dx = (u.x - A.x) / l, dz = (u.z - A.z) / l;
+      starburst(u.x - dx * .45, y + .15, u.z - dz * .45, wall ? 4 : 3);
+      for (let i = 0; i < (wall ? 18 : 12); i++) { const s = 3 + Math.random() * 5, side = (Math.random() - .5) * 4;
+        puff({ x: u.x - dx * .4, y: y + (Math.random() - .3) * .6, z: u.z - dz * .4, vx: dx * s + dz * side, vy: 1.5 + Math.random() * 3.5, vz: dz * s - dx * side, life: .55 + Math.random() * .35, c: Math.random() < .6 ? '#6b4a2b' : '#b59a72', s: 4 + Math.random() * 4 }); }
+    }
     if (wall) { shockwave(u.x, u.z, 3, 0xfff1c2); for (let i = 0; i < 8; i++) dust(u.x + (Math.random() - .5) * 1.6, u.z + (Math.random() - .5) * 1.6); }
     pow(u.x, y + 1.2, u.z, wall ? 'WALL SLAM!' : 'BASH!', '#ffd36e', wall ? 3 : 2);
     const me = G.player, near = me && Math.hypot(me.x - u.x, me.z - u.z) < 12;
@@ -59,6 +65,7 @@ bus.on('fxmsg', e => {
 });
 // every frame (render/overlay.js): the path fades in, holds through the rush, fades out; dust and a streak while he goes
 export function drawRam() {
+  drawBursts();
   for (let i = skids.length - 1; i >= 0; i--) { const S = skids[i], t = G.T - S.t0; // the slide back: dust off his heels
     if (t > .35 || S.u.dead) { skids.splice(i, 1); continue; }
     puff({ x: S.u.x - S.dx * .3, y: (S.u.y || 0) + .1, z: S.u.z - S.dz * .3, vx: -S.dx * 1.5 + (Math.random() - .5), vy: .6, vz: -S.dz * 1.5 + (Math.random() - .5), life: .5, c: '#cdb58a', s: 7 });

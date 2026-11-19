@@ -11,16 +11,18 @@ import { integrate } from '../core/sim/move.js';
 import { decal, place, drop, ringTex } from '../render/fxkit.js';
 
 export const aim = { on: false, k: -1, el: null, sx: 0, sy: 0, dx: 0, dy: 0, drag: false, cancel: false };
-const DRAG = 14, FULL = 110; // (px: past DRAG it's aiming; a FULL px drag reaches the move's whole range)
+const DRAG = 14, FULL = 110, AIM_WIDE = 1.5; // (px: past DRAG it's aiming; a FULL px drag reaches the move's whole range)
 
-// the slab: a rounded, see-through glass panel with a bright rim, its far end at +z
+// the slab: a rounded, see-through glass panel with a bright gold rim, its far end at +z (the canvas's top). RAM2: wider
+// and easier to read: gold chevrons all the way along pointing the way he goes, and a bar across where he stops.
 const slabTex = (() => {
   const c = document.createElement('canvas'); c.width = 128; c.height = 512; const g = c.getContext('2d');
   const rr = (x, y, w, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
-  const gr = g.createLinearGradient(0, 512, 0, 0); gr.addColorStop(0, 'rgba(170,200,255,.38)'); gr.addColorStop(1, 'rgba(215,232,255,.62)');
-  rr(8, 8, 112, 496, 34); g.fillStyle = gr; g.fill(); g.lineWidth = 9; g.strokeStyle = 'rgba(245,250,255,.95)'; g.stroke();
-  rr(24, 24, 80, 464, 22); g.lineWidth = 4; g.strokeStyle = 'rgba(160,200,255,.55)'; g.stroke(); // (an inner rim: the glass's thickness)
-  g.fillStyle = 'rgba(255,255,255,.5)'; for (let y = 60; y < 120; y += 30) { g.beginPath(); g.moveTo(40, y + 18); g.lineTo(64, y); g.lineTo(88, y + 18); g.lineTo(80, y + 22); g.lineTo(64, y + 10); g.lineTo(48, y + 22); g.closePath(); g.fill(); }
+  const gr = g.createLinearGradient(0, 512, 0, 0); gr.addColorStop(0, 'rgba(255,236,190,.22)'); gr.addColorStop(1, 'rgba(255,226,150,.5)');
+  rr(8, 8, 112, 496, 30); g.fillStyle = gr; g.fill(); g.lineWidth = 10; g.strokeStyle = 'rgba(255,207,58,.98)'; g.stroke();
+  rr(22, 22, 84, 468, 20); g.lineWidth = 3; g.strokeStyle = 'rgba(255,245,215,.6)'; g.stroke(); // (an inner rim: the glass's thickness)
+  g.fillStyle = 'rgba(255,214,90,.9)'; for (let y = 90; y < 470; y += 64) { g.beginPath(); g.moveTo(30, y + 30); g.lineTo(64, y); g.lineTo(98, y + 30); g.lineTo(86, y + 38); g.lineTo(64, y + 18); g.lineTo(42, y + 38); g.closePath(); g.fill(); }
+  g.fillStyle = 'rgba(255,240,200,1)'; rr(18, 22, 92, 16, 8); g.fill(); // (where he stops)
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 })();
 let slab = null, ring = null;
@@ -78,8 +80,9 @@ export function drawAbilAim() {
   const slot = SLOTS[aim.k], d = slotDef(G.myTi, slot); if (!d) return;
   const { a } = dirOf(), op = .95;
   if (slot === 'sp1' && d.aimFace) {
-    const len = Math.max(.6, dashLen(p, a, d) + p.r), wd = (d.w || .7) * 2 + .3;
-    if (!slab || Math.abs(slab.userData.len - len) > .05) { drop(slab); slab = decal(slabTex, wd, len, { add: false, from: 0, opacity: op }); slab.userData.len = len; }
+    const len = Math.max(.6, dashLen(p, a, d) + p.r), wd = ((d.w || .7) * 2 + .3) * AIM_WIDE; // (RAM2: half as wide again: his shoulders and shield)
+    if (!slab || Math.abs(slab.userData.len - len) > .05) { const t0 = slab ? slab.userData.t0 : performance.now(); drop(slab); slab = decal(slabTex, wd, len, { add: false, from: 0, opacity: op }); slab.userData.len = len; slab.userData.t0 = t0; }
+    if (slab.material) slab.material.opacity = op * Math.min(1, (performance.now() - slab.userData.t0) / 150); // (RAM2: fades in over 0.15 s)
     place(slab, p.x, p.z, a, .14);
   } else {
     const at = point(); if (!at) return; const r = slot === 'sp2' ? 1.6 : slot === 'armyUlt' ? 3 : d.r || 2;
