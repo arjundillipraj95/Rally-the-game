@@ -106,24 +106,26 @@
       <div class="htop">
         <h1 class="logo hlogo"><span>Rally!</span></h1>
         <div class="hrank" id="hRank"></div>
+        <span class="hgap"></span><span class="silver hsilver" aria-label="0 Silver"><i aria-hidden="true"></i><b id="hSilver">0</b> Silver</span>
         <button type="button" class="hicon" id="setBtn" aria-label="Settings and how to play"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
       </div>
       <nav class="hleft" aria-label="Your captain and more">
-        <button type="button" class="hbtn" id="champsBtn"><b>Champions</b><small>Who they are</small></button>
-        <button type="button" class="hbtn" id="wardBtn"><b>Captain</b><small>Dress him up</small></button>
+        <button type="button" class="hbtn" id="champsBtn"><b>Champions</b><small id="champsSub">Who they are</small></button>
         <button type="button" class="hbtn" id="friendsBtn"><b>Friends</b><small id="friendsSub">Play together</small></button>
         <button type="button" class="hbtn" id="missBtn"><b>Missions</b><small id="missSub">Season 1</small></button>
         <button type="button" class="hbtn" id="shopBtn"><b>Shop</b><small>Looks, never strength</small></button>
       </nav>
       <div class="pvBar" id="pvBar" hidden></div>
+      <button type="button" class="homechamp" id="homeChamp" aria-label="Your champion: open his card"><b id="homeChampName"></b><small>Tap to view</small></button>
+      <div class="twonote" id="twoNote" hidden></div>
       <button type="button" class="pedestal" id="pedL" aria-label="Play with a friend"><span>+</span></button>
       <button type="button" class="pedestal" id="pedR" aria-label="Play with a friend"><span>+</span></button>
       <div class="hplay">
-        <div class="fmt" id="segFmt" role="group" aria-label="Captains per side">
+        <div class="fmt" id="segFmt" role="group" aria-label="Party size">
           <button type="button" data-v="0" aria-pressed="true">Solo</button><button type="button" data-v="1" aria-pressed="false">Duo</button><button type="button" data-v="2" aria-pressed="false">Trio</button>
         </div>
         <div class="fmtrank" id="fmtRank"></div>
-        <button class="go play" id="playBtn" type="button"><span>Play</span><small id="playSub">The Crown · vs the computer until online opens</small></button>
+        <button class="go play" id="playBtn" type="button"><span>Play</span><small id="playSub">The Crown · 12 players, computers fill in</small></button>
         <div class="search" id="searchBox" hidden>
           <div class="srow"><b id="searchT">Searching</b><span id="searchClock">0:00</span></div>
           <div class="ssides" id="searchSides"></div>

@@ -9,7 +9,7 @@ import { bus } from '../core/state.js';
 import { online } from '../net/online.js';
 import { ROSTER, CHAMP_LIMITS as LIM, CHAMP_BASE as B, ARMY } from '../config.js';
 import { portraitImg, splashSrc } from '../ui/portraits.js';
-import { setHomeView, previewChamp, homeTurn } from './home.js';
+import { setHomeView, previewChamp, homeTurn, homeInfo } from './home.js';
 
 const TABS = [['all', 'All'], ['vanguard', 'Vanguard'], ['striker', 'Striker'], ['raider', 'Raider']];
 const CLS = { vanguard: 'Vanguard', striker: 'Striker', raider: 'Raider' };
@@ -100,7 +100,8 @@ export function showChampions(id) {
 }
 export function closeChampions() { previewChamp(myChamp()); setHomeView('home'); }
 $('champsBtn')?.addEventListener('click', () => showChampions(myChamp()));
+$('homeChamp')?.addEventListener('click', () => showChampions(myChamp())); // (MENU3: a tap on your champion)
 // (MENU4) your main and backup live on the account: a sign-in brings them, a change goes up and onto the stage
-bus.on('online', ({ k, m }) => { if (k === 'me' && m && m.main) { fromAccount(m.main, m.backup); if ($('champScreen').hidden) previewChamp(myChamp()); } });
-onMainChange(() => { online.ch(myChamp(), myBackup()); if ($('champScreen').hidden) previewChamp(myChamp()); });
+bus.on('online', ({ k, m }) => { if (k === 'me' && m && m.main) { fromAccount(m.main, m.backup); homeInfo(); if ($('champScreen').hidden) previewChamp(myChamp()); } });
+onMainChange(() => { online.ch(myChamp(), myBackup()); homeInfo(); if ($('champScreen').hidden) previewChamp(myChamp()); });
 if (import.meta.env.DEV) window.__cs = { CS, show: showChampions, close: closeChampions };

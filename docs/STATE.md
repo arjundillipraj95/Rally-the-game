@@ -444,6 +444,7 @@ Last updated: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pag
 ## MENU main menu and Champions screen (18 Nov, Arjun's go; card `docs/tickets/MENU.md`). On launch26, not shipped
 - MENU1 pictures: `ui/portraits.js` (tile, face, splash; silhouette when missing), `store/bake_portraits.mjs` renders one from the 3D model; Titus and Devi from Arjun's art. Minimap faces, lobby seats, versus with your splash. Online carries each main (`ch`, `m_ch`, account main/backup; live only once main ships). r_MENU1.
 - MENU2 Champions screen (`app/champpage.js`, `ui/champs.css`; replaces LORE1): class tabs, roster grid (`ROSTER` in config/champs.js), the champion in 3D through a window (home view 'champs': the camera slides until he stands in it; drag turns him), art for one still to come, stats, soldiers ▲▼, lore, skin row (Default + Soon), Set as main/backup. r_MENU2.
+- MENU3 home: Captain button gone (closet code kept for skins), top bar Silver 0, your main on the stage with his name (a tap opens his card: `#homeChamp` follows him), friends in their mains, Solo/Duo/Trio follow the party, "2 × Titus" note (`homeInfo` in app/home.js). r_MENU3.
 
 ## Known bugs
 - (fixed in AI1) A computer captain sometimes stood at the glacier at night without striking.

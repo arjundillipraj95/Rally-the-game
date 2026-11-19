@@ -32,7 +32,7 @@ export function renderFriends() {
   const on = ON.friends.filter(f => f.online).length;
   $('friendsSub').innerHTML = !ON.url ? 'Play together' : !ON.up ? 'Connecting…' : on ? `${on} online<span class="dot"></span>` : 'Play together';
   if (partyOthers().length && ON.up) $('playSub').textContent = isLeader() ? `The Crown · your party of ${partyOthers().length + 1}` : 'Your party leader starts the search';
-  else $('playSub').textContent = ON.up ? 'The Crown · online' : 'The Crown · vs the computer until online opens';
+  else $('playSub').textContent = ON.up ? 'The Crown · online' : 'The Crown · 12 players, computers fill in';
 }
 const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 function renderSearch() {

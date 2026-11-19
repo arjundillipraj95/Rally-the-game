@@ -175,7 +175,7 @@ const ward = wardrobe($('ward'), {
   onPick: (si, v) => { prefs.look = prefs.look.slice(); prefs.look[si] = v; prefs.save(); if (G.looks) G.looks[G.myTi] = prefs.look; sfx.draw && sfx.draw(); online.look(lookCode(prefs.look)); },
   onCrest: i => { if (setCrest(i)) { buildCrests(); if (G.crests) G.crests[G.myTi] = progress.crest; } },
 });
-$('wardBtn').addEventListener('click', () => { ward.show(); setHomeView('ward'); });
+void ward; // (MENU3: the closet is no longer on the home; champions with their own body don't wear its pieces. Kept for later skins.)
 $('wardDone').addEventListener('click', () => setHomeView('home'));
 document.addEventListener('keydown', e => { if (e.code === 'Escape' && G.state === 'title' && homeView !== 'home') setHomeView('home'); });
 // between battles is the one place a games-site ad may play (off during a Basic Launch; see portal.js)

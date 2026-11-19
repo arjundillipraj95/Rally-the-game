@@ -24,7 +24,8 @@ import { startTutorial, bindTutorial } from '../ui/tutorial.js';
 import { progress } from '../ui/progress.js';
 import { session, prefs } from '../net/session.js';
 import { assignLooks, lookFrom } from '../core/look.js';
-import { assignChamps, myChamp } from '../champions/index.js';
+import { assignChamps, myChamp, champDef, ownedIds } from '../champions/index.js';
+import { ROSTER } from '../config.js';
 import { actions, setNetHooks } from '../net/netgame.js';
 import { bindLobby, showLobby, netLeave } from '../net/lobby.js';
 import { ON } from '../net/online.js';
@@ -143,6 +144,11 @@ function homeCamera(dt) {
   const overMenu = off => { _v.set(c.x + rx * off, gy + 1.15, c.z + rz * off).project(camera); return (_v.x + 1) / 2 * innerWidth < mr.right + 40; }; // (the left place, clear of the menu buttons)
   const off = [2.5, 2.2, 1.9, 1.7, 1.5].find(o => !under(-1, o) && !overMenu(o)) || 1.5;
   if (off !== pedOff) { pedOff = off; placeParty(); }
+  { // (MENU3) your champion: a tap on him opens his card; his name under him
+    const hc = $('homeChamp'); _v.set(c.x, gy, c.z).project(camera); const px = (_v.x + 1) / 2 * innerWidth, feet = (1 - _v.y) / 2 * innerHeight;
+    hc.hidden = homeView !== 'home' || _v.z > 1;
+    if (!hc.hidden) { _v.set(c.x, gy + 2.7, c.z).project(camera); const head = (1 - _v.y) / 2 * innerHeight; hc.style.left = px + 'px'; hc.style.top = head + 'px'; hc.style.height = Math.max(40, feet - head) + 'px'; }
+  }
   for (const [id, k] of [['pedL', 0], ['pedR', 1]]) {
     const el = $(id); if (!el) continue;
     if (homeView !== 'home') { el.hidden = true; continue; }
@@ -165,12 +171,25 @@ export const partyOthers = () => (ON.party && ON.party.members || []).filter(m =
 let partyFigs = [];
 export function placeParty() { // party members' captains on the pedestals beside yours, in their own outfits
   for (const u of partyFigs) { const i = G.units.indexOf(u); if (i >= 0) G.units.splice(i, 1); } partyFigs = [];
+  homeInfo();
   const c = homeCap; if (!c || G.state !== 'title') return;
   const d = Math.hypot(c.x, c.z) || 1, rx = -c.z / d, rz = c.x / d;
   partyOthers().slice(0, 2).forEach((m, k) => {
     const [side, off] = pedSpot(k), ti = G.myTi + 4 * (k + 1), u = mkUnit(ti, c.x + rx * side * off, c.z + rz * side * off, 'captain');
+    (G.champs || (G.champs = []))[ti] = m.ch || myChamp(); // (MENU3: each friend in their own main)
     u.demo = true; u.face = c.face; G.looks[ti] = lookFrom(m.look) || G.looks[ti]; partyFigs.push(u);
   });
+}
+// (MENU3) the home's words: your champion's name, Champions' count, the party's format and the "2 × Titus" note
+let partyN = -1;
+export function homeInfo() {
+  const me = myChamp(), name = champDef(me).name.split(' ')[0];
+  $('homeChampName').innerHTML = `${name} <span aria-hidden="true">★</span>`;
+  $('champsSub').textContent = `${ROSTER.length} · ${ownedIds().length} owned`;
+  const others = partyOthers(), n = others.length;
+  if (n !== partyN) { if (partyN >= 0 || n) { S.playFmt = Math.min(2, n); pressFmt(); } partyN = n; } // (Solo / Duo / Trio follow who is in your party)
+  const same = others.filter(m => (m.ch || '') === me), note = $('twoNote');
+  note.hidden = !same.length; if (same.length) note.textContent = `${same.length + 1} × ${name}: ${same.length > 1 ? 'two of you pick' : 'one of you picks'} another in the lobby`;
 }
 export function demo(dt) {
   demoT += dt;
