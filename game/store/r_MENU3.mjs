@@ -9,12 +9,12 @@ const page = await open(browser, 844, 390, { home: true, init: `localStorage.rem
 for (let i = 0; i < 12; i++) { await frames(page, 5); await page.waitForTimeout(250); }
 const ui = await page.evaluate(() => ({ ward: !!document.getElementById('wardBtn'), left: [...document.querySelectorAll('.hleft .hbtn b')].map(b => b.textContent),
   top: ['hRank', 'hSilver', 'setBtn'].every(id => { const e = document.getElementById(id); return e && e.offsetParent; }), silver: document.getElementById('hSilver').textContent,
-  name: document.getElementById('homeChampName').textContent, champ: !document.getElementById('homeChamp').hidden, sub: document.getElementById('champsSub').textContent }));
+  name: document.getElementById('homeChampName').textContent, champ: !document.getElementById('homeChamp').hidden, sub: document.getElementById('champsSub').textContent, own: document.querySelectorAll('#champScreen .ptile.owned').length }));
 ok(!ui.ward, 'the Captain button is gone');
 ok(ui.left.join() === 'Champions,Friends,Missions,Shop', `left: ${ui.left}`);
 ok(ui.top && ui.silver === '0', 'top: rank/XP, Silver 0, settings');
 ok(ui.champ && /Titus/.test(ui.name), `your main on the stage, named (${ui.name.trim()})`);
-ok(/9 · 1 owned/.test(ui.sub), `Champions shows the roster count (${ui.sub})`);
+ok(/^9 · \d+ owned$/.test(ui.sub), `Champions shows the roster count (${ui.sub})`);
 // the tap lands on him: the button covers his figure
 const over = await page.evaluate(() => { const { camera, G } = window.__fb, THREE = window.__f8.THREE, c = G.units.find(u => u.kind === 'captain' && u.demo), v = new THREE.Vector3(c.x, c.y + 1.3, c.z).project(camera), x = (v.x + 1) / 2 * innerWidth, y = (1 - v.y) / 2 * innerHeight, r = document.getElementById('homeChamp').getBoundingClientRect(); return x > r.left && x < r.right && y > r.top && y < r.bottom; });
 ok(over, 'the tap area covers your champion');

@@ -18,7 +18,8 @@ let T = await tiles(); const by = id => T.find(t => t.id === id) || {};
 ok(!(await page.isHidden('#champScreen')) && await page.isHidden('#home'), 'Champions opens its own screen over the stage');
 ok(T.length === 9, `the launch roster: ${T.length} tiles`);
 ok(/owned/.test(by('titus').c) && by('titus').main && /sel/.test(by('titus').c), 'Titus: owned, ★ your main, selected on open');
-ok(/soon/.test(by('devi').c) && /soon/.test(by('sigrun').c), 'Devi and Sigrun: Coming soon (no page yet)');
+ok(/soon/.test(by('sigrun').c) && /soon/.test(by('varma').c), 'Sigrun and Varma: Coming soon (no page yet)');
+ok(/owned/.test(by('devi').c), 'Devi: her page is in, free: owned');
 ok(/locked/.test(by('romraider').c) && by('romraider').lock.includes('6,000'), `a champion to buy: greyed, lock and ${by('romraider').lock}`);
 // (MENU5: the centre shows his 2D art, not the 3D figure)
 const art0 = await page.evaluate(() => (document.querySelector('.csart .csimg') || {}).getAttribute?.('src') || '');
@@ -29,9 +30,9 @@ await page.click('#champScreen [data-tab="striker"]'); T = await tiles();
 ok(T.length === 3 && T.every(t => ['devi', 'romstriker', 'vikstriker'].includes(t.id)), `Striker tab: ${T.map(t => t.id)}`);
 await page.click('#champScreen [data-tab="all"]');
 // one still to come: his art in the window
-await page.click('.ptile[data-id="devi"]'); await frames(page, 4);
+await page.click('.ptile[data-id="sigrun"]'); await frames(page, 4);
 const art = await page.evaluate(() => ({ src: document.querySelector('.csart .csimg').getAttribute('src'), soon: document.querySelector('.csart').classList.contains('soon'), txt: document.querySelector('.csinfo').textContent }));
-ok(/splash\/devi/.test(art.src) && art.soon && /Coming soon/.test(art.txt), 'Devi selected: her art in the centre (greyed), Coming soon');
+ok(/splash\/sigrun/.test(art.src) && art.soon && /Coming soon/.test(art.txt), 'Sigrun selected: the centre greyed (her art once it exists), Coming soon');
 await page.screenshot({ path: '/tmp/menu/r_MENU2_devi.png' });
 // set Hrolf as main, Titus as backup
 await page.click('.ptile[data-id="hrolf"]'); await frames(page, 4);

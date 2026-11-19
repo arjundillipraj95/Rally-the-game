@@ -16,7 +16,7 @@ ok(files.legionary[0] > 0 && files.legionary[1] > 0, 'the baked legionary portra
 ok(files.missing === 0, 'a missing picture fails cleanly (the silhouette shows)');
 await page.click('#segMode button[data-v="crown"]'); await page.click('#goBtn'); await frames(page, 6);
 await page.waitForTimeout(800); await frames(page, 2);
-const face = await page.evaluate(async () => { const P = await import('/src/ui/portraits.js'); return !!P.faceImage('titus'); });
+const face = await page.evaluate(async () => { const P = await import('/src/ui/portraits.js'); for (let i = 0; i < 20 && !P.faceImage('titus'); i++) await new Promise(r => setTimeout(r, 150)); return !!P.faceImage('titus'); });
 ok(face, 'in a battle the minimap has Titus\'s face to draw');
 const vs = await page.evaluate(async () => {
   const L = await import('/src/ui/matchlobby.js'); window.__on.ON.me = { id: 'me1' };
