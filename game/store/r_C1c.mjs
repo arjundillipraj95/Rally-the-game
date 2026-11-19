@@ -33,7 +33,7 @@ const o = await page.evaluate(async () => {
   const bi = G.teams.findIndex((t, i) => t.active && i !== me && G.ALLY[i % 4] !== G.ALLY[me % 4]), b = G.teams[bi].leader;
   L.gainXp(bi, 2500, 't'); b.x = p.x + 3; b.z = p.z; b.mounted = false;
   r.botWhy = A.SLOTS.map(s => A.blocked(bi, s)).join();
-  for (let k = 0; k < 90; k++) { b.x = p.x + 3; b.z = p.z; p.hp = p.max; F.step(1); }
+  for (let k = 0; k < 90; k++) { b.x = p.x + 3; b.z = p.z; p.hp = p.max; b.hp = b.max; b.stun = 0; b.execReady = false; b.dead = false; F.step(1); } // (FIX6: kept on his feet: standing in your home, the safe zone and its arrows knock him down)
   r.botFoe = b.foe ? (b.foe.leader ? 'champ' : b.foe.kind) + ' ' + b.fd.toFixed(1) : 'none';
   r.bot = { lvl: G.teams[bi].lvl, n: (b.n1 | 0) + (b.n2 | 0) + (b.n3 | 0) };
   return r; });
