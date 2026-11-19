@@ -31,6 +31,7 @@ export function shoot(u, tg, fromY = 1.6) {
   const tx = tg.x + tg.vx * lead + rnd(-j, j), tz = tg.z + tg.vz * lead + rnd(-j, j);
   const d = Math.hypot(tx - u.x, tz - u.z), y0 = (u.y || 0) + fromY;
   G.arrows.push(makeArrow({ id: ++G.arrowN, x0: u.x, y0, z0: u.z, x1: tx, z1: tz, y1: groundY(tx, tz) + 1.1, dur: .25 + d / 28, peak: Math.min(6, d * .16), ti: u.ti, t: 0, shooter: u, volley: volleying >= 0 }));
+  if (u.fireArrows) G.arrows[G.arrows.length - 1].fire = true; // (ARCH2: seen burning)
   if (u.neutral) G.arrows[G.arrows.length - 1].neutral = true; // (F4: a garrison's arrow: kills read 'garrison')
   if (!u.tower) u.swing = .38;
   sound('bow', u.x, u.z);
