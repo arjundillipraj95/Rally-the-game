@@ -20,6 +20,7 @@ import { drawPull } from './render/pullfx.js';
 import { duelTagTick } from './ui/dueltag.js';
 import { updateCritters } from './render/critters.js';
 import { drawHorses } from './render/horses.js';
+import { drawThrowers } from './render/throwers.js';
 import { drawFreeHorses } from './render/heroes.js';
 import { drawAura, castleFx, effectsTick, drawEffects } from './render/effects.js';
 import { drawOverlay } from './render/overlay.js';
@@ -74,6 +75,7 @@ function drawScene(dt) {
   try { audioTick(dt); } catch (e) { fault('sound', e); } // (sound can never freeze the screen)
   banterTick(dt); updateCritters(dt); fogTick(dt); ambientTick(dt);
   drawSoldiers(G.units, dt); // (F4: the mountain's garrisons and camps are real soldiers, drawn with the armies)
+  drawThrowers(); // (C2: the stone throwers, their stones and fire pots)
   const horses = (isClient() ? clientHorses() : G.horses.map(h => ({ key: h.id, ti: h.ti, x: h.x, z: h.z, face: h.face, spd: h.spd, state: h.state, t: h.t, fall: h.fall }))).filter(h => !fogGrid() || !isEnemyTi(h.ti, G.myTi) || seenAt(h.x, h.z));
   if (drawFreeHorses(horses, dt)) drawHorses([], dt); else drawHorses(horses, dt); // (the new warhorse when the new models are on)
   updateWorldView(dt, castleFx);

@@ -2,7 +2,7 @@
 import { STAMINA, CROWN2, CROWN26, PING } from '../config.js';
 import { CROWN, TEAMS, MODES, STATS, AL_LETTER, ORDER_NAMES, UPGRADES, WEAPON_NAMES, WEAPON_CLASS, STREAK, LAST } from '../config.js';
 import { G, isFfa, colorOf, rules, matchTime, SLOT_NAME, isOut, capOf, isC2 } from '../core/state.js';
-import { mountMul, c2Lake, colorOut, colorScore, colorHuman, squadOf, canRecruit, horseMax, upgradeCost, javMax, execTarget, castleHere, villageHere } from '../core/sim.js';
+import { mountMul, c2Lake, colorOut, colorScore, colorHuman, squadOf, armyPlaces, placeOf, canRecruit, horseMax, upgradeCost, javMax, execTarget, castleHere, villageHere } from '../core/sim.js';
 import { session, isClient } from '../net/session.js';
 import { pingMedian } from '../net/ping.js';
 import { claimed, nameOf, glory, allyNames } from './messages.js';
@@ -108,7 +108,7 @@ export function updateHud(lastSnapAt) {
       else { const m = pingMedian(net), b = PING.bands, k = m == null ? -1 : b.findIndex(lim => m < lim);
         pe.textContent = m == null ? '…' : k < 0 ? `${m} ms · not fine` : `${m} ms`;
         pe.className = m == null ? 'h' : ['dg', 'g', 'a', 'r', 'dr'][k] || 'nf'; } } } }
-  const sq = squadOf(G.myTi), cap = capOf(G.myTi); $('squadN').textContent = G.mode === 'crown' ? `${sq.length}/${cap}` : sq.length;
+  const sq = squadOf(G.myTi), cap = capOf(G.myTi), used = armyPlaces(G.myTi); $('squadN').textContent = G.mode === 'crown' ? `${used}/${cap}` : sq.length; // (C2: places; a stone thrower takes five)
   if (isC2()) { // the mountain's phase, under the clock
     const T = G.T, C = CROWN2, K = G.c2, ph = !K ? '' : T < C.chest ? `War chest in ${fmt(C.chest - T)}` : K.phase === 'open' ? 'Arena open · break the chest' : T < C.night ? `The Crown wakes in ${fmt(C.night - T)}` : 'Night · captains to the glacier';
     capList();
@@ -127,7 +127,7 @@ export function updateHud(lastSnapAt) {
     const el = $('phaseTag'); if (el && el.textContent !== ph) { el.textContent = ph; el.classList.toggle('hot', K && (K.phase === 'open' || K.phase === 'night')); }
   } else if ($('phaseTag').textContent) $('phaseTag').textContent = '';
   if (!isC2() && $('glacier') && !$('glacier').hidden) $('glacier').hidden = true;
-  const c = k => sq.filter(u => u.kind === k).length; $('squadMix').textContent = `F${c('foot')} A${c('arch')}`;
+  const c = k => sq.filter(u => u.kind === k).length; $('squadMix').textContent = `F${c('foot')} A${c('arch')}` + (c('thrower') ? ` T${c('thrower')}` : '');
   { // your army's morale, and the rally horn on the order button
     const T = G.teams[G.myTi], m = Math.max(0, Math.min(100, (T && T.morale) ?? 100)), mb = $('moraleBar');
     mb.firstChild.style.width = m + '%'; mb.classList.toggle('rout', !!(T && T.routT > 0)); mb.classList.toggle('waver', !(T && T.routT > 0) && m <= 40);
@@ -137,16 +137,17 @@ export function updateHud(lastSnapAt) {
   }
   document.querySelectorAll('#tray button').forEach(b => {
     { const hide = !champOf(G.myTi).recruits.includes(b.dataset.kind); if (b.hidden !== hide) b.hidden = hide; } // (C1e: his champion's soldiers only)
-    b.setAttribute('aria-disabled', (gold < STATS[b.dataset.kind].cost || sq.length >= cap || !canRecruit(G.myTi)) ? 'true' : 'false');
+    b.setAttribute('aria-disabled', (gold < STATS[b.dataset.kind].cost || used + placeOf(b.dataset.kind) > cap || !canRecruit(G.myTi)) ? 'true' : 'false');
   });
   document.querySelectorAll('#upTray button').forEach(b => {
     const id = b.dataset.up, def = UPGRADES.find(u => u.id === id), max = def ? def.cost.length : 0;
+    if (id.startsWith('thr')) { const hide = !champOf(G.myTi).recruits.includes('thrower'); if (b.hidden !== hide) { b.hidden = hide; $('ucolThr').hidden = hide; } if (hide) return; } // (C2: his stone throwers')
     if (id === 'aura') { const hide = isC2(); if (b.hidden !== hide) b.hidden = hide; if (hide) return; } // (C1e: the mountain has no aura; influence does it)
     if (id === 'tower') { const hide = G.mode !== 'crown'; if (b.hidden !== hide) b.hidden = hide; if (hide) return; } // (the Crown's watchtowers)
     const vh = id === 'fort' && isC2() && !castleHere(G.myTi) ? villageHere(G.myTi) : null;
     const cw = id === 'fort' && G.mode === 'crown' ? castleHere(G.myTi) : null, cst = cw && G.cgates && G.cgates[cw.hid]; // (the Crown: Fortify is the castle you stand in)
     const own = id === 'fort' ? G.teams[colorOf(G.myTi)] : me, l = cw ? (cst && cst.lv) | 0 : own && own.up ? own.up[id] : 0, cost = upgradeCost(G.myTi, id); // (Fortify: the castle's)
-    const locked = (id === 'foot2' && !(me.up && me.up.foot1)) || (id === 'arch2' && !(me.up && me.up.arch1));
+    const locked = (id === 'foot2' && !(me.up && me.up.foot1)) || (id === 'arch2' && !(me.up && me.up.arch1)) || (id === 'thr2' && !(me.up && me.up.thr1));
     b.querySelector('.lv').dataset.pips = id === 'arm' || id === 'tower' ? '' : '●'.repeat(l) + '○'.repeat(Math.max(0, max - l));
     if (id === 'fort' && G.mode === 'crown') b.querySelector('span').textContent = vh ? (vh.fort ? 'Palisade up: 11 s to take' : 'Palisade round this village') : !cw && isC2() ? 'Stand in a castle or village you hold' : !cw ? 'Stand in a castle you hold' : l >= 2 ? 'An iron layer on every gate' : l === 1 ? 'A stone layer, more archers' : 'Shut the gates, archers on the walls'; // (CASTLE1: a level a tap, a layer on every gate)
     else if (id === 'fort') b.querySelector('span').textContent = l >= max ? (cost != null ? 'Mend the broken gate' : 'Palisade, gates and towers built') : l === 1 ? 'Gates and gate towers' : 'Palisade, then gates & towers';

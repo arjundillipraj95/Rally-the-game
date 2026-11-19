@@ -179,7 +179,7 @@ export const MAPS = {
   frost:  { id: 'frost',  name: 'Frost Hill',  desc: 'A snowy hill in the middle, walled off by pine forests and crags, with frozen ponds in two of the passes: on the ice you slide. Fighting downhill deals +20% damage and archers on top shoot 30% farther.', sky: 0xe4ecf2, fog: [60, 170], g1: 0xeef3f6, g2: 0xd7e0e8, g3: 0xb8c4ce, hill: 0x9aa6b2, rock: 0x8e969c },
 };
 
-export const KINDS = ['captain', 'foot', 'arch'];
+export const KINDS = ['captain', 'foot', 'arch', 'thrower']; // (C2: the stone thrower)
 // The Crown is for thinking: these small happenings stay out of the banners, the side feed and the
 // herald there (they still happen, and show in the results). Castles, the Crown, the war chest and the
 // last stands are the beats that move the plan, so they keep their voice.
@@ -196,11 +196,14 @@ export const STATS = {
   captain: { hp: INF * UNITS.hp.champ, dmg: INF * UNITS.hit.champ, reach: 1.3,  cd: .6,  spd: 6.2, r: .62, block: .3 }, // (SPD1: = CAPTAIN_SPD.foot)
   foot:    { hp: INF, dmg: HIT, reach: 1.25, cd: .95, spd: 5.4, r: .55, block: .35, cost: 40, name: 'Footman' },
   arch:    { hp: INF * UNITS.hp.arch, dmg: 6,  reach: 1.1,  cd: 1.2, spd: 5.3, r: .5,  block: 0,   cost: 50, name: 'Archer', range: 22, shoot: 2.3, arrow: ARW, jitter: .8 },
+  thrower: { hp: INF * UNITS.hp.thrower, dmg: 45, reach: 0, cd: 6, spd: 3.2, r: 1.4, block: 0, cost: 200, name: 'Stone thrower', range: 40, shoot: 6 }, // (C2: 300 health; a stone 45 at its centre; reload 6 s; slow)
 };
 // (SPD1) one speed for every captain, the player's or the computer's: on foot, and the horse's multiple
 export const CAPTAIN_SPD = { foot: 6.2, mount: 1.8 };
 export const HUMAN_CAPTAIN = { dmg: INF * UNITS.hit.champ, spd: CAPTAIN_SPD.foot }; // (C1d: the same blow as a computer champion's)
-export const RECRUITS = ['foot', 'arch'];
+export const RECRUITS = ['foot', 'arch', 'thrower'];
+// (C2) army places a soldier takes (every other kind: 1)
+export const PLACES = { thrower: 5 };
 
 // Footman's 3 tiers: sword & shield -> spear, javelin & a better shield -> heavier armor & hp.
 // Index = number of foot upgrades bought (foot1 + foot2), so 0/1/2.
@@ -215,6 +218,13 @@ export const ARCH_TIERS = [
   { hp: INF * .6, dmg: 6, reach: 1.1, cd: 1.2, spd: 5.3, r: .5, block: 0, range: 22, shoot: 2.3, arrow: ARW, jitter: .8,  name: 'Archer' }, // (C1d: 60% of a man; an arrow 10%)
   { hp: INF * .68, dmg: 7, reach: 1.1, cd: 1.1, spd: 5.4, r: .5, block: 0, range: 23, shoot: 2.1, arrow: ARW * 1.1, jitter: .7,  name: 'Archer (Training)' },
   { hp: INF * .68, dmg: 7, reach: 1.1, cd: 1.1, spd: 5.4, r: .5, block: 0, range: 29, shoot: 2.0, arrow: ARW * 1.2, jitter: .45, name: 'Archer (Marksman)' },
+];
+// (C2) the stone thrower's tiers: base -> fire pots (every third stone burns the ground, a quicker reload) ->
+// reinforced (half again the health, longer range, faster on the move). Index = thr1 + thr2 bought.
+export const THROWER_TIERS = [
+  { hp: INF * UNITS.hp.thrower, dmg: 45, reach: 0, cd: 6, spd: 3.2, r: 1.4, block: 0, range: 40, shoot: 6, fire: false, name: 'Stone thrower' },
+  { hp: INF * UNITS.hp.thrower, dmg: 45, reach: 0, cd: 5.5, spd: 3.2, r: 1.4, block: 0, range: 40, shoot: 5.5, fire: true, name: 'Stone thrower (Fire pots)' },
+  { hp: INF * UNITS.hp.thrower * 1.5, dmg: 45, reach: 0, cd: 5.5, spd: 3.8, r: 1.4, block: 0, range: 50, shoot: 5.5, fire: true, name: 'Stone thrower (Reinforced)' },
 ];
 // The captain rides the Footman upgrade line: a small stat bump plus the javelin at tier 1+,
 // so playing the captain always mirrors what the squad's Footman upgrades are doing.
@@ -439,6 +449,8 @@ export const UPGRADES = [
   { id: 'foot2', name: 'Armor',    desc: 'Footmen: heavier armor, more HP',                        cost: [160] },
   { id: 'arch1', name: 'Training', desc: 'Archers: all-round stat increase',                       cost: [90] },
   { id: 'arch2', name: 'Marksman', desc: 'Archers: +range, +accuracy',                              cost: [160] },
+  { id: 'thr1', name: 'Fire pots',  desc: 'Stone throwers: every third stone burns the ground', cost: [120] }, // (C2)
+  { id: 'thr2', name: 'Reinforced', desc: 'Stone throwers: tougher, longer range, faster', cost: [220] },
   { id: 'aura',  name: 'Aura',     desc: 'Bigger, stronger aura',                                   cost: [80, 140, 220] },
   { id: 'horse', name: 'Horse',    desc: 'Tougher, faster, back sooner',                             cost: [80, 140, 220] },
   { id: 'arm',   name: 'Armour',   desc: 'Your captain: plate that soaks most of each blow. Never mends, buy it again', cost: [70] },

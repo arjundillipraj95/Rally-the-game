@@ -1,14 +1,15 @@
 // Battle rules: formations and soldiers' thinking.
 import { body } from '../body.js';
 import { CROWN2, TEAMS, CASTLE_REACH, JAVELIN, HEAVY } from '../../config.js';
-import { G, isEnemy, isEnemyTi, colorOf, activeArmies, gateOff } from '../state.js';
+import { G, isEnemy, isEnemyTi, colorOf, activeArmies, gateOff, capOf } from '../state.js';
 import { gatePos, rnd, angDiff, turn } from '../world.js';
-import { homeAt, squadOf } from './match.js';
+import { homeAt, squadOf, armyPlaces, placeOf } from './match.js';
 import { bowRange, orderOf, speedOf } from './army.js';
 import { nearestEnemyCastle, nearestFoe, startSwing } from './melee.js';
 import { guardRing } from './duel.js';
 import { startHeavy } from './guard.js';
 import { shoot, throwJavelin } from './missiles.js';
+import { throwerStep } from './thrower.js'; // (C2)
 import { c2GateA } from './crown2.js';
 import { faceTo, go, moveToward } from './move.js';
 import { champOf } from '../../champions/index.js';
@@ -78,6 +79,7 @@ export function thinkSoldier(u, dt) {
   u.routing = s.routT > 0;
   if (u.routing) { u.aim = false; u.holding = false; const [gx, gz] = G.crown ? (u.runTo || (u.runTo = homeAt(u.ti, 6))) : gatePos(TEAMS[colorOf(u.ti)], gateOff(u.ti), 6); go(u, gx, gz, speedOf(u), dt, 2); return; }
   if (u.guardOf) { guardRing(u, u.guardOf, dt); return; }
+  if (u.kind === 'thrower') { throwerStep(u, s, L, orderOf(u.ti), leaderUp, dt); return; } // (C2: the stone thrower has its own ways)
   // (CASTLE10) following a champion who is hacking at a gate or a nexus: the footmen join him at it (and soak its arrows)
   { const sg = s.siegeAt; if (sg && u.kind === 'foot' && G.T - sg.T < 2.5 && orderOf(u.ti) === 'follow' && !(u.fd < 3)) {
     if (Math.hypot(sg.x - u.x, sg.z - u.z) > (sg.r || 0) + 1.6) { go(u, sg.x, sg.z, speedOf(u), dt, (sg.r || 0) + 1); return; } u.face = Math.atan2(sg.x - u.x, sg.z - u.z); } }
@@ -159,7 +161,14 @@ export function thinkSoldier(u, dt) {
     if (d < 1) u.face = turn(u.face, anchor.face, dt * 6);
   } else { const [gx, gz] = G.crown ? (u.runTo || (u.runTo = homeAt(u.ti, 2))) : gatePos(TEAMS[colorOf(u.ti)], gateOff(u.ti), 2); go(u, gx, gz, u.spd, dt, 3); }
 }
-export function aiPick(ti) { const k = aiPick0(ti), ok = champOf(ti).recruits; return ok.includes(k) ? k : ok[Math.floor(Math.random() * ok.length)]; } // (C1e: his champion's soldiers)
+export function aiPick(ti) { // (C1e: his champion's soldiers)
+  const ok = champOf(ti).recruits;
+  if (ok.includes('thrower') && aiThrower(ti)) return 'thrower'; // (C2: a stone thrower now and then, when he has the places)
+  const k = aiPick0(ti), rest = ok.filter(x => x !== 'thrower');
+  return rest.includes(k) ? k : rest[Math.floor(Math.random() * rest.length)] || ok[0];
+}
+// (C2) a computer army fields a stone thrower when five places are free: one, and another for every 12 places it has
+const aiThrower = ti => armyPlaces(ti) + placeOf('thrower') <= capOf(ti) && squadOf(ti).filter(u => u.kind === 'thrower').length < 1 + Math.floor(capOf(ti) / 12) && Math.random() < .5;
 function aiPick0(ti) {
   const r = Math.random();
   if (G.diff === 2) {

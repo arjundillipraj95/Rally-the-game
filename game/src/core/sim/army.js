@@ -4,7 +4,7 @@ import { RANGED, CROWN2, CROWN, STATS, HUMAN_CAPTAIN, CAPTAIN_SPD, HORSE_HP, HOR
 import { G, isEnemy, colorOf, capOf, isC2 } from '../state.js';
 import { groundY, clamp, rnd, angDiff, W, groundSlow } from '../world.js';
 import { fx, say, sound, spark } from './util.js';
-import { homeAt, mkUnit, squadOf, startMarch } from './match.js';
+import { homeAt, mkUnit, squadOf, armyPlaces, placeOf, startMarch } from './match.js';
 import { applyFort, castleHere, fortLvl, fortifyGates, lastStand, nearestFoe, villageHere, volleyCharge, ditchSlow } from './step.js'; // (later files: through the entry, so files still load in the old order)
 import { swiftSpd } from './buffs.js';
 import { applyChamp, champSpd } from '../../champions/stats.js';
@@ -61,7 +61,7 @@ export function rallyCry(ti, at) {
 }
 export function canRecruit(ti) { const s = G.teams[ti]; return G.mode === 'crown' ? true : G.mode === 'conquest' ? G.teams[colorOf(ti)].alive : G.mode === 'dm' ? s.tickets > 0 : true; }
 export function recruit(ti, kind) {
-  const s = G.teams[ti], n = squadOf(ti).length, cost = STATS[kind].cost;
+  const s = G.teams[ti], n = armyPlaces(ti) + placeOf(kind) - 1, cost = STATS[kind].cost; // (C2: places, a stone thrower five)
   if (!champOf(ti).recruits.includes(kind)) return false; // (C1e: only the soldiers his champion recruits)
   if (!canRecruit(ti) || s.gold < cost || n >= capOf(ti)) return false;
   s.gold -= cost;
@@ -78,6 +78,7 @@ export const auraRange = ti => AURA.range + AURA.perRange * lvl(ti, 'aura');
 export const auraBonus = ti => AURA.bonus + AURA.perBonus * lvl(ti, 'aura');
 // Tier index (0/1/2) from how many of that line's upgrades are bought so far.
 export const footTier = ti => Math.min(2, lvl(ti, 'foot1') + lvl(ti, 'foot2'));
+export const throwerTier = ti => Math.min(2, lvl(ti, 'thr1') + lvl(ti, 'thr2')); // (C2: fire pots, then reinforced)
 export const archTier = ti => Math.min(2, lvl(ti, 'arch1') + lvl(ti, 'arch2'));
 export const upgradeCost = (ti, id) => {
   const def = UPGRADES.find(u => u.id === id);
@@ -119,12 +120,22 @@ function applyArchTier(ti) {
     u.dmg = t.dmg; u.spd = t.spd; u.range = t.range; u.shootBase = t.shoot; u.arrow = t.arrow; u.jitter = t.jitter; u.tier = tier; u.gap = t.cd;
   }
 }
+// (C2) fire pots and reinforcing reach the stone throwers already in the field
+function applyThrowerTier(ti) {
+  const tier = throwerTier(ti), t = unitRow(ti, 'thrower', tier);
+  for (const u of G.units) {
+    if (u.dead || u.ti !== ti || u.kind !== 'thrower') continue;
+    const nmax = t.hp * inflHp(ti); u.hp = Math.min(nmax, Math.max(1, u.hp + (nmax - u.max))); u.max = nmax;
+    u.dmg = t.dmg; u.spd = t.spd; u.range = t.range; u.shootBase = t.shoot; u.fire = !!t.fire; u.tier = tier; u.gap = t.cd;
+  }
+}
 export function buyUpgrade(ti, id) {
   if (id === 'aura' && isC2()) return false; // (C1e: no aura on the mountain)
   const s = G.teams[ti], cost = upgradeCost(ti, id);
   if (!s || cost == null || s.gold < cost || !UPGRADES.some(u => u.id === id)) return false;
   if (id === 'foot2' && lvl(ti, 'foot1') < 1) return false;
   if (id === 'arch2' && lvl(ti, 'arch1') < 1) return false;
+  if (id === 'thr2' && lvl(ti, 'thr1') < 1) return false; // (C2: fire pots first)
   s.gold -= cost;
   if (id === 'tower') { // built where the captain stands, a step ahead
     const L = s.leader, x = L.x + Math.sin(L.face) * 2.2, z = L.z + Math.cos(L.face) * 2.2;
@@ -145,6 +156,7 @@ export function buyUpgrade(ti, id) {
   s.up[id]++;
   if (id === 'foot1' || id === 'foot2') applyFootTier(ti);
   if (id === 'arch1' || id === 'arch2') applyArchTier(ti);
+  if (id === 'thr1' || id === 'thr2') applyThrowerTier(ti); // (C2)
   if (id === 'horse' && s.leader && !s.leader.mounted) s.leader.horseHp = horseMax(ti);
   if (id === 'horse' && s.leader && s.leader.horseCd > horseCooldown(ti)) s.leader.horseCd = horseCooldown(ti);
   if (ti === G.myTi) { sound('coin'); say('upgrade', ti, id, s.up[id]); }
@@ -218,7 +230,7 @@ export function horseDamage(r, dmg) {
   if (r.horseHp <= 0) dismount(r, true);
 }
 export const spearNear = (u, d) => G.units.some(o => !o.dead && !o.rest && isEnemy(o, u) && o.kind === 'foot' && o.tier >= 1 && Math.hypot(o.x - u.x, o.z - u.z) < d);
-export const braced = s => spearman(s) && s.stun <= 0 && Math.hypot(s.vx, s.vz) < 2.2;
+export const braced = s => spearman(s) && s.stun <= 0 && Math.hypot(s.vx, s.vz) < 2.2 && !(s.unbraceT > G.T); // (C2: not in a fire pot's flames)
 export function toggleHorseFor(p) {
   if (!p || p.dead) return;
   if (p.mounted) { dismount(p, false); return; }

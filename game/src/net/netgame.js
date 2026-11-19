@@ -3,13 +3,13 @@
 // how many soldiers are alive — more in a full 12-army Trio match — sent
 // about 12 times a second).
 import { CROWN2, CROWN26, SMOOTH, FEEL, NEUTRAL, HANDOVER } from '../config.js';
-import { SHOUTS, CROWN, HUMAN_CAPTAIN, ARMOUR, RHYTHM, BASH, EVADE, TEAMS, MAPS, KINDS, STATS, RECRUITS, ORDERS, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT, HOLD_ATK, PARRY } from '../config.js';
+import { SHOUTS, CROWN, HUMAN_CAPTAIN, ARMOUR, RHYTHM, BASH, EVADE, TEAMS, MAPS, KINDS, STATS, RECRUITS, ORDERS, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT, HOLD_ATK, PARRY, STONE } from '../config.js';
 import { G, bus, colorOf, isEnemyTi, activeFrom, ARMIES, duoStr, duoParse } from '../core/state.js';
 import { makeLayout, groundY, clamp, rnd, turn, angDiff } from '../core/world.js';
 import { buildNav, syncGates } from '../core/nav.js';
 import { c2Begin, c2Water, startMarch, marchStep, chasmFallY, c2Man } from '../core/sim.js';
 import { inSpear, spearBlow, spearReach } from '../core/spearhit.js';
-import { adoptBattle, applyCastleGates, applyPlazaWall, volleyCharge, captainBash, duelAct, duelOffer, duelTarget, initForts, applyFort, fortLvl, captainEvade, evadeKind, makeHolds, execTarget, rallyCry, blockPress, attackHold, attackRelease, rideRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
+import { adoptBattle, applyCastleGates, applyPlazaWall, volleyCharge, captainBash, duelAct, duelOffer, duelTarget, initForts, applyFort, fortLvl, captainEvade, evadeKind, makeHolds, execTarget, rallyCry, blockPress, attackHold, attackRelease, rideRelease, newTeams, makeArrow, captainAttack, toggleHorseFor, recruit, integrate, driveCaptain, fallStep, arrowsTick, softAim, setOrder, canRecruit, squadOf, armyPlaces, placeOf, buyUpgrade, upgradeCost, horseMax, orderVolley, makeCtrlPoints, captainCharge, chargeTimers, switchWeapon, airborne, aimRange, javTarget, regenJavs } from '../core/sim.js';
 import { session, isClient, isHost } from './session.js';
 import { makeP2PRoom } from './p2p.js';
 import { showMsg } from '../ui/messages.js';
@@ -31,6 +31,7 @@ import { eagleStep, flyEagle } from '../core/sim/eagle.js';
 import { endRam, flyRam, ramStep } from '../core/sim/ram.js';
 import { scutumPace, scutumTick, showScutum } from '../core/sim/scutum.js';
 import { aimChampPref } from '../core/sim/ranged.js'; // (RANGE1)
+import { stonesTick } from '../core/sim/thrower.js'; // (C2)
 
 export const C = {}; // client-side state
 if (import.meta.env.DEV) window.__netC = C; // dev-only: lets tests watch the client's snapshots
@@ -92,7 +93,10 @@ function encodeSnap() {
   // the mountain: the arena's phase, the war chest, the points that aren't places, and what's left of every guard, camp and the glacier
   const K = G.c2, c2 = K ? (() => { const ch = K.breaks.find(b => b.kind === 'chest'), one = o => { const k = Object.keys(o).find(a => o[a]); return k == null ? -1 : k; };
     return [['shut', 'open', 'night'].indexOf(K.phase), K.chest, ch ? Math.round(ch.hp) : 0, one(K.chestPts), one(K.crownPts), [0, 1, 2, 3].map(a => Object.values(K.kills[a] || {}).reduce((n, v) => n + v, 0)).join('.'), K.breaks.filter(b => b.kind !== 'chest').map(b => b.post ? b.units.reduce((m, u, k) => m | (u && !u.dead ? 1 << k : 0), 0) : Math.max(0, Math.round(b.hp))).join('.'), K.floodAt == null ? '' : Math.round(K.floodAt * 10), [0, 1, 2, 3].map(a => Object.entries(K.kills[a] || {}).map(([ti, v]) => ti + '_' + v).join('+')).join('.'), [0, 1, 2, 3].map(a => (K.nexusPts && K.nexusPts[a]) || 0).join('.'), [0, 1, 2, 3].map(a => (K.shards && K.shards[a]) || 0).join('.')].join(','); })() : ''; // (CASTLE8: nexus points, field 9; CASTLE6: shards, field 10) // (F7a: when the lake's countdown began)
-  return [Math.round(G.T * 10), teams, us.join(';'), ars.join(';'), hs.join(';'), fl, pl, G.bounty, hd, cp, fo, du, wt, cx, c2].join('|');
+  // (C2) stones in the air (s: id, from, to, how far along, fire pot, whose) and fire pots burning (f: id, where, seconds left)
+  const sf = [...G.stones.map(st => ['s', b36(st.id), encX(st.x0), encX(st.z0), encX(st.x1), encX(st.z1), b36(st.t * 100), st.fire ? 1 : 0, st.sh ? b36(st.sh.id) : ''].join(',')),
+    ...G.fires.map(f => ['f', b36(f.id), encX(f.x), encX(f.z), b36(Math.max(0, f.until - G.T) * 10)].join(','))].join(';');
+  return [Math.round(G.T * 10), teams, us.join(';'), ars.join(';'), hs.join(';'), fl, pl, G.bounty, hd, cp, fo, du, wt, cx, c2, sf].join('|');
 }
 // a remote player's blow landing (or landing on them) goes out at once rather than waiting for the
 // next regular snapshot, so their hits register as quickly as the network allows
@@ -408,6 +412,18 @@ function clientApply(hp) {
     G.arrows.push(a); if (a.bolt) bus.emit('boltShot', a); else sfx.bow(a.x0, a.z0);
   }
   if (C.arrowIds.size > 400) C.arrowIds = new Set([...C.arrowIds].slice(-200));
+  { // (C2) the stones and fire pots, as the host has them (new stones: its thrower swings its arm here too)
+    const have = new Map(G.stones.map(s => [s.id, s])), stones = [], fires = [];
+    for (const row of (secs[15] || '').split(';')) {
+      const f = row.split(','); if (f[0] === 's') {
+        const id = p36(f[1]), old = have.get(id), t = p36(f[6]) / 100; if (G.stoneLanded && G.stoneLanded.has(id)) continue;
+        if (old) { old.t = Math.max(old.t, t); stones.push(old); continue; }
+        const sh = f[8] ? C.byId.get(p36(f[8])) : null; if (sh) sh.throwT = G.T;
+        stones.push({ id, x0: decX(f[2]), z0: decX(f[3]), y0: 2.6 + groundY(decX(f[2]), decX(f[3])), x1: decX(f[4]), z1: decX(f[5]), t, fire: f[7] === '1', sh }); if (sh) sfx.thud && sfx.thud(sh.x, sh.z);
+      } else if (f[0] === 'f') fires.push({ id: p36(f[1]), x: decX(f[2]), z: decX(f[3]), r: STONE.fire.r, until: G.T + p36(f[4]) / 10 });
+    }
+    G.stones = stones; G.fires = fires;
+  }
   const hs = secs[4] ? secs[4].split(';').map(r => r.split(',')) : [];
   C.coming.length = Math.min(C.coming.length, hs.length);
   hs.forEach((f, i) => {
@@ -533,6 +549,7 @@ export function clientTick(dt) {
   for (const h of C.leaving) { h.t += dt; h.x += Math.sin(h.face) * 10 * dt; h.z += Math.cos(h.face) * 10 * dt; }
   C.leaving = C.leaving.filter(h => h.t < 3);
   arrowsTick(dt, false);
+  stonesTick(dt, false); // (C2: its copies of the stones fly and land here)
   // send my captain and my buttons
   if ((performance.now() - C.sendAt > 66 || C.sendNow) && G.state === 'play') {
     C.sendAt = performance.now(); C.sendNow = false;
@@ -798,7 +815,7 @@ export const actions = {
     if (G.state !== 'play') return;
     const st = STATS[kind], me = G.teams[G.myTi]; if (!st || !champOf(G.myTi).recruits.includes(kind)) return; // (C1e)
     if (!canRecruit(G.myTi)) { banner('No recruits', G.mode === 'dm' ? 'Your team is out of tickets' : 'You need a castle to recruit', '#e0352b'); return; }
-    if (squadOf(G.myTi).length >= capOf(G.myTi)) { banner('Army full', `${capOf(G.myTi)} soldiers is your limit${G.mode === 'crown' ? (G.layout && G.layout.map26 ? ': take castles for more' : ': take castles and villages for more') : ''}`); return; }
+    if (armyPlaces(G.myTi) + placeOf(kind) > capOf(G.myTi)) { banner('Army full', `${capOf(G.myTi)} places is your limit (a stone thrower takes ${placeOf('thrower')})${G.mode === 'crown' ? (G.layout && G.layout.map26 ? ': take castles for more' : ': take castles and villages for more') : ''}`); return; }
     if (me.gold < st.cost) { banner('Not enough gold', `A ${st.name.toLowerCase()} costs ${st.cost} gold`, '#ffcf3a'); return; }
     if (isClient()) { C.inp.rec[RECRUITS.indexOf(kind)]++; me.gold -= st.cost; C.goldLocalAt = performance.now(); G.recruited++; sfx.coin(); }
     else recruit(G.myTi, kind);

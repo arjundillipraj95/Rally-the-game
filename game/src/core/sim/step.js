@@ -5,7 +5,8 @@ import { stance, markBraces } from '../charge.js';
 import { groundY, clamp, rnd, angDiff, turn } from '../world.js';
 import { syncGates } from '../nav.js';
 import { fx, say, sound, spark } from './util.js';
-import { c2HomePt, homeAt, inwardOf, marchStep, mkUnit, squadOf, startMarch } from './match.js';
+import { c2HomePt, homeAt, inwardOf, marchStep, mkUnit, squadOf, armyPlaces, startMarch } from './match.js';
+import { champOf } from '../../champions/index.js'; // (C2)
 import { auraRange, behind, buyUpgrade, canRecruit, canRespawn, dismount, horseDamage, moraleTick, mountUp, onHold, orderOf, push, recruit, speedOf, upgradeCost } from './army.js';
 import { aiDmg, buildGrid, duelFoeOf, eachNear, nearestFoe, resolveSwing, shieldTick, sideToward, staminaTick, startSwing, winded } from './melee.js';
 import { duelTick, execMark, execTick } from './duel.js';
@@ -19,6 +20,7 @@ import { c2BreakInReach, c2Tick } from './crown2.js';
 import { neutralFoe, thinkNeutral } from './neutral.js';
 import { CC, captainAttack, chargeTimers, javMax, stepJump } from './captain.js';
 import { rangedTick, aimChampPref } from './ranged.js'; // (RANGE1)
+import { stonesTick } from './thrower.js'; // (C2)
 import { fallStep, integrate, moveToward, setPathBudget } from './move.js';
 import { respawnSpot, underAttack } from './respawn.js'; // (CASTLE7)
 import { xpTick } from './levels.js';
@@ -30,7 +32,7 @@ import { scutumTick, scutumPace } from './scutum.js';
 import { botFortify } from './ai26.js'; // (CASTLE9)
 import { thinkLeader } from './ai.js';
 import { aiPick, thinkSoldier } from './soldier.js';
-export { archTier, footTier, horseMax, speedOf } from './army.js'; // (for earlier files)
+export { archTier, footTier, throwerTier, horseMax, speedOf } from './army.js'; // (for earlier files)
 export { nearestFoe } from './melee.js'; // (for earlier files)
 export { duelFoe, soak } from './duel.js'; // (for earlier files)
 export { parry } from './guard.js'; // (for earlier files)
@@ -125,8 +127,8 @@ export function update(dt, input) {
         if (G.crown && G.T > 100 && s.leader && !s.leader.dead && upgradeCost(i, 'tower') != null && s.gold >= 140 && Math.random() < .25
           && G.holds.some(h => h.kind === 'castle' && h.owner === G.ALLY[colorOf(i)] && Math.hypot(h.x - s.leader.x, h.z - s.leader.z) < h.r + 6)) buyUpgrade(i, 'tower');
         if (!s.human && botFortify(i, s)) s.upT = rnd(3, 6); // (CASTLE9: a castle he stands in comes first)
-        else if (squadOf(i).length >= capOf(i) - 3 || !canRecruit(i)) {
-          const opts = UPGRADES.map(u => u.id).filter(id => id !== 'tower' && upgradeCost(i, id) != null && s.gold >= upgradeCost(i, id) + 30 && (id !== 'fort' || G.mode === 'crown' || (i < 4 && G.mode !== 'ctrl')) && (id !== 'arm' || G.diff >= 2));
+        else if (armyPlaces(i) >= capOf(i) - 3 || !canRecruit(i)) { // (C2: places)
+          const opts = UPGRADES.map(u => u.id).filter(id => id !== 'tower' && (!id.startsWith('thr') || champOf(i).recruits.includes('thrower')) && upgradeCost(i, id) != null && s.gold >= upgradeCost(i, id) + 30 && (id !== 'fort' || G.mode === 'crown' || (i < 4 && G.mode !== 'ctrl')) && (id !== 'arm' || G.diff >= 2));
           if (opts.length) buyUpgrade(i, opts[Math.floor(Math.random() * opts.length)]);
         }
       }
@@ -173,7 +175,7 @@ export function update(dt, input) {
   const ords = G.teams.map((_, i) => orderOf(i)), rng = G.teams.map((_, i) => auraRange(i) ** 2);
   for (const u of G.units) {
     if (u.dead || u.leader || u.neutral) continue;
-    if (u.kind !== 'arch') meleeN[u.ti]++; else archN[u.ti]++;
+    if (u.kind === 'arch') archN[u.ti]++; else if (u.kind !== 'thrower') meleeN[u.ti]++; // (C2: a thrower stands apart)
     const L = G.teams[u.ti].leader, dx = L ? L.x - u.x : 0, dz = L ? L.z - u.z : 0;
     u.aura = !isC2() && !!L && !L.dead && dx * dx + dz * dz < rng[u.ti]; // (C1e: on the mountain the champion's influence does this job)
     u.shieldwall = ords[u.ti] === 'shieldwall';
@@ -364,6 +366,7 @@ export function update(dt, input) {
   }
 
   arrowsTick(dt, true);
+  stonesTick(dt, true); // (C2: stones in the air, the fire on the ground)
   if (G.c2) c2Tick(dt); else updateFlag(dt);
   updateControlPoints(dt); holdsTick(dt);
   checkTime();

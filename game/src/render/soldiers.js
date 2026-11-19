@@ -781,6 +781,7 @@ export function drawSoldiers(units, dt, extra = null) {
   if (tg && !tg.dead) { lx = tg.x - cp.x; ly = tg.y + 1.3 - cp.y; lz = tg.z - cp.z; l2 = lx * lx + ly * ly + lz * lz; }
   const plan = crowdPlan(extra && extra.length ? [units, extra] : [units], tg, quality.cfg.near || 26, MAX_UNITS); // (PERF1c: hidden and fogged men left out; the nearest kept)
   lists: for (const u of plan) {
+    if (u.kind === 'thrower') continue; // (C2: drawn as the engine it is, render/throwers.js)
     if (l2 > 0 && u !== tg && !u.dead) {
       const a = stateOf(u);
       if (!u.neutral && !isEnemyTi(u.ti, G.myTi)) { // (neutral soldiers are never hidden: they're nobody's friends)

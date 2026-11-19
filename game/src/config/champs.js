@@ -78,3 +78,13 @@ export const CHAMP_LIMITS = {
 // champion keeps `keep` m from a melee champion and closes to `close` of her range. Targeting: the nearest enemy, or
 // champions first (the player's setting, 'rally-aim').
 export const RANGED = { speed: 40, thirdGap: .1, pace: .65, hold: .15, gallop: 8, keep: 9, close: .8 };
+
+// (C2) the stone thrower's stone (design doc, Units table): it can't hit within `min` m; a stone flies `flight` s in a
+// high arc (`peak` m) to where the mark stood, a marker on the ground the whole way for everyone; it lands on `area` m:
+// the thrower's damage at the centre down to `edge` of it at the rim; `gate` times on gates and walls; `chest` blows on
+// the war chest; never the glacier; a testudo takes `testudo` of it. Fire pots: every `fireEvery`th stone burns the
+// ground `fire.life` s over `fire.r` m, `fire.dps` a second to anyone of the other sides inside, and a braced line in it
+// loses its brace. On orders: Follow, `follow` m behind the champion; Hold and Charge, the biggest crowd (`crowd` men
+// within `area` of a mark) or the nearest gate in range.
+export const STONE = { min: 10, flight: 2, peak: 12, area: 3.5, edge: 1 / 3, gate: 4, chest: 6, testudo: .5, fireEvery: 3,
+  fire: { r: 3.5, life: 5, dps: 8 }, follow: 9, crowd: 3 };

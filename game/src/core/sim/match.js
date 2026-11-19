@@ -1,10 +1,10 @@
 // Battle rules: setting up a match, armies, units, the march out of home.
-import { STAMINA, CROWN2, FEEL, CROWN, ECON, TEAMS, STATS, HUMAN_CAPTAIN, START_SQUAD, FULL_SQUAD, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, CAPTAIN_COMBAT, CHEST } from '../../config.js';
+import { STAMINA, CROWN2, FEEL, CROWN, ECON, TEAMS, STATS, HUMAN_CAPTAIN, START_SQUAD, FULL_SQUAD, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, CAPTAIN_COMBAT, CHEST, PLACES } from '../../config.js';
 import { G, colorOf, activeArmies, activeFrom, gateOff, ARMIES, rules, matchTime, isC2, capOf } from '../state.js';
 import { groundY, gatePos, makeLayout, clamp, rnd } from '../world.js';
 import { buildNav } from '../nav.js';
 import { fx, say } from './util.js';
-import { applyCastleGates, applyPlazaWall, archTier, c2Begin, footTier, freshGates, horseMax, plateHp, initForts, makeCtrlPoints, makeHolds, moveToward, speedOf } from './step.js'; // (later files: through the entry, so files still load in the old order)
+import { applyCastleGates, applyPlazaWall, archTier, throwerTier, c2Begin, footTier, freshGates, horseMax, plateHp, initForts, makeCtrlPoints, makeHolds, moveToward, speedOf } from './step.js'; // (later files: through the entry, so files still load in the old order)
 import { assignChamps, champOf, myChamp } from '../../champions/index.js';
 import { applyChamp } from '../../champions/stats.js';
 import { inflHp } from '../../champions/influence.js';
@@ -19,12 +19,12 @@ export const champWeapon = (ti, w) => { const ws = champOf(ti).weapons; return w
 export function newTeams(humans, active = activeFrom([0, 0, 0, 0])) {
   return Array.from({ length: ARMIES }, (_, i) => ({ points: 100, tickets: rules().tickets, caps: 0, ctrlScore: 0, gold: isC2() ? CROWN2.startGold : Math.round(ECON.startGold * rules().gold), alive: true, lvl: 1, xp: 0, plan: null, leaderDeadT: 0, recruitT: rnd(2, 6), thinkT: 0,
     human: !!humans[i], active: !!active[i], order: 'follow', holdPt: null, morale: 100, rally: 0, routT: 0, focus: null, towerT: rnd(0, 1.4), leader: null,
-    up: { foot1: 0, foot2: 0, arch1: 0, arch2: 0, aura: 0, horse: 0, arm: 0, fort: 0 }, armBuys: 0, arrowHits: 0, shieldwallT: 0, volleyCd: 0, upT: rnd(20, 40) }));
+    up: { foot1: 0, foot2: 0, arch1: 0, arch2: 0, thr1: 0, thr2: 0, aura: 0, horse: 0, arm: 0, fort: 0 }, armBuys: 0, arrowHits: 0, shieldwallT: 0, volleyCd: 0, upT: rnd(20, 40) }));
 }
 export function mkUnit(ti, x, z, kind, human = false) {
   const st = STATS[kind];
-  const tier = kind === 'foot' || kind === 'captain' ? footTier(ti) : kind === 'arch' ? archTier(ti) : 0;
-  const base = kind === 'foot' || kind === 'arch' ? unitRow(ti, kind, tier) : st; // (C3a: his champion's soldiers)
+  const tier = kind === 'foot' || kind === 'captain' ? footTier(ti) : kind === 'arch' ? archTier(ti) : kind === 'thrower' ? throwerTier(ti) : 0;
+  const base = kind === 'foot' || kind === 'arch' || kind === 'thrower' ? unitRow(ti, kind, tier) : st; // (C3a: his champion's soldiers) (C2: and his stone throwers)
   const capB = kind === 'captain' ? CAPTAIN_TIERS[tier] : null;
   const u = { id: ++G.uid, ti, kind, leader: kind === 'captain', human, isMe: human && ti === G.myTi && G.role !== 'client', remote: human && ti !== G.myTi,
     x, z, y: groundY(x, z), vx: 0, vz: 0, vy: 0, face: Math.atan2(-x, -z),
@@ -41,7 +41,8 @@ export function mkUnit(ti, x, z, kind, human = false) {
     jy: 0, jvy: 0, jumpCd: 0, javAmmo: CAPTAIN_COMBAT.jav.ammo + tier, javRegen: 0, combo: 0, lastSwingT: -9, atkBuf: 0, st: STAMINA.max, stT: -9,
     neutral: false, post: null, pk: 0, px: 0, pz: 0, pface: 0, rest: false, tface: 0 }; // (F4: a garrison's man fills these in; every unit has them so they all share one shape)
   if (u.leader) applyChamp(u); // (C1d: his page's health and blow)
-  else if (kind === 'foot' || kind === 'arch') { u.max *= inflHp(ti); u.hp = u.max; } // (C1e: his champion's influence)
+  else if (kind === 'foot' || kind === 'arch' || kind === 'thrower') { u.max *= inflHp(ti); u.hp = u.max; } // (C1e: his champion's influence)
+  if (kind === 'thrower') { u.fire = !!base.fire; u.stones = 0; u.throwT = -9; } // (C2: fire pots; stones thrown; the arm's last swing)
   G.units.push(u); return u;
 }
 // (F7) Stepping out: a captain back on his feet (and at the start, with his men), or a soldier just raised, walks out
@@ -67,6 +68,9 @@ export function hl(ti, k, v) {
   if (k === 'streak') h.streak = Math.max(h.streak || 0, v); else h[k] = (h[k] || 0) + (v ?? 1);
 }
 export const squadOf = ti => G.units.filter(u => !u.dead && u.ti === ti && !u.leader);
+// (C2) army places: a stone thrower takes PLACES.thrower, every other soldier one
+export const placeOf = kind => PLACES[kind] || 1;
+export const armyPlaces = ti => squadOf(ti).reduce((n, u) => n + placeOf(u.kind), 0);
 // Where an army comes home to: its castle's gate; in the Crown, the place its side holds nearest its
 // captain (a castle or a village), or the plaza when it holds nothing (raiders).
 export function homeAt(ti, extra = 0) {
@@ -101,7 +105,7 @@ function c2Home(ti, extra, near) {
 export function adoptBattle() {
   G.role = 'host';
   const old = G.units.filter(u => !u.dead), byId = new Map(); let maxId = 0;
-  G.units = []; G.horses = []; G.arrows = []; G.duels = []; G.duelN = 1000;
+  G.units = []; G.horses = []; G.arrows = []; G.stones = []; G.fires = []; G.duels = []; G.duelN = 1000;
   for (const s of G.teams) s.leader = null;
   for (const o of old) {
     const human = o.kind === 'captain' && G.teams[o.ti].human;
@@ -129,7 +133,7 @@ export function adoptBattle() {
 export function startMatch(humans, active = activeFrom([0, 0, 0, 0])) {
   G.duo = [0, 1, 2, 3].map(c => !active[c] ? -1 : active[c + 8] ? 2 : active[c + 4] ? 1 : 0); // (before the layout: where the castles stand depends on who's in)
   G.layout = makeLayout(G.map.id, G.mode === 'ctf', G.mode === 'ctrl', G.seed); buildNav(G.layout);
-  G.units = []; G.horses = []; G.arrows = [];
+  G.units = []; G.horses = []; G.arrows = []; G.stones = []; G.fires = [];
   G.T = 0; G.kills = 0; G.recruited = 0; G.bounty = -1; G.uid = 0; G.arrowN = 0; G.endInfo = null; G.awarded = false; G.seasoned = false;
   G.teams = newTeams(humans, active);
   if (!G.champs || G.champs.length !== ARMIES) assignChamps({ [G.myTi]: myChamp() }); // (C1a: a start that didn't say)

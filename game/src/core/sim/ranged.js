@@ -39,15 +39,21 @@ export function rangedTarget(u) {
   if (best) return best;
   return structureInRange(u, R);
 }
-// a structure in bow range, as a melee champion would hit it: the nearest enemy gate or palisade (the obstacle buckets
-// round her, out to her range), else a watchtower, the chest, a nexus or the glacier (his reach stretched to her range)
-function structureInRange(u, R) {
+// the nearest enemy gate or palisade within R (and, for a stone thrower, at least `min` off): the obstacle buckets round
+// her, out to R (C2 uses it too)
+export function wallInRange(u, R, min = 0) {
   let w = null, bd = 1e9; const seen = new Set();
   for (let dx = -R; dx <= R; dx += 4) for (let dz = -R; dz <= R; dz += 4) for (const o of nearObstacles(u.x + dx, u.z + dz)) {
     if (seen.has(o)) continue; seen.add(o);
-    const d = Math.hypot(o.x - u.x, o.z - u.z) - (o.r || 0); if (d > R || d >= bd || !wallFoe(u, o)) continue;
+    const d = Math.hypot(o.x - u.x, o.z - u.z) - (o.r || 0); if (d > R || d < min || d >= bd || !wallFoe(u, o)) continue;
     bd = d; w = o;
   }
+  return w;
+}
+// a structure in bow range, as a melee champion would hit it: the nearest enemy gate or palisade (the obstacle buckets
+// round her, out to her range), else a watchtower, the chest, a nexus or the glacier (his reach stretched to her range)
+function structureInRange(u, R) {
+  let w = wallInRange(u, R);
   if (!w) { const r0 = u.reach; u.reach = R; try { w = towerInReach(u); } finally { u.reach = r0; } }
   return w ? { bld: w, x: w.x, z: w.z, r: w.r || 1 } : null;
 }
