@@ -48,3 +48,4 @@ Devi's page, specials and art (C4); the stone thrower (C2).
 2. Champion arrows ignore plain soldier shields; only raised blocks stop them (Shield of Cassius, shield wall, testudo).
 3. Default targeting: the nearest enemy; Settings can switch it to Champions first.
 4. Mounted: she shoots and uses her specials from the saddle, as Titus does (see C4).
+5. Strikers' army: 4 places to start, +3 for each castle held (`ARMY.striker`), set in this ticket.
