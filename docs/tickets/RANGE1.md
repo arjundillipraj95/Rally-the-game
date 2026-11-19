@@ -1,7 +1,7 @@
 # RANGE1 Ranged basic attack for champions
 
 Model: O · Written by the owner 18 Nov from the design doc (rev 159: Devi card, "Base champion", Battle screen) and the code on `launch26` (ff672e6)
-Status: ready (waiting for Arjun's go). Needed before C4 (Devi); every later Striker uses it.
+Status: ready, questions answered 18 Nov (waiting for Arjun's go). Needed before C4 (Devi); every later Striker uses it.
 
 ## What to build
 A champion page with `ranged: { ... }` shoots instead of swinging. Numbers live on the page (Devi: 24 a shot at 1.75/s, 14 m).
@@ -43,9 +43,8 @@ reach is paid with health and speed. Animation decides the look, code the effect
 ## Out of scope
 Devi's page, specials and art (C4); the stone thrower (C2).
 
-## Open questions (for Arjun)
-1. The counter rule (arrows x1.2 on infantry) makes her 24 into 28.8, so a footman dies in 4 arrows, not the card's 5.
-   Recommend: a champion's own arrows skip the counter (it's for soldiers' arrows).
-2. A plain footman's shield blocks 70% of frontal arrows today. Recommend: champion arrows ignore plain shields; only raised
-   blocks stop them (else she does half damage to every line).
-3. Default targeting: the Devi card says Nearest (Champions first off); the Battle screen says champion first. Which default?
+## Arjun's answers (18 Nov)
+1. A champion's own arrows skip the counter rule (24 stays 24: a footman in 5 arrows).
+2. Champion arrows ignore plain soldier shields; only raised blocks stop them (Shield of Cassius, shield wall, testudo).
+3. Default targeting: the nearest enemy; Settings can switch it to Champions first.
+4. Mounted: she shoots and uses her specials from the saddle, as Titus does (see C4).
