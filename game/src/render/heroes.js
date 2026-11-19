@@ -199,12 +199,12 @@ function clipHero(u, a, h, dt, sp, blocking, hurt, P, rate, tag) {
   }
   let turn = 0;
   if (h.an) {
-    const name = an.steps[an.i], loops = !!an.hold && an.i === an.steps.length - 1, full = an.legs || loco === 'idle', key = an.key + ':' + an.i;
+    const name = an.steps[an.i], loops = !!an.hold && an.i === an.steps.length - 1, full = an.legs || (loco === 'idle' && !h.sky), key = an.key + ':' + an.i;
     const S = an.swing, e = play(R, 'up', name, key, { fade: an.i ? ANIM.fast : an.fade || ANIM.fade, loop: loops, at: S ? Math.max(0, S.hit - S.lead) : 0 }); // (a blow is entered a little before it lands, so it lands when the rules say it does)
     e.act.timeScale = S ? (e.act.time < S.hit ? S.lead / (S.hd || ANIM.hitDelay) : S.after) : an.rate || 1; // (F25 hd: this blow's own landing time)
     if (an.cut && e.act.time >= e.C.dur * an.cut) e.act.timeScale = 0; // (FALL1: held at the cut: lying there while the rules keep him down)
     if (full) { const l = play(R, 'lo', name, key, { fade: an.i ? ANIM.fast : an.fade || ANIM.fade, loop: loops, at: e.act.time }); l.act.timeScale = e.act.timeScale; l.act.time = e.act.time; }
-    else play(R, 'lo', loco, 'L' + loco).act.timeScale = lrate;
+    else { const lg = h.sky && loco === 'idle' ? ANIM.skyLegs : loco; play(R, 'lo', lg, 'L' + lg).act.timeScale = lg === loco ? lrate : 1; } // (ARCH4: low on his knees under the storm)
     if (an.turn) { const k = clampN(e.act.time / e.C.dur, 0, 1); turn = -h.turn.d * (1 - k * k * (3 - 2 * k)); }
   } else {
     const l = play(R, 'lo', loco, 'L' + loco), e = play(R, 'up', loco, 'L' + loco, { fade: code ? ANIM.fade : ANIM.out, loop: true });
@@ -214,7 +214,7 @@ function clipHero(u, a, h, dt, sp, blocking, hurt, P, rate, tag) {
   h.coded = code;
   tick(R, dt, { P: code ? h.cur : h.U ? P : null, code, ride: !!h.U, reel: a });
   if (h.sky) { h.skyK = Math.min(1, (h.skyK || 0) + dt * 3); } else if (h.skyK) h.skyK = Math.max(0, h.skyK - dt * 3);
-  if (h.skyK && R.mx) { R.mx.Spine.rotateX(.5 * h.skyK); R.mx.Spine2.rotateX(.3 * h.skyK); } // (eased in and out)
+  if (h.skyK && R.mx) { R.mx.Spine.rotateX(ANIM.skyLean[0] * h.skyK); R.mx.Spine2.rotateX(ANIM.skyLean[1] * h.skyK); } // (eased in and out)
   return turn;
 }
 

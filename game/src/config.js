@@ -572,6 +572,7 @@ export const ANIM = {
   strikeFace: { yaw: { spearThrust: .74, spearLunge: .74, slashWide: 1.5 }, turn: .1, out: .2, arc: { slashWide: [-1.75, 1.2, .22] }, head: 1.05, chest: .52 },
   shaftGrip: { spear: .2, jav: .2 }, // (clips: these lie along the forearm, the point lifted this much, radians) // (his upper body while he stands or walks with this weapon)
   turn: { clip: 'turn180', min: 2.3, maxSpeed: 1.5, rate: 2 },
+  skyLegs: 'crouchIdle', skyLean: [-.45, -.3], // (ARCH4: archers loosing into the Arrow storm kneel low while they stand; their spine and chest lean back to the sky, rad)
   block: ['block', 'blockIdle'], blockHit: { clip: 'blockImpact', rate: 1.4 },
   impact: { clips: ['impact', 'impact2'], rate: 1.5, minDmg: .5 },
   death: { front: 'death', back: 'death2', rate: 1.15 },
