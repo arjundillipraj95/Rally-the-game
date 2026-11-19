@@ -93,3 +93,10 @@ body.bs #shoutTray[hidden]{display:none;}
 body.bs #shoutTray button{border-radius:999px;border:1px solid rgba(255,231,163,.55);background:rgba(16,14,8,.4);color:#fff;font:800 11px var(--body);padding:7px 10px;}
 body.bs #shoutTray button.ping{border-color:#ffd36e;color:#ffe7a3;}
 body.bs .pad .ab.locked .abI{display:none;}
+/* ARCH2: an upgrade's "i" and its card */
+.tray.up button{position:relative;}
+.tray.up button .uinfo{position:absolute;top:-7px;right:-7px;width:22px;height:22px;border-radius:50%;background:#2b2620;border:2px solid #e8c25a;color:#ffe7a3;font:800 13px/18px var(--body);text-align:center;text-decoration:none;font-style:italic;}
+#upInfo{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:60;min-width:240px;max-width:min(360px,80vw);padding:12px 14px;border-radius:14px;background:rgba(22,19,15,.94);border:2px solid #e8c25a;color:#f2ead8;font:600 13px var(--body);box-shadow:0 6px 24px rgba(0,0,0,.5);}
+#upInfo h5{margin:0 0 4px;font:800 18px var(--head,var(--body));color:#ffcf3a;text-transform:uppercase;} #upInfo p{margin:0 0 8px;color:#d8d2c4;}
+#upInfo table{width:100%;border-collapse:collapse;} #upInfo th{font-size:11px;color:#bdb39c;text-align:right;} #upInfo td{padding:2px 0;} #upInfo td+td{text-align:right;}
+#upInfo tr.ch td:last-child{color:#8fd07a;font-weight:800;}

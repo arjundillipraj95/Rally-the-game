@@ -11,6 +11,7 @@ import { holdStart, holdMove, holdEnd, holdCancel, hold as holdSt } from './hold
 import * as AB from './abilaim.js';
 import { RALLY, PINGS } from '../config.js';
 import { miniToWorld } from './pings.js';
+import { installUpInfo } from './upinfo.js';
 
 const $ = id => document.getElementById(id);
 export const inp = { joy: { active: false, id: null, ox: 0, oy: 0, x: 0, y: 0 }, look: { id: null, lx: 0, ly: 0 }, keys: {}, attackHeld: false, blockHeld: false, trayIsOpen: false, upIsOpen: false };
@@ -197,6 +198,7 @@ export function bindInput(actions) {
   document.querySelectorAll('#tray button').forEach(b => tapBtn(b, () => A.recruit(b.dataset.kind)));
   tapBtn($('upBtn'), () => upOpen(!inp.upIsOpen));
   document.querySelectorAll('#upTray button').forEach(b => tapBtn(b, () => A.upgrade(b.dataset.up)));
+  installUpInfo(); // (ARCH2: an "i" on each upgrade: what it changes)
 
   addEventListener('keydown', e => {
     if (G.state !== 'play') return; if (e.target && e.target.tagName === 'INPUT') return;
