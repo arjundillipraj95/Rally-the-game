@@ -17,6 +17,12 @@ import { champHit } from './turret.js'; // (CASTLE3)
 import { inflDmg, inflTaken } from '../../champions/influence.js';
 import { hitWall, hitTower } from './step.js'; // (RANGE1: a champion's arrow at a gate or a structure; later files: through the entry)
 
+// an arrow on a building: `k` of the shooter's blow (ARCH2: an archer's share; a blow-counted chest counts k of one)
+function bldHit(sh, b, k) {
+  const d0 = sh.dmg, h0 = b.kind === 'chest' ? b.hp : null; sh.dmg = d0 * k;
+  try { if (b.pal) hitWall(sh, b); else hitTower(sh, b); } finally { sh.dmg = d0; }
+  if (h0 != null && b.hp < h0 && b.hp > 0) b.hp = h0 - (h0 - b.hp) * k;
+}
 export function shoot(u, tg, fromY = 1.6) {
   if (G.c2 && u.kind === 'arch' && inFord(u.x, u.z)) return; // (the mountain's river: no bow work up to your knees in it)
   u.atkT = G.T; // (MAP5: seen once he shoots)
@@ -158,8 +164,8 @@ export function arrowsTick(dt, authoritative) {
     }
     if (a.t >= 1) {
       if (a.vis) { a.done = true; } // (C4: a special's arrow: its harm was dealt on its line)
-      else if (authoritative && a.champ && (a.bld || a.tg)) { // (RANGE1: on its mark, wherever he went)
-        if (a.bld) { const sh = a.shooter; if (sh && !sh.dead) { if (a.bld.pal) hitWall(sh, a.bld); else hitTower(sh, a.bld); } a.done = true; }
+      else if (authoritative && (a.bld || (a.champ && a.tg))) { // (RANGE1: on its mark, wherever he went)
+        if (a.bld) { const sh = a.shooter; if (sh && !sh.dead) bldHit(sh, a.bld, a.bk || 1); a.done = true; }
         else if (!a.tg.dead) { arrowHit(a, a.tg); a.done = true; } else { a.stuck = true; a.life = 3; }
       } else if (authoritative) {
         let best = null, bd = 1.0;

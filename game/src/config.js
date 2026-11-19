@@ -196,7 +196,7 @@ export const STATS = {
   captain: { hp: INF * UNITS.hp.champ, dmg: INF * UNITS.hit.champ, reach: 1.3,  cd: .6,  spd: 6.2, r: .62, block: .3 }, // (SPD1: = CAPTAIN_SPD.foot)
   foot:    { hp: INF, dmg: HIT, reach: 1.25, cd: .95, spd: 5.4, r: .55, block: .35, cost: 40, name: 'Footman' },
   arch:    { hp: INF * UNITS.hp.arch, dmg: 6,  reach: 1.1,  cd: 1.2, spd: 5.3, r: .5,  block: 0,   cost: 50, name: 'Archer', range: 22, shoot: 2.3, arrow: ARW, jitter: .8 },
-  thrower: { hp: INF * UNITS.hp.thrower, dmg: 45, reach: 0, cd: 6, spd: 3.2, r: 1.4, block: 0, cost: 200, name: 'Stone thrower', range: 40, shoot: 6 }, // (C2: 300 health; a stone 45 at its centre; reload 6 s; slow)
+  thrower: { hp: INF * UNITS.hp.thrower, dmg: 45, reach: 0, cd: 6, spd: 3.2, r: 1.4, block: 0, cost: 200, name: 'Stone thrower', range: 24, shoot: 6 }, // (C2: 300 health; a stone 45 at its centre; reload 6 s; slow)
 };
 // (SPD1) one speed for every captain, the player's or the computer's: on foot, and the horse's multiple
 export const CAPTAIN_SPD = { foot: 6.2, mount: 1.8 };
@@ -222,9 +222,9 @@ export const ARCH_TIERS = [
 // (C2) the stone thrower's tiers: base -> fire pots (every third stone burns the ground, a quicker reload) ->
 // reinforced (half again the health, longer range, faster on the move). Index = thr1 + thr2 bought.
 export const THROWER_TIERS = [
-  { hp: INF * UNITS.hp.thrower, dmg: 45, reach: 0, cd: 6, spd: 3.2, r: 1.4, block: 0, range: 40, shoot: 6, fire: false, name: 'Stone thrower' },
-  { hp: INF * UNITS.hp.thrower, dmg: 45, reach: 0, cd: 5.5, spd: 3.2, r: 1.4, block: 0, range: 40, shoot: 5.5, fire: true, name: 'Stone thrower (Fire pots)' },
-  { hp: INF * UNITS.hp.thrower * 1.5, dmg: 45, reach: 0, cd: 5.5, spd: 3.8, r: 1.4, block: 0, range: 50, shoot: 5.5, fire: true, name: 'Stone thrower (Reinforced)' },
+  { hp: INF * UNITS.hp.thrower, dmg: 45, reach: 0, cd: 6, spd: 3.2, r: 1.4, block: 0, range: 24, shoot: 6, fire: false, name: 'Stone thrower' },
+  { hp: INF * UNITS.hp.thrower, dmg: 45, reach: 0, cd: 5.5, spd: 3.2, r: 1.4, block: 0, range: 24, shoot: 5.5, fire: true, name: 'Stone thrower (Fire pots)' },
+  { hp: INF * UNITS.hp.thrower * 1.5, dmg: 45, reach: 0, cd: 5.5, spd: 3.8, r: 1.4, block: 0, range: 30, shoot: 5.5, fire: true, name: 'Stone thrower (Reinforced)' },
 ];
 // The captain rides the Footman upgrade line: a small stat bump plus the javelin at tier 1+,
 // so playing the captain always mirrors what the squad's Footman upgrades are doing.

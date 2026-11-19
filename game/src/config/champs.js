@@ -77,6 +77,9 @@ export const CHAMP_LIMITS = {
 // shot). Riding faster than `gallop` m/s, Attack held doesn't repeat: one ride-by shot a press. A computer ranged
 // champion keeps `keep` m from a melee champion and closes to `close` of her range. Targeting: the nearest enemy, or
 // champions first (the player's setting, 'rally-aim').
+// (ARCH2, Arjun 19 Nov) archers on buildings: a share of their blow; all of it once they shoot fire arrows. `scan`: how often an
+// idle archer looks for a building in bow range (seconds)
+export const ARCH_BLD = { k: .3, fire: 1, scan: .5 };
 export const RANGED = { speed: 40, thirdGap: .1, pace: .65, hold: .15, gallop: 8, keep: 9, close: .8 };
 
 // (C2) the stone thrower's stone (design doc, Units table): it can't hit within `min` m; a stone flies `flight` s in a

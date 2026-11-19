@@ -10,6 +10,7 @@ import { guardRing } from './duel.js';
 import { startHeavy } from './guard.js';
 import { shoot, throwJavelin } from './missiles.js';
 import { throwerStep } from './thrower.js'; // (C2)
+import { archerFocus, archerIdle } from './archsiege.js'; // (ARCH2)
 import { c2GateA } from './crown2.js';
 import { faceTo, go, moveToward } from './move.js';
 import { champOf } from '../../champions/index.js';
@@ -85,7 +86,10 @@ export function thinkSoldier(u, dt) {
     if (Math.hypot(sg.x - u.x, sg.z - u.z) > (sg.r || 0) + 1.6) { go(u, sg.x, sg.z, speedOf(u), dt, (sg.r || 0) + 1); return; } u.face = Math.atan2(sg.x - u.x, sg.z - u.z); } }
   // ordered at one enemy group: go for the men around it
   if (orderOf(u.ti) === 'focus' && s.focus) {
+    if (u.kind === 'arch' && archerFocus(u, s, dt)) return; // (ARCH2: ordered at a building, archers shoot it)
     let best = null, bd = 1e9;
+    const mark = s.focus.id ? G.units.find(o => o.id === s.focus.id && !o.dead && isEnemy(o, u)) : null; // (ARCH2: ordered at a man, they go for him)
+    if (mark) { best = mark; bd = Math.hypot(mark.x - u.x, mark.z - u.z); } else
     for (const o of G.units) { if (o.dead || !isEnemy(o, u) || Math.hypot(o.x - s.focus.x, o.z - s.focus.z) > 9) continue; const d = Math.hypot(o.x - u.x, o.z - u.z); if (d < bd) { bd = d; best = o; } }
     if (best) { u.foe = best; u.fd = bd; } else if (Math.hypot(s.focus.x - u.x, s.focus.z - u.z) > (s.focus.id ? 3 : 1.6)) { go(u, s.focus.x, s.focus.z, speedOf(u), dt, s.focus.id ? 2 : 1); return; } // (ORD1: a gate, nexus or chest (id 0): right up to it)
     else if (!s.focus.id) u.face = Math.atan2(s.focus.x - u.x, s.focus.z - u.z); // (facing it: the strike rules in step.js do the rest)
@@ -106,6 +110,7 @@ export function thinkSoldier(u, dt) {
     const [rider, rd] = nearestFoe(u, 9, o => o.mounted);
     if (rider) { moveToward(u, u.x, u.z, 0, dt); faceTo(u, rider.x, rider.z, dt, 10); if (rd < u.r + rider.r + u.reach) startSwing(u, rider); u.holding = myOrder === 'hold'; return; }
   }
+  if (u.kind === 'arch' && myOrder !== 'focus' && !(u.foe && u.fd <= range)) archerIdle(u, dt); // (ARCH2: no man in bow range: the nearest building in it, as they keep their place)
   if (myOrder === 'hold' && s.holdPt) { holdPlace(u, s.holdPt, dt, range); return; }
   if (myOrder === 'follow' && leaderUp && L.scutum) { shelter(u, L, dt, range); return; } // (C3c: in behind his raised scutum)
   const engage = myOrder === 'charge' || myOrder === 'focus' ? 45 : u.kind === 'arch' ? range : myOrder === 'hold' ? 8 : 10;

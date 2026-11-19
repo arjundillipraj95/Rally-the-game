@@ -52,7 +52,7 @@ export function wallInRange(u, R, min = 0) {
 }
 // a structure in bow range, as a melee champion would hit it: the nearest enemy gate or palisade (the obstacle buckets
 // round her, out to her range), else a watchtower, the chest, a nexus or the glacier (his reach stretched to her range)
-function structureInRange(u, R) {
+export function structureInRange(u, R) {
   let w = wallInRange(u, R);
   if (!w) { const r0 = u.reach; u.reach = R; try { w = towerInReach(u); } finally { u.reach = r0; } }
   return w ? { bld: w, x: w.x, z: w.z, r: w.r || 1 } : null;
