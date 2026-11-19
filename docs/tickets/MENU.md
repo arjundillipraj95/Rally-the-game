@@ -1,7 +1,7 @@
 # MENU1-4 Main menu and the Champions screen
 
 Model: O · Arjun 18 Nov (mockup approved: https://claude.ai/artifact/QpEWL4axf2kzPokpobFPNZ), design rev 160
-Status: MENU1-4 built and tested on launch26 (r_MENU1-4)
+Status: MENU1-4 shipped to main 18 Nov (r_MENU1-4, crown2sim, crown2online pass)
 
 ## What to build
 - MENU1 Portraits: one picture per champion (tile 256x200, minimap face 128, 16:9 splash). Baked from the 3D model
