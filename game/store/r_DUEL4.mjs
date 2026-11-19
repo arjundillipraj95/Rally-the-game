@@ -6,7 +6,7 @@ const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromi
 let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); if (!c) fails++; };
 const page = await open(browser, 844, 390, { q: '?crown2=1&champ=devi&botchamp=titus' });
 await page.click('#segMode button[data-v="crown"]'); await page.click('#goBtn'); await frames(page, 4);
-const rig = () => page.evaluate(async () => { const H = await import('/src/render/heroes.js'), Rg = await import('/src/render/rig/cliprig.js'), h = H.heroOf(window.__fb.G.player); if (!h) return { err: 'no rig' }; if (!h.cg) return { err: 'no gear', clip: !!h.R && !!h.R.clip, keys: Object.keys(h).join() }; const e = Rg.head(h.R, 'lo'); return { bowHand: !!h.cg.bow.visible, daggers: !!(h.cg.arrow2 && h.cg.arrow2.visible), lo: e ? e.C.name || (e.act.getClip().name) : '' }; });
+const rig = () => page.evaluate(async () => { const Rg = await import('/src/render/rig/cliprig.js'), h = window.__live.get(window.__fb.G.player); if (!h) return { err: 'no rig' }; if (!h.cg) return { err: 'no gear', clip: !!h.R && !!h.R.clip, keys: Object.keys(h).join() }; const e = Rg.head(h.R, 'lo'); return { bowHand: !!h.cg.bow.visible, daggers: !!(h.cg.arrow2 && h.cg.arrow2.visible), lo: e ? e.C.name || (e.act.getClip().name) : '' }; });
 // one battle: a duel ended by a draw, then by the clock, then won (the foe beaten)
 for (const why of ['draw', 'time', 'win']) {
   const o = await page.evaluate(async why => {

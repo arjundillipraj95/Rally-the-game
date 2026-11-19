@@ -482,3 +482,6 @@ Last updated: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pag
 - DUEL4 (19 Nov, Arjun: Devi didn't go back to her bow after a duel): the rig kept the clip it was playing when the
   duel flipped (same move key), so standing still or strafing on she stayed in the dagger stance. `duelLook` now
   clears both layers' keys. r_DUEL4 (draw, time, win: daggers in, then shots, bow in hand, bowIdle).
+- SPLIT2 (19 Nov): render/heroes.js (493) split by job, behaviour unchanged: `heroload.js` (models loaded, `make` a
+  figure, looks, far figures' geometry), `herohorse.js` (gaits, riderless horses), `herofar.js` (distant batches),
+  `heroes.js` (posing, clips, the fallen; re-exports drawFar/drawFreeHorses). 277/139/67/48 lines.
