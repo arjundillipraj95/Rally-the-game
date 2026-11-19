@@ -15,7 +15,7 @@ for (const x of [b, c]) delete x.page;
 await browser.close();
 let fails = 0; const ok = (v, m) => { console.log((v ? 'ok   ' : 'FAIL ') + m); if (!v) fails++; };
 console.log(JSON.stringify({ a, b, c, d }));
-ok(a.body.champ === 1.4 && a.body.soldier === 1.3 && Math.abs(a.champ - 1.22 * 1.4) < .01 && Math.abs(a.foot - 1.22 * .8 * 1.3) < .01, `defaults: champion drawn ${a.champ}, footman ${a.foot}`);
+ok(a.body.champ === 1.3 && a.body.soldier === 1.45 && Math.abs(a.champ - 1.22 * 1.3) < .01 && Math.abs(a.foot - 1.22 * .8 * 1.45) < .01, `defaults: champion drawn ${a.champ}, footman ${a.foot}`);
 ok(Math.abs(b.champ - 1.22 * 1.45) < .01 && Math.abs(b.foot - 1.22 * .8 * 1.25) < .01, `?bodyc=1.45&bodys=1.25: ${b.champ}, ${b.foot}`);
 ok(c.body.champ === 1.45 && c.body.soldier === 1.25, 'kept on the phone for the next match');
 ok(d.body.champ === 1.4 && d.body.soldier === 1.3, '?bodyc= alone puts the defaults back');

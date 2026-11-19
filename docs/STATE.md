@@ -451,7 +451,7 @@ Last updated: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pag
 - FALL1 (18 Nov): "Titus keeps falling": the Ram's wall slam and the pull down played the whole 4.8 s knockdown clip (+2.5 s get-up) while he could move after 0.7-1 s. Now the fall (first 22%, fast), held for the act's `down` s, a quick get-up; moving/swinging/blocking cancels (`ANIM.acts` rate/cut, heroes.js clipHero). Acts' `then` now chains for any act. r_FALL1.
 
 - CORPSE1: the fallen stay in the new bodies: one who fell out of sight (light far figure) is drawn full when near (nearest `QUALITY.corpses`, render/crowd.js), already lying (death clip at its end), and through the sinking (the old figure no longer takes deadT > 14). The light far figure itself is still the old look: its own ticket. r_CORPSE1.
-- SIZE2: `BODY_SIZE` champ 1.3, soldier 1.45 (Arjun's option A; was 1.4/1.3).
+- SIZE2: `BODY_SIZE` champ 1.3, soldier 1.45 (Arjun's option A; was 1.4/1.3). r_SIZE1 defaults updated; its "drawn" sizes read 0 (heroScale) already before 18 Nov: stale check, to look at.
 
 ## Known bugs
 - (fixed in AI1) A computer captain sometimes stood at the glacier at night without striking.
