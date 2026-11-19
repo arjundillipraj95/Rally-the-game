@@ -467,7 +467,7 @@ Last updated: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pag
   Settings "Arrows aim at" (was a duplicate segTarget id). Check by eye: bow/arrow fit in her hands, horse_devi seat.
   Open: thrower crew figures and creak/fire sounds (C2 leftovers); r_C1a's #segChamp check is stale since MENU4.
   Tests: a long-running Vite can stamp a module `?t=` and split it in two (r_RANGE1 failed): restart servers.sh first.
-- ARCH2 (19 Nov, Arjun's go after playing Devi; not on main yet): archers of every army shoot buildings (ordered at one,
+- ARCH2 (19 Nov, Arjun's go after playing Devi; on main 19 Nov): archers of every army shoot buildings (ordered at one,
   or with no man in bow range) at 30% (`ARCH_BLD`), full with fire arrows; ordered at a man they go for him. Stone
   throwers 24 m / Reinforced 30. Upgrade panel: own soldiers' columns only, next tier each, an "i" with numbers now/after
   (`ui/upinfo.js`). Bow champions carry no shield; bow in the left fist, arrow in the right (grips from the clips' full
@@ -476,3 +476,6 @@ Last updated: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pag
   sky (`render/devifx.js`). Tests r_ARCH2, r_ARCH2-ui; `store/look.mjs` takes real close-ups (software GL).
   Open: storm archers do not kneel (lean back only); r_RANGE1-join's 60-damage bar is borderline (56-67) since the
   joined phone now decodes her arrows' target correctly.
+- ARCH3 (19 Nov, on main): arrows in an arrow's proportions (0.9 m, thin shaft, small head, three feathers), a little
+  larger with camera distance; a soft trail from the feathers that fades out; fire arrows carry a flickering flame
+  (`render/arrowfx.js`). Open: the flame is small (0.26 m cone).
