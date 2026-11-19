@@ -383,7 +383,8 @@ function clipHero(u, a, h, dt, sp, blocking, hurt, P, rate, tag) {
   if (h.turn && (code || tag !== 'loco')) h.turn = null;
   // the move his clips should show, most pressing first
   const X = u.act && ANIM.acts[u.act.name] ? u.act : null, xKey = X ? X.name + X.t : null;
-  if (h.xHeld && (!X || !X.hold || xKey !== h.xHeld.key)) { const then = ANIM.acts[h.xHeld.name].then; if (then) h.xAfter = { name: then, key: then + T, steps: ANIM.acts[then].steps, legs: ANIM.acts[then].legs }; h.xHeld = null; }
+  if (h.xHeld && (!X || !X.hold || xKey !== h.xHeld.key)) { const then = ANIM.acts[h.xHeld.name].then; if (then) h.xAfter = { name: then, key: then + T, steps: ANIM.acts[then].steps, legs: ANIM.acts[then].legs, rate: ANIM.acts[then].rate, cut: ANIM.acts[then].cut }; h.xHeld = null; }
+  if (h.an && /^(knockdown|getUp)/.test(h.an.key) && (sp > 1.5 || u.swing > 0 || blocking)) { if (X && X.name === 'knockdown') h.xDone = xKey; h.an = null; h.xAfter = null; } // (FALL1: up and moving or fighting: the knockdown lets go at once)
   const imp = ANIM.impact, bh = ANIM.blockHit;
   let W = null;
   if (code) W = null;
@@ -392,15 +393,16 @@ function clipHero(u, a, h, dt, sp, blocking, hurt, P, rate, tag) {
   else if (blocking && T - h.blockHitT >= 0 && T - h.blockHitT < C[bh.clip].dur / bh.rate) W = { key: 'bh' + h.blockHitT, steps: [bh.clip], rate: bh.rate, fade: ANIM.fast };
   else if (blocking) W = { key: 'blk' + h.blkN, steps: ANIM.block, hold: true };
   else if (h.impT != null && T - h.impT < C[imp.clips[h.impN % imp.clips.length]].dur / imp.rate) W = { key: 'imp' + h.impN, steps: [imp.clips[h.impN % imp.clips.length]], rate: imp.rate, fade: ANIM.fast };
-  else if (X && (X.hold || h.xDone !== xKey)) { W = { key: xKey, steps: ANIM.acts[X.name].steps, legs: ANIM.acts[X.name].legs, hold: !!X.hold, act: true }; if (X.hold) h.xHeld = { name: X.name, key: xKey }; }
+  else if (X && (X.hold || h.xDone !== xKey)) { W = { key: xKey, steps: ANIM.acts[X.name].steps, legs: ANIM.acts[X.name].legs, hold: !!X.hold, act: true, name: X.name, rate: ANIM.acts[X.name].rate, cut: ANIM.acts[X.name].cut, down: X.down, t0: X.t }; if (X.hold) h.xHeld = { name: X.name, key: xKey }; }
   else if (h.xAfter) W = h.xAfter;
   if (W && !(h.an && h.an.key === W.key)) h.an = { ...W, i: 0 }; else if (!W) h.an = null;
   const an = h.an, [loco, lrate] = locoClip(u, h, sp);
   if (an) { // step through the move's clips; a finished move lets go
     const e = head(R, 'up'), last = an.i >= an.steps.length - 1;
-    if (e && e.name === an.steps[an.i] && R.up.key === an.key + ':' + an.i && ended(e)) {
+    const cutAt = an.cut && e && e.act.time >= e.C.dur * an.cut, lying = an.down && G.T < an.t0 + an.down; // (FALL1: a cut clip ends at its cut, or once he's no longer down)
+    if (e && e.name === an.steps[an.i] && R.up.key === an.key + ':' + an.i && (ended(e) || (cutAt && !lying))) {
       if (!last) an.i++;
-      else if (!an.hold) { if (an.act) h.xDone = an.key; if (an === h.xAfter || (h.xAfter && an.key === h.xAfter.key)) h.xAfter = null; if (an.turn) h.turn = null; h.an = null; }
+      else if (!an.hold) { if (an.act) h.xDone = an.key; const nx = an.act && ANIM.acts[an.name] && ANIM.acts[an.name].then; if (nx) { const A = ANIM.acts[nx]; h.xAfter = { name: nx, key: nx + T, steps: A.steps, legs: A.legs, rate: A.rate, cut: A.cut }; } if (an === h.xAfter || (h.xAfter && an.key === h.xAfter.key)) h.xAfter = null; if (an.turn) h.turn = null; h.an = null; } // (FALL1: a move's follow-on, e.g. the get-up)
     }
   }
   let turn = 0;
@@ -408,6 +410,7 @@ function clipHero(u, a, h, dt, sp, blocking, hurt, P, rate, tag) {
     const name = an.steps[an.i], loops = !!an.hold && an.i === an.steps.length - 1, full = an.legs || loco === 'idle', key = an.key + ':' + an.i;
     const S = an.swing, e = play(R, 'up', name, key, { fade: an.i ? ANIM.fast : an.fade || ANIM.fade, loop: loops, at: S ? Math.max(0, S.hit - S.lead) : 0 }); // (a blow is entered a little before it lands, so it lands when the rules say it does)
     e.act.timeScale = S ? (e.act.time < S.hit ? S.lead / (S.hd || ANIM.hitDelay) : S.after) : an.rate || 1; // (F25 hd: this blow's own landing time)
+    if (an.cut && e.act.time >= e.C.dur * an.cut) e.act.timeScale = 0; // (FALL1: held at the cut: lying there while the rules keep him down)
     if (full) { const l = play(R, 'lo', name, key, { fade: an.i ? ANIM.fast : an.fade || ANIM.fade, loop: loops, at: e.act.time }); l.act.timeScale = e.act.timeScale; l.act.time = e.act.time; }
     else play(R, 'lo', loco, 'L' + loco).act.timeScale = lrate;
     if (an.turn) { const k = clampN(e.act.time / e.C.dur, 0, 1); turn = -h.turn.d * (1 - k * k * (3 - 2 * k)); }

@@ -448,6 +448,8 @@ Last updated: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pag
 - MENU3 home: Captain button gone (closet code kept for skins), top bar Silver 0, your main on the stage with his name (a tap opens his card: `#homeChamp` follows him), friends in their mains, Solo/Duo/Trio follow the party, "2 × Titus" note (`homeInfo` in app/home.js). r_MENU3.
 - MENU4 Settings > Champion: Main and Backup pickers (owned only, None + note while one is owned), replaces C1a's segChamp (old r_C1a/r_C3*-join check segChamp: stale lines). r_MENU4.
 
+- FALL1 (18 Nov): "Titus keeps falling": the Ram's wall slam and the pull down played the whole 4.8 s knockdown clip (+2.5 s get-up) while he could move after 0.7-1 s. Now the fall (first 22%, fast), held for the act's `down` s, a quick get-up; moving/swinging/blocking cancels (`ANIM.acts` rate/cut, heroes.js clipHero). Acts' `then` now chains for any act. r_FALL1.
+
 ## Known bugs
 - (fixed in AI1) A computer captain sometimes stood at the glacier at night without striking.
 - High only: a black wedge down the left edge at the Crown start. Not reproduced on 13 Nov (F14): F1a's exact

@@ -27,5 +27,5 @@ bus.on('fxmsg', e => {
   pow(u.x, y + 1.3, u.z, 'PULLED DOWN!', '#ffc53a', 3);
   const me = G.player; if (me && Math.hypot(me.x - u.x, me.z - u.z) < 14) bus.emit('shake', .4);
   if (e.a === G.player || u === G.player) bus.emit('hitstop', .1);
-  if (!u.mounted) u.act = { name: 'knockdown', t: G.T };
+  if (!u.mounted) u.act = { name: 'knockdown', t: G.T, down: PULL.stun }; // (FALL1: down as long as the rules keep him down)
 });
