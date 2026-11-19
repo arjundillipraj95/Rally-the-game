@@ -486,7 +486,7 @@ Last updated: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pag
   figure, looks, far figures' geometry), `herohorse.js` (gaits, riderless horses), `herofar.js` (distant batches),
   `heroes.js` (posing, clips, the fallen; re-exports drawFar/drawFreeHorses). 277/139/67/48 lines.
 - TEST5 (19 Nov): r_C1a reads Settings > Main (MENU4) and the champion list, not the gone #segChamp; r_RANGE1-join
-  passes at 6 shots/40+ damage (was 60, borderline 56-67); r_C4's Arrow storm runs on a fixed scatter (0 of 5 hurt
+  passes at 3+ shots and any damage (was 60; men walking through her line take arrows, 24-67 seen); r_C4's Arrow storm runs on a fixed scatter (0 of 5 hurt
   happened by chance: 32 arrows over a 5 m ring). Note for design: the storm reliably hurts only 2-4 of 5 men there.
 - ARCH4 (19 Nov): storm archers kneel: standing under her Arrow storm, legs play `crouchIdle` (ANIM.skyLegs; no
   one-knee clip in the packs), the draw on the upper body; walking they keep walking. The sky lean was bending them
