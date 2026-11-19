@@ -25,6 +25,14 @@ const slabTex = (() => {
   g.fillStyle = 'rgba(255,240,200,1)'; rr(18, 22, 92, 16, 8); g.fill(); // (where he stops)
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 })();
+// (ARCH2) a shot's line, as Spirit Shackle shows it: a narrow gold lane with a bright core and an arrowhead at its end
+const lineTex = (() => {
+  const c = document.createElement('canvas'); c.width = 64; c.height = 512; const g = c.getContext('2d');
+  const gr = g.createLinearGradient(0, 512, 0, 0); gr.addColorStop(0, 'rgba(255,214,110,.55)'); gr.addColorStop(1, 'rgba(255,214,110,.2)');
+  g.fillStyle = gr; g.fillRect(10, 40, 44, 472); g.fillStyle = 'rgba(255,248,220,.95)'; g.fillRect(28, 40, 8, 472); // (the lane, its bright core)
+  g.fillStyle = 'rgba(255,236,170,1)'; g.beginPath(); g.moveTo(32, 0); g.lineTo(62, 46); g.lineTo(2, 46); g.closePath(); g.fill(); // (the head)
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+})();
 let slab = null, ring = null;
 const clear = () => { drop(slab); drop(ring); slab = ring = null; };
 
@@ -84,10 +92,15 @@ export function drawAbilAim() {
     if (!slab || Math.abs(slab.userData.len - len) > .05) { const t0 = slab ? slab.userData.t0 : performance.now(); drop(slab); slab = decal(slabTex, wd, len, { add: false, from: 0, opacity: op }); slab.userData.len = len; slab.userData.t0 = t0; }
     if (slab.material) slab.material.opacity = op * Math.min(1, (performance.now() - slab.userData.t0) / 150); // (RAM2: fades in over 0.15 s)
     place(slab, p.x, p.z, a, .14);
+  } else if (d.len && !d.r) { // (ARCH2: a shot down a line: Piercing shot, Tiger's volley)
+    const len = d.len, wd = (d.w || .6) * 2 + .5;
+    if (!slab || Math.abs(slab.userData.len - len) > .05) { drop(slab); slab = decal(lineTex, wd, len, { add: false, from: 0, opacity: op }); slab.userData.len = len; slab.userData.t0 = performance.now(); }
+    place(slab, p.x, p.z, a, .14);
   } else {
-    const at = point(); if (!at) return; const r = slot === 'sp2' ? 1.6 : slot === 'armyUlt' ? 3 : d.r || 2;
+    const at = point(); if (!at) return; const r = d.aimAway ? 1 : slot === 'sp2' ? 1.6 : slot === 'armyUlt' ? d.r || 3 : d.r || 2;
     if (!ring) ring = decal(ringTex, r * 2, r * 2, { add: false, from: .5, opacity: op, color: 0xdfeaff });
-    place(ring, slot === 'sp2' ? p.x + Math.sin(a) * 1.6 : at.x, slot === 'sp2' ? p.z + Math.cos(a) * 1.6 : at.z, a, .14);
+    const k = d.aimAway ? d.dist || 5 : 1.6; // (ARCH2: a dodge's ring where she lands)
+    place(ring, slot === 'sp2' ? p.x + Math.sin(a) * k : at.x, slot === 'sp2' ? p.z + Math.cos(a) * k : at.z, a, .14);
   }
 }
 // (tests) what's on the ground now

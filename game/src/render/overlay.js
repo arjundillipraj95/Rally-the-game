@@ -20,6 +20,7 @@ import { gatePct, plateHp } from '../core/sim/forts.js';
 import { drawTurretRange } from './turretring.js';
 import { drawEagle } from './eaglefx.js';
 import { drawRam } from './ramfx.js';
+import { drawDevi } from './devifx.js'; // (ARCH2)
 import { drawScutum } from './scutumfx.js';
 import { drawTestudo } from './testudofx.js';
 import { drawCaptureCircles } from './captring.js';
@@ -150,7 +151,7 @@ export function drawOverlay(opts) {
     drawWindups(); drawDuelSide(); drawDuels(); drawBeat(); drawStars(); drawFinish(); drawStreak();
     drawBubbles();
     if (G.flag) drawFlagPointer();
-    if (G.mode === 'ctrl') drawControlLabels(); drawHoldLabels(); drawGateBars(); drawTurretRange(ctx, proj); drawEagle(ctx, proj); drawRam(ctx, proj); drawScutum(ctx, proj); drawTestudo(ctx, proj); drawCaptureCircles(ctx, proj); drawCastleAlerts(ctx, proj); drawNexus(ctx, proj); // (CASTLE3, CASTLE4, CASTLE5, CASTLE8)
+    if (G.mode === 'ctrl') drawControlLabels(); drawHoldLabels(); drawGateBars(); drawTurretRange(ctx, proj); drawEagle(ctx, proj); drawRam(ctx, proj); drawDevi(); drawScutum(ctx, proj); drawTestudo(ctx, proj); drawCaptureCircles(ctx, proj); drawCastleAlerts(ctx, proj); drawNexus(ctx, proj); // (CASTLE3, CASTLE4, CASTLE5, CASTLE8)
     if (G.mode === 'dm' && G.bounty === G.myTi && player && !player.dead && (performance.now() / 500 % 1) < .7) {
       ctx.font = 'italic 18px Bangers, Impact, sans-serif'; ctx.fillStyle = '#ffcf3a'; ctx.fillText('BOUNTY ON YOU', W / 2, 118);
     }

@@ -23,6 +23,7 @@ import { champOf } from '../champions/index.js';
 import { warHorse, cloneHorse } from './warhorse.js';
 import { tierLook, archerQuiver } from './rig/tierlook.js';
 import { loadChampGear, champGear, champHorse, duelLook, champSwing, archerBow } from './rig/champgear.js';
+import { skyShot } from './devifx.js';
 import { CHAMPS } from '../champions/index.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
@@ -399,7 +400,8 @@ function clipHero(u, a, h, dt, sp, blocking, hurt, P, rate, tag) {
   else if (h.impT != null && T - h.impT < C[imp.clips[h.impN % imp.clips.length]].dur / imp.rate) W = { key: 'imp' + h.impN, steps: [imp.clips[h.impN % imp.clips.length]], rate: imp.rate, fade: ANIM.fast };
   else if (X && (X.hold || h.xDone !== xKey)) { W = { key: xKey, steps: ANIM.acts[X.name].steps, legs: ANIM.acts[X.name].legs, hold: !!(X.hold || ANIM.acts[X.name].hold), act: true, name: X.name, rate: ANIM.acts[X.name].rate, cut: ANIM.acts[X.name].cut, down: X.down, t0: X.t }; if (X.hold) h.xHeld = { name: X.name, key: xKey }; }
   else if (h.xAfter) W = h.xAfter;
-  if (!W && !code && (h.bowman || (h.cl && h.cl.bow)) && !u.duelId && !u.mounted && (u.aim || u.firingT > T)) W = { key: 'aim', steps: ['bowOverdraw'], hold: true, fade: ANIM.fast }; // (ARCH2: drawn and aimed between shots)
+  h.sky = !!h.bowman && !code && skyShot(u); // (ARCH2: loosing into the Arrow storm: drawn, leaning back to the sky)
+  if (!W && !code && (h.bowman || (h.cl && h.cl.bow)) && !u.duelId && !u.mounted && (h.sky || u.aim || u.firingT > T)) W = { key: 'aim', steps: ['bowOverdraw'], hold: true, fade: ANIM.fast }; // (ARCH2: drawn and aimed between shots)
   if (W && !(h.an && h.an.key === W.key)) h.an = { ...W, i: 0 }; else if (!W) h.an = null;
   const an = h.an, [loco, lrate] = locoClip(u, h, sp);
   if (an) { // step through the move's clips; a finished move lets go
@@ -426,6 +428,8 @@ function clipHero(u, a, h, dt, sp, blocking, hurt, P, rate, tag) {
   if (code) { if (!h.coded) h.cur = null; h.cur = settle(h.cur, P, 1 - Math.exp(-rate * Math.min(dt, .1))); } // (a code pose is eased toward as before; the blend from the clips eases it in)
   h.coded = code;
   tick(R, dt, { P: code ? h.cur : h.U ? P : null, code, ride: !!h.U, reel: a });
+  if (h.sky) { h.skyK = Math.min(1, (h.skyK || 0) + dt * 3); } else if (h.skyK) h.skyK = Math.max(0, h.skyK - dt * 3);
+  if (h.skyK && R.mx) { R.mx.Spine.rotateX(.5 * h.skyK); R.mx.Spine2.rotateX(.3 * h.skyK); } // (eased in and out)
   return turn;
 }
 

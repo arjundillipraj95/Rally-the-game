@@ -33,9 +33,10 @@ export function raisedFront(b, x, z) {
   return false;
 }
 // a straight visual arrow (no harm of its own: the shot's harm is resolved here, on its line)
-function streak(u, ax, az, len) {
+function streak(u, ax, az, len, spread = 0) {
+  if (spread) { const a = Math.atan2(ax, az) + rnd(-spread, spread); ax = Math.sin(a); az = Math.cos(a); } // (ARCH2: a fan, to the eye only: the harm is on the line)
   const x1 = u.x + ax * len, z1 = u.z + az * len, y0 = (u.y || 0) + (u.mounted ? 2.4 : 1.6);
-  G.arrows.push(makeArrow({ id: ++G.arrowN, x0: u.x, y0, z0: u.z, x1, z1, y1: groundY(x1, z1) + 1.2, dur: len / 60, peak: .2, ti: u.ti, t: 0, shooter: u, vis: true }));
+  G.arrows.push(makeArrow({ id: ++G.arrowN, x0: u.x, y0, z0: u.z, x1, z1, y1: groundY(x1, z1) + 1.2, dur: len / 60, peak: .2, ti: u.ti, t: 0, shooter: u, vis: true, champ: true }));
 }
 // the enemies along a line from u, nearest first: [o, distance along]
 function along(u, ax, az, len, w) {
@@ -58,12 +59,15 @@ function loosePierce(u) {
   const P = u.pierce, d = P.d; u.pierce = null; if (u.dead || u.stun > 0) return;
   u.face = Math.atan2(P.ax, P.az); streak(u, P.ax, P.az, d.len); sound('bow', u.x, u.z);
   const k = grow(u, d, 'sp1');
-  for (const [o] of along(u, P.ax, P.az, d.len, d.w)) {
-    if (raisedFront(o, u.x, u.z)) { hurt(o, (o.leader ? d.champ : d.soldier) * k * d.blockX, u, u.ti, 'arrow', 1); sound('thud', o.x, o.z); break; } // (a raised shield: a little through, and it stops there)
+  const hit = []; let end = d.len;
+  for (const [o, f] of along(u, P.ax, P.az, d.len, d.w)) {
+    if (raisedFront(o, u.x, u.z)) { hurt(o, (o.leader ? d.champ : d.soldier) * k * d.blockX, u, u.ti, 'arrow', 1); sound('thud', o.x, o.z); end = f; hit.push(o.id); break; } // (a raised shield: a little through, and it stops there)
+    hit.push(o.id);
     hurt(o, (o.leader ? d.champ : d.soldier) * k, u, u.ti, 'arrow', 1);
     o.slowUntil = G.T + d.slowT; o.slowK = 1 - d.slow;
     if (o.mounted && Math.hypot(o.vx, o.vz) > 8) { o.vx = o.vz = 0; o.haltUntil = G.T + d.stop; } // (a galloping horse stops dead; the rider stays on)
   }
+  fx('fxmsg', { k: 'fxpierce', u, q: [P.ax.toFixed(3), P.az.toFixed(3), end.toFixed(1), d.slowT, hit.join(':')].join(',') }); // (ARCH2: the shot's light, on every phone: render/devifx.js)
 }
 
 // ---------- Evade ----------
@@ -73,6 +77,7 @@ export function startEvade(u, at, d) {
   if (!u.mounted) u.face = a; // (on foot she turns with it; the horse simply goes)
   u.evade = { kind: 'dash', t: G.T, a }; u.lastEvadeT = G.T; u.dashStop = G.T + d.dur; // (stopped when the dash ends: 5 m, not a slide)
   sound('swing', u.x, u.z);
+  fx('fxmsg', { k: 'fxevade', u, q: [u.x.toFixed(2), u.z.toFixed(2), a.toFixed(3)].join(',') }); // (ARCH2: her afterimage)
 }
 // a tap's aim: away from the nearest enemy (or back the way she faces)
 export function awayAim(u, dist) {
@@ -87,6 +92,7 @@ export function startVolley(u, at, d) {
   const a = Math.atan2(at.x - u.x, at.z - u.z); u.face = a;
   u.tvolley = { T0: G.T, next: G.T, n: 0, aim: at.u || { x: at.x, z: at.z }, d };
   u.vx = u.vz = 0; sound('draw', u.x, u.z);
+  fx('fxmsg', { k: 'fxvolley', u }); // (ARCH2: the tiger's mark at her feet)
 }
 function volleyStep(u, dt) {
   const V = u.tvolley, d = V.d;
@@ -96,7 +102,7 @@ function volleyStep(u, dt) {
   if (m) { const want = Math.atan2(m.x - u.x, m.z - u.z), df = Math.atan2(Math.sin(want - u.face), Math.cos(want - u.face)); u.face += Math.sign(df) * Math.min(Math.abs(df), d.turn * dt); }
   while (G.T >= V.next && V.n < d.n) {
     V.n++; V.next += d.dur / d.n;
-    const ax = Math.sin(u.face), az = Math.cos(u.face); streak(u, ax, az, d.len); u.swing = .2; u.swingKind = 8; u.lastSwingT = G.T;
+    const ax = Math.sin(u.face), az = Math.cos(u.face); streak(u, ax, az, d.len, .1); u.swing = .2; u.swingKind = 8; u.lastSwingT = G.T;
     if (V.n % 3 === 1) sound('bow', u.x, u.z);
     const first = along(u, ax, az, d.len, d.w)[0];
     if (!first) continue;
@@ -109,7 +115,6 @@ function volleyStep(u, dt) {
 // ---------- Arrow storm ----------
 export function startStorm(u, at, d) {
   (G.storms || (G.storms = [])).push({ id: ++G.stoneN, ti: u.ti, x: at.x, z: at.z, r: d.r, T0: G.T, warn: d.warn, dur: d.dur, d, next: 0 });
-  fx('fxmsg', { k: 'fxstorm', u, q: `${at.x.toFixed(2)},${at.z.toFixed(2)}` }); // (her men call it: banter)
   fx('fxmsg', { k: 'fxstorm', u, x: at.x, z: at.z });
   for (const t of G.units) if (!t.dead && t.ti === u.ti && t.kind === 'thrower') { t.mark = { x: at.x, z: at.z }; t.markT = d.warn + d.dur; } // (her throwers' next stones in it)
 }
@@ -121,7 +126,7 @@ function stormStep(S) {
     if (a.dead || a.ti !== S.ti || a.kind !== 'arch' || a.stun > 0 || Math.hypot(a.x - S.x, a.z - S.z) > d.reach) continue;
     const ang = rnd(0, Math.PI * 2), r = Math.sqrt(Math.random()) * S.r, mark = { x: S.x + Math.sin(ang) * r, z: S.z + Math.cos(ang) * r, vx: 0, vz: 0 };
     a.face = Math.atan2(S.x - a.x, S.z - a.z); const j = a.jitter; a.jitter = .2; shoot(a, mark); a.jitter = j;
-    const last = G.arrows[G.arrows.length - 1]; if (last && last.shooter === a) last.plunge = true; // (down from the sky: over a plain shield, as a tower's)
+    const last = G.arrows[G.arrows.length - 1]; if (last && last.shooter === a) { last.plunge = true; last.peak = 14; last.dur += .5; } // (down from the sky: over a plain shield, as a tower's; ARCH2: high, as loosed to the sky)
   }
   return t > S.warn + S.dur;
 }

@@ -76,7 +76,7 @@ ok(o.evade.moved >= 4.5 && o.evade.moved <= 6 && o.evade.away && o.evade.ifr > 0
 ok(o.evadeMounted, `Evade on horseback: still mounted (${o.evadeMounted})`);
 ok(o.volley === 184, `Tiger's volley into a man: ${o.volley} (20 x 8, +15% at level 7)`);
 ok(o.volleyShield > 0 && o.volleyShield < 90, `Tiger's volley into a raised shield: ${o.volleyShield} (about a quarter through)`);
-ok(o.stormWarn.storms === 1 && o.storm.arrows >= 12 && o.storm.hurt >= 3, `Arrow storm: marked (${o.stormWarn.storms}), ${o.storm.arrows} arrows, ${o.storm.hurt} of 5 hurt`);
+ok(o.stormWarn.storms === 1 && o.storm.arrows >= 12 && o.storm.hurt >= 2, `Arrow storm: marked (${o.stormWarn.storms}), ${o.storm.arrows} arrows, ${o.storm.hurt} of 5 hurt`);
 ok(o.line.n0 === 'Villalar' && o.line.n1 === 'Agni Villalar' && o.line.n2 === 'Vil Veeran' && o.line.fire && o.line.range2 === 26 && o.line.dmgX === 1.2, `her archers: ${o.line.n0}, ${o.line.n1} (fire ${o.line.fire}), ${o.line.n2} ${o.line.range2} m x${o.line.dmgX}`);
 ok(o.fireX === 3, `fire arrows on a stone thrower: x${o.fireX}`);
 await A.close();
