@@ -1,5 +1,5 @@
 // C4: Devi, on the host (the joined phone: r_C4-join). Needs the game server. Checks: her page (300 health, 24 at 1.75,
-// 14 m, recruits archers and stone throwers, Ranged); Piercing shot goes through a line (champion 50, soldiers 30, all
+// 14 m, recruits archers and stone throwers, Ranged); Piercing shot (FIX9: held to draw) goes through a line (full: champion 70, soldiers 45, all
 // slowed), a raised Shield of Cassius takes 30% and stops it; Evade: 5 m in 0.2 s, untouchable, mounted she stays on;
 // Tiger's volley: 20 arrows into a champion for 160, about 1 in 4 through a raised shield; Arrow storm: a 2 s mark,
 // then her archers' arrows land in the circle; her archer line: Agni Villalar's fire arrows x3 on a stone thrower, Vil
@@ -20,22 +20,32 @@ const o = await A.evaluate(async () => {
   G.T = 30; F.step(30);
   const me = G.myTi, s = G.teams[me], p = G.teams[me].leader, foe = (me + 1) % 4, r = {}, D = I.CHAMPS.devi; p.march = 0;
   r.page = { hp: p.max, champ: G.champs[me], recruits: D.recruits.join(), ranged: !!D.ranged };
-  s.lvl = 7; s.xp = 1e4; s.cds = { sp1: 0, sp2: 0, ult: 0, armyUlt: 0 };
+  s.lvl = 7; s.xp = 0; s.cds = { sp1: 0, sp2: 0, ult: 0, armyUlt: 0 };
   const keep = G.units; G.units = [p]; p.x *= .6; p.z *= .6; // (open ground, out of her yard: a foe in it is put out)
   G.arrows = []; Object.assign(p, { mounted: false, vx: 0, vz: 0, stun: 0, cd: 0, y: Wd.groundY(p.x, p.z) });
   const at = (d, side = 0) => [p.x + Math.sin(p.face) * d + Math.cos(p.face) * side, p.z + Math.cos(p.face) * d - Math.sin(p.face) * side];
   const man = (d, side, leader) => { const [x, z] = at(d, side), u = sim.mkUnit(foe, x, z, 'foot'); u.y = Wd.groundY(x, z); if (leader) u.leader = true; u.max = u.hp = 1e5; u.face = p.face + Math.PI; u.windup = 1e9; return u; }; // (windup: his own feet stay put, so a mark between steps is where he stands)
-  let pins = []; const pin = () => { for (const [u, x, z] of pins) { u.x = x; u.z = z; u.vx = u.vz = 0; } p.march = 0; }; const hold = (...us) => { pins = us.map(u => [u, u.x, u.z]); };
+  let pins = []; const pin = () => { for (const [u, x, z] of pins) { u.x = x; u.z = z; u.vx = u.vz = 0; u.mounted = false; u.summon = null; } p.march = 0; }; const hold = (...us) => { pins = us.map(u => [u, u.x, u.z]); };
   const run = n => { for (let k = 0; k < n; k++) { F.step(1); pin(); } };
   const ready = () => { s.cds = { sp1: 0, sp2: 0, ult: 0, armyUlt: 0 }; p.stun = 0; p.cd = 0; };
   // Piercing shot: a champion at 8, soldiers at 4 and 12, all on her line
   const c1 = man(8, 0, true), s1 = man(4, 0), s2 = man(12, 0); hold(c1, s1, s2); ready();
-  const aim = { x: c1.x, z: c1.z }; Ab.useAbility(me, 'sp1', aim); run(30);
+  const DS = await import('/src/core/sim/deviShots.js');
+  const aim = { x: c1.x, z: c1.z }; Ab.useAbility(me, 'sp1', aim); run(10); r.drawing = { held: !!p.pierce };
+  run(42); DS.pierceInput(p, 0); run(5); // (FIX9: held to full (a step is 1/30 s), then let go)
   r.pierce = { champ: Math.round(c1.max - c1.hp), s1: Math.round(s1.max - s1.hp), s2: Math.round(s2.max - s2.hp), slowed: c1.slowUntil > G.T };
+  // a tap (let go at once): the shortest, softest shot (12 m)
+  for (const u of [c1, s1, s2]) u.hp = u.max; ready(); Ab.useAbility(me, 'sp1', aim); DS.pierceInput(p, 0); run(30);
+  r.tap = { champ: Math.round(c1.max - c1.hp), s2: Math.round(s2.max - s2.hp) };
+  // held past full: she looses by herself 1 s after it's full
+  for (const u of [c1, s1, s2]) u.hp = u.max; ready(); Ab.useAbility(me, 'sp1', aim); run(80); r.auto = { gone: !p.pierce, champ: Math.round(c1.max - c1.hp) };
+  // put away (slid back onto the button): nothing shot, a 2 s recharge
+  for (const u of [c1, s1, s2]) u.hp = u.max; ready(); Ab.useAbility(me, 'sp1', aim); run(10); DS.pierceInput(p, 2); r.cancel = { cd: +(s.cds.sp1 || 0).toFixed(1) }; run(20);
+  r.cancel.champ = Math.round(c1.max - c1.hp);
   G.units = [p];
   // ... into a raised Shield of Cassius at 8 (a soldier behind him at 12)
   const t1 = man(8, 0, true), b2 = man(12, 0); t1.face = Math.atan2(p.x - t1.x, p.z - t1.z); hold(t1, b2); Sc.raiseScutum(t1, I.CHAMPS.titus.sp2); ready();
-  Ab.useAbility(me, 'sp1', { x: t1.x, z: t1.z }); run(30);
+  Ab.useAbility(me, 'sp1', { x: t1.x, z: t1.z }); run(46); DS.pierceInput(p, 0); run(5);
   r.pierceShield = { front: Math.round(t1.max - t1.hp), behind: Math.round(b2.max - b2.hp) }; Sc.dropScutum(t1); t1.dead = true; G.units = [p];
   // Evade: a tap, an enemy champion 3 m in front: she dashes 5 m away, untouchable for the dash
   const e1 = man(3, 0, true); hold(e1); ready(); const x0 = p.x, z0 = p.z; Ab.useAbility(me, 'sp2'); const ifr = p.iframeT;
@@ -71,11 +81,15 @@ const o = await A.evaluate(async () => {
   return r;
 });
 ok(o.page.hp === 300 && o.page.champ === 'devi' && o.page.recruits === 'arch,thrower' && o.page.ranged, `Devi: ${o.page.hp} health, recruits ${o.page.recruits}, ranged`);
-ok(o.pierce.champ === 60 && o.pierce.s1 === 36 && o.pierce.s2 === 36 && o.pierce.slowed, `Piercing shot through a line at level 7 (+20%): champion ${o.pierce.champ}, soldiers ${o.pierce.s1} and ${o.pierce.s2}, slowed ${o.pierce.slowed}`);
-ok(o.pierceShield.front > 0 && o.pierceShield.front < 20 && o.pierceShield.behind === 0, `into a raised Shield of Cassius: ${o.pierceShield.front} (30%), the man behind ${o.pierceShield.behind}`);
+ok(o.drawing.held, 'Piercing shot held: still drawing at 0.33 s');
+ok(o.pierce.champ === 84 && o.pierce.s1 === 54 && o.pierce.s2 === 54 && o.pierce.slowed, `Piercing shot drawn full, level 7 (+20%): champion ${o.pierce.champ} (70), soldiers ${o.pierce.s1} and ${o.pierce.s2} (45), slowed ${o.pierce.slowed}`);
+ok(o.tap.champ > 35 && o.tap.champ < 50, `a tap: a short soft shot (12 m): champion ${o.tap.champ}`);
+ok(o.auto.gone && o.auto.champ === 84, `held past full: loosed by itself (${o.auto.champ})`);
+ok(o.cancel.champ === 0 && o.cancel.cd === 2, `put away: nothing shot, recharge ${o.cancel.cd} s`);
+ok(o.pierceShield.front > 0 && o.pierceShield.front < 30 && o.pierceShield.behind === 0, `into a raised Shield of Cassius: ${o.pierceShield.front} (30%), the man behind ${o.pierceShield.behind}`);
 ok(o.evade.moved >= 4.5 && o.evade.moved <= 6 && o.evade.away && o.evade.ifr > 0, `Evade: ${o.evade.moved} m away from the champion, untouchable ${o.evade.ifr} s`);
 ok(o.evadeMounted, `Evade on horseback: still mounted (${o.evadeMounted})`);
-ok(o.volley === 184, `Tiger's volley into a man: ${o.volley} (20 x 8, +15% at level 7)`);
+ok(o.volley === 160, `Tiger's volley into a man: ${o.volley} (20 x 8 at level 7)`);
 ok(o.volleyShield > 0 && o.volleyShield < 90, `Tiger's volley into a raised shield: ${o.volleyShield} (about a quarter through)`);
 ok(o.stormWarn.storms === 1 && o.storm.arrows >= 12 && o.storm.hurt >= 2, `Arrow storm: marked (${o.stormWarn.storms}), ${o.storm.arrows} arrows, ${o.storm.hurt} of 5 hurt`);
 ok(o.line.n0 === 'Villalar' && o.line.n1 === 'Agni Villalar' && o.line.n2 === 'Vil Veeran' && o.line.fire && o.line.range2 === 26 && o.line.dmgX === 1.2, `her archers: ${o.line.n0}, ${o.line.n1} (fire ${o.line.fire}), ${o.line.n2} ${o.line.range2} m x${o.line.dmgX}`);

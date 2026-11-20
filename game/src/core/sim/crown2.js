@@ -87,6 +87,14 @@ export function c2Begin(mk = null) {
   applyCastleGates();
   G.plazaWall.up = true; G.plazaWall.broken = 15; // (F7: the arena's gates stand open; the lake keeps everyone out)
 }
+// (FIX6) a hit on a nexus that can't be hurt yet: a dull spark, and once in a while its why for the hitter's side
+function shut(u, b) {
+  const a = allianceOf(u.ti); if (a < 0 || a === G.ALLY[b.c]) return;
+  spark(b.x, groundY(b.x, b.z) + 1.4, b.z, '#9aa3ad', 3); sound('thud', b.x, b.z);
+  const K = G.c2, k = 'shut' + a + ':' + b.c; K.shutT = K.shutT || {}; if (K.shutT[k] > G.T) return; K.shutT[k] = G.T + 20;
+  const mid = (G.holds || []).find(h => h.kind === 'castle' && h.mid && h.side === b.c);
+  say('nexusShut', a, b.c, mid && mid.owner === G.ALLY[b.c] ? mid.id : -1); fx('netFlush');
+}
 const c2CanHit = (u, b) => b.kind === 'glacier' ? u.leader && G.c2.phase === 'night' : b.kind === 'chest' ? G.c2.chest === 1 : b.kind === 'nexus' ? nexusOpen(b, u) : true;
 // how many of a garrison still stand: [footmen, archers] (F4: its live men)
 export function c2Garrison(b) {
@@ -98,7 +106,8 @@ export function c2BreakInReach(u) {
   return null;
 }
 export function c2Hit(u, b) {
-  if (b.hp <= 0 || !c2CanHit(u, b)) return;
+  if (b.hp <= 0) return;
+  if (!c2CanHit(u, b)) { if (b.kind === 'nexus') shut(u, b); return; }
   if (u.leader && b.kind === 'nexus' && G.teams[u.ti]) G.teams[u.ti].siegeAt = { x: b.x, z: b.z, T: G.T, r: b.r }; // (CASTLE10: his men come and help)
   b.hp -= b.kind === 'glacier' || b.kind === 'chest' ? 1 : u.dmg * (u.leader ? 1.5 : 1) * aiDmg(u.ti); // (the glacier and the chest count blows) b.by = u.ti; b.hitT = G.T;
   sound('wall', b.x, b.z); spark(b.x, groundY(b.x, b.z) + 1.4, b.z, b.kind === 'glacier' ? '#bfe6f5' : b.kind === 'chest' ? '#ffcf3a' : '#b33a2a', 4);

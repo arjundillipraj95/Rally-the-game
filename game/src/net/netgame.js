@@ -2,6 +2,7 @@
 // presses and draws the host's snapshots (a compact text string, roughly 1-4KB depending on
 // how many soldiers are alive — more in a full 12-army Trio match — sent
 // about 12 times a second).
+import { pierceInput } from '../core/sim/deviShots.js'; // (FIX9)
 import { CROWN2, CROWN26, SMOOTH, FEEL, NEUTRAL, HANDOVER } from '../config.js';
 import { SHOUTS, CROWN, HUMAN_CAPTAIN, ARMOUR, RHYTHM, BASH, EVADE, TEAMS, MAPS, KINDS, STATS, RECRUITS, ORDERS, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT, HOLD_ATK, PARRY, STONE } from '../config.js';
 import { G, bus, colorOf, isEnemyTi, activeFrom, ARMIES, duoStr, duoParse } from '../core/state.js';
@@ -203,6 +204,7 @@ export function netHostReadInputs() {
     if (typeof pr.rly === 'number' && pr.rly > (last.rly || 0)) { const q = Array.isArray(pr.abAt) && pr.abAt[3]; rallyCry(ti, q ? { x: +q[0], z: +q[1] } : null); last.rly = pr.rly; } // the rally horn
     if (typeof pr.sh === 'number' && pr.sh > (last.sh || 0)) { last.sh = pr.sh; if (SHOUTS[pr.shK | 0]) bus.emit('msg', { k: 'callout', a: Number.isFinite(pr.shX) ? [ti, pr.shK | 0, +pr.shX, +pr.shZ] : [ti, pr.shK | 0] }); } // a quick shout
     if (Array.isArray(pr.ab)) for (let k = 0; k < 3; k++) if ((pr.ab[k] | 0) > last.ab[k]) { last.ab[k] = pr.ab[k] | 0; useAbility(ti, SLOTS[k], Array.isArray(pr.abAt) && pr.abAt[k] ? { x: +pr.abAt[k][0], z: +pr.abAt[k][1] } : null); } // (C1c: a press of a special or the ult)
+    if (Array.isArray(pr.pc) && L) pierceInput(L, pr.pc[0] | 0, +pr.pc[1], +pr.pc[2]); // (FIX9: her thumb on a drawn Piercing shot)
     if (Array.isArray(pr.rec)) for (let k = 0; k < 3; k++) while ((pr.rec[k] | 0) > last.rec[k]) { last.rec[k]++; recruit(ti, RECRUITS[k]); }
   }
 }
@@ -230,7 +232,7 @@ export function clientStart(hp) {
   G.holds = makeHolds(G.layout); G.duels = [];
   G.c2 = null; if (G.mode === 'crown' && G.map.id === 'mount') { G.cgates = {}; for (const cw of (G.layout.cwalls || [])) G.cgates[cw.hid] = freshGates(0); c2Begin(clientMk); }
   Object.assign(C, { seatSig: "", off: null, back: null, snapHt: null, byId: new Map(), lastN: -1, lastMsgN: (hp.m && hp.m.length) ? hp.m[hp.m.length - 1][0] : 0, meId: null, meInit: false, kickN: 0, localCd: 0, lastSnapAt: performance.now(),
-    inp: { rb: 0, bsh: 0, dl: 0, dlId: null, atk: 0, ride: 0, vly: 0, chg: 0, evN: 0, evK: '', par: 0, ahN: 0, ahD: 0, ah: false, rly: 0, foc: null, vat: null, rec: [0, 0, 0], ab: [0, 0, 0], abAt: [null, null, null, null], up: UPGRADES.map(() => 0), ord: 'follow', hold: null, face: 0 }, sendAt: 0, sendNow: false, pred: null, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
+    inp: { rb: 0, bsh: 0, dl: 0, dlId: null, atk: 0, ride: 0, vly: 0, chg: 0, evN: 0, evK: '', par: 0, ahN: 0, ahD: 0, ah: false, rly: 0, foc: null, vat: null, rec: [0, 0, 0], ab: [0, 0, 0], abAt: [null, null, null, null], pc: [0, 0, 0], up: UPGRADES.map(() => 0), ord: 'follow', hold: null, face: 0 }, sendAt: 0, sendNow: false, pred: null, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
   for (const u of G.units) if (u.neutral) C.byId.set(u.id, u); // (F4: the mountain's neutral men, made with the battle above)
   G.player = null;
   cam.yaw = Math.atan2(-TEAMS[colorOf(G.myTi)].pos[0], -TEAMS[colorOf(G.myTi)].pos[1]); cam.pitch = CAM_PITCH;
@@ -555,7 +557,7 @@ export function clientTick(dt) {
   // send my captain and my buttons
   if ((performance.now() - C.sendAt > 66 || C.sendNow) && G.state === 'play') {
     C.sendAt = performance.now(); C.sendNow = false;
-    const pres = { role: 'player', ac: aimChampPref() ? 1 : 0, gs: (G.player && G.player.stickSide) | 0, sh: C.inp.sh || 0, shK: C.inp.shK || 0, shX: C.inp.shX, shZ: C.inp.shZ, want: G.myTi, nick: session.myNick || 'Captain', ph: 'play', seed: G.seed, evN: C.inp.evN, evK: C.inp.evK, rly: C.inp.rly, rb: C.inp.rb, bsh: C.inp.bsh, dl: C.inp.dl, dlId: C.inp.dlId, foc: C.inp.foc, par: C.inp.par, ahN: C.inp.ahN, ahD: C.inp.ahD, ah: C.inp.ah, atk: C.inp.atk, ride: C.inp.ride, vly: C.inp.vly, vat: C.inp.vat, chg: C.inp.chg, ab: C.inp.ab, abAt: C.inp.abAt, rec: C.inp.rec, up: C.inp.up, ord: C.inp.ord, hold: C.inp.hold, face: C.inp.face, blk: inp.blockHeld ? 1 : 0 };
+    const pres = { role: 'player', ac: aimChampPref() ? 1 : 0, gs: (G.player && G.player.stickSide) | 0, sh: C.inp.sh || 0, shK: C.inp.shK || 0, shX: C.inp.shX, shZ: C.inp.shZ, want: G.myTi, nick: session.myNick || 'Captain', ph: 'play', seed: G.seed, evN: C.inp.evN, evK: C.inp.evK, rly: C.inp.rly, rb: C.inp.rb, bsh: C.inp.bsh, dl: C.inp.dl, dlId: C.inp.dlId, foc: C.inp.foc, par: C.inp.par, ahN: C.inp.ahN, ahD: C.inp.ahD, ah: C.inp.ah, atk: C.inp.atk, ride: C.inp.ride, vly: C.inp.vly, vat: C.inp.vat, chg: C.inp.chg, ab: C.inp.ab, abAt: C.inp.abAt, pc: C.inp.pc, rec: C.inp.rec, up: C.inp.up, ord: C.inp.ord, hold: C.inp.hold, face: C.inp.face, blk: inp.blockHeld ? 1 : 0 };
     if (me && !me.dead) pres.cap = [me.id, r2(me.x), r2(me.z), r2(me.face), r1(me.vx), r1(me.vz), r2(me.jy || 0), Math.max(0, WEAPONS.indexOf(me.weapon || 'sword'))];
     NET.room.presence(pres).catch(() => {});
   }

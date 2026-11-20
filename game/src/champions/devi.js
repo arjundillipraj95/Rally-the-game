@@ -13,7 +13,7 @@ export default {
   // duel, the bow on her back), her horse, her archers' body; clips: the bow's for walking, shooting and dodging, the
   // daggers' in a duel
   look: { model: 'devi', bow: 'bow_devi', arrow: 'arrow_devi', horse: 'horse_devi', archer: 'archer_chola',
-    clips: { idle: 'bowIdle', walk: 'bowWalkF', walkBack: 'bowWalkB', strafeL: 'bowWalkL', strafeR: 'bowWalkR', run: 'bowRun', runBack: 'bowWalkB', strafeRunL: 'bowWalkL', strafeRunR: 'bowWalkR' },
+    clips: { idle: 'bowIdle', walk: 'bowWalkF', walkBack: 'bowWalkB', strafeL: 'bowWalkL', strafeR: 'bowWalkR', run: 'run', runBack: 'bowWalkB', strafeRunL: 'bowWalkL', strafeRunR: 'bowWalkR' }, // (FIX11: the captain's upright run, the bow down by her side)
     swings: { 7: 'bowRecoil', 8: 'bowRecoil', 9: 'bowOverdraw' }, duel: { 0: 'stab1', 1: 'stab2', 4: 'doubleStab', 5: 'stab3' } },
   mount: { kind: 'horse', hp: 200, spd: 11.2 }, // southern war horse: health, m/s riding
   recruits: ['arch', 'thrower'],
@@ -42,10 +42,12 @@ export default {
       crown: ['The Sceptre! Grab it!', 'The Crown! Up the mountain!', 'The queen gave it back. We won\'t.'],
     },
   },
-  // Piercing shot (level 3): drag aims down an `len` m line (tap: her mark), a `draw` s draw, then through everything
-  // (core/sim/deviShots.js). Recharge `cd` s.
-  sp1: { name: 'Piercing shot', short: 'Pierce', cd: 7, range: 18, len: 18, w: .7, draw: .25, champ: 50, soldier: 30, slow: .3, slowT: 1.5, stop: .5, blockX: .3, lvlUp: .05, mounted: true,
-    ai: (u, foe, fd, B) => { const L = B.line(u, 18, .7); return (foe.leader && fd < 16) || L.length >= 3 ? { x: foe.x, z: foe.z } : false; },
+  // Piercing shot (level 3, FIX9 like Spirit Shackle): hold to draw. Over `charge` s the line grows `len` m and the hit
+  // `champ`/`soldier`, the slow `slow`; she walks at `walk` meanwhile; let go to loose (at least `draw` s in), full and
+  // held `hold` s more looses by itself; back onto the button puts it away (recharge `cancelCd` s). Recharge `cd` s.
+  sp1: { name: 'Piercing shot', short: 'Pierce', cd: 7, range: 22, len: [10, 22], w: .7, draw: .25, charge: 1.5, hold: 1, walk: .4, cancelCd: 2,
+    champ: [30, 70], soldier: [20, 45], slow: [.2, .4], slowT: 1.5, stop: .5, blockX: .3, lvlUp: .05, mounted: true,
+    ai: (u, foe, fd, B) => { const L = B.line(u, 22, .7); return (foe.leader && fd < 20) || L.length >= 3 ? { x: foe.x, z: foe.z } : false; },
     run(u, at, B) { B.pierce(u, at, this); } },
   // Evade (level 5): a `dist` m dash in `dur` s the way you drag (tap: away from the nearest enemy), untouchable; on
   // horseback the horse dashes. Recharge `cd` s.

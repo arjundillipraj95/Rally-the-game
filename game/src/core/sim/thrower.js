@@ -4,8 +4,8 @@
 // shield walls take it: the thrower's damage at the centre, a third at the rim, a testudo half. Gates and walls take
 // STONE.gate times; the war chest STONE.chest blows; never the glacier. Fire pots (tier 1+): every third stone burns the
 // ground a while; anyone of the other sides inside takes STONE.fire.dps a second and a braced line loses its brace.
-// Orders: Follow, it trundles STONE.follow m behind its champion; Hold, behind the held spot; Charge, it closes on its
-// mark. On every order it throws at the biggest crowd in range (STONE.crowd men), else the nearest gate, else anyone.
+// Orders (FIX7): see throwerStep. Left to itself it throws at the biggest crowd in range (STONE.crowd men), else the
+// nearest gate, else anyone.
 import { STONE, FORT } from '../../config.js';
 import { G, isEnemy } from '../state.js';
 import { groundY } from '../world.js';
@@ -41,17 +41,36 @@ function pickMark(u, charge) {
   }
   return null;
 }
-// each step, for a thrower (from the soldier's step): stand where its order puts it, turn to its mark, throw
+// (FIX7) Attack on something: that thing (a man, a gate, the chest, a nexus; bare ground: that spot), and only it
+function orderedMark(u, f) {
+  if (f.id) { const o = G.units.find(q => q.id === f.id && !q.dead && isEnemy(q, u)); return o ? { x: o.x, z: o.z, u: o } : null; }
+  const w = wallInRange({ x: f.x, z: f.z, ti: u.ti, r: 0, reach: 0, kind: u.kind }, 4, -99); if (w) return { x: w.x, z: w.z, bld: w };
+  for (const b of (G.c2 && G.c2.breaks) || []) if (!b.post && b.hp > 0 && (b.kind === 'chest' || b.kind === 'nexus') && near(b, f.x, f.z) < b.r + 4) return { x: b.x, z: b.z, brk: b };
+  return { x: f.x, z: f.z };
+}
+// (FIX7) to a throwing spot for m: in range, and out past its least range if too close
+function closeOn(u, m, md, dt) {
+  if (md > u.range * .9) { go(u, m.x, m.z, speedOf(u), dt, u.range * .85); return true; }
+  if (md < STONE.min + .5) { const a = Math.atan2(u.x - m.x, u.z - m.z), r = STONE.min + 3; go(u, m.x + Math.sin(a) * r, m.z + Math.cos(a) * r, speedOf(u), dt, .5); return true; }
+  return false;
+}
+// each step, for a thrower (from the soldier's step). FIX7, its orders: Attack on something, that thing (closing to range or
+// backing out past its least range); Charge, it closes on the best mark; Hold, it stands behind the held spot and throws
+// from there; Follow (and the rest), it keeps STONE.follow m behind its champion and throws once there. An Arrow storm's
+// circle comes first (deviShots.js).
 export function throwerStep(u, s, L, order, leaderUp, dt) {
+  const storm = u.stormUntil > G.T && u.mark, focus = order === 'focus' && s.focus;
   u.markT = (u.markT || 0) - dt;
-  if (u.markT <= 0) { u.markT = .5; u.mark = pickMark(u, order === 'charge' || order === 'focus'); }
+  if (!storm && u.markT <= 0) { u.markT = .5; u.mark = focus ? orderedMark(u, s.focus) : pickMark(u, order === 'charge'); }
   const m = u.mark && (u.mark.u ? (u.mark.u.dead ? null : { ...u.mark, x: u.mark.u.x, z: u.mark.u.z }) : u.mark);
   const md = m ? near(m, u.x, u.z) : 1e9, inRange = m && md >= STONE.min && md <= u.range;
-  if ((order === 'charge' || order === 'focus') && m && md > u.range * .9) go(u, m.x, m.z, speedOf(u), dt, u.range * .85);
-  else if (order === 'hold' && s.holdPt && !inRange) { const H = s.holdPt, f = H.face || 0; go(u, H.x - Math.sin(f) * 6, H.z - Math.cos(f) * 6, speedOf(u), dt, 1); }
-  else if (leaderUp && !inRange && order === 'follow') { const f = L.face; go(u, L.x - Math.sin(f) * STONE.follow, L.z - Math.cos(f) * STONE.follow, speedOf(u), dt, 2); }
+  let moving = false;
+  if (focus || order === 'charge') moving = m ? closeOn(u, m, md, dt) : (leaderUp && go(u, L.x - Math.sin(L.face) * STONE.follow, L.z - Math.cos(L.face) * STONE.follow, speedOf(u), dt, 2) > 2);
+  else if (order === 'hold' && s.holdPt) { const H = s.holdPt, f = H.face || 0; moving = go(u, H.x - Math.sin(f) * 6, H.z - Math.cos(f) * 6, speedOf(u), dt, 1) > 3; }
+  else if (leaderUp) { const f = L.face; moving = go(u, L.x - Math.sin(f) * STONE.follow, L.z - Math.cos(f) * STONE.follow, speedOf(u), dt, 2) > 4; }
   else moveToward(u, u.x, u.z, 0, dt);
-  if (!inRange) return;
+  if (!inRange || moving) return;
+  moveToward(u, u.x, u.z, 0, dt);
   faceTo(u, m.x, m.z, dt, 1.5);
   const want = Math.atan2(m.x - u.x, m.z - u.z), off = Math.abs(Math.atan2(Math.sin(want - u.face), Math.cos(want - u.face)));
   if (u.shootCd <= 0 && u.stun <= 0 && off < .2) throwStone(u, m);

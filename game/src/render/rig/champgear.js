@@ -28,7 +28,9 @@ const BOW_Q = new THREE.Quaternion(.4338, -.4689, -.3885, .6641), ARROW_Q = new 
 function holdBow(hand, o) { o.quaternion.copy(BOW_Q); o.position.set(0, .075, .02); hand.add(o); }
 function holdArrow(hand, o) { o.quaternion.copy(ARROW_Q); o.position.set(0, .07, 0); hand.add(o); }
 // a clip-rig archer (any army's): her bow in the left fist, the code's bow (made for the code poses) hidden, the bow clips
-export const BOW_CLIPS = { idle: 'bowIdle', walk: 'bowWalkF', walkBack: 'bowWalkB', strafeL: 'bowWalkL', strafeR: 'bowWalkR', run: 'bowRun', runBack: 'bowWalkB', strafeRunL: 'bowWalkL', strafeRunR: 'bowWalkR' };
+// (FIX11, Arjun 19 Nov: the bow run hunched them double, the bow flat behind) running: the captain's upright run, the bow
+// down by the side in the left fist
+export const BOW_CLIPS = { idle: 'bowIdle', walk: 'bowWalkF', walkBack: 'bowWalkB', strafeL: 'bowWalkL', strafeR: 'bowWalkR', run: 'run', runBack: 'bowWalkB', strafeRunL: 'bowWalkL', strafeRunR: 'bowWalkR' };
 export function archerBow(R) {
   if (!R.clip) return false;
   const hr = R.bones.hand_R; for (const c of hr.children) if (!c.isBone) c.visible = false;

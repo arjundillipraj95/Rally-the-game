@@ -1,6 +1,6 @@
 // Battle rules: C4 Devi's specials (design doc, Devi card, 18 Nov; numbers on her page). Host and solo.
-// Piercing shot (sp1): a `draw` s draw, then one arrow straight down a `len` m line, through everything in it: `champ`
-// to champions, `soldier` to soldiers (+`lvlUp` a level from 3), all slowed by `slow` for `slowT` s; a galloping horse
+// Piercing shot (sp1, FIX9): held to draw (below), then one arrow straight down a line, through everything in it: champions
+// and soldiers take the drawn damage (+`lvlUp` a level from 3), all slowed for `slowT` s; a galloping horse
 // it hits stops dead `stop` s (the rider stays on). A raised front shield (Shield of Cassius, a shield wall, a testudo)
 // takes it at `blockX` and stops it there. From the saddle she stays on.
 // Evade (sp2): a `dist` m dash in `dur` s the way she drags (a tap: away from the nearest enemy), untouchable meanwhile;
@@ -48,26 +48,50 @@ function along(u, ax, az, len, w) {
   return out.sort((a, b) => a[1] - b[1]);
 }
 
-// ---------- Piercing shot ----------
+// ---------- Piercing shot (FIX9: drawn like Spirit Shackle) ----------
+// Held, she draws: `charge` s to full, the line `len[0]`→`len[1]` m and the damage `champ`/`soldier`/`slow` [from, to]
+// growing with it; she walks at `walk` of her pace, the stick or the drag aiming it. Let go: she looses (not before
+// `draw` s). Full and held `hold` s more: she looses by herself. Slid back onto the button: put away, the recharge
+// `cancelCd` s. A computer Devi draws as far as her mark needs. A stun, a knock-up or death spoils the draw.
+const lerp = (r, c) => (Array.isArray(r) ? r[0] + (r[1] - r[0]) * c : r);
+export const pierceK = (u, T = G.T) => (u.pierce ? Math.min(1, Math.max(0, (T - u.pierce.T0) / u.pierce.d.charge)) : 0);
+export const pierceLen = (d, c) => lerp(d.len, c);
 export function startPierce(u, at, d) {
-  const a = Math.atan2(at.x - u.x, at.z - u.z); u.face = a;
-  u.pierce = { T: G.T + d.draw, ax: Math.sin(a), az: Math.cos(a), d };
+  const a = Math.atan2(at.x - u.x, at.z - u.z), dist = Math.hypot(at.x - u.x, at.z - u.z); u.face = a;
+  const need = Math.min(1, Math.max(0, (dist - d.len[0]) / (d.len[1] - d.len[0]))); // (a computer Devi: as far as her mark)
+  u.pierce = { T0: G.T, ax: Math.sin(a), az: Math.cos(a), d, held: !!u.human, rel: u.human ? 0 : G.T + Math.max(d.draw, need * d.charge), full: false };
   u.swing = .38; u.swingKind = 9; u.lastSwingT = G.T; // (9: the overdraw, render maps it to its clip)
   sound('draw', u.x, u.z);
 }
+// the player's thumb on the button (any phone): held 1, let go 0, put away 2; and the way it aims
+export function pierceInput(u, held, ax, az) {
+  const P = u && u.pierce; if (!P) return;
+  if (Number.isFinite(ax) && Number.isFinite(az) && Math.hypot(ax, az) > .5) { const l = Math.hypot(ax, az); P.ax = ax / l; P.az = az / l; }
+  if (held === 2) { u.pierce = null; const s = G.teams[u.ti]; if (s && s.cds) s.cds.sp1 = P.d.cancelCd; return; }
+  P.held = held === 1;
+}
+function pierceTick(u) {
+  const P = u.pierce, d = P.d, t = G.T - P.T0;
+  if (u.dead || u.stun > 0 || u.launch) { u.pierce = null; return; }
+  u.face = Math.atan2(P.ax, P.az); u.firingT = G.T + .2; // (drawn, aimed: the overdraw held)
+  if (!P.full && t >= d.charge) { P.full = true; sound('draw', u.x, u.z); }
+  if (t >= d.charge + d.hold || (!P.held && t >= d.draw && G.T >= P.rel)) loosePierce(u);
+}
 function loosePierce(u) {
-  const P = u.pierce, d = P.d; u.pierce = null; if (u.dead || u.stun > 0) return;
-  u.face = Math.atan2(P.ax, P.az); streak(u, P.ax, P.az, d.len); sound('bow', u.x, u.z);
+  const P = u.pierce, d = P.d, c = pierceK(u); u.pierce = null;
+  const len = lerp(d.len, c), champ = lerp(d.champ, c), soldier = lerp(d.soldier, c), slow = lerp(d.slow, c);
+  u.face = Math.atan2(P.ax, P.az); streak(u, P.ax, P.az, len); sound('bow', u.x, u.z);
+  u.swing = .38; u.swingKind = 8; u.lastSwingT = G.T;
   const k = grow(u, d, 'sp1');
-  const hit = []; let end = d.len;
-  for (const [o, f] of along(u, P.ax, P.az, d.len, d.w)) {
-    if (raisedFront(o, u.x, u.z)) { hurt(o, (o.leader ? d.champ : d.soldier) * k * d.blockX, u, u.ti, 'arrow', 1); sound('thud', o.x, o.z); end = f; hit.push(o.id); break; } // (a raised shield: a little through, and it stops there)
+  const hit = []; let end = len;
+  for (const [o, f] of along(u, P.ax, P.az, len, d.w)) {
+    if (raisedFront(o, u.x, u.z)) { hurt(o, (o.leader ? champ : soldier) * k * d.blockX, u, u.ti, 'arrow', 1); sound('thud', o.x, o.z); end = f; hit.push(o.id); break; } // (a raised shield: a little through, and it stops there)
     hit.push(o.id);
-    hurt(o, (o.leader ? d.champ : d.soldier) * k, u, u.ti, 'arrow', 1);
-    o.slowUntil = G.T + d.slowT; o.slowK = 1 - d.slow;
+    hurt(o, (o.leader ? champ : soldier) * k, u, u.ti, 'arrow', 1);
+    o.slowUntil = G.T + d.slowT; o.slowK = 1 - slow;
     if (o.mounted && Math.hypot(o.vx, o.vz) > 8) { o.vx = o.vz = 0; o.haltUntil = G.T + d.stop; } // (a galloping horse stops dead; the rider stays on)
   }
-  fx('fxmsg', { k: 'fxpierce', u, q: [P.ax.toFixed(3), P.az.toFixed(3), end.toFixed(1), d.slowT, hit.join(':')].join(',') }); // (ARCH2: the shot's light, on every phone: render/devifx.js)
+  fx('fxmsg', { k: 'fxpierce', u, q: [P.ax.toFixed(3), P.az.toFixed(3), end.toFixed(1), d.slowT, hit.join(':'), c.toFixed(2)].join(',') }); // (ARCH2: the shot's light, on every phone: render/devifx.js)
 }
 
 // ---------- Evade ----------
@@ -116,7 +140,7 @@ function volleyStep(u, dt) {
 export function startStorm(u, at, d) {
   (G.storms || (G.storms = [])).push({ id: ++G.stoneN, ti: u.ti, x: at.x, z: at.z, r: d.r, T0: G.T, warn: d.warn, dur: d.dur, d, next: 0 });
   fx('fxmsg', { k: 'fxstorm', u, x: at.x, z: at.z });
-  for (const t of G.units) if (!t.dead && t.ti === u.ti && t.kind === 'thrower') { t.mark = { x: at.x, z: at.z }; t.markT = d.warn + d.dur; } // (her throwers' next stones in it)
+  for (const t of G.units) if (!t.dead && t.ti === u.ti && t.kind === 'thrower') { t.mark = { x: at.x, z: at.z }; t.markT = d.warn + d.dur; t.stormUntil = G.T + d.warn + d.dur; } // (her throwers' next stones in it)
 }
 function stormStep(S) {
   const t = G.T - S.T0, d = S.d;
@@ -140,7 +164,7 @@ export function deviTick(dt) {
   for (const u of G.units) {
     if (!u.leader) continue;
     if (u.dashStop && G.T >= u.dashStop) { u.vx = u.vz = 0; u.dashStop = 0; }
-    if (u.pierce && G.T >= u.pierce.T) loosePierce(u);
+    if (u.pierce) pierceTick(u);
     if (u.tvolley) volleyStep(u, dt);
   }
   const L = G.storms; if (!L) return;

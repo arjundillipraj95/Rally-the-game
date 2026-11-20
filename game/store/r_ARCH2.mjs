@@ -46,8 +46,8 @@ const o = await page.evaluate(async () => {
 });
 if (o.none) ok(false, 'no castle gate found');
 else {
-  ok(o.idle.taken > 0 && o.idle.taken < o.idle.blow * 0.31 * 40, `on their own, no man about: they shoot the gate (${Math.round(o.idle.taken)} in 5 s)`);
-  ok(o.fire.taken > o.idle.taken * 2.5, `with fire arrows, the whole blow (${Math.round(o.fire.taken)} vs ${Math.round(o.idle.taken)}, about x3.3)`);
+  ok(o.idle.taken > 20, `on their own, no man about: they shoot the gate (${Math.round(o.idle.taken)} in 5 s; FIX6: ~7 an arrow)`);
+  ok(o.fire.taken > o.idle.taken * 2, `with fire arrows, x3 an arrow (${Math.round(o.fire.taken)} vs ${Math.round(o.idle.taken)})`);
   ok(o.focus.taken > 0 && o.focus.d < 25, `ordered at the gate from 40 m: they walk to ${o.focus.d} m and shoot it (${Math.round(o.focus.taken)})`);
   ok(o.champ.champ > 0 && o.champ.men.every(v => v === 0), `ordered at a champion: he takes ${Math.round(o.champ.champ)}, the men by him ${o.champ.men.join('/')}`);
 }

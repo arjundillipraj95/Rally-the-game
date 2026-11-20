@@ -13,7 +13,9 @@ let wasDuel = null, clockBound = false, iconFor = '';
 // each button's small picture of what it does (by the move's short name; a duel swaps in Block and Evade)
 const svg = d => `<svg class="abI" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICON = { Ram: '<rect x="3" y="6" width="7" height="12" rx="2"/><path d="M12 12h9M17 8l4 4-4 4"/>', Shield: '<path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z"/>',
-  Eagle: '<path d="M2 9l6 2 4-5 4 5 6-2-5 7H7z"/><path d="M12 16v5"/>', Block: '<path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z"/><path d="M8 12h8"/>', Evade: '<path d="M4 16c3-8 9-10 16-8"/><path d="M16 4l4 4-4 4"/>' };
+  Eagle: '<path d="M2 9l6 2 4-5 4 5 6-2-5 7H7z"/><path d="M12 16v5"/>', Block: '<path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z"/><path d="M8 12h8"/>', Evade: '<path d="M4 16c3-8 9-10 16-8"/><path d="M16 4l4 4-4 4"/>',
+  Pierce: '<path d="M3 21L21 3"/><path d="M14 3h7v7"/><path d="M3 21l2-5M3 21l5-2"/><circle cx="10" cy="14" r="2.6"/>', // (FIX8: an arrow through a mark)
+  Volley: '<path d="M4 20L16 8M8 20L20 8M12 20L22 10"/><path d="M12 8h4v4M16 8h4v4"/>' }; // (FIX8: arrows in a stream)
 function icons(duel) {
   const key = G.myTi + ':' + duel; if (iconFor === key) return; iconFor = key;
   for (let k = 1; k <= 3; k++) { const b = $('ab' + k), d = slotDef(G.myTi, ['sp1', 'sp2', 'ult'][k - 1]); if (!b || !d) continue;

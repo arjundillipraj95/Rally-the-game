@@ -51,11 +51,12 @@ export { faceTo, go, integrate, moveToward } from './move.js'; // (for earlier f
 // You keep moving and steering while swinging; in the air you keep your momentum with light control.
 export function driveCaptain(p, input, dt) {
   if (p.execT > 0 || p.execA || p.execV) { p.blocking = false; return; } // (an execution: the moment holds still)
-  if (p.tvolley || p.pierce) { // (C4: planted for Tiger's volley or a Piercing shot's draw; the stick turns her, at the volley's rate)
-    const V = p.tvolley; if (V && input.mag > .5) { V.aim = null; // (a clear push of the stick takes over from her mark)
+  if (p.tvolley) { // (C4: planted for Tiger's volley; the stick turns her, at the volley's rate)
+    const V = p.tvolley; if (input.mag > .5) { V.aim = null; // (a clear push of the stick takes over from her mark)
       const want = Math.atan2(input.wx, input.wz), df = Math.atan2(Math.sin(want - p.face), Math.cos(want - p.face)); p.face += Math.sign(df) * Math.min(Math.abs(df), V.d.turn * dt); }
     p.vx = p.vz = 0; p.blocking = false; return;
   }
+  const draw = p.pierce || p.pdraw; // (FIX9: drawing a Piercing shot she walks slowly, facing the way it aims)
   const air = (p.jy || 0) > .01;
   p.blocking = !!input.block && !p.mounted && !air;
   const dfoe = duelFoeOf(p);
@@ -82,6 +83,7 @@ export function driveCaptain(p, input, dt) {
     p.gallop = clamp((p.gallop || 0) + (p.charge > 0 ? 1 : straight ? dt / RIDE.gallop : -dt * (tr > 2 ? RIDE.turnLoss : input.mag < .3 ? .8 : .3)), 0, 1);
   } else p.gallop = 0;
   if (p.blocking && input.mag < .15 && !dfoe) p.face = turn(p.face, input.camYaw, dt * 6);
+  if (draw) { p.face = Math.atan2(draw.ax, draw.az); p.blocking = false; }
   stepJump(p, dt);
 }
 // Javelin ammo trickles back one at a time.

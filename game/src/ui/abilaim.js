@@ -10,7 +10,9 @@ import { SLOTS, slotDef } from '../core/sim/abilities.js';
 import { integrate } from '../core/sim/move.js';
 import { decal, place, drop, ringTex } from '../render/fxkit.js';
 
-export const aim = { on: false, k: -1, el: null, sx: 0, sy: 0, dx: 0, dy: 0, drag: false, cancel: false };
+export const aim = { on: false, k: -1, el: null, sx: 0, sy: 0, dx: 0, dy: 0, drag: false, cancel: false, charge: false, full: false };
+let onAutoEnd = () => {}; // (FIX9: what lets a drawn shot go by itself)
+export const setChargeEnd = fn => { onAutoEnd = fn; };
 const DRAG = 14, FULL = 110, AIM_WIDE = 1.5; // (px: past DRAG it's aiming; a FULL px drag reaches the move's whole range)
 
 // the slab: a rounded, see-through glass panel with a bright gold rim, its far end at +z (the canvas's top). RAM2: wider
@@ -36,7 +38,9 @@ const lineTex = (() => {
 let slab = null, ring = null;
 const clear = () => { drop(slab); drop(ring); slab = ring = null; };
 
-export function aimStart(k, el, e) { Object.assign(aim, { on: true, k, el, sx: e.clientX, sy: e.clientY, dx: 0, dy: 0, drag: false, cancel: false }); }
+export function aimStart(k, el, e, charge = false) { Object.assign(aim, { on: true, k, el, sx: e.clientX, sy: e.clientY, dx: 0, dy: 0, drag: false, cancel: false, charge, full: false }); }
+// (FIX9) the way the drag aims, or null before it's a drag
+export const dragAngle = () => (aim.on && aim.drag && !aim.cancel ? dirOf().a : null);
 export function aimMove(e) {
   if (!aim.on) return;
   aim.dx = e.clientX - aim.sx; aim.dy = e.clientY - aim.sy;
@@ -81,9 +85,24 @@ function dashLen(p, a, d) {
   }
   return gone;
 }
+// (FIX9) a Piercing shot being drawn: its line grows with the draw, dim until full, then bright and pulsing (a buzz);
+// held past full by `hold` s it goes by itself; her own phone's draw ends when the host's does
+function chargeLine(p) {
+  const D = p && p.pdraw;
+  if (!D || p.dead || p.stun > 0 || (G.role !== 'client' && !p.pierce && performance.now() - D.T0 > 300)) { clear(); onAutoEnd(); return; }
+  const d = D.d, t = (performance.now() - D.T0) / 1000, c = Math.min(1, t / d.charge);
+  if (t >= d.charge + d.hold) { clear(); onAutoEnd(); return; }
+  if (c >= 1 && !aim.full) { aim.full = true; try { navigator.vibrate && navigator.vibrate(25); } catch (e) { /* none */ } }
+  if (aim.cancel) { if (slab) clear(); return; }
+  const len = d.len[0] + (d.len[1] - d.len[0]) * c, wd = (d.w || .6) * 2 + .5;
+  if (!slab || Math.abs(slab.userData.len - len) > .25) { drop(slab); slab = decal(lineTex, wd * (c >= 1 ? 1.25 : 1), len, { add: false, from: 0, opacity: .9 }); slab.userData.len = len; slab.userData.t0 = performance.now(); }
+  if (slab.material) { slab.material.opacity = c >= 1 ? .75 + .25 * Math.sin(performance.now() / 70) : .55 + .3 * c; if (slab.material.color) slab.material.color.setRGB(1, c >= 1 ? 1 : .75 + .2 * c, c >= 1 ? 1 : .55 + .2 * c); }
+  place(slab, p.x, p.z, Math.atan2(D.ax, D.az), .14);
+}
 // every frame (main.js): the area, while you aim
 export function drawAbilAim() {
   const p = G.player;
+  if (aim.on && aim.charge) { chargeLine(p); return; }
   if (!aim.on || !aim.drag || aim.cancel || !p || p.dead) { if (slab || ring) clear(); return; }
   const slot = SLOTS[aim.k], d = slotDef(G.myTi, slot); if (!d) return;
   const { a } = dirOf(), op = .95;

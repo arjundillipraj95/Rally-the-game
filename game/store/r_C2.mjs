@@ -27,7 +27,7 @@ const o = await page.evaluate(async () => {
   const O = { x: p.x, z: p.z }, A = Math.atan2(-p.x, -p.z), W = (x, z) => [O.x + Math.sin(A) * z + Math.cos(A) * x, O.z + Math.cos(A) * z - Math.sin(A) * x];
   p.x += 300; p.z += 300; // (the champion out of the way)
   const [tx0, tz0] = W(0, 12), t = sim.mkUnit(me, tx0, tz0, 'thrower'); t.y = Wd.groundY(tx0, tz0); t.face = A; r.hp = Math.round(t.max); r.range = t.range;
-  s.order = 'hold'; s.holdPt = { x: tx0, z: tz0, face: A };
+  const [hx0, hz0] = W(0, 18); s.order = 'hold'; s.holdPt = { x: hx0, z: hz0, face: A }; // (FIX7: a held thrower stands 6 m behind the held spot)
   const man = (x, z) => { const [wx, wz] = W(x, z + 12); const u = sim.mkUnit(foe, wx, wz, 'foot'); u.y = Wd.groundY(wx, wz); u.max = u.hp = 1e5; u.face = A + Math.PI; return u; };
   let pins = []; const pin = () => { s.routT = 0; s.morale = 100; for (const [u, x, z] of pins) { u.x = x; u.z = z; u.vx = u.vz = 0; u.march = 0; } }; // (no rout: his champion is far off)
   const run = (n, f) => { for (let k = 0; k < n; k++) { F.step(1); pin(); f && f(k); } };
@@ -61,7 +61,7 @@ const o = await page.evaluate(async () => {
     r.gate = { stones: at.size, broken: !!((cg.broken >> gi) & 1), hp: cg.hp[gi], dmg: t.dmg, wd: (await import('/src/config.js')).FORT.wallDmg };
     s.order = 'hold';
   }
-  G.units = [p, t]; G.stones = []; t.x = tx0; t.z = tz0; s.holdPt = { x: tx0, z: tz0, face: A };
+  G.units = [p, t]; G.stones = []; t.x = tx0; t.z = tz0; s.holdPt = { x: hx0, z: hz0, face: A };
   // fire pots: the third stone burns; a man standing in it is hurt
   s.up.thr1 = 0; s.gold = 1000; r.fp = sim.buyUpgrade(me, 'thr1'); r.fire = t.fire;
   const f1 = man(0, 14); pins = [[f1, f1.x, f1.z]]; let fires = 0, burnt = 0;

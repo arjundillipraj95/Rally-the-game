@@ -7,10 +7,17 @@ import { G } from '../state.js';
 import { applyChamp, levelOf } from '../../champions/stats.js';
 import { say } from './util.js';
 
+// (FIX10) a champion behind the average level earns more
+function catchUp(s) {
+  let n = 0, sum = 0; for (const t of G.teams) if (t && t.active) { n++; sum += t.lvl || 1; }
+  const behind = n ? sum / n - (s.lvl || 1) : 0;
+  return behind > 0 ? Math.min(XPGAIN.catchMax, 1 + XPGAIN.catchUp * behind) : 1;
+}
 export const xpToNext = lv => (lv >= LEVELS.max ? Infinity : LEVELS.next[lv - 1]);
 export function gainXp(ti, n, src = 'other') {
   const s = G.teams && G.teams[ti]; if (!s || !s.active || !(n > 0) || G.role === 'client') return;
-  s.lvl = s.lvl || 1; s.xp = (s.xp || 0) + n; s.xpAll = (s.xpAll || 0) + n; const by = s.xpBy || (s.xpBy = {}); by[src] = (by[src] || 0) + n; // (where it came from: results and tests)
+  s.lvl = s.lvl || 1; n *= catchUp(s);
+  s.xp = (s.xp || 0) + n; s.xpAll = (s.xpAll || 0) + n; const by = s.xpBy || (s.xpBy = {}); by[src] = (by[src] || 0) + n; // (where it came from: results and tests)
   let up = false;
   while (s.lvl < LEVELS.max && s.xp >= xpToNext(s.lvl)) { s.xp -= xpToNext(s.lvl); s.lvl++; up = true; (s.lvlAt || (s.lvlAt = []))[s.lvl] = Math.round(G.T); }
   if (s.lvl >= LEVELS.max) s.xp = 0;
@@ -31,7 +38,7 @@ export function xpForCastle(h, a, by, sideArmies) {
   for (const i of near) gainXp(i, XPGAIN.castle / near.length, 'castle');
 }
 export const xpForSceptre = (a, sideArmies) => { for (const i of sideArmies(a)) gainXp(i, XPGAIN.sceptre, 'sceptre'); };
-// the trickle: each second, a champion near a castle under attack (underAttack) or in the arena
+// the trickle: each second, a champion near a castle under attack (underAttack) or in the arena; and (FIX10) the idle XP
 export function xpTick(dt, underAttack) {
   if (!G.c2 || G.role === 'client') return;
   const arena = G.layout && G.layout.arena;
@@ -40,5 +47,6 @@ export function xpTick(dt, underAttack) {
     const near = (arena && Math.hypot(L.x - (arena.x || 0), L.z - (arena.z || 0)) < (arena.r || 0) + XPGAIN.nearR)
       || (G.holds || []).some(h => h.kind === 'castle' && Math.hypot(L.x - h.x, L.z - h.z) < XPGAIN.nearR && underAttack(h));
     if (near) gainXp(i, XPGAIN.trickle * dt, 'trickle');
+    gainXp(i, XPGAIN.idle * dt, 'idle'); // (FIX10: a little all the time)
   });
 }

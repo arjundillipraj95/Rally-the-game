@@ -59,9 +59,19 @@ export function readMove(dt) {
 
 export function bindInput(actions) {
   A = actions;
+  const endPtr = e => { const { joy, look } = inp; if (e.pointerId === joy.id) { joy.active = false; joy.id = null; joy.x = joy.y = 0; } if (e.pointerId === look.id) look.id = null; };
+  AB.setChargeEnd(() => { if (AB.aim.on && AB.aim.charge) { AB.aimCancel(); A.chargeEnd && A.chargeEnd(false); } }); // (FIX9)
   const touch = $('touch'), { joy, look } = inp;
+  // (FIX12) two thumbs: a thumb whose lift was lost (it ended on a button, the phone took the touch) must never keep the
+  // stick or the camera to itself: every finger on the screen is tracked, and one that's gone frees its job
+  const live = new Set();
+  addEventListener('pointerdown', e => live.add(e.pointerId), true);
+  const gone = e => { live.delete(e.pointerId); endPtr(e); };
+  addEventListener('pointerup', gone, true); addEventListener('pointercancel', gone, true);
   touch.addEventListener('pointerdown', e => {
     if (G.state !== 'play') return; initAudio(); e.preventDefault(); trayOpen(false); upOpen(false); if (inp.wheelIsOpen) wheelOpen(false);
+    if (joy.active && !live.has(joy.id)) { joy.active = false; joy.id = null; joy.x = joy.y = 0; }
+    if (look.id !== null && !live.has(look.id)) look.id = null;
     if (e.clientX < view.W * .42 && !joy.active) {
       joy.active = true; joy.id = e.pointerId; joy.ox = e.clientX; joy.oy = e.clientY; joy.x = joy.y = 0; $('joyhint').style.opacity = 0;
     } else if (look.id === null) { look.id = e.pointerId; look.lx = e.clientX; look.ly = e.clientY; }
@@ -77,8 +87,7 @@ export function bindInput(actions) {
       look.lx = e.clientX; look.ly = e.clientY;
     }
   });
-  const endPtr = e => { if (e.pointerId === joy.id) { joy.active = false; joy.id = null; joy.x = joy.y = 0; } if (e.pointerId === look.id) look.id = null; };
-  touch.addEventListener('pointerup', endPtr); touch.addEventListener('pointercancel', endPtr);
+  touch.addEventListener('pointerup', endPtr); touch.addEventListener('pointercancel', endPtr); touch.addEventListener('lostpointercapture', endPtr);
 
   const holdBtn = (el, on, off) => {
     el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); initAudio(); try { el.setPointerCapture(e.pointerId); } catch (_) {} el.classList.add('held'); on(); });
@@ -108,10 +117,13 @@ export function bindInput(actions) {
     const duelSw = () => k < 3 && el.classList.contains('duelSw');
     el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); initAudio();
       if (duelSw()) { el.classList.add('held'); if (k === 1) inp.blockHeld = true; else A.jump(); return; }
+      if (A.chargeOf && A.chargeOf(k - 1)) { if (A.chargeStart(k - 1)) { try { el.setPointerCapture(e.pointerId); } catch (_) {} AB.aimStart(k - 1, el, e, true); } return; } // (FIX9: drawn while held)
       if (!A.abilityReady || A.abilityReady(k - 1)) { try { el.setPointerCapture(e.pointerId); } catch (_) {} AB.aimStart(k - 1, el, e); } });
-    el.addEventListener('pointermove', e => AB.aimMove(e));
-    el.addEventListener('pointerup', () => { el.classList.remove('held'); if (k === 1) inp.blockHeld = false; const at = AB.aimEnd(); if (at && A.ability) A.ability(k - 1, at.x != null ? at : null); });
-    el.addEventListener('pointercancel', () => { el.classList.remove('held'); if (k === 1) inp.blockHeld = false; AB.aimCancel(); });
+    el.addEventListener('pointermove', e => { AB.aimMove(e); if (AB.aim.on && AB.aim.charge) { const a = AB.dragAngle(); if (a != null) A.chargeAim(a); } });
+    el.addEventListener('pointerup', () => { el.classList.remove('held'); if (k === 1) inp.blockHeld = false;
+      if (AB.aim.on && AB.aim.charge) { const cancel = AB.aim.cancel; AB.aimCancel(); A.chargeEnd(cancel); return; }
+      const at = AB.aimEnd(); if (at && A.ability) A.ability(k - 1, at.x != null ? at : null); });
+    el.addEventListener('pointercancel', () => { el.classList.remove('held'); if (k === 1) inp.blockHeld = false; const ch = AB.aim.on && AB.aim.charge; AB.aimCancel(); if (ch) A.chargeEnd(false); });
     el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); A.ability && A.ability(k - 1); } });
   });
   // Weapon: press opens the wheel; slide onto a weapon and let go to take it, or let go on the button

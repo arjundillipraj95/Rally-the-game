@@ -30,7 +30,7 @@ export const BODY_SIZE = { champ: 1.3, soldier: 1.45 }; // (SIZE2 18 Nov, Arjun'
 // (C1b) the shared level path, levels 1-10 from XP in the match. next[L-1]: XP from level L to L+1. unlock: the
 // level each slot opens at. grow: health and damage each level adds (5%: level 10 is +45%). Kept through death.
 export const LEVELS = {
-  next: [100, 120, 200, 230, 280, 320, 360, 400, 440], max: 10,
+  next: [100, 120, 200, 230, 280, 320, 360, 450, 520], max: 10, // (FIX10: 8→9 and 9→10 dearer: 10 stays exceptional)
   unlock: { sp1: 3, sp2: 5, ult: 7, armyUlt: 7 },
   grow: { hp: .05, dmg: .05 },
 };
@@ -38,7 +38,9 @@ export const LEVELS = {
 // mini captain, a castle taken (shared between the side's champions within `shareR` m, at least the taker), the
 // Sceptre (the war chest) to every champion of the side that takes it, and a trickle each second to a champion
 // within `nearR` m of a castle under attack or the arena.
-export const XPGAIN = { soldier: 6, champ: 60, champAbove: 10, camp: 40, buffCamp: 80, castle: 100, shareR: 30, sceptre: 200, trickle: 2, nearR: 25 };
+// (FIX10, 19 Nov: a lane champion stalled at level 2-3 for minutes) `idle` XP a second to every living champion; below the
+// average champion level, each level behind adds `catchUp` to what he earns, at most `catchMax` times.
+export const XPGAIN = { soldier: 6, champ: 60, champAbove: 10, camp: 40, buffCamp: 80, castle: 100, shareR: 30, sceptre: 200, trickle: 2, nearR: 25, idle: .5, catchUp: .35, catchMax: 2 };
 
 // (C1d) health as a share of one infantryman (`inf` hp); a hit as a share of an infantryman's health. A blow from
 // behind lands `behind` times harder. Champion and horse shares are each champion's own (its page), these the base.
@@ -77,9 +79,11 @@ export const CHAMP_LIMITS = {
 // shot). Riding faster than `gallop` m/s, Attack held doesn't repeat: one ride-by shot a press. A computer ranged
 // champion keeps `keep` m from a melee champion and closes to `close` of her range. Targeting: the nearest enemy, or
 // champions first (the player's setting, 'rally-aim').
-// (ARCH2, Arjun 19 Nov) archers on buildings: a share of their blow; all of it once they shoot fire arrows. `scan`: how often an
+// (ARCH2, Arjun 19 Nov; FIX6 19 Nov) archers on buildings: `k` times their ARROW (not their dagger) a shot, `fire` times once
+// they shoot fire arrows (~7 a shot on a gate, ~21 with fire: 6 archers alone break a level-1 gate in ~75 s, ~25 s with
+// fire); on the war chest, which counts blows, `chest` of a blow a shot (`fireChest` with fire). `scan`: how often an
 // idle archer looks for a building in bow range (seconds)
-export const ARCH_BLD = { k: .3, fire: 1, scan: .5 };
+export const ARCH_BLD = { k: 1.5, fire: 4.5, chest: .3, fireChest: 1, scan: .5 };
 export const RANGED = { speed: 40, thirdGap: .1, pace: .65, hold: .15, gallop: 8, keep: 9, close: .8 };
 
 // (C2) the stone thrower's stone (design doc, Units table): it can't hit within `min` m; a stone flies `flight` s in a

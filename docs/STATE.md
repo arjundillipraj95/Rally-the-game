@@ -2,7 +2,22 @@
 
 Current work: **friends' playtest fixes (F tickets) and lag (Phase 0)**, then Roles & Combat (design and plan in
 Claude Docs, links in CLAUDE.md). Every builder updates this file as the last step of its ticket. Owner: Opus owner chat.
-Last updated: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pages and the online service deployed). Before: 2026-11-17 (castle set CASTLE1-10 + ORD1 shipped: main = launch26 at aa8b0ad). Before: CASTLE1. Before: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT built on `t/SPLIT`). Before: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
+Last updated: 2026-11-19 (FIX6-12 shipped). Before: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pages and the online service deployed). Before: 2026-11-17 (castle set CASTLE1-10 + ORD1 shipped: main = launch26 at aa8b0ad). Before: CASTLE1. Before: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT built on `t/SPLIT`). Before: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
+
+## FIX6-12 Arjun's playtest list, 19 Nov (his "fix and ship all"). On `launch26`, shipped to main
+- FIX6 archers on buildings: a shot is 1.5x their ARROW (was 0.3x their dagger: ~0.9 a gate, now ~5-7), fire x3 (ARCH_BLD).
+  A shut banner (nexus) gives a dull spark and says why once per 20 s ("Take <middle castle> first"). `r_FIX6.mjs`.
+- FIX7 stone thrower obeys orders: Attack = the thing pointed at (backs out past its 10 m least range); Follow keeps up and
+  throws once in place; Hold throws from behind the held spot; Arrow storm first. `r_FIX6.mjs`, `r_C2.mjs` (hold spot moved).
+- FIX8 Pierce and Volley button icons (ui/battlehud.js).
+- FIX9 Piercing shot like Spirit Shackle: hold to draw 1.5 s (10→22 m, champ 30→70, soldiers 20→45, slow 20→40%), walks at
+  40%, drag aims, auto-loose 1 s after full, slide back to cancel (2 s recharge). Joined phones send `pc` [held, ax, az].
+  `r_C4.mjs` (updated).
+- FIX10 XP: 0.5 XP/s to every champion, catch-up +35% per level below the average (max x2), levels 9 and 10 dearer
+  (450, 520). Was: a laner stuck at level 2-3 till ~5:00. `r_XP1.mjs` (whole computer match).
+- FIX11 bow champions and archers run with the captain's upright run (the bow run hunched them, bow flat behind).
+- FIX12 two thumbs: passed a two-finger test before and after (`r_TOUCH2.mjs`); added: a finger whose lift is lost no
+  longer keeps the stick or the camera. Arjun to retest on his phone.
 
 ## Live on main
 - Shipped 14 Nov (Arjun's "ship whatever is ready"; main = roles at 5b30ce7): V1b (private voice relay; Arjun's 3 secret steps still

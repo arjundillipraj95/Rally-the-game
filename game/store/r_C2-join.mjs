@@ -38,7 +38,7 @@ await A.evaluate(async () => { const G = window.__fb.G, sim = await import('/src
   s.gold = 1000; s.up.thr1 = 0; sim.buyUpgrade(me, 'thr1');
   const A = Math.atan2(-p.x, -p.z), at = d => [p.x + Math.sin(A) * d, p.z + Math.cos(A) * d];
   const [tx, tz] = at(10), t = sim.mkUnit(me, tx, tz, 'thrower'); t.face = A; t.stones = 2; t.shootCd = 0; window.__thr = t;
-  s.order = 'hold'; s.holdPt = { x: tx, z: tz, face: A };
+  const [hx, hz] = at(16); s.order = 'hold'; s.holdPt = { x: hx, z: hz, face: A }; // (FIX7: a held thrower stands 6 m behind the held spot)
   const foe = (me + 1) % 4, men = []; for (let k = 0; k < 4; k++) { const [x, z] = at(34 + k * .5), m = sim.mkUnit(foe, x + k * .5, z, 'foot'); m.max = m.hp = 1e5; men.push([m, m.x, m.z]); }
   window.__pinT = setInterval(() => { s.routT = 0; for (const [m, x, z] of men) { m.x = x; m.z = z; m.vx = m.vz = 0; } }, 30); });
 const seen = await B.evaluate(async () => { const G = window.__fb.G; let thr = 0, stones = 0, fires = 0, swung = false;
