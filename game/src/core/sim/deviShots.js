@@ -62,17 +62,18 @@ export function startPierce(u, at, d) {
   u.pierce = { T0: G.T, ax: Math.sin(a), az: Math.cos(a), d, held: !!u.human, rel: u.human ? 0 : G.T + Math.max(d.draw, need * d.charge), full: false };
   u.swing = .38; u.swingKind = 9; u.lastSwingT = G.T; // (9: the overdraw, render maps it to its clip)
   sound('draw', u.x, u.z);
+  fx('fxmsg', { k: 'fxpdraw', u, q: String(d.charge) }); // (FX1: her draw's light, on every phone)
 }
 // the player's thumb on the button (any phone): held 1, let go 0, put away 2; and the way it aims
 export function pierceInput(u, held, ax, az) {
   const P = u && u.pierce; if (!P) return;
   if (Number.isFinite(ax) && Number.isFinite(az) && Math.hypot(ax, az) > .5) { const l = Math.hypot(ax, az); P.ax = ax / l; P.az = az / l; }
-  if (held === 2) { u.pierce = null; const s = G.teams[u.ti]; if (s && s.cds) s.cds.sp1 = P.d.cancelCd; return; }
+  if (held === 2) { u.pierce = null; fx('fxmsg', { k: 'fxpdrawend', u }); const s = G.teams[u.ti]; if (s && s.cds) s.cds.sp1 = P.d.cancelCd; return; }
   P.held = held === 1;
 }
 function pierceTick(u) {
   const P = u.pierce, d = P.d, t = G.T - P.T0;
-  if (u.dead || u.stun > 0 || u.launch) { u.pierce = null; return; }
+  if (u.dead || u.stun > 0 || u.launch) { u.pierce = null; fx('fxmsg', { k: 'fxpdrawend', u }); return; }
   u.face = Math.atan2(P.ax, P.az); u.firingT = G.T + .2; // (drawn, aimed: the overdraw held)
   if (!P.full && t >= d.charge) { P.full = true; sound('draw', u.x, u.z); }
   if (t >= d.charge + d.hold || (!P.held && t >= d.draw && G.T >= P.rel)) loosePierce(u);
@@ -133,6 +134,7 @@ function volleyStep(u, dt) {
     const o = first[0];
     if (raisedFront(o, u.x, u.z) && Math.random() >= 1 / d.slip) { sound('thud', o.x, o.z); continue; } // (turned; now and then one finds its place)
     hurt(o, d.dmg * grow(u, d, 'ult'), u, u.ti, 'arrow', 1);
+    fx('fxmsg', { k: 'fxvhit', u: o, a: u }); // (FX1: each arrow's strike, felt)
   }
 }
 

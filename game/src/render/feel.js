@@ -127,3 +127,27 @@ bus.on('fxmsg', d => {
   cam.shake = Math.max(cam.shake, F.shake[a === me ? 1 : 0]);
   if (a === me) { camKick(-Math.sin(ang) * F.kick, -Math.cos(ang) * F.kick); feelStats.kick++; buzz(F.buzz); feelStats.buzz++; }
 });
+
+// ---------- (FX1) a special landing on a champion: both feel it ----------
+let edge = null;
+// the one hit: his screen's edge flashes red on the side the hit came from (a = its angle, world)
+export function hurtEdge(a = null, power = 1) {
+  if (!edge) { edge = document.createElement('div'); edge.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:40;opacity:0'; document.body.appendChild(edge); }
+  let ox = 0, oy = 0;
+  if (a != null) { const rel = a - (cam.yaw || 0); ox = Math.round(-Math.sin(rel) * 60); oy = Math.round(-Math.cos(rel) * 40); } // (toward the side it came from)
+  edge.style.boxShadow = `inset ${ox}px ${oy}px 90px ${Math.round(24 + 14 * power)}px rgba(210,30,20,.75)`;
+  edge.style.transition = 'none'; edge.style.opacity = String(Math.min(1, .6 + .4 * power)); void edge.offsetWidth;
+  edge.style.transition = 'opacity .5s ease-out'; edge.style.opacity = '0';
+}
+// u: who's hit, a: who hit him (may be null), power: 0.5 light .. 1.5 heavy
+export function impact(u, a, power = 1) {
+  if (!u || u.dead) return;
+  const F = FEEL.special, me = G.player, t = camTarget(), mine = !!me && (u === me || a === me);
+  const ang = a ? Math.atan2(a.x - u.x, a.z - u.z) : u.face || 0;
+  reel(u, ang, F.reel * power);
+  if (!mine && !(t && Math.hypot(u.x - t.x, u.z - t.z) < F.near)) return;
+  burst(0, u.x, (u.y || 0) + 1.5, u.z, WHITE, .5, F.flash * power, F.flashT); feelStats.flash++;
+  if (u === me) { hurtEdge(ang, power); cam.shake = Math.max(cam.shake, F.shake[1] * power); buzz(F.buzz[1] * power); camKick(-Math.sin(ang) * F.kick * power, -Math.cos(ang) * F.kick * power); }
+  else if (a === me) { bus.emit('hitstop', F.stop * power); cam.shake = Math.max(cam.shake, F.shake[0] * power); buzz(F.buzz[0]); }
+  else cam.shake = Math.max(cam.shake, F.shake[0] * .5 * power);
+}

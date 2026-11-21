@@ -17,7 +17,7 @@ await A.click('#friendsBtn'); await A.fill('#fAddCode', codeB); await A.click('#
 await B.click('#friendsBtn'); await B.waitForSelector('[data-acc]'); await B.click('[data-acc]'); await sleep(800);
 await A.click('#friendsDone'); await B.click('#friendsDone'); await sleep(500);
 let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); if (!c) fails++; };
-ok(await B.evaluate(() => [...document.querySelectorAll('#segChamp button')].map(b => b.dataset.v).join()) === 'legionary,titus', 'the settings list Titus');
+ok(await B.evaluate(async () => (await import('/src/champions/index.js')).playable('titus')), 'Titus is playable on the joined phone'); // (the old settings list became the Champions screen, MENU4)
 await A.click('#segFmt button[data-v="0"]'); await A.click('#playBtn');
 await A.waitForFunction(() => window.__fb && window.__fb.G.state === 'play' && window.__fb.G.role === 'host', null, { timeout: 120000 });
 await sleep(3000);
