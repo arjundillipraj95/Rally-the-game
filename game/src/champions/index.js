@@ -1,8 +1,8 @@
 // The champions (C1): one page each in this folder, listed here. G.champs[ti] is each army's champion id, the same
-// on every phone (the host sends it). Yours is the setting (localStorage 'rally-champ') or ?champ=; bots play
-// CHAMP.bot, or ?botchamp= (tests).
+// on every phone (the host sends it). Yours is the setting (localStorage 'rally-champ') or ?champ=; computers pick
+// (assignChamps, BOT1), or ?botchamp= (tests).
 import { CHAMP, ROSTER, ROSTER_FREE_WEEK } from '../config.js';
-import { G, ARMIES } from '../core/state.js';
+import { G, ARMIES, colorOf } from '../core/state.js';
 import legionary from './legionary.js';
 import titus from './titus.js';
 import devi from './devi.js';
@@ -35,10 +35,25 @@ export function setMain(id) { if (!owned(id)) return false; if (myBackup() === i
 export function setBackup(id) { if (id && (!owned(id) || id === myChamp())) return false; ls.set('rally-backup', id || null); if (onPick) onPick(); return true; }
 // the account's choice wins when you sign in (another phone may have changed it)
 export function fromAccount(main, backup) { if (okId(main) && owned(main)) setMyChamp(main); if (backup !== undefined) ls.set('rally-backup', okId(backup) && owned(backup) ? backup : null); }
-export const botChamp = () => okId(q('botchamp')) || CHAMP.bot;
-// every army's champion: chosen[ti] where a player chose one, the bots' champion elsewhere
-export function assignChamps(chosen = {}) {
-  const b = botChamp(); G.champs = Array.from({ length: ARMIES }, (_, i) => okId(chosen[i]) || b); return G.champs;
+export const botChamp = () => okId(q('botchamp')) || null;
+// (BOT1, Arjun 21 Nov) a computer army picks like a player would: first a class its team (colorOf) still lacks, then a
+// champion its team doesn't have yet, else any, at random among the playable ones. Until there are as many champions
+// as a team has places (Sigrun), a team may hold the same one twice. ?botchamp= forces one (tests).
+const pool = () => CHAMP_IDS.filter(id => playable(id) && id !== 'legionary');
+function botPick(team, rnd) {
+  const P = pool(); if (!P.length) return CHAMP.def;
+  const have = team.filter(Boolean), cls = new Set(have.map(id => CHAMPS[id].cls));
+  const score = id => (cls.has(CHAMPS[id].cls) ? 0 : 2) + (have.includes(id) ? 0 : 1);
+  const best = Math.max(...P.map(score)), top = P.filter(id => score(id) === best);
+  return top[Math.floor(rnd() * top.length)];
+}
+// every army's champion: chosen[ti] where a player chose one, a computer's pick elsewhere (the host's, sent to all)
+export function assignChamps(chosen = {}, rnd = Math.random) {
+  const f = botChamp(), c = Array.from({ length: ARMIES }, (_, i) => okId(chosen[i]) || f);
+  const open = c.map((id, i) => (id ? -1 : i)).filter(i => i >= 0);
+  for (let k = open.length - 1; k > 0; k--) { const j = Math.floor(rnd() * (k + 1)); [open[k], open[j]] = [open[j], open[k]]; } // (in a random order)
+  for (const i of open) c[i] = botPick(c.filter((id, j) => j !== i && colorOf(j) === colorOf(i)), rnd);
+  G.champs = c; return G.champs;
 }
 // on the wire: one character an army, its place in CHAMP_IDS (base 36)
 export const champCode = () => (G.champs || []).map(id => Math.max(0, CHAMP_IDS.indexOf(id)).toString(36)).join('');
