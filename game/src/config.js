@@ -502,7 +502,7 @@ export const FEEL = {
   cut: { stop: .09, world: .1, kb: 14, launch: 8, up: [2, 4], slash: 2.9, stars: 6, star: .5, starT: .7, shake: [.1, .28], kick: .22, buzz: 40, near: 24 },
   // (FX1, Arjun 21 Nov) a special landing on a champion, felt by both: reel (his body rocked from the hit side), flash,
   // and for the one hit: a red edge on that side of his screen, a shake, a buzz; for the one who landed it: a beat's hold, a kick
-  special: { reel: 6, flash: 2.6, flashT: .18, shake: [.22, .42], buzz: [35, 70], stop: .06, kick: .22, near: 26 },
+  special: { stone: 1.4, reel: 6, flash: 2.6, flashT: .18, shake: [.22, .42], buzz: [35, 70], stop: .06, kick: .22, near: 26 },
   // (FX2) a champion's horse hit: a toss of the head (`toss` rad/s a unit of power) and a step aside (`side` m/s); at
   // `rearAt` power or more it rears (`rear` rad/s, at most `rearMax` rad, nose up) with a whinny. Springs: [stiffness, damping]
   horse: { toss: 1.6, side: 2.4, twist: 1.4, rearAt: 1.2, rear: 4.6, rearMax: .62, lift: 1.1, rearK: [22, 5.5], sideK: [60, 10] },

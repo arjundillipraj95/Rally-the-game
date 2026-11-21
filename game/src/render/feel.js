@@ -153,3 +153,5 @@ export function impact(u, a, power = 1) {
   else if (a === me) { bus.emit('hitstop', F.stop * power); cam.shake = Math.max(cam.shake, F.shake[0] * power); buzz(F.buzz[0]); }
   else cam.shake = Math.max(cam.shake, F.shake[0] * .5 * power);
 }
+// (FX3) a stone thrower's stone landing on a champion: the heaviest hit, a stagger (his horse rears) and dust
+bus.on('fxmsg', e => { if (e.k !== 'fxshit' || !e.u) return; const u = e.u; dust(u.x, u.z); impact(u, e.a || null, FEEL.special.stone); });

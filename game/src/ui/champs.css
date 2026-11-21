@@ -92,3 +92,6 @@
 .cslorebox p{margin:0 0 8px;font:500 12px/1.5 var(--body);color:#ece7dc;} .cslorebox .csline{font-style:italic;color:#c9c4b8;font-size:11px;}
 .csnote b{font:400 20px var(--display);font-style:italic;} .csnote p{margin:4px 0 0;}
 .cslore{display:none;}
+
+/* (FX3) a computer's seat: a ? until it picks its champion at the start */
+.chface.cpuq{display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#e9dcc0;}.chface.cpuq::before{display:none;}

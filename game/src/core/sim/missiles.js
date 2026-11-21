@@ -90,6 +90,7 @@ export function arrowHit(a, b) {
   b.hp -= dmg; spark(b.x, b.y + 1.3, b.z, b.neutral ? NEUTRAL.css : TEAMS[colorOf(b.ti)].css, 4); sound('hit', b.x, b.z);
   push(b, 0, 0, .12);
   if (b.isMe) { fx('shake', FEEL.hurt.arrowShake); fx('buzz', FEEL.hurt.arrowBuzz); }
+  if (a.storm && b.leader) fx('fxmsg', { k: 'fxvhit', u: b, a: a.shooter }); // (FX3: a storm arrow on a champion is felt, as a volley's)
   const sh = a.shooter;
   if (b.hp <= 0) b.howBy = a.javelin ? 'jav' : 'arrow';
   if (b.hp <= 0 && (a.neutral || a.plunge || a.bolt)) b.cause = a.neutral ? 'garrison' : a.bolt ? 'ballista' : 'tower';

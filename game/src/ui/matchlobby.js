@@ -7,6 +7,7 @@ import { G } from '../core/state.js';
 import { portraitImg, splashSrc } from './portraits.js';
 import { myChamp } from '../champions/index.js';
 const face = id => `<span class="chface">${portraitImg(id || CHAMP.bot)}</span>`; // (MENU1: the champion's picture beside each name)
+const cpuFace = () => '<span class="chface cpuq">?</span>'; // (FX3: a computer picks its champion at the start (BOT1): a ? till then)
 
 const $ = id => document.getElementById(id);
 export const LANE_NAME = { L: 'Left', J: 'Jungle', R: 'Right' };
@@ -57,7 +58,7 @@ function render() {
   if (!ML.open) return;
   const lane = me && me.x.lane, lead = !!(ON.party && ON.me && ON.party.leader === ON.me.id && ON.party.members);
   const seat = (x, c, k) => {
-    if (!x) return `<button type="button" class="mlseat cpu" data-seat="${c},${k}">${face(CHAMP.bot)}<b>Computer</b><small>Tap to sit here</small></button>`;
+    if (!x) return `<button type="button" class="mlseat cpu" data-seat="${c},${k}">${cpuFace()}<b>Computer</b><small>Tap to sit here</small></button>`;
     const you = me && x.id === me.x.id;
     const kick = !you && lead && ON.party.members.some(m => m.id === x.id) ? `<button type="button" class="mlkick" data-kick="${esc(x.id)}" aria-label="Remove ${esc(x.nick)} from your party">Remove</button>` : ''; // (F23: the party leader can take a party member out)
     return `<div class="mlseat${you ? ' me' : ''}${kick ? ' haskick' : ''}">${face(you ? myChamp() : x.ch)}<b>${esc(x.nick)}${you ? ' <em>you</em>' : ''}</b><small>${x.away ? 'Reconnecting…' : x.lane ? LANE_NAME[x.lane] : c === (me && me.c) ? 'No lane yet' : ''}${x.ready && !x.away ? ' <i>✓ Ready</i>' : ''}</small>${kick}</div>`;
@@ -82,7 +83,7 @@ export function showVersus(m) {
   const at = {}; for (const [id, ti] of Object.entries(m.seats || {})) at[ti] = id;
   v.innerHTML = `<div class="vscols">${TEAMS.map((t, c) => `<div class="vscol" style="--c:${t.css}"><h3>Army ${'ABCD'[c]}</h3>${Array.from({ length: cap }, (_, k) => {
     const id = at[c + 4 * k], ln = id && m.lanes && m.lanes[id];
-    return `<p class="${id === me ? 'me' : id ? '' : 'cpu'}">${face(id === me ? myChamp() : id ? (m.chs || {})[id] : CHAMP.bot)}<b>${id ? esc((m.nicks || {})[id] || 'Captain') : 'Computer'}</b><small>${ln ? LANE_NAME[ln] : ''}</small></p>`;
+    return `<p class="${id === me ? 'me' : id ? '' : 'cpu'}">${id === me ? face(myChamp()) : id ? face((m.chs || {})[id]) : cpuFace()}<b>${id ? esc((m.nicks || {})[id] || 'Captain') : 'Computer'}</b><small>${ln ? LANE_NAME[ln] : ''}</small></p>`;
   }).join('')}</div>`).join('<i class="vsx">vs</i>')}</div><div class="vsfoot" id="vsFoot"></div>`;
   v.style.setProperty('--splash', `url(${splashSrc(myChamp())})`); // (MENU1: your champion's story art behind it, darkened)
   v.hidden = false; v.classList.remove('out'); v.dataset.shown = performance.now();

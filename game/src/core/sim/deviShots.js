@@ -152,7 +152,7 @@ function stormStep(S) {
     if (a.dead || a.ti !== S.ti || a.kind !== 'arch' || a.stun > 0 || Math.hypot(a.x - S.x, a.z - S.z) > d.reach) continue;
     const ang = rnd(0, Math.PI * 2), r = Math.sqrt(Math.random()) * S.r, mark = { x: S.x + Math.sin(ang) * r, z: S.z + Math.cos(ang) * r, vx: 0, vz: 0 };
     a.face = Math.atan2(S.x - a.x, S.z - a.z); const j = a.jitter; a.jitter = .2; shoot(a, mark); a.jitter = j;
-    const last = G.arrows[G.arrows.length - 1]; if (last && last.shooter === a) { last.plunge = true; last.peak = 14; last.dur += .5; } // (down from the sky: over a plain shield, as a tower's; ARCH2: high, as loosed to the sky)
+    const last = G.arrows[G.arrows.length - 1]; if (last && last.shooter === a) { last.plunge = true; last.peak = 14; last.dur += .5; last.storm = true; } // (down from the sky: over a plain shield, as a tower's; ARCH2: high, as loosed to the sky)
   }
   return t > S.warn + S.dur;
 }

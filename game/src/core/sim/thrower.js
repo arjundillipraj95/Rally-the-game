@@ -111,6 +111,7 @@ function land(st) {
     const d = near(b, x, z); if (d > STONE.area + (b.r || .5) * .5) continue;
     const k = 1 - (1 - STONE.edge) * Math.min(1, d / STONE.area);
     hurt(b, st.dmg * k * aiDmg(st.ti) * drumDmg(st.ti), st.sh, st.ti, 'stone');
+    if (b.leader) fx('fxmsg', { k: 'fxshit', u: b, a: st.sh }); // (FX3: a champion under a stone feels it, on every phone)
   }
   if (st.fire) G.fires.push({ id: ++G.stoneN, x, z, r: STONE.fire.r, until: G.T + STONE.fire.life, ti: st.ti, sh: st.sh });
 }

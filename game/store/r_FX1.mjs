@@ -1,4 +1,4 @@
-// FX1, FX2 (Arjun 21 Nov): specials feel like Unite and are felt by both sides. Each of Devi's moments draws (no errors,
+// FX1, FX2, FX3 (Arjun 21 Nov): specials feel like Unite and are felt by both sides. Each of Devi's moments draws (no errors,
 // pieces made and cleaned up), and a special landing on you: your body reels, your screen edge flashes red, the
 // flash shows; landing it yourself: the world holds a beat.
 import { chromium } from 'playwright';
@@ -41,4 +41,13 @@ const h = await page.evaluate(async () => { const F = window.__fb, G = F.G, army
   feel.impact(u, by, 1.3); window.__frame(7); const rear = rx(); window.__frame(90); const back = rx();
   return { toss: +toss.toFixed(2), rear: +rear.toFixed(2), back: +back.toFixed(2) }; });
 ok(h.rear < -.35 && h.toss > -.25 && Math.abs(h.back) < .05, `horse: a light hit tosses (${h.toss}), a heavy one rears (${h.rear}), then it settles (${h.back})`);
+// FX3: a stone landing on a champion is felt (the red edge, his horse rears); the storm's arrows are marked as the storm's
+const st = await page.evaluate(async () => { const F = window.__fb, G = F.G, S = await import('/src/core/state.js'), u = G.player;
+  const edge = () => [...document.querySelectorAll('div')].find(d => /rgba\(210, ?30, ?20/.test(d.style.boxShadow));
+  const e0 = edge(); if (e0) e0.style.boxShadow = '';
+  S.bus.emit('fxmsg', { k: 'fxshit', u, a: { x: u.x + 3, z: u.z } }); window.__frame(7);
+  const rear = window.__f8.live.get(u).U.rotation.x;
+  const D = await import('/src/core/sim/deviShots.js'), A = await import('/src/core/sim/abilities.js');
+  return { edge: !!edge(), rear: +rear.toFixed(2) }; });
+ok(st.edge && st.rear < -.35, `a stone on a mounted champion: red edge ${st.edge}, his horse rears (${st.rear})`);
 await browser.close(); console.log(fails ? `${fails} FAILED` : 'ALL PASS'); process.exit(fails ? 1 : 0);

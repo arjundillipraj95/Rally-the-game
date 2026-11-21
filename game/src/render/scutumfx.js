@@ -8,10 +8,13 @@ import { spark } from './effects.js';
 import { zoneTex, decal, place, drop, barrier, dropBarrier } from './fxkit.js';
 
 const live = new Map(); // unit id -> { u, d, until, wall, zone, flash }
+// (FX3) on horseback the barrier must cover horse and rider: wider and taller, and its sparks at the rider's height
+const RIDE = { r: 1.4, h: 1.35, y: 2.4 };
+const hitY = u => (u.y || 0) + (u.mounted ? RIDE.y : 1.2 * body.champ), hitR = u => 1.35 * body.champ * (u.mounted ? RIDE.r : 1);
 function off(id, shatter) {
   const L = live.get(id); if (!L) return;
   const u = L.u; u.scutumUp = false;
-  if (shatter) for (let i = 0; i < 5; i++) { const a = (u.face || 0) + (i - 2) * .45; spark(u.x + Math.sin(a) * 1.3, (u.y || 0) + 1.2 * body.champ, u.z + Math.cos(a) * 1.3, '#ffe7a3', 4); }
+  if (shatter) for (let i = 0; i < 5; i++) { const a = (u.face || 0) + (i - 2) * .45; spark(u.x + Math.sin(a) * hitR(u), hitY(u), u.z + Math.cos(a) * hitR(u), '#ffe7a3', 4); }
   dropBarrier(L.wall); drop(L.zone); live.delete(id);
 }
 bus.on('fxmsg', e => {
@@ -26,7 +29,7 @@ bus.on('fxmsg', e => {
     for (const L of live.values()) {
       const u = L.u, dx = e.u.x - u.x, dz = e.u.z - u.z; if (Math.hypot(dx, dz) > (L.d.zone + 1.5)) continue;
       L.flash = 1; const a = e.a ? Math.atan2(e.a.x - u.x, e.a.z - u.z) : u.face || 0;
-      spark(u.x + Math.sin(a) * 1.35 * body.champ, (u.y || 0) + 1.2 * body.champ, u.z + Math.cos(a) * 1.35 * body.champ, '#fff1c2', 8);
+      spark(u.x + Math.sin(a) * hitR(u), hitY(u), u.z + Math.cos(a) * hitR(u), '#fff1c2', 8);
     }
   }
 });
@@ -36,7 +39,7 @@ export function drawScutum(ctx, proj, dt = 1 / 30) {
   for (const [id, L] of live) {
     const u = L.u; if (u.dead || G.T > L.until) { off(id, false); continue; }
     const f = u.face || 0, y = u.y || 0;
-    L.wall.position.set(u.x, y, u.z); L.wall.rotation.y = f;
+    L.wall.position.set(u.x, y, u.z); L.wall.rotation.y = f; L.wall.scale.set(u.mounted ? RIDE.r : 1, u.mounted ? RIDE.h : 1, u.mounted ? RIDE.r : 1);
     L.flash = Math.max(0, L.flash - dt * 4);
     L.wall.material.opacity = .2 + .06 * Math.sin(G.T * 6) + .5 * L.flash;
     place(L.zone, u.x, u.z, f + Math.PI, .08); // (the zone runs back from him)

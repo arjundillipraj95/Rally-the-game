@@ -4,11 +4,13 @@ Current work: **friends' playtest fixes (F tickets) and lag (Phase 0)**, then Ro
 Claude Docs, links in CLAUDE.md). Every builder updates this file as the last step of its ticket. Owner: Opus owner chat.
 Last updated: 2026-11-21 (BOT1, FAC1, FX1 on launch26, not shipped). 2026-11-19 (FIX6-12 shipped). Before: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pages and the online service deployed). Before: 2026-11-17 (castle set CASTLE1-10 + ORD1 shipped: main = launch26 at aa8b0ad). Before: CASTLE1. Before: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT built on `t/SPLIT`). Before: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
 
-## BOT1, FAC1, FX1 (Arjun 21 Nov, his go). On `launch26`, NOT shipped: waiting for his "ship"
+## BOT1, FAC1, FX1-3 (Arjun 21 Nov, his go). On `launch26`, NOT shipped: waiting for his "ship"
 - BOT1 computers pick champions: a class their team lacks first, then one it lacks, at random (duplicates allowed
   until Sigrun; then enforce one champion per team). `r_BOT1.mjs`.
 - FAC1 factions: Tideseat (blue, water), Emberseat (red, fire), Stoneseat (green, earth), Windseat (yellow, air);
   top bar T E S W; castles renamed per faction (map26 NAMES). `r_FAC1.mjs`.
+- FX3 a stone on a champion is felt (fxshit: stagger, red edge, horse rears); storm arrows on champions felt (a.storm);
+  lobby computers show ? (BOT1 picks at start); Shield of Cassius barrier covers horse and rider. r_FX1.
 - FX2 horseback: a hit champion's horse tosses/steps aside, rears on heavy hits (FEEL.horse); mounted Evade leaves
   horse-and-rider ghosts. r_FX1. (r_C3k is flaky before and after: sim-only, unrelated.)
 - FX1 Unite-like specials: Devi's draw glow, thick Piercing shot with wake and pins, volley claw + fan, storm warning
