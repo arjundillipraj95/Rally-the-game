@@ -10,7 +10,8 @@ import { mulberry, angDiff, distToLine, P } from './util.js';
 import { ringWall, ridge } from './build.js';
 import { mountHomeA, mountCastle } from './mount.js';
 
-const NAMES = ['Greywater', 'Highmoor', 'Ravenhold', 'Thornwall', 'Oakhelm', 'Stonebridge', 'Redcliff', 'Wolfden', 'Ashford', 'Kingsmere', 'Frostgate', 'Emberfell'];
+// (FAC1, Arjun 21 Nov) each side's castles carry its faction's element (config TEAMS): [left, middle, right]
+const NAMES = [['Greywater', 'Frostgate', 'Mistmere'], ['Ashford', 'Emberfell', 'Cinderhold'], ['Thornwall', 'Stonebridge', 'Oakhelm'], ['Highmoor', 'Windspire', 'Galecrest']];
 const SLOT = { '-1': 'left', 0: 'middle', 1: 'right' };
 
 // (MAP7) how far (x, z) lies outside its nearest peak (negative: on it), m
@@ -55,7 +56,7 @@ export function mount26Places(L, box, trees) {
     // the three castles: lane gates both ways and one toward the summit; the middle one also a broad back gate to its peak
     for (const k of [-1, 0, 1]) {
       const ca = a + k * th, [x, z] = P(ca, laneR), tan = ca + Q;
-      const h = { x, z, kind: 'castle', name: `Castle ${NAMES[c * 3 + k + 1]}`, r: 8.5, px: x - Math.cos(ca) * 4, pz: z - Math.sin(ca) * 4, towerA0: ca + Math.PI / 4, lane: true, side: c, slot: SLOT[k], mid: k === 0 };
+      const h = { x, z, kind: 'castle', name: `Castle ${NAMES[c % 4][k + 1]}`, r: 8.5, px: x - Math.cos(ca) * 4, pz: z - Math.sin(ca) * 4, towerA0: ca + Math.PI / 4, lane: true, side: c, slot: SLOT[k], mid: k === 0 };
       L.holds.push(h);
       mountCastle(L, h, k === 0 ? [ca + Math.PI, tan, tan + Math.PI, ca] : [tan, tan + Math.PI, ca + Math.PI], cR, k === 0 ? [0, 3] : [0]);
     }

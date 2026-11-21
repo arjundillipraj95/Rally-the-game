@@ -6,11 +6,13 @@ export const AUDIO = { master: .5, levels: { low: .25, mid: .5, high: .8 } }; //
 import { UNITS } from './config/champs.js';
 const INF = UNITS.inf, HIT = UNITS.inf * UNITS.hit.foot, ARW = UNITS.inf * UNITS.hit.arrow; // (C1d: the baselines in hit points)
 
+// (FAC1, Arjun 21 Nov) the four factions that rose when the Crown fell, each faintly of an element: name (its letter on
+// the top bar), colour (`color`, where a colour is meant), element (`el`)
 export const TEAMS = [
-  { name: 'Blue',   hex: 0x3a5cf0, css: '#3a5cf0', pos: [-56,  56] },
-  { name: 'Red',    hex: 0xe0352b, css: '#e0352b', pos: [ 56, -56] },
-  { name: 'Green',  hex: 0x2fbf46, css: '#2fbf46', pos: [-56, -56] },
-  { name: 'Yellow', hex: 0xf0c419, css: '#f0c419', pos: [ 56,  56] },
+  { name: 'Tideseat',  color: 'Blue',   el: 'water', hex: 0x3a5cf0, css: '#3a5cf0', pos: [-56,  56] },
+  { name: 'Emberseat', color: 'Red',    el: 'fire',  hex: 0xe0352b, css: '#e0352b', pos: [ 56, -56] },
+  { name: 'Stoneseat', color: 'Green',  el: 'earth', hex: 0x2fbf46, css: '#2fbf46', pos: [-56, -56] },
+  { name: 'Windseat',  color: 'Yellow', el: 'air',   hex: 0xf0c419, css: '#f0c419', pos: [ 56,  56] },
 ];
 
 

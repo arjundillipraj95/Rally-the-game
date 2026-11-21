@@ -148,7 +148,7 @@ export function renderLobby() {
   const mySeat = v.seats[me];
   $('lobbyStatus').textContent = host
     ? ((NET.room.pending && NET.room.pending() ? `${NET.room.pending()} joining… · ` : '') + (nAl < 2 ? 'Everyone is on one team. Split the teams to start.' : nPlayers < 2 ? 'Share the code. Friends open this page, tap Play with friends and enter it.' : `${nPlayers} players · computer plays the rest`))
-    : (mySeat === undefined ? 'Tap a color to take it' : `You are ${TEAMS[colorOf(mySeat)].name}${slotOf(mySeat) ? "'s " + SLOT_NAME[slotOf(mySeat)].toLowerCase() : ''}. Waiting for the host to start…`);
+    : (mySeat === undefined ? 'Tap a faction to join it' : `You are ${TEAMS[colorOf(mySeat)].name}${slotOf(mySeat) ? "'s " + SLOT_NAME[slotOf(mySeat)].toLowerCase() : ''}. Waiting for the host to start…`);
 }
 
 export async function netLeave(msg) {
