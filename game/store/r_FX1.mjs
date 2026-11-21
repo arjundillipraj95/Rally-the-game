@@ -1,4 +1,4 @@
-// FX1 (Arjun 21 Nov): specials feel like Unite and are felt by both sides. Each of Devi's moments draws (no errors,
+// FX1, FX2 (Arjun 21 Nov): specials feel like Unite and are felt by both sides. Each of Devi's moments draws (no errors,
 // pieces made and cleaned up), and a special landing on you: your body reels, your screen edge flashes red, the
 // flash shows; landing it yourself: the world holds a beat.
 import { chromium } from 'playwright';
@@ -33,4 +33,12 @@ ok(o.stop >= 1, `landing a volley arrow yourself: the world holds a beat (${o.st
 ok(o.mid > 3, `the moments put their pieces in the world (${o.mid})`);
 ok(o.after === 0, `and clean them up after (${o.after} left)`);
 ok(errs === 0, `no errors (${errs})`);
+// FX2: on horseback, a heavy hit makes his horse rear (and a light one only tosses it); her Evade leaves horse-and-rider shapes
+const h = await page.evaluate(async () => { const F = window.__fb, G = F.G, army = await import('/src/core/sim/army.js'), feel = await import('/src/render/feel.js'), u = G.player;
+  const hs = { id: ++G.horseN, x: u.x, z: u.z, face: u.face, state: 'ridden', rider: u, t: 0, spd: 0, ti: u.ti, fall: 1 }; G.horses.push(hs); army.mountUp(u, hs); window.__frame(10);
+  const by = { x: u.x + Math.sin(u.face) * 3, z: u.z + Math.cos(u.face) * 3 }, rx = () => window.__f8.live.get(u).U.rotation.x;
+  feel.impact(u, by, .5); window.__frame(6); const toss = rx(); window.__frame(60);
+  feel.impact(u, by, 1.3); window.__frame(7); const rear = rx(); window.__frame(90); const back = rx();
+  return { toss: +toss.toFixed(2), rear: +rear.toFixed(2), back: +back.toFixed(2) }; });
+ok(h.rear < -.35 && h.toss > -.25 && Math.abs(h.back) < .05, `horse: a light hit tosses (${h.toss}), a heavy one rears (${h.rear}), then it settles (${h.back})`);
 await browser.close(); console.log(fails ? `${fails} FAILED` : 'ALL PASS'); process.exit(fails ? 1 : 0);

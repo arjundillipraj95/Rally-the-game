@@ -4,12 +4,13 @@
 //   the loose: a thick spectral arrow racing down the line, a wide glowing wake and a burnt line on the ground that
 //   linger, a big burst on each man it goes through, and a shackle (a ring and a pillar of light) pinning each while
 //   he's slowed. A champion it hits reels and his screen flashes red from that side (render/feel.js impact).
-// - Evade: three gold afterimages of her, a gust streak on the ground and dust;
+// - Evade: three gold afterimages of her (on horseback, of her horse and her: FX2), a gust streak on the ground and dust;
 // - Tiger's volley: a roar (two shockwaves, a claw-slash mark ahead of her), the tiger's ring at her feet and a fan of
 //   light down her lane while she looses; each arrow's strike sparks and is felt;
 // - Arrow storm: a red circle pulsing on the ground with an inner ring closing in (the warning), then a rain of
 //   gold streaks over it, dust and sparks where they land.
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { bus, G, colorOf } from '../core/state.js';
 import { TEAMS } from '../config.js';
 import { groundY } from '../core/world.js';
@@ -26,6 +27,14 @@ const GOLD = 0xffc23a, now = () => G.T, low = () => quality.level === 'low';
 const beamGeo = (() => { const g = new THREE.CylinderGeometry(1, 1, 1, 10, 1, true); g.rotateX(Math.PI / 2); g.translate(0, 0, .5); return g; })();
 const pillarGeo = (() => { const g = new THREE.CylinderGeometry(.55, .75, 2.6, 14, 1, true); g.translate(0, 1.3, 0); return g; })();
 const ghostGeo = (() => { const g = new THREE.CapsuleGeometry(.3, 1.4, 4, 10); g.translate(0, 1.0, 0); return g; })();
+// (FX2) on horseback her afterimage is horse and rider: a body, neck and head, four legs, and her on top (facing +z)
+const riderGhostGeo = (() => {
+  const at = (g, x, y, z, rx = 0) => { g.rotateX(rx); g.translate(x, y, z); return g; };
+  const parts = [at(new THREE.CapsuleGeometry(.42, 1.5, 4, 10), 0, 1.35, 0, Math.PI / 2), at(new THREE.CapsuleGeometry(.2, .75, 4, 8), 0, 1.95, 1.05, -.7),
+    at(new THREE.CapsuleGeometry(.16, .42, 4, 8), 0, 2.2, 1.5, Math.PI / 2 - .4), at(new THREE.CapsuleGeometry(.24, .75, 4, 8), 0, 2.35, -.1)];
+  for (const [x, z] of [[-.24, .75], [.24, .75], [-.24, -.75], [.24, -.75]]) parts.push(at(new THREE.CylinderGeometry(.08, .06, 1.1, 6), x, .55, z));
+  return mergeGeometries(parts.map(g => g.toNonIndexed ? (g.index ? g.toNonIndexed() : g) : g));
+})();
 const glow = (c, o) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
 const teamCol = u => new THREE.Color(TEAMS[colorOf(u.ti)] ? TEAMS[colorOf(u.ti)].css : '#ffffff').lerp(new THREE.Color(GOLD), .55).getHex();
 const near = (x, z, r) => G.player && Math.hypot(G.player.x - x, G.player.z - z) < r;
@@ -84,7 +93,8 @@ bus.on('fxmsg', e => {
   } else if (e.k === 'fxevade') {
     const [x, z, a] = String(e.q || '').split(',').map(Number); if (!Number.isFinite(x)) return;
     const y = groundY(x, z), col = teamCol(u);
-    for (let k = 0; k < 3; k++) { const g = new THREE.Mesh(ghostGeo, glow(k ? col : 0xfff1c2, .5 - k * .12)); g.position.set(x + Math.sin(a) * k * 1.4, y, z + Math.cos(a) * k * 1.4); g.scale.setScalar(body.champ); scene.add(g); ghosts.push({ m: g, t0: now() + k * .05, life: .55 }); }
+    const rid = !!u.mounted, gap = rid ? 2.2 : 1.4; // (FX2: on horseback, horse-and-rider shapes, further apart, facing her dash)
+    for (let k = 0; k < 3; k++) { const g = new THREE.Mesh(rid ? riderGhostGeo : ghostGeo, glow(k ? col : 0xfff1c2, .5 - k * .12)); g.position.set(x + Math.sin(a) * k * gap, y, z + Math.cos(a) * k * gap); g.rotation.y = rid ? (u.face || a) : 0; g.scale.setScalar(rid ? 1 : body.champ); scene.add(g); ghosts.push({ m: g, t0: now() + k * .05, life: .55, s: rid ? 1 : body.champ }); }
     const gust = decal(wakeTex, 2.2, 6, { from: 0, color: col }); place(gust, x, z, a, .1); flat(gust, .6, .9);
     for (let k = 0; k < 6; k++) dust(x + Math.sin(a) * k * .8, z + Math.cos(a) * k * .8);
     spark(x, y + 1.2, z, '#ffe7a3', 8);
@@ -139,7 +149,7 @@ export function drawDevi() {
     if (T > M.until || M.o.dead) { drop(M.m); scene.remove(M.p); M.p.material.dispose(); marks.splice(i, 1); continue; }
     const f = Math.min(1, (M.until - T) * 2); place(M.m, M.o.x, M.o.z, T * 3, .1); M.m.material.opacity = f * (.7 + .3 * Math.sin(T * 12));
     M.p.position.set(M.o.x, groundY(M.o.x, M.o.z), M.o.z); M.p.rotation.y = -T * 2; M.p.material.opacity = .3 * f; }
-  for (let i = ghosts.length - 1; i >= 0; i--) { const g = ghosts[i], k = (T - g.t0) / g.life; if (k >= 1) { scene.remove(g.m); g.m.material.dispose(); ghosts.splice(i, 1); continue; } if (k > 0) { g.m.material.opacity = .45 * (1 - k); g.m.scale.setScalar(body.champ * (1 + k * .3)); } }
+  for (let i = ghosts.length - 1; i >= 0; i--) { const g = ghosts[i], k = (T - g.t0) / g.life; if (k >= 1) { scene.remove(g.m); g.m.material.dispose(); ghosts.splice(i, 1); continue; } if (k > 0) { g.m.material.opacity = .45 * (1 - k); g.m.scale.setScalar(g.s * (1 + k * .3)); } }
   for (let i = rings.length - 1; i >= 0; i--) { const R = rings[i];
     if (T > R.until || R.u.dead || !R.u.tvolley && T > R.until - ((champOf(R.u.ti).ult || {}).dur || 2.5) + .3) { drop(R.m); drop(R.fan); rings.splice(i, 1); continue; }
     place(R.m, R.u.x, R.u.z, -T * 2, .1); R.m.material.opacity = .75 + .25 * Math.sin(T * 10);

@@ -503,6 +503,9 @@ export const FEEL = {
   // (FX1, Arjun 21 Nov) a special landing on a champion, felt by both: reel (his body rocked from the hit side), flash,
   // and for the one hit: a red edge on that side of his screen, a shake, a buzz; for the one who landed it: a beat's hold, a kick
   special: { reel: 6, flash: 2.6, flashT: .18, shake: [.22, .42], buzz: [35, 70], stop: .06, kick: .22, near: 26 },
+  // (FX2) a champion's horse hit: a toss of the head (`toss` rad/s a unit of power) and a step aside (`side` m/s); at
+  // `rearAt` power or more it rears (`rear` rad/s, at most `rearMax` rad, nose up) with a whinny. Springs: [stiffness, damping]
+  horse: { toss: 1.6, side: 2.4, twist: 1.4, rearAt: 1.2, rear: 4.6, rearMax: .62, lift: 1.1, rearK: [22, 5.5], sideK: [60, 10] },
   // your own blows, as before F6 (seconds of hold, shake) plus a short buzz when one lands
   own: { stop: { blocked: .03, heavy: .1, shove: .075, hit: .055 }, shake: { heavy: .22, shove: .16, hit: .1 }, buzz: { hit: 12, heavy: 28, blocked: 0 } },
   // any blow that lands on anybody: the struck man holds his pose this long, by how hard it was (light, heavy)

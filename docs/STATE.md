@@ -9,6 +9,8 @@ Last updated: 2026-11-21 (BOT1, FAC1, FX1 on launch26, not shipped). 2026-11-19 
   until Sigrun; then enforce one champion per team). `r_BOT1.mjs`.
 - FAC1 factions: Tideseat (blue, water), Emberseat (red, fire), Stoneseat (green, earth), Windseat (yellow, air);
   top bar T E S W; castles renamed per faction (map26 NAMES). `r_FAC1.mjs`.
+- FX2 horseback: a hit champion's horse tosses/steps aside, rears on heavy hits (FEEL.horse); mounted Evade leaves
+  horse-and-rider ghosts. r_FX1. (r_C3k is flaky before and after: sim-only, unrelated.)
 - FX1 Unite-like specials: Devi's draw glow, thick Piercing shot with wake and pins, volley claw + fan, storm warning
   + rain, evade ghosts; Titus: eagle SLAM!, testudo SHOVE!, ram reel. Hits felt by both (feel.js impact: reel, flash,
   red screen edge on the hit side, buzz; a hold for the one who landed it). `r_FX1.mjs`. r_C3*-join check updated.

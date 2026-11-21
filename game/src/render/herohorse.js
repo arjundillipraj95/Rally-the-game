@@ -1,5 +1,5 @@
 // The war horse's legs and gaits, and the horses with no rider on them. (SPLIT2: from heroes.js)
-import { TEAMS } from '../config.js';
+import { TEAMS, FEEL } from '../config.js';
 import { colorOf } from '../core/state.js';
 import { scene } from './scene.js';
 import { groundY } from '../core/world.js';
@@ -64,4 +64,21 @@ export function drawFreeHorses(list, dt) {
   }
   for (const [k, m] of freeH) if (!seen.has(k)) { scene.remove(m.root); freeH.delete(k); }
   return true;
+}
+
+// (FX2) a champion's horse taking a hit: rel is the blow's angle from its facing. It tosses its head and steps away
+// from the blow; a heavy one (power FEEL.horse.rearAt or more) makes it rear, the rider staying on
+export function buck(L, rel, power) {
+  const H = FEEL.horse, B = L.bk || (L.bk = { rp: 0, rv: 0, sp: 0, sv: 0, yp: 0, yv: 0 });
+  B.rv -= (power >= H.rearAt ? H.rear : H.toss) * power;
+  B.sv -= Math.sin(rel) * H.side * power; B.yv -= Math.sin(rel) * H.twist * power;
+  return power >= H.rearAt;
+}
+// each frame: its rear (pitch, nose up -), step aside (m, to its right +) and twist (rad), springing back
+export function buckPose(L, dt) {
+  const B = L.bk; if (!B) return null; const H = FEEL.horse, t = Math.min(dt, .05);
+  B.rv += (-H.rearK[0] * B.rp - H.rearK[1] * B.rv) * t; B.rp = Math.max(-H.rearMax, B.rp + B.rv * t);
+  for (const [p, v] of [['sp', 'sv'], ['yp', 'yv']]) { B[v] += (-H.sideK[0] * B[p] - H.sideK[1] * B[v]) * t; B[p] += B[v] * t; }
+  if (Math.abs(B.rp) + Math.abs(B.sp) + Math.abs(B.yp) + Math.abs(B.rv) + Math.abs(B.sv) < 1e-3) { L.bk = null; return null; }
+  return B;
 }

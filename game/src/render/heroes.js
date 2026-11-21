@@ -18,7 +18,7 @@ import { aimShaft } from './rig/shaft.js';
 import { duelLook, champSwing } from './rig/champgear.js';
 import { skyShot } from './devifx.js';
 import { on, SRC, heroesOn, make, weaponOf, keyOf, RIDE } from './heroload.js';
-import { gait } from './herohorse.js';
+import { gait, buck, buckPose } from './herohorse.js';
 import { sweepFar } from './herofar.js';
 export { heroesOn } from './heroload.js';
 export { drawFreeHorses } from './herohorse.js';
@@ -253,11 +253,15 @@ export function drawHero(u, a, dt) {
   if (roll) { R.root.rotateZ(roll); R.root.position.y -= .25 * Math.sin(Math.abs(roll) / 2) * h.sc; } // (the side roll: a full turn about his forward axis, tucked low)
   if (R.cape) { const k = R.cape.userData, want = k.base + Math.min(.55, sp * .07) + Math.sin(FRAME * .09 + u.id) * .03 * mv; k.a = k.a === undefined ? want : k.a + (want - k.a) * Math.min(1, dt * 6); R.cape.rotation.x = k.a; } // (C4: lifts behind him as he runs, eased)
   top.visible = true;
-  if (h.legs) { const [bob, pitch] = gait(h.legs, sp, dt); top.position.y += bob; top.rotation.order = 'YXZ'; top.rotation.x = pitch; } // (the horse walks, trots or gallops for its speed, the rider going with it)
+  if (h.legs) { const [bob, pitch] = gait(h.legs, sp, dt); top.position.y += bob; top.rotation.order = 'YXZ'; top.rotation.x = pitch; }
+  const B = h.legs && buckPose(h.legs, dt); // (FX2: hit, the horse tosses, steps aside, or rears)
+  if (B) { const f = u.face; top.rotation.x += B.rp; top.rotation.y += B.yp; top.position.y += Math.sin(-B.rp) * FEEL.horse.lift * h.sc; top.position.x += Math.cos(f) * B.sp; top.position.z -= Math.sin(f) * B.sp; } // (the horse walks, trots or gallops for its speed, the rider going with it)
   if (R.clip) lookAlong(R, h, top, u.face + (a.yaw || 0)); // (F26: his head, then his chest, toward the target)
   if (R.shaft) aimShaft(u, h, R, dt);
   return true;
 }
+// (FX2) a hit on a mounted champion reaches his horse: true when it rears
+export function horseHit(u, from, power) { const h = live.get(u); return !!(h && h.U && h.legs) && buck(h.legs, from - u.face, power); }
 // which blow his clips are playing (null between blows), for the swoosh
 export const heroScale = u => { const h = live.get(u); return h ? h.R.root.scale.x : 0; }; // (SIZE1: the size a unit is drawn at: tests read it)
 export const heroBlow = u => { const h = live.get(u); return h && h.swClip && h.swT != null && G.T - h.swT < .38 + ANIM.swingTail ? h.swClip : null; };

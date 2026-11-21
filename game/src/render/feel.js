@@ -4,6 +4,7 @@
 // sparks, a sound, both bodies held still for a beat, a camera kick, and a buzz when it's yours.
 // Every number is in FEEL (config.js). Nothing here allocates per hit: the flashes and stars live in one pool,
 // drawn in one call, and that call isn't made at all while the pool is empty.
+import { horseHit } from './heroes.js';
 import * as THREE from 'three';
 import { FEEL } from '../config.js';
 import { G, bus } from '../core/state.js';
@@ -145,6 +146,7 @@ export function impact(u, a, power = 1) {
   const F = FEEL.special, me = G.player, t = camTarget(), mine = !!me && (u === me || a === me);
   const ang = a ? Math.atan2(a.x - u.x, a.z - u.z) : u.face || 0;
   reel(u, ang, F.reel * power);
+  if (u.mounted && horseHit(u, ang, power)) bus.emit('sfx', { name: 'neigh', x: u.x, z: u.z }); // (FX2: his horse feels it too)
   if (!mine && !(t && Math.hypot(u.x - t.x, u.z - t.z) < F.near)) return;
   burst(0, u.x, (u.y || 0) + 1.5, u.z, WHITE, .5, F.flash * power, F.flashT); feelStats.flash++;
   if (u === me) { hurtEdge(ang, power); cam.shake = Math.max(cam.shake, F.shake[1] * power); buzz(F.buzz[1] * power); camKick(-Math.sin(ang) * F.kick * power, -Math.cos(ang) * F.kick * power); }
