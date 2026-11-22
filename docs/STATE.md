@@ -4,8 +4,13 @@ Current work: **friends' playtest fixes (F tickets) and lag (Phase 0)**, then Ro
 Claude Docs, links in CLAUDE.md). Every builder updates this file as the last step of its ticket. Owner: Opus owner chat.
 Last updated: 2026-11-21 (BOT1, FAC1, FX1 on launch26, not shipped). 2026-11-19 (FIX6-12 shipped). Before: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pages and the online service deployed). Before: 2026-11-17 (castle set CASTLE1-10 + ORD1 shipped: main = launch26 at aa8b0ad). Before: CASTLE1. Before: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT built on `t/SPLIT`). Before: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
 
-## C5 Sigrun and C2b units: cards written 21 Nov (Sigrun chat), waiting for Arjun's go
-- `docs/tickets/C2b.md` swordsman and cavalry (first), then `docs/tickets/C5.md` Sigrun, Viking Raider on a great grey wolf (all design agreed in her chat). Hunyuan inputs from Arjun pending.
+## C5 Sigrun and C2b units (Sigrun chat, 21 Nov, Arjun's go). On `launch26`, NOT shipped
+- Art in (9c4314d): Sigrun (axe and shield cut off), her wolf (horse rig + head/tail bones), Viking swordsman, Ulfhednar,
+  fjord horse, axe, round shield; scripts `tools/models/sigrun/`. The fjord horse keeps its Hunyuan saddle (a Viking one later).
+- C2b built: `sword` and `cav` kinds (core/sim/cavalry.js): Cavalry mounts the healthiest swordsman (50g, +1 place),
+  horse lost -> swordsman; Pursuit, Mail, Lances, Barding; ride-past-and-wheel, round braced lines; bots; HUD; joined
+  phone. `r_C2b.mjs`, `r_C2b-join.mjs`. No champion recruits them until C5 (Sigrun's page).
+- Next: C5 Sigrun (card `docs/tickets/C5.md`), waits for Arjun's go.
 
 ## BOT1, FAC1, FX1-3 (Arjun 21 Nov, his go). On `launch26`, NOT shipped: waiting for his "ship"
 - BOT1 computers pick champions: a class their team lacks first, then one it lacks, at random (duplicates allowed

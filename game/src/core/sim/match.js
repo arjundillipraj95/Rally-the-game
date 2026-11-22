@@ -1,4 +1,5 @@
 // Battle rules: setting up a match, armies, units, the march out of home.
+import { setSword, giveHorse } from './cavalry.js'; // (C2b)
 import { STAMINA, CROWN2, FEEL, CROWN, ECON, TEAMS, STATS, HUMAN_CAPTAIN, START_SQUAD, FULL_SQUAD, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, CAPTAIN_COMBAT, CHEST, PLACES } from '../../config.js';
 import { G, colorOf, activeArmies, activeFrom, gateOff, ARMIES, rules, matchTime, isC2, capOf } from '../state.js';
 import { groundY, gatePos, makeLayout, clamp, rnd } from '../world.js';
@@ -19,7 +20,7 @@ export const champWeapon = (ti, w) => { const ws = champOf(ti).weapons; return w
 export function newTeams(humans, active = activeFrom([0, 0, 0, 0])) {
   return Array.from({ length: ARMIES }, (_, i) => ({ points: 100, tickets: rules().tickets, caps: 0, ctrlScore: 0, gold: isC2() ? CROWN2.startGold : Math.round(ECON.startGold * rules().gold), alive: true, lvl: 1, xp: 0, plan: null, leaderDeadT: 0, recruitT: rnd(2, 6), thinkT: 0,
     human: !!humans[i], active: !!active[i], order: 'follow', holdPt: null, morale: 100, rally: 0, routT: 0, focus: null, towerT: rnd(0, 1.4), leader: null,
-    up: { foot1: 0, foot2: 0, arch1: 0, arch2: 0, thr1: 0, thr2: 0, aura: 0, horse: 0, arm: 0, fort: 0 }, armBuys: 0, arrowHits: 0, shieldwallT: 0, volleyCd: 0, upT: rnd(20, 40) }));
+    up: { foot1: 0, foot2: 0, arch1: 0, arch2: 0, thr1: 0, thr2: 0, sw1: 0, sw2: 0, cav1: 0, cav2: 0, aura: 0, horse: 0, arm: 0, fort: 0 }, armBuys: 0, arrowHits: 0, shieldwallT: 0, volleyCd: 0, upT: rnd(20, 40) }));
 }
 export function mkUnit(ti, x, z, kind, human = false) {
   const st = STATS[kind];
@@ -44,6 +45,8 @@ export function mkUnit(ti, x, z, kind, human = false) {
   else if (kind === 'foot' || kind === 'arch' || kind === 'thrower') { u.max *= inflHp(ti); u.hp = u.max; } // (C1e: his champion's influence)
   if (kind === 'arch') u.fireArrows = !!base.fireArrows; // (C4: her Agni Villalar)
   if (kind === 'thrower') { u.fire = !!base.fire; u.stones = 0; u.throwT = -9; } // (C2: fire pots; stones thrown; the arm's last swing)
+  if (kind === 'sword') setSword(u); // (C2b: his champion's swordsman line)
+  if (kind === 'cav') { u.kind = 'sword'; setSword(u); giveHorse(u); } // (C2b: raised straight onto a horse (tests, garrisons))
   G.units.push(u); return u;
 }
 // (F7) Stepping out: a captain back on his feet (and at the start, with his men), or a soldier just raised, walks out

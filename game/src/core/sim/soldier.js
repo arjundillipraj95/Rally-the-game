@@ -9,6 +9,7 @@ import { nearestEnemyCastle, nearestFoe, startSwing } from './melee.js';
 import { guardRing } from './duel.js';
 import { startHeavy } from './guard.js';
 import { shoot, throwJavelin } from './missiles.js';
+import { cavRide } from './cavalry.js'; // (C2b)
 import { throwerStep } from './thrower.js'; // (C2)
 import { archerFocus, archerIdle } from './archsiege.js'; // (ARCH2)
 import { c2GateA } from './crown2.js';
@@ -81,6 +82,8 @@ export function thinkSoldier(u, dt) {
   if (u.routing) { u.aim = false; u.holding = false; const [gx, gz] = G.crown ? (u.runTo || (u.runTo = homeAt(u.ti, 6))) : gatePos(TEAMS[colorOf(u.ti)], gateOff(u.ti), 6); go(u, gx, gz, speedOf(u), dt, 2); return; }
   if (u.guardOf) { guardRing(u, u.guardOf, dt); return; }
   if (u.kind === 'thrower') { throwerStep(u, s, L, orderOf(u.ti), leaderUp, dt); return; } // (C2: the stone thrower has its own ways)
+  if (u.kind === 'cav') { const to = cavRide(u, orderOf(u.ti), L, leaderUp, dt); if (to) { go(u, to[0], to[1], speedOf(u), dt, .8); if (u.foe && u.fd < u.r + u.foe.r + u.reach && u.cd <= 0) startSwing(u, u.foe); return; } } // (C2b: charge, ride past, wheel)
+  if (u.kind === 'sword' && orderOf(u.ti) === 'charge') { const [t, td] = nearestFoe(u, 30, o => o.kind === 'arch' || o.kind === 'thrower'); if (t) { u.foe = t; u.fd = td; } } // (C2b: swordsmen hunt archers and throwers)
   // (CASTLE10) following a champion who is hacking at a gate or a nexus: the footmen join him at it (and soak its arrows)
   { const sg = s.siegeAt; if (sg && u.kind === 'foot' && G.T - sg.T < 2.5 && orderOf(u.ti) === 'follow' && !(u.fd < 3)) {
     if (Math.hypot(sg.x - u.x, sg.z - u.z) > (sg.r || 0) + 1.6) { go(u, sg.x, sg.z, speedOf(u), dt, (sg.r || 0) + 1); return; } u.face = Math.atan2(sg.x - u.x, sg.z - u.z); } }
@@ -169,7 +172,8 @@ export function thinkSoldier(u, dt) {
 export function aiPick(ti) { // (C1e: his champion's soldiers)
   const ok = champOf(ti).recruits;
   if (ok.includes('thrower') && aiThrower(ti)) return 'thrower'; // (C2: a stone thrower now and then, when he has the places)
-  const k = aiPick0(ti), rest = ok.filter(x => x !== 'thrower');
+  if (ok.includes('cav')) { const sw = squadOf(ti).filter(u => u.kind === 'sword').length, cv = squadOf(ti).filter(u => u.kind === 'cav').length; if (sw >= 2 && cv < sw && armyPlaces(ti) < capOf(ti) && Math.random() < .7) return 'cav'; } // (C2b: mount a swordsman now and then)
+  const k = aiPick0(ti), rest = ok.filter(x => x !== 'thrower' && x !== 'cav');
   return rest.includes(k) ? k : rest[Math.floor(Math.random() * rest.length)] || ok[0];
 }
 // (C2) a computer army fields a stone thrower when five places are free: one, and another for every 12 places it has

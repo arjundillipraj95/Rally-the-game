@@ -1,6 +1,6 @@
 // Battle rules: orders, morale and rally, recruiting, upgrades, speed, horses.
 import { moraleBounds } from './nexus.js'; // (CASTLE8)
-import { RANGED, CROWN2, CROWN, STATS, HUMAN_CAPTAIN, CAPTAIN_SPD, HORSE_HP, HORSE_CD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, CHARGE, EXEC, FORT, HOLD_ATK, MORALE, RALLY, AURA, LAST, ARMOUR, CASTLE26 } from '../../config.js';
+import { CAV, RANGED, CROWN2, CROWN, STATS, HUMAN_CAPTAIN, CAPTAIN_SPD, HORSE_HP, HORSE_CD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, CHARGE, EXEC, FORT, HOLD_ATK, MORALE, RALLY, AURA, LAST, ARMOUR, CASTLE26 } from '../../config.js';
 import { G, isEnemy, colorOf, capOf, isC2 } from '../state.js';
 import { groundY, clamp, rnd, angDiff, W, groundSlow } from '../world.js';
 import { fx, say, sound, spark } from './util.js';
@@ -10,6 +10,7 @@ import { swiftSpd } from './buffs.js';
 import { applyChamp, champSpd } from '../../champions/stats.js';
 import { champOf } from '../../champions/index.js';
 import { UNITS } from '../../config.js';
+import { mountSwordsman, applySwordTier, applyCavTier, horseLost, bardingMiss } from './cavalry.js'; // (C2b)
 import { inflHp, inflSpd } from '../../champions/influence.js';
 import { unitRow, spearman } from '../../champions/army.js';
 import { useArmyUlt } from './abilities.js';
@@ -61,6 +62,7 @@ export function rallyCry(ti, at) {
 }
 export function canRecruit(ti) { const s = G.teams[ti]; return G.mode === 'crown' ? true : G.mode === 'conquest' ? G.teams[colorOf(ti)].alive : G.mode === 'dm' ? s.tickets > 0 : true; }
 export function recruit(ti, kind) {
+  if (kind === 'cav') return mountSwordsman(ti); // (C2b: a swordsman is mounted, not raised)
   const s = G.teams[ti], n = armyPlaces(ti) + placeOf(kind) - 1, cost = STATS[kind].cost; // (C2: places, a stone thrower five)
   if (!champOf(ti).recruits.includes(kind)) return false; // (C1e: only the soldiers his champion recruits)
   if (!canRecruit(ti) || s.gold < cost || n >= capOf(ti)) return false;
@@ -136,6 +138,7 @@ export function buyUpgrade(ti, id) {
   if (id === 'foot2' && lvl(ti, 'foot1') < 1) return false;
   if (id === 'arch2' && lvl(ti, 'arch1') < 1) return false;
   if (id === 'thr2' && lvl(ti, 'thr1') < 1) return false; // (C2: fire pots first)
+  if ((id === 'sw2' && lvl(ti, 'sw1') < 1) || (id === 'cav2' && lvl(ti, 'cav1') < 1)) return false; // (C2b)
   s.gold -= cost;
   if (id === 'tower') { // built where the captain stands, a step ahead
     const L = s.leader, x = L.x + Math.sin(L.face) * 2.2, z = L.z + Math.cos(L.face) * 2.2;
@@ -157,6 +160,8 @@ export function buyUpgrade(ti, id) {
   if (id === 'foot1' || id === 'foot2') applyFootTier(ti);
   if (id === 'arch1' || id === 'arch2') applyArchTier(ti);
   if (id === 'thr1' || id === 'thr2') applyThrowerTier(ti); // (C2)
+  if (id === 'sw1' || id === 'sw2') applySwordTier(ti); // (C2b)
+  if (id === 'cav1' || id === 'cav2') applyCavTier(ti);
   if (id === 'horse' && s.leader && !s.leader.mounted) s.leader.horseHp = horseMax(ti);
   if (id === 'horse' && s.leader && s.leader.horseCd > horseCooldown(ti)) s.leader.horseCd = horseCooldown(ti);
   if (ti === G.myTi) { sound('coin'); say('upgrade', ti, id, s.up[id]); }
@@ -176,7 +181,7 @@ export function push(u, vx, vz, stun) {
 // an archer's reach: on the mountain, by how far above (or below) his mark he stands; elsewhere high ground adds 30%
 export const bowRange = (u, t) => { if (!G.c2) return u.range * (u.y > 2.2 ? 1.3 : 1); const dy = u.y - (t ? t.y ?? groundY(t.x, t.z) : u.y); return u.range * (1 + clamp(dy * .075, -.15, .25)); };
 // (SPD1) a horse's multiple: the same for every captain, a little more with the horse upgrade
-export const mountMul = u => (champOf(u.ti).mount.spd ? champOf(u.ti).mount.spd / champSpd(u.ti) : CAPTAIN_SPD.mount) * (1 + .05 * lvl(u.ti, 'horse')); // (C1g: his page's horse, m/s)
+export const mountMul = u => u.kind === 'cav' ? CAV.mul : (champOf(u.ti).mount.spd ? champOf(u.ti).mount.spd / champSpd(u.ti) : CAPTAIN_SPD.mount) * (1 + .05 * lvl(u.ti, 'horse')); // (C1g: his page's horse, m/s)
 export function speedOf(u) {
   let s = u.spd;
   if (u.mounted) s *= mountMul(u) * (u.charge > 0 ? CHARGE.spd : 1) * (u.human ? .8 + .35 * (u.gallop || 0) : 1); // (a human rider's gallop builds on the straight)
@@ -217,6 +222,7 @@ export function mountUp(u, h) {
 export function dismount(u, thrown) {
   if (!u.mounted) return;
   const h = u.horse; u.mounted = false; u.horse = null; u.r = STATS.captain.r; u.charge = 0;
+  if (u.kind === 'cav') { h.state = 'dead'; h.t = 0; h.fall = Math.random() < .5 ? 1 : -1; horseLost(u); return; } // (C2b: his horse down, he fights on as a swordsman)
   if (thrown === 'off') { // (C3k: knocked out of the saddle: the horse bolts unhurt, he waits the horse's recharge)
     h.state = 'leaving'; h.t = 0; u.horseCd = horseCooldown(u.ti);
     if (u.human) say('horseDown', u.ti);
@@ -228,6 +234,7 @@ export function dismount(u, thrown) {
   } else { h.state = 'leaving'; h.t = 0; }
 }
 export function horseDamage(r, dmg) {
+  if (bardingMiss(r)) return; // (C2b: Barding)
   r.horseHp -= dmg;
   spark(r.x, r.y + 1.3, r.z, '#d42a1e', 5); sound('hit', r.x, r.z);
   if (r.horseHp <= 0) dismount(r, true);

@@ -55,9 +55,9 @@ export function battleHud() {
   // the Upgrade popup: each soldier type's next tier, Armour (and the Crown's watchtower); the rest are bought elsewhere
   const up = me.up || {};
   document.querySelectorAll('#upTray button').forEach(b => {
-    const id = b.dataset.up, pre = id.replace(/\d$/, ''), unit = { foot: 'foot', arch: 'arch', thr: 'thrower' }[pre];
+    const id = b.dataset.up, pre = id.replace(/\d$/, ''), unit = { foot: 'foot', arch: 'arch', thr: 'thrower', sw: 'sword', cav: 'cav' }[pre]; // (C2b)
     const hide = id === 'aura' || id === 'horse' || id === 'fort' || (unit && !champOf(G.myTi).recruits.includes(unit)) // (ARCH2: his own soldiers' columns only)
-      || ((pre === 'foot' || pre === 'arch' || pre === 'thr') && (id.endsWith('2') ? !up[pre + '1'] : !!up[pre + '1'])); // (each column: its next tier)
+      || ((pre === 'foot' || pre === 'arch' || pre === 'thr' || pre === 'sw' || pre === 'cav') && (id.endsWith('2') ? !up[pre + '1'] : !!up[pre + '1'])); // (each column: its next tier)
     b.classList.toggle('bsHide', !!hide);
   });
   document.querySelectorAll('#upTray .ucol').forEach(c => c.classList.toggle('bsHide', ![...c.querySelectorAll('button')].some(b => !b.hidden && !b.classList.contains('bsHide'))));

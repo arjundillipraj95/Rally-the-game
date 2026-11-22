@@ -2,7 +2,7 @@
 
 Model: O · Written by the Sigrun chat 21 Nov from design "Soldiers and their upgrades", "Horses and cavalry",
 "Armies" and Arjun's answers in the Sigrun design chat; code on `launch26` (44ced8b)
-Status: ready (waits for Arjun's go). Needed before C5 (Sigrun); shared by every Raider (Varma, the Roman Raider) and any
+Status: built 21 Nov on launch26 (r_C2b, r_C2b-join; crown2sim and crown2online roles off and on; r_PERF1c). Not shipped. Needed before C5 (Sigrun); shared by every Raider (Varma, the Roman Raider) and any
 champion who recruits them.
 
 ## What to build

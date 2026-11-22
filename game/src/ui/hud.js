@@ -127,7 +127,7 @@ export function updateHud(lastSnapAt) {
     const el = $('phaseTag'); if (el && el.textContent !== ph) { el.textContent = ph; el.classList.toggle('hot', K && (K.phase === 'open' || K.phase === 'night')); }
   } else if ($('phaseTag').textContent) $('phaseTag').textContent = '';
   if (!isC2() && $('glacier') && !$('glacier').hidden) $('glacier').hidden = true;
-  const c = k => sq.filter(u => u.kind === k).length; $('squadMix').textContent = `F${c('foot')} A${c('arch')}` + (c('thrower') ? ` T${c('thrower')}` : '');
+  const c = k => sq.filter(u => u.kind === k).length; $('squadMix').textContent = (c('sword') || c('cav') ? `S${c('sword')} C${c('cav')}` : `F${c('foot')} A${c('arch')}`) + (c('thrower') ? ` T${c('thrower')}` : ''); // (C2b)
   { // your army's morale, and the rally horn on the order button
     const T = G.teams[G.myTi], m = Math.max(0, Math.min(100, (T && T.morale) ?? 100)), mb = $('moraleBar');
     mb.firstChild.style.width = m + '%'; mb.classList.toggle('rout', !!(T && T.routT > 0)); mb.classList.toggle('waver', !(T && T.routT > 0) && m <= 40);
@@ -137,22 +137,25 @@ export function updateHud(lastSnapAt) {
   }
   document.querySelectorAll('#tray button').forEach(b => {
     { const hide = !champOf(G.myTi).recruits.includes(b.dataset.kind); if (b.hidden !== hide) b.hidden = hide; } // (C1e: his champion's soldiers only)
-    b.setAttribute('aria-disabled', (gold < STATS[b.dataset.kind].cost || used + placeOf(b.dataset.kind) > cap || !canRecruit(G.myTi)) ? 'true' : 'false');
+    const noSw = b.dataset.kind === 'cav' && !sq.some(u => u.kind === 'sword'); // (C2b: cavalry needs a swordsman to mount)
+    b.setAttribute('aria-disabled', (noSw || gold < STATS[b.dataset.kind].cost || used + placeOf(b.dataset.kind) - (b.dataset.kind === 'cav' ? 1 : 0) > cap || !canRecruit(G.myTi)) ? 'true' : 'false');
   });
   document.querySelectorAll('#upTray button').forEach(b => {
     const id = b.dataset.up, def = UPGRADES.find(u => u.id === id), max = def ? def.cost.length : 0;
     if (id.startsWith('thr')) { const hide = !champOf(G.myTi).recruits.includes('thrower'); if (b.hidden !== hide) { b.hidden = hide; $('ucolThr').hidden = hide; } if (hide) return; } // (C2: his stone throwers')
+    for (const [pf, k, col] of [['sw', 'sword', 'ucolSw'], ['cav', 'cav', 'ucolCav']]) if (id.startsWith(pf)) { const hide = !champOf(G.myTi).recruits.includes(k); if (b.hidden !== hide) { b.hidden = hide; $(col).hidden = hide; } } // (C2b)
+    if (b.hidden && /^(sw|cav)\d/.test(id)) return;
     { const N = champOf(G.myTi).upNames, k = G.myTi + ':' + champOf(G.myTi).id; if (b.dataset.nm !== k) { b.dataset.nm = k; if (!b.dataset.n0) { b.dataset.n0 = b.querySelector('b').textContent; b.dataset.d0 = b.querySelector('span').textContent; } const n = N && N[id]; b.querySelector('b').textContent = n ? n[0] : b.dataset.n0; b.querySelector('span').textContent = n ? n[1] : b.dataset.d0; } } // (C4: her archers' own names)
     if (id === 'aura') { const hide = isC2(); if (b.hidden !== hide) b.hidden = hide; if (hide) return; } // (C1e: the mountain has no aura; influence does it)
     if (id === 'tower') { const hide = G.mode !== 'crown'; if (b.hidden !== hide) b.hidden = hide; if (hide) return; } // (the Crown's watchtowers)
     const vh = id === 'fort' && isC2() && !castleHere(G.myTi) ? villageHere(G.myTi) : null;
     const cw = id === 'fort' && G.mode === 'crown' ? castleHere(G.myTi) : null, cst = cw && G.cgates && G.cgates[cw.hid]; // (the Crown: Fortify is the castle you stand in)
     const own = id === 'fort' ? G.teams[colorOf(G.myTi)] : me, l = cw ? (cst && cst.lv) | 0 : own && own.up ? own.up[id] : 0, cost = upgradeCost(G.myTi, id); // (Fortify: the castle's)
-    const locked = (id === 'foot2' && !(me.up && me.up.foot1)) || (id === 'arch2' && !(me.up && me.up.arch1)) || (id === 'thr2' && !(me.up && me.up.thr1));
+    const locked = (id === 'foot2' && !(me.up && me.up.foot1)) || (id === 'arch2' && !(me.up && me.up.arch1)) || (id === 'thr2' && !(me.up && me.up.thr1)) || (id === 'sw2' && !(me.up && me.up.sw1)) || (id === 'cav2' && !(me.up && me.up.cav1));
     b.querySelector('.lv').dataset.pips = id === 'arm' || id === 'tower' ? '' : '●'.repeat(l) + '○'.repeat(Math.max(0, max - l));
     if (id === 'fort' && G.mode === 'crown') b.querySelector('span').textContent = vh ? (vh.fort ? 'Palisade up: 11 s to take' : 'Palisade round this village') : !cw && isC2() ? 'Stand in a castle or village you hold' : !cw ? 'Stand in a castle you hold' : l >= 2 ? 'An iron layer on every gate' : l === 1 ? 'A stone layer, more archers' : 'Shut the gates, archers on the walls'; // (CASTLE1: a level a tap, a layer on every gate)
     else if (id === 'fort') b.querySelector('span').textContent = l >= max ? (cost != null ? 'Mend the broken gate' : 'Palisade, gates and towers built') : l === 1 ? 'Gates and gate towers' : 'Palisade, then gates & towers';
-    b.querySelector('em').textContent = cost == null ? (id === 'fort' && G.mode === 'crown' && !cw ? '—' : id === 'tower' ? 'Two up' : id === 'arm' ? (G.player && !G.player.dead ? 'Whole' : '—') : 'Maxed') : locked ? (id === 'foot2' ? 'Needs Arms first' : 'Needs Training first') : cost + 'g';
+    b.querySelector('em').textContent = cost == null ? (id === 'fort' && G.mode === 'crown' && !cw ? '—' : id === 'tower' ? 'Two up' : id === 'arm' ? (G.player && !G.player.dead ? 'Whole' : '—') : 'Maxed') : locked ? (id === 'foot2' ? 'Needs Arms first' : id === 'sw2' ? 'Needs Pursuit first' : id === 'cav2' ? 'Needs Lances first' : id === 'thr2' ? 'Needs Fire pots first' : 'Needs Training first') : cost + 'g';
     b.dataset.state = cost == null ? 'max' : locked ? 'locked' : gold < cost ? 'poor' : 'ok';
     b.setAttribute('aria-disabled', (cost == null || gold < cost || locked) ? 'true' : 'false');
   });

@@ -10,7 +10,7 @@ import { on, SRC, heroesOn, hexOf, SCALE, SOLDIER_SCALE } from './heroload.js';
 const FAR_MAX = 600, far = new Map(); let farReset = true, farDrawn = false;
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _e = new THREE.Euler();
 function farBatch(hex, kind) {
-  const L = kind === 'foot' ? SRC.spearLod : kind === 'arch' ? SRC.archLod : null, key = hex + (L ? kind : ''); let b = far.get(key);
+  const L = kind === 'foot' ? SRC.spearLod : kind === 'arch' ? SRC.archLod : kind === 'sword' ? SRC.swordLod : null, key = hex + (L ? kind : ''); let b = far.get(key);
   if (!b) { b = new THREE.InstancedMesh(L ? L.geo : SRC.lod, L ? L.mats(hex) : teamMaterial(SRC.soldierMat, hex, .26), FAR_MAX); b.count = 0; b.frustumCulled = false; b.castShadow = true; scene.add(b); far.set(key, b); }
   return b;
 }
@@ -28,7 +28,7 @@ const mergeTwo = (a, b) => { const g = new THREE.BufferGeometry(), A = a.toNonIn
 let FAR_ON = true; try { FAR_ON = new URLSearchParams(location.search).get('far') !== '0'; } catch (e) { /* on */ } // (?far=0: the old figures far off, for comparison)
 export function drawFar(u, a) {
   if (!FAR_ON) return false;
-  if (u.dead || u.hidden || u.mounted || (u.kind !== 'foot' && u.kind !== 'arch')) return false;
+  if (u.dead || u.hidden || u.mounted || (u.kind !== 'foot' && u.kind !== 'arch' && u.kind !== 'sword')) return false; // (C2b: swordsmen too)
   if (on && !SRC) return true; // (still loading: hidden rather than the old figure)
   if (!heroesOn()) return false;
   if (farReset) { for (const b of far.values()) b.count = 0; farReset = false; }

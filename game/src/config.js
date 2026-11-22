@@ -181,7 +181,7 @@ export const MAPS = {
   frost:  { id: 'frost',  name: 'Frost Hill',  desc: 'A snowy hill in the middle, walled off by pine forests and crags, with frozen ponds in two of the passes: on the ice you slide. Fighting downhill deals +20% damage and archers on top shoot 30% farther.', sky: 0xe4ecf2, fog: [60, 170], g1: 0xeef3f6, g2: 0xd7e0e8, g3: 0xb8c4ce, hill: 0x9aa6b2, rock: 0x8e969c },
 };
 
-export const KINDS = ['captain', 'foot', 'arch', 'thrower']; // (C2: the stone thrower)
+export const KINDS = ['captain', 'foot', 'arch', 'thrower', 'sword', 'cav']; // (C2: the stone thrower) (C2b: the swordsman and the cavalryman)
 // The Crown is for thinking: these small happenings stay out of the banners, the side feed and the
 // herald there (they still happen, and show in the results). Castles, the Crown, the war chest and the
 // last stands are the beats that move the plan, so they keep their voice.
@@ -199,13 +199,15 @@ export const STATS = {
   foot:    { hp: INF, dmg: HIT, reach: 1.25, cd: .95, spd: 5.4, r: .55, block: .35, cost: 40, name: 'Footman' },
   arch:    { hp: INF * UNITS.hp.arch, dmg: 6,  reach: 1.1,  cd: 1.2, spd: 5.3, r: .5,  block: 0,   cost: 50, name: 'Archer', range: 22, shoot: 2.3, arrow: ARW, jitter: .8 },
   thrower: { hp: INF * UNITS.hp.thrower, dmg: 45, reach: 0, cd: 6, spd: 3.2, r: 1.4, block: 0, cost: 200, name: 'Stone thrower', range: 24, shoot: 6 }, // (C2: 300 health; a stone 45 at its centre; reload 6 s; slow)
+  sword:   { hp: INF * UNITS.hp.sword, dmg: HIT, reach: 1.2, cd: .85, spd: 5.9, r: .55, block: .3, cost: 40, name: 'Swordsman' }, // (C2b: fast, a small shield)
+  cav:     { hp: INF * UNITS.hp.cavMan, dmg: HIT, reach: 1.6, cd: .9, spd: 5.9, r: .95, block: 0, cost: 50, name: 'Cavalry' }, // (C2b: a swordsman on a horse; `cost` is the mount's)
 };
 // (SPD1) one speed for every captain, the player's or the computer's: on foot, and the horse's multiple
 export const CAPTAIN_SPD = { foot: 6.2, mount: 1.8 };
 export const HUMAN_CAPTAIN = { dmg: INF * UNITS.hit.champ, spd: CAPTAIN_SPD.foot }; // (C1d: the same blow as a computer champion's)
-export const RECRUITS = ['foot', 'arch', 'thrower'];
+export const RECRUITS = ['foot', 'arch', 'thrower', 'sword', 'cav'];
 // (C2) army places a soldier takes (every other kind: 1)
-export const PLACES = { thrower: 5 };
+export const PLACES = { thrower: 5, cav: 2 }; // (C2b: a mounted swordsman two)
 
 // Footman's 3 tiers: sword & shield -> spear, javelin & a better shield -> heavier armor & hp.
 // Index = number of foot upgrades bought (foot1 + foot2), so 0/1/2.
@@ -228,6 +230,26 @@ export const THROWER_TIERS = [
   { hp: INF * UNITS.hp.thrower, dmg: 45, reach: 0, cd: 5.5, spd: 3.2, r: 1.4, block: 0, range: 24, shoot: 5.5, fire: true, name: 'Stone thrower (Fire pots)' },
   { hp: INF * UNITS.hp.thrower * 1.5, dmg: 45, reach: 0, cd: 5.5, spd: 3.8, r: 1.4, block: 0, range: 30, shoot: 5.5, fire: true, name: 'Stone thrower (Reinforced)' },
 ];
+// (C2b) the swordsman's tiers (design "Soldiers and their upgrades", Raider): base -> Pursuit (his first hit on a man
+// running slows him `pursuit` s by `slowK`; from behind x`behind`) -> Mail (+30% health, +15% damage, a better block).
+// Index = sw1 + sw2 bought. A champion's page may rename them and give the last its own look (C5: Ulfhednar).
+export const SWORD_TIERS = [
+  { hp: INF * UNITS.hp.sword, dmg: HIT, reach: 1.2, cd: .85, spd: 5.9, r: .55, block: .3, pursuit: false, name: 'Swordsman' },
+  { hp: INF * UNITS.hp.sword, dmg: HIT, reach: 1.2, cd: .85, spd: 5.9, r: .55, block: .3, pursuit: true, behind: 1.5, name: 'Swordsman (Pursuit)' },
+  { hp: INF * UNITS.hp.sword * 1.3, dmg: HIT * 1.15, reach: 1.2, cd: .85, spd: 5.9, r: .55, block: .45, pursuit: true, behind: 1.5, name: 'Swordsman (Mail)' },
+];
+// (C2b) the cavalryman: a swordsman on a horse (two health bars: the horse's `horse` first, then the man's). Mounting a
+// swordsman costs STATS.cav.cost and a place more; the horse goes to the swordsman with the most health. When the horse
+// dies he fights on as a swordsman. Tiers (cav1 + cav2): Lances (+40% charge damage, the lance back 10 s after a
+// charge, +10 horse health), Barding (horse health +50%; a galloping horse is hit 10 points less often).
+export const CAV_TIERS = [
+  { hp: INF * UNITS.hp.cavMan, dmg: HIT, reach: 1.6, cd: .9, spd: 5.9, r: .95, block: 0, horse: INF * UNITS.hp.cavHorse, chargeX: 1, dodge: 0, name: 'Cavalry' },
+  { hp: INF * UNITS.hp.cavMan, dmg: HIT, reach: 1.6, cd: .9, spd: 5.9, r: .95, block: 0, horse: INF * UNITS.hp.cavHorse + 10, chargeX: 1.4, dodge: 0, lance: true, name: 'Cavalry (Lances)' },
+  { hp: INF * UNITS.hp.cavMan, dmg: HIT, reach: 1.6, cd: .9, spd: 5.9, r: .95, block: 0, horse: (INF * UNITS.hp.cavHorse + 10) * 1.5, chargeX: 1.4, dodge: .1, lance: true, name: 'Cavalry (Barding)' },
+];
+// (C2b) how a cavalryman rides: his horse at `mul` of his pace; he charges a foe `near`-`far` m ahead (`cd` s apart, the
+// lance back `lance` s after a charge), rides past `past` m, wheels and charges again; he keeps `avoid` m off a braced line
+export const CAV = { mul: 1.75, near: 4, far: 14, cd: 6, lance: 10, past: 6, avoid: 5 };
 // The captain rides the Footman upgrade line: a small stat bump plus the javelin at tier 1+,
 // so playing the captain always mirrors what the squad's Footman upgrades are doing.
 export const CAPTAIN_TIERS = [
@@ -453,6 +475,10 @@ export const UPGRADES = [
   { id: 'arch2', name: 'Marksman', desc: 'Archers: +range, +accuracy',                              cost: [160] },
   { id: 'thr1', name: 'Fire pots',  desc: 'Stone throwers: every third stone burns the ground', cost: [120] }, // (C2)
   { id: 'thr2', name: 'Reinforced', desc: 'Stone throwers: tougher, longer range, faster', cost: [220] },
+  { id: 'sw1', name: 'Pursuit', desc: 'Swordsmen: the first hit on a runner slows him; x1.5 from behind', cost: [100] }, // (C2b)
+  { id: 'sw2', name: 'Mail', desc: 'Swordsmen: +30% health, +15% damage, a better block', cost: [200] },
+  { id: 'cav1', name: 'Lances', desc: 'Cavalry: a lance charge, +40% charge damage, +10 horse health', cost: [110] },
+  { id: 'cav2', name: 'Barding', desc: 'Cavalry: horse health +50%, harder to hit at a gallop', cost: [200] },
   { id: 'aura',  name: 'Aura',     desc: 'Bigger, stronger aura',                                   cost: [80, 140, 220] },
   { id: 'horse', name: 'Horse',    desc: 'Tougher, faster, back sooner',                             cost: [80, 140, 220] },
   { id: 'arm',   name: 'Armour',   desc: 'Your captain: plate that soaks most of each blow. Never mends, buy it again', cost: [70] },

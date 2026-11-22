@@ -1,4 +1,5 @@
 // Battle rules: who is near (grid), stamina, sword swings, clashes and the blow landing.
+import { pursuitHit } from './cavalry.js'; // (C2b)
 import { takenX } from './eagle.js';
 import { shields, coverOf, dropScutum, blockedBy } from './scutum.js';
 import { testudoX } from './testudo.js';
@@ -236,6 +237,7 @@ export function hit(a, b, mult = 1, extra) {
   dmg *= drumDmg(a.ti); // (CAMP1: the war drum)
   dmg *= inflDmg(a) * inflTaken(b, Math.abs(angDiff(b.face, Math.atan2(a.x - b.x, a.z - b.z))) < 1.1); // (C1e: the champions' influence)
   if (!a.leader && G.teams[a.ti] && G.teams[a.ti].vcT > G.T) dmg *= VCHARGE.dmg; // (charging in behind a volley)
+  dmg = pursuitHit(a, b, dmg, behind(b, a)); // (C2b: a swordsman's Pursuit)
   if (G.mode === 'conquest' && G.teams[colorOf(a.ti)].breached && lastStand(a)) dmg *= LAST.dmg; // (backs to the wall)
   if (extra && extra.fixed != null) dmg = extra.fixed; // (C3d: an ult's set damage)
   dmg *= takenX(b) * shieldX; // (C3d: Eagle's fall in the air, and shield-up after it; C3c)

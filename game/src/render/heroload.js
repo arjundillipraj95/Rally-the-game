@@ -16,7 +16,7 @@ import { spearman } from '../champions/army.js';
 import { champOf, CHAMPS } from '../champions/index.js';
 import { warHorse, cloneHorse } from './warhorse.js';
 import { tierLook, archerQuiver } from './rig/tierlook.js';
-import { loadChampGear, champGear, champHorse, archerBow } from './rig/champgear.js';
+import { loadChampGear, champGear, champHorse, horseNamed, archerBow } from './rig/champgear.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { legsOf } from './herohorse.js';
 
@@ -37,7 +37,7 @@ export let SRC = null;
 // the look's choices (core/look.js) become pack pieces: helmet, armour and shield. The weapon stays the
 // one you fight with (gameplay), so it is not a look here.
 const PACK = { helmet: ['blue_crest', 'gold_ridge', 'red_crest'], shield: ['red_scutum', 'blue_oval', 'blue_kite'] };
-const CHAMP_SHIELDS = ['scutum_titus', 'gladius_titus'], CHAMP_MODELS = ['titus', 'spearman', 'archer', 'devi', 'archer_chola']; // (his own pieces: shields and swords) // (C3: a champion's own shield, from his page's look; models/<name>.glb)
+const CHAMP_SHIELDS = ['scutum_titus', 'gladius_titus', 'roundshield_sigrun', 'axe_sigrun'], CHAMP_MODELS = ['titus', 'spearman', 'archer', 'devi', 'archer_chola', 'swordsman_viking', 'ulfhednar']; // (C2b: the Viking swordsman, his round shield and axe) // (his own pieces: shields and swords) // (C3: a champion's own shield, from his page's look; models/<name>.glb)
 // the armour choices: the painted armour in its finishes (C2: 'Burnished iron', once 'Leather & fur', is dark worked iron; 'leather' stays for the archers' jerkin) (the tint multiplies its painted steel)
 const ARMOUR_FINISH = { steel: [0xffffff, .35, .45], bronze: [0xe0a458, .55, .38], leather: [0x9a6238, 0, .85], iron: [0xb4a08c, .65, .32], black: [0x3b3e46, .6, .3] };
 // C1: a helmet's metal (dome, cheek guards) is the colour of the armour finish the player picked
@@ -57,16 +57,16 @@ if (on) {
     loadClipBody(ANIM.file), ...['models/soldier.glb', 'models/armour_segmented.glb'].map(mesh$),
     ...PACK.helmet.map(n => scene$(`models/pack/captain_helmet_${n}.glb`)),
     ...PACK.shield.map(n => scene$(`models/pack/captain_shield_${n}.glb`)),
-    scene$('models/horse_war.glb'), mesh$('models/soldier_lod.glb'), ...CHAMP_SHIELDS.map(n => scene$(`models/${n}.glb`)), ...CHAMP_MODELS.map(n => loadClipBody(`models/${n}_anim.glb`)), scene$('models/spearman_lod.glb'), scene$('models/archer_lod.glb')
+    scene$('models/horse_war.glb'), mesh$('models/soldier_lod.glb'), ...CHAMP_SHIELDS.map(n => scene$(`models/${n}.glb`)), ...CHAMP_MODELS.map(n => loadClipBody(`models/${n}_anim.glb`)), scene$('models/spearman_lod.glb'), scene$('models/archer_lod.glb'), scene$('models/swordsman_viking_lod.glb')
   ]).then(all => {
-    const [, cap, sd, ar, ...rest] = all, b = cap.mesh, helmets = rest.slice(0, 3), shields = rest.slice(3, 6), horse = rest[6], lod = rest[7].geometry, champShields = rest.slice(8, 8 + CHAMP_SHIELDS.length), champModels = rest.slice(8 + CHAMP_SHIELDS.length, 8 + CHAMP_SHIELDS.length + CHAMP_MODELS.length), spearLod = farFigure(rest[8 + CHAMP_SHIELDS.length + CHAMP_MODELS.length]), archLod = farFigure(rest[9 + CHAMP_SHIELDS.length + CHAMP_MODELS.length]);
+    const [, cap, sd, ar, ...rest] = all, b = cap.mesh, helmets = rest.slice(0, 3), shields = rest.slice(3, 6), horse = rest[6], lod = rest[7].geometry, champShields = rest.slice(8, 8 + CHAMP_SHIELDS.length), champModels = rest.slice(8 + CHAMP_SHIELDS.length, 8 + CHAMP_SHIELDS.length + CHAMP_MODELS.length), spearLod = farFigure(rest[8 + CHAMP_SHIELDS.length + CHAMP_MODELS.length]), archLod = farFigure(rest[9 + CHAMP_SHIELDS.length + CHAMP_MODELS.length]), swordLod = farFigure(rest[10 + CHAMP_SHIELDS.length + CHAMP_MODELS.length]);
     { const P = lod.attributes.position; let x0 = 1e9, x1 = -1e9; for (let i = 0; i < P.count; i++) { const y = P.getY(i); if (y > -.2 && y < -.15) { x0 = Math.min(x0, P.getX(i)); x1 = Math.max(x1, P.getX(i)); } } if (x1 > x0) lod.translate(-(x0 + x1) / 2, 0, 0); } // (centred on the waist, as the rig centres the full one)
     sd.material.metalness = 0; sd.material.roughness = .8; sd.geometry.userData.material = sd.material;
     const by = (list, names) => Object.fromEntries(names.map((n, i) => [n, list[i]]));
     SRC = { cap, body: b.geometry, soldier: sd.geometry, soldierMat: sd.material, lod, ...(w => ({ horse: w.tpl, seat: w.seat }))(warHorse(horse, HORSE_SCALE)), // (C3: the war horse)
       armours: Object.fromEntries(Object.entries(ARMOUR_FINISH).map(([n, [c, mt, rg]]) => { const m = ar.material.clone(); m.color.set(c); m.metalness = mt; m.roughness = rg; return [n, { geo: ar.geometry, mat: m }]; })),
       helmets: by(helmets, PACK.helmet), shields: by(shields, PACK.shield), champShields: by(champShields, CHAMP_SHIELDS),
-      models: by(champModels.map(m => ({ ...m, clips: hipClips(cap, m), own: true, ref: cap })), CHAMP_MODELS), spearLod, archLod };
+      models: by(champModels.map(m => ({ ...m, clips: hipClips(cap, m), own: true, ref: cap })), CHAMP_MODELS), spearLod, archLod, swordLod };
  // (C3: his own body plays the captain's clips; the spearman's far figure)
   }).catch(e => { console.warn('captain models failed to load', e); on = false; });
 }
@@ -84,14 +84,16 @@ export function weaponOf(u) { if (u.kind === 'arch') return 'bow'; if (u.weapon)
 const lookOf = u => (G.looks && G.looks[u.ti]) || null;
 // the colour an army's cloth, shield face and hood are tinted to: its team's, or the neutral grey (M1: the mountain's garrisons and camps)
 export const hexOf = u => u.neutral ? NEUTRAL.hex : TEAMS[colorOf(u.ti)].hex;
-export const keyOf = u => { const L = lookOf(u); return [hexOf(u), u.kind, u.leader || u.kind === 'arch' ? champOf(u.ti).id : '', u.tier | 0, L ? [L[SLOT_IX.helm], L[SLOT_IX.armour], L[SLOT_IX.shield], L[SLOT_IX.cape]].join('.') : ''].join('|'); };
+export const keyOf = u => { const L = lookOf(u); return [hexOf(u), u.kind, u.leader || u.kind === 'arch' || u.kind === 'sword' || u.kind === 'cav' ? champOf(u.ti).id : '', u.tier | 0, L ? [L[SLOT_IX.helm], L[SLOT_IX.armour], L[SLOT_IX.shield], L[SLOT_IX.cape]].join('.') : ''].join('|'); };
 export function make(u) {
   const weapon = weaponOf(u), team = hexOf(u), soldier = u.kind !== 'captain', L = lookOf(u);
   const shieldName = L ? pick('shield', L[SLOT_IX.shield]) : '', shield = SRC.shields[shieldFile(shieldName)];
   const cl = !soldier && champOf(u.ti).look, shieldRaw = cl && cl.shield ? SRC.champShields[cl.shield] || null : null, swordRaw = cl && cl.sword ? SRC.champShields[cl.sword] || null : null; // (C3: his own shield and sword)
   const own = clipsOn && cl && cl.model ? SRC.models[cl.model] : null; // (C3: his own body, helmet and cloak in it)
+  const swl = (u.kind === 'sword' || u.kind === 'cav') && (champOf(u.ti).look || {}), sw = swl && (SRC.models[(u.tier | 0) >= 2 && swl.swordTop || swl.swordsman || 'swordsman_viking'] || SRC.models.swordsman_viking); // (C2b: his champion's swordsman; the last tier its own look)
   const sp = u.kind === 'foot' && SRC.models.spearman, ab = u.kind === 'arch' && ((cla => cla && SRC.models[cla])(champOf(u.ti).look && champOf(u.ti).look.archer) || SRC.models.archer), abOwn = ab && ab !== SRC.models.archer; // (C3: the soldiers' new bodies, on the shared skeleton and clips)
-  const R = sp ? rigClip(SRC.models.spearman, { team, weapon, pack: { shield, noHelmet: true, small: true, cape: (u.tier | 0) >= 2 ? 2 : 0 } }) // (C3h: the Triarius's short cloak)
+  const R = sw ? rigClip(sw, { team, weapon: 'sword', pack: { shieldRaw: SRC.champShields[swl.soldierShield || 'roundshield_sigrun'] || null, swordRaw: SRC.champShields[swl.soldierWeapon || 'axe_sigrun'] || null, noHelmet: true } }) // (C2b: his helmet or hood is in his body)
+    : sp ? rigClip(SRC.models.spearman, { team, weapon, pack: { shield, noHelmet: true, small: true, cape: (u.tier | 0) >= 2 ? 2 : 0 } }) // (C3h: the Triarius's short cloak)
     : ab ? rigClip(ab, { team, weapon, pack: { noShield: true, noHelmet: true } }) // (his quiver and helmet are in his body)
     : soldier ? rigCaptain(SRC.soldier, { body: 'soldier', team, weapon, pack: u.kind === 'arch' ? { noShield: true } : { shield } })
     : own ? rigClip(own, { team, weapon, pack: cl && cl.bow ? { noShield: true, noHelmet: true } : { shield, shieldRaw, swordRaw, noHelmet: true } }) // (ARCH2: a bow champion carries no shield)
@@ -109,7 +111,8 @@ export function make(u) {
   const fold = batchOn() ? foldGear(R, [R.shield, R.cape, R.slide]) : null; // (F17c: the spear's slide joint moves too: aimed and slid in his grip) // (F1b: his gear in one or two draws; ?f1=0 the old pieces)
   const h = { R, cg, bowman, cl: own ? cl : null, fold, weapon, team, key: keyOf(u), run: 0, moveName: null, moveT: 0, hp: u.hp, blockHitT: -1, sc, mounted: !!u.mounted, U: null, legs: null };
   if (u.mounted) { // on the warhorse: the rider sits on the saddle, and the unit moves as one
-    const H = (!soldier && champHorse(cl)) || { tpl: SRC.horse, seat: SRC.seat }, hc = cloneHorse(H.tpl, team), U = new THREE.Group();
+    const H = (!soldier && champHorse(cl)) || (soldier && swl && horseNamed(swl.cavHorse || 'horse_fjord')) || { tpl: SRC.horse, seat: SRC.seat }, // (C2b: his cavalry's horse)
+      hc = cloneHorse(H.tpl, team), U = new THREE.Group();
     U.add(hc); U.add(R.root); R.root.position.set(0, H.seat.top + (.38 + .04) * sc, H.seat.z); // (his hips, .38 below his root, on the seat)
     h.U = U; h.legs = legsOf(hc);
     scene.add(U);

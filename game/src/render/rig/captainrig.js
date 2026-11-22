@@ -162,7 +162,7 @@ export function addGear(bones, { body = 'captain', weapon = 'sword', team = null
     // the shield: gripped in the left fist, its face along the hand's +z, its long side along +y.
     // Which way both point is set per pose (see aimGear): the wrist turns to match.
     const sh = new THREE.Group(); sh.position.set(-.1, 0, .12); bones.hand_L.add(sh); shieldAt = sh;
-    if (pack && pack.shieldRaw) { const p = pack.shieldRaw.clone(true), F = FIT.champShield; p.rotation.y = Math.PI; p.scale.setScalar(F.s); p.position.z = F.grip; p.traverse(m => { if (m.isMesh) m.castShadow = true; }); sh.add(p); } // (C3: a champion's own shield, modelled in metres, its face along -z, origin at the grip)
+    if (pack && pack.shieldRaw) { const p = pack.shieldRaw.clone(true), F = FIT.champShield; p.rotation.y = Math.PI; p.scale.setScalar(F.s); p.position.z = F.grip; p.traverse(m => { if (m.isMesh) { m.castShadow = true; if (/team/i.test(m.material.name)) { m.material = m.material.clone(); m.material.color.set(teamCol); } } }); sh.add(p); } // (C2b: a painted face in the army's colour) (C3: a champion's own shield, modelled in metres, its face along -z, origin at the grip)
     else if (pack && pack.shield) { const F = pack.small ? FIT.spearShield : FIT.shield, p = packPiece(pack.shield, F, team); p.position.z = F.grip; sh.add(p); } // (C3: the new spearman carries it smaller and closer)
     else if (pack && pack.noShield) { /* (the archer's left hand is empty: it holds the bow) */ }
     else {

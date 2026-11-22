@@ -15,12 +15,14 @@ export function loadChampGear(champs, warHorse, scale) {
   for (const c of Object.values(champs)) {
     const k = c.look || {};
     for (const n of [k.bow, k.arrow, 'bow_devi']) if (n && !(n in GEAR)) { GEAR[n] = null; all.push(L.loadAsync(`models/${n}.glb`).then(g => { GEAR[n] = g.scene; }).catch(() => {})); }
+    for (const hn of [k.cavHorse, c.recruits && c.recruits.includes('cav') ? 'horse_fjord' : null]) if (hn && !(hn in HORSES)) { HORSES[hn] = null; all.push(L.loadAsync(`models/${hn}.glb`).then(g => { HORSES[hn] = warHorse(g.scene, scale); }).catch(() => {})); } // (C2b: a champion's cavalry horse)
     if (k.horse && !(k.horse in HORSES)) { HORSES[k.horse] = null; all.push(L.loadAsync(`models/${k.horse}.glb`).then(g => { HORSES[k.horse] = warHorse(g.scene, scale); }).catch(() => {})); }
   }
   return (started = Promise.all(all)); // (the figures wait for these: a bow is in the hand from the first one made)
 }
 // his own horse, if it has loaded (else the war horse)
 export const champHorse = cl => (cl && cl.horse && HORSES[cl.horse]) || null;
+export const horseNamed = n => HORSES[n] || null; // (C2b)
 
 // ARCH2: the grips, measured at full draw in the bow clips (store/_probe.mjs): the bow upright with its belly toward the
 // mark, its grip in the left fist; the arrow from the right fingers toward the bow. The same for her archers (one rig).

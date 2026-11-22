@@ -136,7 +136,7 @@ export function update(dt, input) {
           && G.holds.some(h => h.kind === 'castle' && h.owner === G.ALLY[colorOf(i)] && Math.hypot(h.x - s.leader.x, h.z - s.leader.z) < h.r + 6)) buyUpgrade(i, 'tower');
         if (!s.human && botFortify(i, s)) s.upT = rnd(3, 6); // (CASTLE9: a castle he stands in comes first)
         else if (armyPlaces(i) >= capOf(i) - 3 || !canRecruit(i)) { // (C2: places)
-          const opts = UPGRADES.map(u => u.id).filter(id => id !== 'tower' && (!id.startsWith('thr') || champOf(i).recruits.includes('thrower')) && upgradeCost(i, id) != null && s.gold >= upgradeCost(i, id) + 30 && (id !== 'fort' || G.mode === 'crown' || (i < 4 && G.mode !== 'ctrl')) && (id !== 'arm' || G.diff >= 2));
+          const opts = UPGRADES.map(u => u.id).filter(id => id !== 'tower' && (!id.startsWith('thr') || champOf(i).recruits.includes('thrower')) && (!id.startsWith('sw') || champOf(i).recruits.includes('sword')) && (!id.startsWith('cav') || champOf(i).recruits.includes('cav')) && upgradeCost(i, id) != null && s.gold >= upgradeCost(i, id) + 30 && (id !== 'fort' || G.mode === 'crown' || (i < 4 && G.mode !== 'ctrl')) && (id !== 'arm' || G.diff >= 2));
           if (opts.length) buyUpgrade(i, opts[Math.floor(Math.random() * opts.length)]);
         }
       }
@@ -183,7 +183,7 @@ export function update(dt, input) {
   const ords = G.teams.map((_, i) => orderOf(i)), rng = G.teams.map((_, i) => auraRange(i) ** 2);
   for (const u of G.units) {
     if (u.dead || u.leader || u.neutral) continue;
-    if (u.kind === 'arch') archN[u.ti]++; else if (u.kind !== 'thrower') meleeN[u.ti]++; // (C2: a thrower stands apart)
+    if (u.kind === 'arch') archN[u.ti]++; else if (u.kind !== 'thrower') meleeN[u.ti]++; // (C2b: swordsmen and cavalry fight hand to hand) // (C2: a thrower stands apart)
     const L = G.teams[u.ti].leader, dx = L ? L.x - u.x : 0, dz = L ? L.z - u.z : 0;
     u.aura = !isC2() && !!L && !L.dead && dx * dx + dz * dz < rng[u.ti]; // (C1e: on the mountain the champion's influence does this job)
     u.shieldwall = ords[u.ti] === 'shieldwall';
@@ -295,7 +295,7 @@ export function update(dt, input) {
         if (st !== 'bowl') {
           r.charge = 0; if (r.remote) r.kick.halt = 1; push(r, -r.vx * CHARGE.slowBrake, -r.vz * CHARGE.slowBrake, CHARGE.slowStun);
           push(o, Math.sin(toO) * CHARGE.kb * CHARGE.slowKb, Math.cos(toO) * CHARGE.kb * CHARGE.slowKb, .3);
-          o.hp -= CHARGE.dmg * CHARGE.slowDmg * aiDmg(r.ti);
+          o.hp -= CHARGE.dmg * CHARGE.slowDmg * aiDmg(r.ti) * (r.chargeX || 1);
           spark(o.x, o.y + 1.2, o.z, '#fff3b0', 6); sound('clang', o.x, o.z); sound('trample', o.x, o.z);
           if (r.isMe) { fx('shake', .25); fx('buzz', 25); }
           if (r.remote || o.remote) fx('netFlush');
@@ -305,7 +305,7 @@ export function update(dt, input) {
         // moving, off balance or flanked: bowled over (once each), the charge goes on
         const side = angDiff(r.face, toO) > 0 ? 1 : -1, out = r.face + side * .9; // thrown forward and out to the side
         push(o, Math.sin(out) * CHARGE.kb + r.vx * .3, Math.cos(out) * CHARGE.kb + r.vz * .3, .9);
-        o.hp -= CHARGE.dmg * aiDmg(r.ti) * (!o.leader && behind(o, r) ? MORALE.flankX : 1); // (a flank or the back: the charge bites harder)
+        o.hp -= CHARGE.dmg * aiDmg(r.ti) * (r.chargeX || 1) * (!o.leader && behind(o, r) ? MORALE.flankX : 1); // (C2b: a cavalryman's lance) // (a flank or the back: the charge bites harder)
         spark(o.x, o.y + 1.2, o.z, TEAMS[colorOf(o.ti)].css, 8); sound('trample', o.x, o.z); sound('hit', o.x, o.z);
         if (r.isMe) { fx('hitstop', .045); fx('shake', .3); }
         if (r.remote || o.remote) fx('netFlush');

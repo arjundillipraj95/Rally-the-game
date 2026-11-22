@@ -179,7 +179,7 @@ export function netHostReadInputs() {
       else if (!w.out && s.human && L && !L.dead && performance.now() - w.at > IDLE_MS) { w.out = true; s.human = false; L.human = false; L.remote = false; applyChamp(L); bus.emit('msg', { k: 'idle', a: [ti] }); }
     }
     if (!s.human) continue;
-    const last = NET.inp[ti] || (NET.inp[ti] = { atk: 0, chg: 0, ride: 0, vly: 0, par: 0, ahN: 0, hold: '', rec: [0, 0, 0], ab: [0, 0, 0], up: UPGRADES.map(() => 0) }); // (one count per upgrade: a short list once lost the Horse)
+    const last = NET.inp[ti] || (NET.inp[ti] = { atk: 0, chg: 0, ride: 0, vly: 0, par: 0, ahN: 0, hold: '', rec: RECRUITS.map(() => 0), ab: [0, 0, 0], up: UPGRADES.map(() => 0) }); // (one count per upgrade: a short list once lost the Horse)
     if (L && !L.dead && Array.isArray(pr.cap) && pr.cap[0] === L.id) {
       L.x = +pr.cap[1]; L.z = +pr.cap[2]; L.face = +pr.cap[3]; L.vx = +pr.cap[4]; L.vz = +pr.cap[5];
       L.blocking = !!pr.blk; L.stickSide = (pr.gs | 0) || 0; L.jy = Math.max(0, +pr.cap[6] || 0); L.ahHeld = !!pr.ah; L.aimChamp = !!pr.ac; // (RANGE1: their Targeting setting) // (stickSide, in a duel: which way their stick points, for their guard and their blow) (C3d: jy and ahHeld were lost behind that comment)
@@ -205,7 +205,7 @@ export function netHostReadInputs() {
     if (typeof pr.sh === 'number' && pr.sh > (last.sh || 0)) { last.sh = pr.sh; if (SHOUTS[pr.shK | 0]) bus.emit('msg', { k: 'callout', a: Number.isFinite(pr.shX) ? [ti, pr.shK | 0, +pr.shX, +pr.shZ] : [ti, pr.shK | 0] }); } // a quick shout
     if (Array.isArray(pr.ab)) for (let k = 0; k < 3; k++) if ((pr.ab[k] | 0) > last.ab[k]) { last.ab[k] = pr.ab[k] | 0; useAbility(ti, SLOTS[k], Array.isArray(pr.abAt) && pr.abAt[k] ? { x: +pr.abAt[k][0], z: +pr.abAt[k][1] } : null); } // (C1c: a press of a special or the ult)
     if (Array.isArray(pr.pc) && L) pierceInput(L, pr.pc[0] | 0, +pr.pc[1], +pr.pc[2]); // (FIX9: her thumb on a drawn Piercing shot)
-    if (Array.isArray(pr.rec)) for (let k = 0; k < 3; k++) while ((pr.rec[k] | 0) > last.rec[k]) { last.rec[k]++; recruit(ti, RECRUITS[k]); }
+    if (Array.isArray(pr.rec)) for (let k = 0; k < RECRUITS.length; k++) while ((pr.rec[k] | 0) > (last.rec[k] | 0)) { last.rec[k] = (last.rec[k] | 0) + 1; recruit(ti, RECRUITS[k]); }
   }
 }
 
@@ -232,7 +232,7 @@ export function clientStart(hp) {
   G.holds = makeHolds(G.layout); G.duels = [];
   G.c2 = null; if (G.mode === 'crown' && G.map.id === 'mount') { G.cgates = {}; for (const cw of (G.layout.cwalls || [])) G.cgates[cw.hid] = freshGates(0); c2Begin(clientMk); }
   Object.assign(C, { seatSig: "", off: null, back: null, snapHt: null, byId: new Map(), lastN: -1, lastMsgN: (hp.m && hp.m.length) ? hp.m[hp.m.length - 1][0] : 0, meId: null, meInit: false, kickN: 0, localCd: 0, lastSnapAt: performance.now(),
-    inp: { rb: 0, bsh: 0, dl: 0, dlId: null, atk: 0, ride: 0, vly: 0, chg: 0, evN: 0, evK: '', par: 0, ahN: 0, ahD: 0, ah: false, rly: 0, foc: null, vat: null, rec: [0, 0, 0], ab: [0, 0, 0], abAt: [null, null, null, null], pc: [0, 0, 0], up: UPGRADES.map(() => 0), ord: 'follow', hold: null, face: 0 }, sendAt: 0, sendNow: false, pred: null, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
+    inp: { rb: 0, bsh: 0, dl: 0, dlId: null, atk: 0, ride: 0, vly: 0, chg: 0, evN: 0, evK: '', par: 0, ahN: 0, ahD: 0, ah: false, rly: 0, foc: null, vat: null, rec: RECRUITS.map(() => 0), ab: [0, 0, 0], abAt: [null, null, null, null], pc: [0, 0, 0], up: UPGRADES.map(() => 0), ord: 'follow', hold: null, face: 0 }, sendAt: 0, sendNow: false, pred: null, arrowIds: new Set(), coming: [], leaving: [], horseKey: 0, riderKeys: new Map(), hudT: 0 });
   for (const u of G.units) if (u.neutral) C.byId.set(u.id, u); // (F4: the mountain's neutral men, made with the battle above)
   G.player = null;
   cam.yaw = Math.atan2(-TEAMS[colorOf(G.myTi)].pos[0], -TEAMS[colorOf(G.myTi)].pos[1]); cam.pitch = CAM_PITCH;
@@ -337,6 +337,7 @@ function clientApply(hp) {
     let u = C.byId.get(id);
     if (u && u.dead && u.neutral) u = c2Man(u.post, u.pk, clientMk); // (F4: a camp's man back after it was cleared)
     if (!u) { u = clientUnit(id, kind, ti, x, z); u.face = face; }
+    else if (u.kind !== kind && kind !== 'captain' && u.kind !== 'captain') { u.kind = kind; u.max = STATS[kind].hp; } // (C2b: a cavalryman whose horse fell fights on as a swordsman)
     const oldHp = u.hp;
     u.hp = hpq / 35 * u.max;
     if (oldHp - u.hp > u.max * .3) u.bigHitT = performance.now();
@@ -819,10 +820,11 @@ export const actions = {
     if (G.state !== 'play') return;
     const st = STATS[kind], me = G.teams[G.myTi]; if (!st || !champOf(G.myTi).recruits.includes(kind)) return; // (C1e)
     if (!canRecruit(G.myTi)) { banner('No recruits', G.mode === 'dm' ? 'Your team is out of tickets' : 'You need a castle to recruit', '#e0352b'); return; }
-    if (armyPlaces(G.myTi) + placeOf(kind) > capOf(G.myTi)) { banner('Army full', `${capOf(G.myTi)} places is your limit (a stone thrower takes ${placeOf('thrower')})${G.mode === 'crown' ? (G.layout && G.layout.map26 ? ': take castles for more' : ': take castles and villages for more') : ''}`); return; }
+    if (armyPlaces(G.myTi) + placeOf(kind) - (kind === 'cav' ? 1 : 0) > capOf(G.myTi)) { banner('Army full', `${capOf(G.myTi)} places is your limit (a stone thrower takes ${placeOf('thrower')})${G.mode === 'crown' ? (G.layout && G.layout.map26 ? ': take castles for more' : ': take castles and villages for more') : ''}`); return; }
+    if (kind === 'cav' && !squadOf(G.myTi).some(u => u.kind === 'sword')) { banner('No swordsman', 'Cavalry mounts one of your swordsmen: recruit one first', '#ffcf3a'); return; } // (C2b; mounting adds one place, not two)
     if (me.gold < st.cost) { banner('Not enough gold', `A ${st.name.toLowerCase()} costs ${st.cost} gold`, '#ffcf3a'); return; }
     if (isClient()) { C.inp.rec[RECRUITS.indexOf(kind)]++; me.gold -= st.cost; C.goldLocalAt = performance.now(); G.recruited++; sfx.coin(); }
     else recruit(G.myTi, kind);
-    const p = G.player; if (p) floatText(p.x, p.y + 3, p.z, `${st.name} on the way`, '#fff');
+    const p = G.player; if (p) floatText(p.x, p.y + 3, p.z, kind === 'cav' ? 'A swordsman mounts up' : `${st.name} on the way`, '#fff');
   },
 };

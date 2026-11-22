@@ -6,18 +6,21 @@ import { UPGRADES } from '../config.js';
 import { unitRow } from '../champions/army.js';
 import { champOf } from '../champions/index.js';
 
-const KIND = { foot: 'foot', arch: 'arch', thr: 'thrower' };
+const KIND = { foot: 'foot', arch: 'arch', thr: 'thrower', sw: 'sword', cav: 'cav' }; // (C2b)
 const r1 = v => (Math.round(v * 10) / 10).toString();
 // the rows a unit's card shows: [label, value] (value as shown)
 function rows(t, kind) {
   if (!t) return [];
-  const hit = kind === 'arch' ? t.arrow : t.dmg, gap = kind === 'foot' ? t.cd : t.shoot;
-  const R = [['Health', Math.round(t.hp)], [kind === 'arch' ? 'Arrow' : kind === 'thrower' ? 'Stone' : 'Blow', Math.round(hit)], [kind === 'foot' ? 'Blows a second' : 'Shots a second', r1(1 / gap)]];
+  const hit = kind === 'arch' ? t.arrow : t.dmg, gap = kind === 'foot' || kind === 'sword' || kind === 'cav' ? t.cd : t.shoot;
+  const R = [['Health', Math.round(t.hp)], [kind === 'arch' ? 'Arrow' : kind === 'thrower' ? 'Stone' : 'Blow', Math.round(hit)], [kind === 'foot' || kind === 'sword' || kind === 'cav' ? 'Blows a second' : 'Shots a second', r1(1 / gap)]];
+  if (t.horse) R.push(['Horse', Math.round(t.horse)]);
   if (t.range != null) R.push(['Range', `${Math.round(t.range)} m`]);
   R.push(['Speed', `${r1(t.spd)} m/s`]);
   if (t.javelin) R.push(['Javelins', 'yes']);
   if (t.fireArrows) R.push(['Fire arrows', 'x3 on throwers, full on buildings']);
   if (t.fire) R.push(['Fire pots', 'every third stone']);
+  if (t.pursuit) R.push(['Pursuit', 'slows a runner']);
+  if (t.chargeX > 1) R.push(['Charge', `x${r1(t.chargeX)}`]);
   return R;
 }
 function card(id) {
