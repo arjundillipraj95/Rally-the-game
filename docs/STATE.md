@@ -2,19 +2,24 @@
 
 Current work: **friends' playtest fixes (F tickets) and lag (Phase 0)**, then Roles & Combat (design and plan in
 Claude Docs, links in CLAUDE.md). Every builder updates this file as the last step of its ticket. Owner: Opus owner chat.
-Last updated: 2026-11-21 (BOT1, FAC1, FX1 on launch26, not shipped). 2026-11-19 (FIX6-12 shipped). Before: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pages and the online service deployed). Before: 2026-11-17 (castle set CASTLE1-10 + ORD1 shipped: main = launch26 at aa8b0ad). Before: CASTLE1. Before: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT built on `t/SPLIT`). Before: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
+Last updated: 2026-11-22 (C5 Sigrun on launch26, not shipped). 2026-11-21 (BOT1, FAC1, FX1 on launch26, not shipped). 2026-11-19 (FIX6-12 shipped). Before: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pages and the online service deployed). Before: 2026-11-17 (castle set CASTLE1-10 + ORD1 shipped: main = launch26 at aa8b0ad). Before: CASTLE1. Before: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT built on `t/SPLIT`). Before: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
 
-## C5 Sigrun and C2b units (Sigrun chat, 21 Nov, Arjun's go). On `launch26`, NOT shipped
-- Art in (9c4314d): Sigrun (axe and shield cut off), her wolf (horse rig + head/tail bones), Viking swordsman, Ulfhednar,
-  fjord horse, axe, round shield; scripts `tools/models/sigrun/`. The fjord horse keeps its Hunyuan saddle (a Viking one later).
-- C2b built: `sword` and `cav` kinds (core/sim/cavalry.js): Cavalry mounts the healthiest swordsman (50g, +1 place),
-  horse lost -> swordsman; Pursuit, Mail, Lances, Barding; ride-past-and-wheel, round braced lines; bots; HUD; joined
-  phone. `r_C2b.mjs`, `r_C2b-join.mjs`. No champion recruits them until C5 (Sigrun's page).
-- Next: C5 Sigrun (card `docs/tickets/C5.md`), waits for Arjun's go.
+## C5 Sigrun, Viking Raider (Sigrun chat 21-22 Nov, Arjun's go). On `launch26`, NOT shipped: waiting for his "ship"
+- Art in (9c4314d): Sigrun, her wolf (horse rig + head/tail bones), Viking swordsman, Ulfhednar, fjord horse, axe, round
+  shield; scripts `tools/models/sigrun/`. C2b (7815656): `sword` and `cav` kinds (core/sim/cavalry.js).
+- C5a page `champions/sigrun.js` (300 hp, 27 at 1.65/s, 6.8 m/s, budget -0.3%); `mount.kind: 'wolf'` drives model, gait
+  (config/wolf.js), head/tail, reactions (yelp, snarl; render/wolf.js); mount reach 1.6; Drengr/Huskarl/Úlfheðnar (burst),
+  Riders/Spear riders/Barded riders; BOT1 now one champion per team. C5b claw-claw-bite / slash-slash-chop (120°), a press
+  strikes on the wolf. C5c Pounce, C5d Spin (charge through, braces stop it / Garen spin), C5e The Hunt (below 20%,
+  dark otherwise, wolf-head marks, kills, Evade dodges), C5f Svinfylkingar (core/sim/svin.js), C5g lines. Rules in
+  core/sim/sigrun.js, effects render/sigrunfx.js, sounds ui/wolfsfx.js. Worst 2 s on a champion 163 (<200).
+- Tests: `r_C5a`..`r_C5h`, `r_C5-join.mjs` (every card on a joined phone); `shot_C5.mjs` (close-ups).
+- Test note: after editing src, restart the vite server before Playwright runs: HMR adds `?t=` to edited modules and a
+  test's `import('/src/...')` then gets a second copy (its own `live` maps), so render checks read empty.
 
 ## BOT1, FAC1, FX1-3 (Arjun 21 Nov, his go). On `launch26`, NOT shipped: waiting for his "ship"
-- BOT1 computers pick champions: a class their team lacks first, then one it lacks, at random (duplicates allowed
-  until Sigrun; then enforce one champion per team). `r_BOT1.mjs`.
+- BOT1 computers pick champions: a class their team lacks first, then one it lacks, at random; one champion per team
+  since C5a. `r_BOT1.mjs`.
 - FAC1 factions: Tideseat (blue, water), Emberseat (red, fire), Stoneseat (green, earth), Windseat (yellow, air);
   top bar T E S W; castles renamed per faction (map26 NAMES). `r_FAC1.mjs`.
 - FX3 a stone on a champion is felt (fxshit: stagger, red edge, horse rears); storm arrows on champions felt (a.storm);
