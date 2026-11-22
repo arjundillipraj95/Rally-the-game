@@ -17,6 +17,11 @@ export default {
   // the great grey wolf: health, m/s, reach from its back (claws and teeth), the horse rules otherwise (FEEL.wolf)
   mount: { kind: 'wolf', hp: 170, spd: 12.2, reach: 1.6 },
   recruits: ['sword', 'cav'],
+  // (C5b) her basic hits, at her rate. On foot: slash, slash, and the boosted third an overhead chop over `arc` rad in
+  // front, at most `n` hit, shoved `kb`. On the wolf: claw, claw, bite (the boosted third) on what is within `aim` m,
+  // the bite slowing `slow` for `slowT` s; they ride on at `pace` for `paceT` s a strike, never a dead stop
+  combo: { chop: { arc: 2 * Math.PI / 3, n: 6, kb: .9, reachB: .2 } },
+  wolfHits: { aim: 3.4, slow: .2, slowT: 1, pace: .7, paceT: .35, t: .15 },
   army: { sword: { name: 'Swordsmen', tiers: ['Drengr', 'Huskarl', 'Úlfheðnar'], role: 'Axes and round shields; the wolf-pelts close in at a burst' },
     cav: { name: 'Cavalry', tiers: ['Riders', 'Spear riders', 'Barded riders'], role: 'Fjord horses: charge, ride past, wheel' } },
   // her lines (config SWORD_TIERS, CAV_TIERS renamed); the Úlfheðnar's charge-in burst: `x` pace for `t` s onto a foe

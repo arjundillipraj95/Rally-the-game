@@ -20,7 +20,7 @@ import { skyShot } from './devifx.js';
 import { on, SRC, heroesOn, make, weaponOf, keyOf, RIDE } from './heroload.js';
 import { gait, buck, buckPose } from './herohorse.js';
 import { WOLF_GAITS, FEEL_WOLF } from '../config/wolf.js';
-import { wolfPose, wolfHit } from './wolf.js';
+import { wolfPose, wolfHit, wolfLean } from './wolf.js';
 import { sweepFar } from './herofar.js';
 export { heroesOn } from './heroload.js';
 export { drawFreeHorses } from './herohorse.js';
@@ -164,7 +164,7 @@ function clipHero(u, a, h, dt, sp, blocking, hurt, P, rate, tag) {
     h.swN = (h.swN || 0) + 1; h.swT = T - Math.max(0, .38 - u.swing); // (F25: from the moment the rules began it, so it lands on their frame)
     const boosted = (u.evade && T - u.evade.t < ANIM.boostWithin) || (u.pending && u.pending.leap);
     const set = h.weapon === 'sword' ? ANIM.swingKind : ANIM.weaponSwing[h.weapon]; // (F17: spear and javelins have clips too)
-    h.swClip = set && kind < set.length ? (boosted && h.weapon === 'sword' && kind < 2 ? ANIM.boost : h.weapon === 'spear' && kind === 3 && u.combo === 1 ? ANIM.spearSweep : set[kind]) : null; if (h.cl) h.swClip = champSwing(h.cl, kind, !!u.duelId, h.swClip); if (h.bowman) h.swClip = 'bowRecoil'; // (ARCH2: a clip archer looses with the bow clips) // (F17c: the spear's second press, the sweep)
+    h.swClip = set && kind < set.length ? (boosted && h.weapon === 'sword' && kind < 2 ? ANIM.boost : h.weapon === 'spear' && kind === 3 && u.combo === 1 ? ANIM.spearSweep : set[kind]) : null; if (h.cl) h.swClip = champSwing(h.cl, kind, !!u.duelId, h.swClip); if (h.wolf) h.swClip = null; // (C5b: on the wolf the wolf strikes; she leans into it) if (h.bowman) h.swClip = 'bowRecoil'; // (ARCH2: a clip archer looses with the bow clips) // (F17c: the spear's second press, the sweep)
   }
   h.swPrev = u.swing || 0;
   if (blocking && !h.wasBlocking) h.blkN = (h.blkN || 0) + 1; h.wasBlocking = blocking;
@@ -255,7 +255,7 @@ export function drawHero(u, a, dt) {
   if (roll) { R.root.rotateZ(roll); R.root.position.y -= .25 * Math.sin(Math.abs(roll) / 2) * h.sc; } // (the side roll: a full turn about his forward axis, tucked low)
   if (R.cape) { const k = R.cape.userData, want = k.base + Math.min(.55, sp * .07) + Math.sin(FRAME * .09 + u.id) * .03 * mv; k.a = k.a === undefined ? want : k.a + (want - k.a) * Math.min(1, dt * 6); R.cape.rotation.x = k.a; } // (C4: lifts behind him as he runs, eased)
   top.visible = true;
-  if (h.legs) { const [bob, pitch] = gait(h.legs, sp, dt, h.wolf ? WOLF_GAITS : undefined), [wr, wp] = wolfPose(h.wolf, h.legs, sp, dt); top.position.y += bob + wr; top.rotation.order = 'YXZ'; top.rotation.x = pitch + wp; } // (C5: the wolf's own gait, head, tail and strikes)
+  if (h.legs) { const [bob, pitch] = gait(h.legs, sp, dt, h.wolf ? WOLF_GAITS : undefined), [wr, wp] = wolfPose(h.wolf, h.legs, sp, dt); top.position.y += bob + wr; top.rotation.order = 'YXZ'; top.rotation.x = pitch + wp; if (h.wolf) R.root.rotation.x = wolfLean(h.wolf); } // (C5: the wolf's own gait, head, tail and strikes)
   const B = h.legs && buckPose(h.legs, dt); // (FX2: hit, the horse tosses, steps aside, or rears)
   if (B) { const f = u.face; top.rotation.x += B.rp; top.rotation.y += B.yp; top.position.y += Math.sin(-B.rp) * FEEL.horse.lift * h.sc; top.position.x += Math.cos(f) * B.sp; top.position.z -= Math.sin(f) * B.sp; } // (the horse walks, trots or gallops for its speed, the rider going with it)
   if (R.clip) lookAlong(R, h, top, u.face + (a.yaw || 0)); // (F26: his head, then his chest, toward the target)

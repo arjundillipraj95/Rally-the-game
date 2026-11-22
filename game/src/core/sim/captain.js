@@ -17,6 +17,7 @@ import { c2BreakInReach } from './crown2.js';
 import { swiftCd } from './buffs.js';
 import { champOf } from '../../champions/index.js';
 import { paceOf } from '../../champions/stats.js';
+import { wolfRider, wolfStrike } from './sigrun.js'; // (C5)
 
 // Last Man Standing (a test variant of the Crown): the same battle until 9:00; then nobody comes back,
 // a ring closes on the plaza (outside it hurts) and the last side with a captain standing wins. If it
@@ -161,6 +162,7 @@ function captainAttack0(p) {
   }
   const wpn = p.weapon || 'sword';
   if (p.mounted) {
+    if (wolfRider(p)) { wolfStrike(p); return; } // (C5b: on her wolf a press strikes: claw, claw, bite)
     if (p.human) return; // (a captain on horseback strikes when Attack is let go: a tap swipes, a hold times a ride-by)
     if (wpn === 'jav' && throwCaptainJav(p)) return;
     startSweep(p);
@@ -222,13 +224,14 @@ function captainAttack0(p) {
     p.beats = combo === 0 ? 0 : p.remote && p.rbIn != null ? p.rbIn : onBeat ? (p.beats || 0) + 1 : 0; p.rbIn = null;
     Object.assign(p.pending, { mult: fin ? S.finisherMult : S.mult, cleave: fin, spin: fin, kb: fin ? 1.25 : .25 }); // light hits keep him in reach, the finisher spins and launches
     const tb = champOf(p.ti).combo; // (C3a: a champion whose third blow is the shield bash: his boosted hit, like every champion's third; it staggers, no more)
-    if (fin && tb && tb.bash) { Object.assign(p.pending, { mult: S.finisherMult, cleave: false, spin: false, kb: BASH.kb, stun: tb.stun, reachB: .3 }); sound('thud', p.x, p.z); }
+    if (fin && tb && tb.chop) { Object.assign(p.pending, { mult: S.finisherMult, cleave: true, spin: false, arc: tb.chop.arc / 2, cleaveX: 1, cleaveN: tb.chop.n, kb: tb.chop.kb, reachB: tb.chop.reachB }); fx('fxmsg', { k: 'fxchop', u: p }); } // (C5b: her overhead chop, the whole arc in front)
+    else if (fin && tb && tb.bash) { Object.assign(p.pending, { mult: S.finisherMult, cleave: false, spin: false, kb: BASH.kb, stun: tb.stun, reachB: .3 }); sound('thud', p.x, p.z); }
     else if (fin && p.human && p.beats >= 2) { // on the beat all the way: the rhythm finisher
       Object.assign(p.pending, { mult: S.finisherMult * RHYTHM.mult, kb: 1.25 * RHYTHM.kb, stun: RHYTHM.stun });
       fx('fxmsg', { k: 'fxrhythm', u: p }); hl(p.ti, 'rhythm'); if (p.remote) fx('netFlush');
     }
     if (!fin) { p.vx += Math.sin(p.face) * S.step; p.vz += Math.cos(p.face) * S.step; } // (a half-step into each blow)
-    p.cd = (fin ? S.finisherCd : S.cd) * k; p.combo = combo; p.swingKind = fin ? (champOf(p.ti).combo && champOf(p.ti).combo.bash ? 6 : 4) : combo; // (4: the spin; 6: the shield bash)
+    p.cd = (fin ? S.finisherCd : S.cd) * k; p.combo = combo; p.swingKind = fin ? (tb && tb.bash ? 6 : tb && tb.chop ? 5 : 4) : combo; // (4: the spin; 6: the shield bash; 5: the overhead chop)
   }
   if ((ev === 'side' || ev === 'back') && p.pending) {
     if (ev === 'side') { Object.assign(p.pending, { mult: (p.pending.mult || 1) * EVADE.flank.mult, stun: Math.max(p.pending.stun || 0, EVADE.flank.stun) }); p.swingKind = spear ? 3 : 1; } // the flank cut: hard enough to break a wind-up; from behind, a backstab too

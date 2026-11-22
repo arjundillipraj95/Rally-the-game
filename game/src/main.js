@@ -76,7 +76,7 @@ function drawScene(dt) {
   banterTick(dt); updateCritters(dt); fogTick(dt); ambientTick(dt);
   drawSoldiers(G.units, dt); // (F4: the mountain's garrisons and camps are real soldiers, drawn with the armies)
   drawThrowers(); // (C2: the stone throwers, their stones and fire pots)
-  const horses = (isClient() ? clientHorses() : G.horses.map(h => ({ key: h.id, ti: h.ti, x: h.x, z: h.z, face: h.face, spd: h.spd, state: h.state, t: h.t, fall: h.fall }))).filter(h => !fogGrid() || !isEnemyTi(h.ti, G.myTi) || seenAt(h.x, h.z));
+  const horses = (isClient() ? clientHorses() : G.horses.map(h => ({ key: h.id, ti: h.ti, x: h.x, z: h.z, face: h.face, spd: h.spd, state: h.state, t: h.t, fall: h.fall, cav: h.cav }))).filter(h => !fogGrid() || !isEnemyTi(h.ti, G.myTi) || seenAt(h.x, h.z));
   if (drawFreeHorses(horses, dt)) drawHorses([], dt); else drawHorses(horses, dt); // (the new warhorse when the new models are on)
   updateWorldView(dt, castleFx);
   effectsTick(dt); feelTick(dt);

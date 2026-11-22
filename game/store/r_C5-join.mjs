@@ -31,5 +31,30 @@ const ti = await B.evaluate(() => window.__fb.G.myTi);
   const w = await B.evaluate(async () => { const H = await import('/src/render/heroes.js'); for (let k = 0; k < 80; k++) { const p = window.__fb.G.player; if (p && p.mounted && H.wolfOf(p)) return true; await new Promise(r => setTimeout(r, 50)); } return false; });
   ok(w, `the joined phone draws her wolf under her (${w})`);
 }
+// ---- C5b: the joined phone's presses: slash, slash, chop on foot; claw, claw, bite on the wolf (the wolf seen striking there)
+const PLACE = `async (ti, mount) => { const G = window.__fb.G, S = await import('/src/core/state.js'), army = await import('/src/core/sim/army.js'), me = G.teams[ti].leader;
+  const foe = G.teams.find(t => t.leader && !t.leader.dead && S.isEnemy(t.leader, me)).leader, h = G.layout.homes.find(h => h.c === S.colorOf(ti));
+  if (me.mounted && !mount) army.dismount(me, false); if (!me.mounted && mount) { const hh = { id: ++G.horseN, x: me.x, z: me.z, face: 0, state: 'coming', rider: me, t: 0, spd: 0, ti, fall: 1 }; G.horses.push(hh); army.mountUp(me, hh); }
+  if (foe.mounted) army.dismount(foe, false); me.x = h.x * .5; me.z = h.z * .5; me.face = 0; me.shieldT = 0; me.shieldHp = null; me.st = 999; me.cd = 0;
+  Object.assign(foe, { x: me.x, z: me.z + 1.9, hp: 3000, max: 3000, stun: 30, cd: 30, pending: null, shieldT: 0, shieldHp: null, slowUntil: 0 }); window.__foe = foe; window.__kinds = []; return foe.id; }`;
+const HOLD = `() => { const f = window.__foe, G = window.__fb.G; f.stun = 30; f.cd = 30; const me = G.units.find(u => u.leader && u.ti === window.__ti); f.x = me.x; f.z = me.z + 1.9; }`;
+await A.waitForFunction(() => window.__fb.G.T > 17, null, { timeout: 180000, polling: 500 }); // (after the break-out: nobody is hurt before it)
+for (const mount of [false, true]) {
+  await A.evaluate(ti => { window.__ti = ti; }, ti); await A.evaluate(`(${PLACE})(${ti}, ${mount})`); await sleep(1500);
+  const iv = await A.evaluate(`(() => { const f = ${HOLD}; window.__hold = setInterval(f, 30); return 1; })()`);
+  for (let i = 0; i < 3; i++) { // (each press once the host's clock has let the last blow finish: the host runs slower than real time here)
+    await A.waitForFunction(ti => { const me = window.__fb.G.teams[ti].leader; return me.cd <= 0 && !me.pending; }, ti, { timeout: 20000, polling: 20 });
+    const t0 = await A.evaluate(ti => window.__fb.G.teams[ti].leader.lastSwingT, ti); await B.evaluate(() => window.__fb.attack());
+    await A.waitForFunction(([ti, t0]) => window.__fb.G.teams[ti].leader.lastSwingT !== t0, [ti, t0], { timeout: 20000, polling: 20 });
+    await A.evaluate(ti => { const me = window.__fb.G.teams[ti].leader; window.__kinds.push(me.swingKind + ':0'); }, ti); }
+  await sleep(500);
+  const r = await A.evaluate(() => { clearInterval(window.__hold); const f = window.__foe; return { lost: +(3000 - f.hp).toFixed(1), slowed: f.slowUntil > window.__fb.G.T - 2 && f.slowK < 1, kinds: window.__kinds.map(k => k.split(':')[0]).join('') }; });
+  if (!mount) ok(r.lost > 80 && /5/.test(r.kinds), `on foot, the joined phone's 3 presses: ${r.lost} off him, blows ${r.kinds} (5: the chop)`);
+  else {
+    const seen = await B.evaluate(async () => { const H = await import('/src/render/heroes.js'), W = H.wolfOf(window.__fb.G.player); return !!W; });
+    ok(r.lost > 80 && r.slowed, `on the wolf, the joined phone's 3 presses: ${r.lost} off him, the bite slowed him (${r.slowed}); wolf drawn there ${seen}`);
+  }
+}
+
 await b1.close(); await b2.close();
 console.log(fails ? `${fails} FAILED` : 'ALL PASS'); process.exit(fails ? 1 : 0);

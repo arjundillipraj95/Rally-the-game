@@ -16,6 +16,8 @@ export function wolfRig(hc) {
 export function wolfMove(W, name) { if (W && M[name]) W.mv = { name, t0: G.T }; }
 // hit: the head jerks away from the blow (rel: its angle from the wolf's facing)
 export function wolfHit(W, rel, power) { if (!W) return; W.j.v -= F.headJerk * power * 10; W.j.yv -= Math.sin(rel) * F.headJerk * power * 12; }
+// (C5b) the rider leans into the wolf's strike (rad, forward +)
+export function wolfLean(W) { const k = wolfAt(W); if (k < 0 || k >= 1) return 0; const n = W.mv.name; return n === 'howl' ? -.2 * Math.sin(Math.PI * Math.min(1, k * 1.5)) : (n === 'pounce' || n === 'shake' ? .45 : .32) * Math.sin(Math.PI * k); }
 // how far through a strike it is (0..1), or -1
 export const wolfAt = W => (W && W.mv ? (G.T - W.mv.t0) / M[W.mv.name].t : -1);
 // each frame, after the gait: head, tail and any strike over the legs. legs: herohorse legsOf; sp m/s. Returns the

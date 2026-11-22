@@ -1,4 +1,5 @@
 // Battle rules: ride-by strikes, parry, block, heavy blows, the brace.
+import { wolfRider } from './sigrun.js'; // (C5)
 import { STAMINA, TEAMS, PARRY, HEAVY, EXEC, HOLD_ATK, GUARD, RIDE, RALLY } from '../../config.js';
 import { G, isEnemy, colorOf } from '../state.js';
 import { clamp, angDiff, turn } from '../world.js';
@@ -35,6 +36,7 @@ export function rideQuality(p, tg) {
 // letting go of Attack on horseback
 export function rideRelease(p, w, t) {
   p.rideReady = false;
+  if (wolfRider(p)) { p.rideTg = null; return; } // (C5b: on the wolf the press struck)
   if (!p || p.dead || !p.mounted || p.cd > 0 || p.stun > 0) { p.rideTg = null; return; }
   if (w === 'jav') { javThrow(p, t > HOLD_ATK.jav ? Math.min(1, (t - HOLD_ATK.jav) / (HOLD_ATK.javFull - HOLD_ATK.jav)) : 0); return; }
   if (t < RIDE.tap) { startSweep(p); if (p.pending) p.pending.mult = RIDE.tapMult; p.rideTg = null; return; } // a tap: a weak swipe at whatever's close

@@ -3,6 +3,7 @@
 // how many soldiers are alive — more in a full 12-army Trio match — sent
 // about 12 times a second).
 import { pierceInput } from '../core/sim/deviShots.js'; // (FIX9)
+import { wolfRider } from '../core/sim/sigrun.js'; // (C5b)
 import { CROWN2, CROWN26, SMOOTH, FEEL, NEUTRAL, HANDOVER } from '../config.js';
 import { SHOUTS, CROWN, HUMAN_CAPTAIN, ARMOUR, RHYTHM, BASH, EVADE, TEAMS, MAPS, KINDS, STATS, RECRUITS, ORDERS, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT, HOLD_ATK, PARRY, STONE } from '../config.js';
 import { G, bus, colorOf, isEnemyTi, activeFrom, ARMIES, duoStr, duoParse } from '../core/state.js';
@@ -655,7 +656,7 @@ function predictAttack(p) {
   const CC = CAPTAIN_COMBAT;
   if (p.mounted) {
     if (p.weapon === 'jav' && p.javAmmo >= 1) { p.javAmmo--; C.javLocalAt = performance.now(); C.localCd = CC.jav.cd; }
-    else C.localCd = .8;
+    else C.localCd = wolfRider(p) ? CC.sword.cd * paceOf(p.ti) : .8; // (C5b: her wolf strikes at her rate)
     return;
   }
   // straight out of an evade: its follow-up, as the host will see it
@@ -685,7 +686,7 @@ function predictAttack(p) {
   else if (spear) { C.localCd = (sCombo === 1 ? CC.spear.cd2 : CC.spear.cd) * k; p.swingKind = 3; p.combo = sCombo; p.vx += Math.sin(p.face) * CC.spear.lunge; p.vz += Math.cos(p.face) * CC.spear.lunge; }
   else {
     const combo = performance.now() / 1000 - p.lastSwingT < CC.sword.window * k ? (p.combo + 1) % 3 : 0;
-    p.combo = combo; p.swingKind = combo === 2 ? (champOf(G.myTi).combo && champOf(G.myTi).combo.bash ? 6 : 4) : combo; // (C3a: the shield bash) C.localCd = (combo === 2 ? CC.sword.finisherCd : CC.sword.cd) * k;
+    p.combo = combo; p.swingKind = combo === 2 ? (champOf(G.myTi).combo && champOf(G.myTi).combo.bash ? 6 : champOf(G.myTi).combo && champOf(G.myTi).combo.chop ? 5 : 4) : combo; // (C3a: the shield bash) C.localCd = (combo === 2 ? CC.sword.finisherCd : CC.sword.cd) * k;
     if (combo !== 2) { p.vx += Math.sin(p.face) * CC.sword.step; p.vz += Math.cos(p.face) * CC.sword.step; } // (the half-step, as on the host)
   }
   p.lastSwingT = now;
@@ -701,7 +702,7 @@ export const actions = {
   },
   attack() {
     const p = G.player; if (!p || p.dead || G.state !== 'play') return;
-    if (p.mounted) return; // (on horseback the blow comes when Attack is let go)
+    if (p.mounted && !wolfRider(p)) return; // (on horseback the blow comes when Attack is let go; C5b: on her wolf a press strikes)
     if (p.carrying) { if (gateS('carryhint', 1500)) floatText(p.x, p.y + 3.2, p.z, 'Hands full: carry it home', '#fff'); return; }
     // Block tapped just before: the shield bash (the rules decide: a parry just now makes it the riposte)
     const bashing = isClient() ? performance.now() - (C.blkAt || -1e9) <= BASH.window * 1000 : G.T - (p.lastBlkPress ?? -9) <= BASH.window;

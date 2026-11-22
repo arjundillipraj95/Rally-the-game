@@ -143,7 +143,7 @@ export function resolveSwing(u) {
   const slack = u.human ? .9 : .5; // (a player's blow at a man who has just stepped back still connects)
   const SP = pend.spear, inS = o => !o.dead && isEnemy(o, u) && inSpear(u, o, SP); // (F25: a spear blow strikes where the spear you see reaches)
   if (SP && tg && tg.x != null && !inS(tg)) { let bd = 1e9, nb = null; for (const o of G.units) { if (o === tg || !inS(o)) continue; const d = Math.hypot(o.x - u.x, o.z - u.z); if (d < bd) { bd = d; nb = o; } } if (nb) pend.target = tg = nb; } // (he stepped out of it: whoever the spear meets instead)
-  if (tg && !tg.dead && (SP ? inS(tg) : Math.hypot(tg.x - u.x, tg.z - u.z) <= u.r + tg.r + reach + slack)) { if (clash(u, tg, pend)) return; hit(u, tg, mult, exS); landed = true; }
+  if (tg && !tg.dead && (SP ? inS(tg) : Math.hypot(tg.x - u.x, tg.z - u.z) <= u.r + tg.r + reach + slack)) { if (clash(u, tg, pend)) return; hit(u, tg, mult, exS); landed = true; if (pend.slow && !tg.dead) { tg.slowUntil = G.T + pend.slow[1]; tg.slowK = 1 - pend.slow[0]; } } // (C5b: the wolf's bite slows)
   else if (u.isMe && G.capStats && tg && tg.castle === undefined) G.capStats.outOfReach++;
   // sword finisher: the heavy third hit also catches up to two more men beside the target
   if (pend.cleave) {
@@ -151,8 +151,8 @@ export function resolveSwing(u) {
     for (const o of G.units) {
       if (o === tg || o.dead || !isEnemy(o, u)) continue;
       if (Math.hypot(o.x - u.x, o.z - u.z) > u.r + o.r + reach + .3) continue;
-      if (!pend.spin && Math.abs(angDiff(u.face, Math.atan2(o.x - u.x, o.z - u.z))) > 1.1) continue; // (the spin cuts all the way round)
-      hit(u, o, mult * .8, ex); if (++n >= (pend.streak ? STREAK.cleaveN : pend.spin ? CC.sword.spinN : 2)) break;
+      if (!pend.spin && Math.abs(angDiff(u.face, Math.atan2(o.x - u.x, o.z - u.z))) > (pend.arc || 1.1)) continue; // (the spin cuts all the way round)
+      hit(u, o, mult * (pend.cleaveX || .8), ex); if (++n >= (pend.cleaveN || (pend.streak ? STREAK.cleaveN : pend.spin ? CC.sword.spinN : 2))) break; // (C5b: her chop, all of them at full)
     }
   }
   // spear thrust: runs through to the man standing right behind the target
