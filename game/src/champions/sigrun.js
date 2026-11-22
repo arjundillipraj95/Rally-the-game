@@ -62,8 +62,26 @@ export default {
     need(u, B) { return B.riders(u, this).length > 0; },
     ai(u, foe, fd, B) { return B.riders(u, this).length >= 2 && fd < 22 ? { x: foe.x, z: foe.z } : false; }, // (a computer Sigrun: with two riders or more and a fight ahead)
     run(u, at, B) { B.svin(u, at, this); } },
+  // (C5g) her lines and her army's (dry, quick, cocky but understated; she wants a saga), shown as speech bubbles (C3j)
+  // until recorded: her own when she comes back, kills a champion or hunts; her men's by the moment
   lines: {
-    self: ['Your gate was more of a suggestion.', 'Fast is a kind of armour.', 'They\'ll sing about this. I\'ll see to it.', 'Ships don\'t wait. Neither do I.'],
-    army: {},
+    self: ['Your gate was more of a suggestion.', 'Fast is a kind of armour.', 'They\'ll sing about this. I\'ll see to it.', 'Ships don\'t wait. Neither do I.',
+      'I came for the Crown. The rest is souvenirs.', 'Run if you like. She enjoys that.', 'Every saga needs a villain. Volunteers?', 'I lost at dice once. Never a fight.',
+      'Hedeby to here. Nobody invited me either.', 'Make it a good verse. I\'m in it.'],
+    army: {
+      march: ['Keep up, she won\'t wait!', 'Row, walk. Same thing.', 'Longship legs, lads.', 'Follow the wolf.', 'Somebody tell the skald we\'re moving.'],
+      charge: ['For Sigrun!', 'Axes up!', 'Uninvited and on time!', 'Shields together, then not!', 'Into them!'],
+      hold: ['Shields here. Nobody passes.', 'Hold, then raid.', 'We stand. Briefly.', 'Plant your feet, Leif!'],
+      testudo: ['Skjaldborg!', 'Shields locked!', 'Rim to rim!', 'Wall up, wolves!'],
+      snout: ['Svinfylking!', 'Boar\'s snout!', 'Wedge up! Point first!', 'Through them, not round them!', 'Ride! Ride!'],
+      kill: ['Sigrun! Sigrun! Sigrun!', 'The skalds will want that one!', 'That\'s our raider!', 'Hunted!'],
+      fell: ['Sigrun\'s down!', 'Hold till she\'s back!', 'She\'s only resting. Loudly.'],
+      back: ['She\'s back!', 'The wolf\'s back!', 'Told you. She never misses a raid.'],
+      taken: ['The castle is ours!', 'Loot first, cheer later!', 'Nice walls. Ours now.', 'Another one for the saga!', 'Raise the raven!'],
+      attacked: ['They\'re at the gate!', 'To the walls!', 'Not our castle!', 'Shields to the gate!'],
+      upgraded: ['Mail! Finally!', 'Wolf pelts. Smells about right.', 'Lances for the riders!'],
+      rout: ['Back to the ships!', 'Regroup on the wolf!', 'This is a tactical row!'],
+      crown: ['The Sceptre! Grab it!', 'The Crown! Up the mountain!', 'A crown for the saga!'],
+    },
   },
 };

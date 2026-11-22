@@ -33,7 +33,7 @@ const LINES = {
   held: ['Held!', 'They broke on our walls!', 'Nobody passes.', 'Back to your camp!', 'Not today!'],
 };
 // (C3j) a champion's own army lines, when his page has them, for these moments (the rest stay the shared ones)
-const ARMY = { follow: 'march', march: 'march', charge: 'charge', hold: 'hold', shieldwall: 'testudo', testudo: 'testudo', storm: 'storm', capDown: 'fell', cheer: 'taken', taken: 'taken', breach: 'attacked', flee: 'rout', kill: 'kill', back: 'back', upgraded: 'upgraded', archers: 'archers', crown: 'crown' };
+const ARMY = { follow: 'march', march: 'march', charge: 'charge', hold: 'hold', shieldwall: 'testudo', testudo: 'testudo', storm: 'storm', snout: 'snout', capDown: 'fell', cheer: 'taken', taken: 'taken', breach: 'attacked', flee: 'rout', kill: 'kill', back: 'back', upgraded: 'upgraded', archers: 'archers', crown: 'crown' };
 const poolOf = (kind, u) => { const L = u && !u.neutral && champOf(u.ti).lines, k = ARMY[kind]; if (kind === 'self') return L ? L.self : null; return (L && k && L.army[k]) || LINES[kind]; };
 const recent = [];
 function pick(kind, u) {
@@ -138,6 +138,8 @@ bus.on('shownMsg', m => {
 // an execution or a ride-down near you: the onlookers wince
 bus.on('fxmsg', d => { // (C3j: an ult called: he has a word; a testudo forming: his men call it)
   if (d.k === 'fxstorm' && d.u) { const T = camTarget(); if (T && Math.hypot(d.u.x - T.x, d.u.z - T.z) < 30) { const m = someone(G.units.filter(o => !o.dead && !o.leader && o.ti === d.u.ti && Math.hypot(o.x - d.u.x, o.z - d.u.z) < 25)); say(m || d.u, m ? 'storm' : 'self', true); } } // (C4h: her archers call the storm)
+  if (d.k === 'fxsvin' && d.u) { const T = camTarget(); if (T && Math.hypot(d.u.x - T.x, d.u.z - T.z) < 30) { const m = someone(G.units.filter(o => !o.dead && !o.leader && o.ti === d.u.ti && Math.hypot(o.x - d.u.x, o.z - d.u.z) < 25)); if (m) say(m, 'snout', true); } } // (C5g: her riders call the wedge)
+  if (d.k === 'fxhuntend' && d.q === 'kill' && d.u) { const T = camTarget(); if (T && Math.hypot(d.u.x - T.x, d.u.z - T.z) < 30) setTimeout(() => say(d.u, 'self', true), 700); } // (C5g: she has a word after the Hunt)
   if ((d.k === 'fxeagle' || d.k === 'fxtestudo') && d.u) { const T = camTarget(); if (T && Math.hypot(d.u.x - T.x, d.u.z - T.z) < 26) { if (d.k === 'fxeagle') say(d.u, 'self', true); else { const m = someone(G.units.filter(o => !o.dead && !o.leader && o.ti === d.u.ti && Math.hypot(o.x - d.u.x, o.z - d.u.z) < 15)); if (m) say(m, 'testudo', true); } } }
 });
 bus.on('fxmsg', d => {
