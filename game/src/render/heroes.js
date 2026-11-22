@@ -224,8 +224,8 @@ function clipHero(u, a, h, dt, sp, blocking, hurt, P, rate, tag) {
 // Returns false when this one is left to the old renderer (models not loaded, mounted, dead).
 export function drawHero(u, a, dt) {
   // while the new models load, the old captain stays hidden (no flash of the old one)
-  if (on && !SRC) return !u.dead && (u.kind === 'captain' || u.kind === 'foot' || u.kind === 'arch');
-  if (!heroesOn() || (u.kind !== 'captain' && u.kind !== 'foot' && u.kind !== 'arch') || u.hidden) return false;
+  if (on && !SRC) return !u.dead && (u.kind === 'captain' || u.kind === 'foot' || u.kind === 'arch' || u.kind === 'sword' || u.kind === 'cav');
+  if (!heroesOn() || (u.kind !== 'captain' && u.kind !== 'foot' && u.kind !== 'arch' && u.kind !== 'sword' && u.kind !== 'cav') || u.hidden) return false; // (C5 fix: swordsmen and riders too: they stood frozen / were the old figure)
   if (u.dead && !a.rag) return false; // (the fallen: drawn as they go down, lie there and sink (CORPSE1: to the end, never the old figure))
   let h = live.get(u);
   if (h && (h.weapon !== weaponOf(u) || h.key !== keyOf(u) || h.mounted !== !!u.mounted)) { drop(h); live.delete(u); h = null; }

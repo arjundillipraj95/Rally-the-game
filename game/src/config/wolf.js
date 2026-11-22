@@ -1,12 +1,12 @@
 // (C5) Sigrun's great grey wolf: how it moves and takes a hit (render/wolf.js). Drawing only: its speed, health and
 // reach are on her page (champions/sigrun.js mount), the horse rules otherwise.
 
-// its gaits, as the horse's (render/herohorse.js GAITS): a loping walk, a trot, and the bounding gallop (hind pair
+// its gaits (`fold`: how much its lower legs fold, a share of the horse's), as the horse's (render/herohorse.js GAITS): a loping walk, a trot, and the bounding gallop (hind pair
 // together, then the front pair, a long flight between), longer strides and more spine than a horse's
 export const WOLF_GAITS = [
-  { v: 0, stride: 1.8, amp: .32, stance: .62, bob: .02, bobN: 2, rock: .02, at: { backL: 0, frontL: .25, backR: .5, frontR: .75 } },
-  { v: 4, stride: 3.2, amp: .5, stance: .48, bob: .06, bobN: 2, rock: .03, at: { frontL: 0, backR: 0, frontR: .5, backL: .5 } },
-  { v: 9, stride: 6.4, amp: .85, stance: .3, bob: .16, bobN: 1, rock: .12, at: { backL: 0, backR: .05, frontL: .48, frontR: .53 } },
+  { v: 0, stride: 1.8, fold: .6, amp: .32, stance: .62, bob: .02, bobN: 2, rock: .02, at: { backL: 0, frontL: .25, backR: .5, frontR: .75 } },
+  { v: 4, stride: 3.2, fold: .55, amp: .5, stance: .48, bob: .06, bobN: 2, rock: .03, at: { frontL: 0, backR: 0, frontR: .5, backL: .5 } },
+  { v: 9, stride: 6.4, fold: .5, amp: .85, stance: .3, bob: .16, bobN: 1, rock: .12, at: { backL: 0, backR: .05, frontL: .48, frontR: .53 } },
 ];
 // a hit on the wolf (feel.js impact, as FEEL.horse): it flinches low and away (`toss` rad/s a unit of power, nose down
 // +), skips aside (`side` m/s); at `snarlAt` power it rears back onto its haunches (`rear`, at most `rearMax`) and snarls;

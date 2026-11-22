@@ -31,7 +31,7 @@ const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a)
 function legAt(ph, g, front) {
   if (ph < g.stance) return [g.amp * (-1 + 2 * ph / g.stance), 0];
   const s = (ph - g.stance) / (1 - g.stance);
-  return [g.amp * (1 - 2 * sstep(0, 1, s)), Math.sin(Math.PI * s) * (front ? 1.25 : .9) * Math.min(1, g.amp * 1.8)];
+  return [g.amp * (1 - 2 * sstep(0, 1, s)), Math.sin(Math.PI * s) * (front ? 1.25 : .9) * Math.min(1, g.amp * 1.8) * (g.fold ?? 1)];
 }
 // move a horse's legs and body for its speed this frame; returns the body's rise and pitch (nose down +)
 export function gait(L, sp, dt, GA = GAITS) { // (C5: a wolf passes its own table)
