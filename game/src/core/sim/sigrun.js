@@ -3,7 +3,9 @@
 // phone draws them from the unit's state and the 'fxwolf' / 'fxsig*' moments (render/sigrunfx.js).
 import { CAPTAIN_COMBAT as CC } from '../../config.js';
 import { G, isEnemy } from '../state.js';
-import { groundY } from '../world.js';
+import { groundY, angDiff } from '../world.js';
+import { integrate } from './move.js';
+import { braced, horseDamage } from './army.js';
 import { champOf } from '../../champions/index.js';
 import { paceOf, levelOf } from '../../champions/stats.js';
 import { startSwing, hit } from './melee.js';
@@ -71,10 +73,76 @@ export function pounceStep(u, dt) {
 }
 function pounceLand(u, P) {
   const tg = P.tg, d = P.d;
-  if (!tg || tg.dead || Math.hypot(tg.x - u.x, tg.z - u.z) > u.r + (tg.r || 0) + (u.remote ? 3 : 1.2)) { fx('fxmsg', { k: 'fxpounceland', u, q: 'miss' }); return; } // (a joined phone's champion: her phone flies her, the host sees her a beat late)
+  const lx = u.remote ? P.x : u.x, lz = u.remote ? P.z : u.z; // (a joined phone's champion: her phone flies her and the host sees her a beat late, so it lands where her leap was going)
+  if (!tg || tg.dead || Math.hypot(tg.x - lx, tg.z - lz) > u.r + (tg.r || 0) + 1.2) { fx('fxmsg', { k: 'fxpounceland', u, q: 'miss' }); return; }
   const k = 1 + d.lvlUp * Math.max(0, levelOf(u.ti) - 3);
   hit(u, tg, 1, { fixed: (tg.leader ? d.champ : d.soldier) * k, kb: .5, shown: true });
   const kill = tg.dead || tg.hp <= 0;
   if (kill) { const c = G.teams[u.ti] && G.teams[u.ti].cds; if (c && c.sp1 > 0) c.sp1 *= d.killCd; }
   fx('fxmsg', { k: 'fxpounceland', u, a: tg, heavy: !!tg.leader, q: kill ? 'kill' : 'hit' });
+}
+
+// (C5d) Spin (level 5). On the wolf: a `rideDist` m charge in `rideDur` s the way she aims, the axe spinning, cutting
+// through everyone in its `w` m width without shoving them: `soldier` to each, `champ` to a champion; a braced spear
+// line facing it stops it and the wolf takes their spears (x`horseX`). On foot: a spin of `dur` s, `ticks` blows of
+// `tick` to everyone within `r` m, at +`pace` speed, her slows gone when it starts; no basic hits meanwhile.
+// +`lvlUp` a level from 5. The page's sp2 has the numbers.
+const k5 = (u, d) => 1 + d.lvlUp * Math.max(0, levelOf(u.ti) - 5);
+export function startSpin(u, at, d) {
+  u.slowUntil = 0; u.pending = null; u.swing = 0;
+  if (u.mounted) {
+    const a = Math.hypot(at.x - u.x, at.z - u.z) > .2 ? Math.atan2(at.x - u.x, at.z - u.z) : u.face; u.face = a;
+    u.spin = { ride: true, t: 0, x: u.x, z: u.z, dx: Math.sin(a), dz: Math.cos(a), dist: d.rideDist, v: d.rideDist / d.rideDur, gone: 0, hit: new Set(), d };
+    u.vx = u.vz = 0; fx('fxmsg', { k: 'fxspin', u, q: `c,${u.x.toFixed(2)},${u.z.toFixed(2)},${a.toFixed(3)}` });
+  } else {
+    u.spin = { ride: false, t: 0, n: 0, d }; u.act = { name: 'spin', t: G.T };
+    fx('fxmsg', { k: 'fxspin', u, q: 'g' });
+  }
+}
+// a joined phone's own champion: the same charge from where she stands, or the spin (its pace) (the host's hits)
+export function flySpin(u, q, d) {
+  const p = String(q).split(','); if (!d) return;
+  if (p[0] === 'g') { u.spin = { ride: false, t: 0, n: 0, d, own: true }; return; }
+  const a = +p[3]; if (!Number.isFinite(a)) return; u.face = a;
+  u.spin = { ride: true, t: 0, x: u.x, z: u.z, dx: Math.sin(a), dz: Math.cos(a), dist: d.rideDist, v: d.rideDist / d.rideDur, gone: 0, hit: new Set(), d, own: true };
+}
+export const spinPace = u => (u.spin && !u.spin.ride ? 1 + u.spin.d.pace : 1); // (army.js speedOf)
+// each step of it: true when it moved her (the charge; the caller skips her usual movement)
+export function spinStep(u, dt) {
+  const S = u.spin, d = S.d; S.t += dt;
+  if (!S.ride) { // the spin on foot: she moves as usual, blows round her on the beat
+    const gap = d.dur / d.ticks;
+    while (!S.own && S.n < d.ticks && S.t >= (S.n + .5) * gap) { S.n++; for (const o of G.units) if (!o.dead && isEnemy(u, o) && Math.hypot(o.x - u.x, o.z - u.z) <= d.r + (o.r || 0)) hit(u, o, 1, { fixed: d.tick * k5(u, d), kb: .05 }); fx('fxmsg', { k: 'fxspintick', u }); }
+    if (S.t >= d.dur) endSpin(u, S);
+    return false;
+  }
+  u.vx = u.vz = 0;
+  const step = Math.min(S.v * dt, S.dist - S.gone), pr = { x: S.x, z: S.z, r: u.r, ti: u.ti, vx: S.dx * step / dt, vz: S.dz * step / dt, jy: 0 };
+  integrate(pr, dt, pr.z);
+  const got = (pr.x - S.x) * S.dx + (pr.z - S.z) * S.dz; S.x = pr.x; S.z = pr.z; S.gone += Math.max(0, got);
+  let stop = got < step * .5 || S.gone >= S.dist - .01; // (a wall, a rock; or the end of it)
+  if (!S.own && !stop) stop = cuts(u, S);
+  if (stop) endSpin(u, S);
+  if (!u.remote) { u.x = S.x; u.z = S.z; u.y = groundY(u.x, u.z) + (u.jy || 0); }
+  return !u.remote;
+}
+function endSpin(u, S) {
+  u.spin = null; if (u.act && u.act.name === 'spin') u.act = null;
+  if (!S.own) fx('fxmsg', { k: 'fxspinend', u, q: S.ride ? `${S.x.toFixed(2)},${S.z.toFixed(2)}` : 'g' });
+}
+// whom the charge cuts this step: true when a braced spear line ends it
+function cuts(u, S) {
+  const d = S.d, k = k5(u, d);
+  const ahead = (o, reach) => { const rx = o.x - S.x, rz = o.z - S.z, f = rx * S.dx + rz * S.dz, s = rx * S.dz - rz * S.dx; return f > -.6 && f < u.r + (o.r || 0) + reach && Math.abs(s) < d.w + (o.r || 0); };
+  const faces = o => Math.abs(angDiff(o.face, Math.atan2(S.x - o.x, S.z - o.z))) < 1.1;
+  for (const o of G.units) {
+    if (o.dead || S.hit.has(o.id) || !isEnemy(u, o) || !ahead(o, .3)) continue;
+    if (o.kind === 'foot' && braced(o) && faces(o)) { // a braced spear line: it stops here, the wolf takes their spears
+      for (const f of G.units) if (!f.dead && isEnemy(u, f) && f.kind === 'foot' && braced(f) && faces(f) && ahead(f, 1.2)) { S.hit.add(f.id); if (u.mounted) horseDamage(u, f.dmg * d.horseX); }
+      fx('fxmsg', { k: 'fxspinbrace', u, a: o }); return true;
+    }
+    S.hit.add(o.id); hit(u, o, 1, { fixed: (o.leader ? d.champ : d.soldier) * k, kb: .001, unblockable: !o.leader }); // (cuts through: no shove)
+    fx('fxmsg', { k: 'fxspincut', u, a: o });
+  }
+  return false;
 }

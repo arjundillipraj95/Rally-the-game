@@ -36,6 +36,7 @@ const PLACE = `async (ti, mount) => { const G = window.__fb.G, S = await import(
   const foe = G.teams.find(t => t.leader && !t.leader.dead && S.isEnemy(t.leader, me)).leader, h = G.layout.homes.find(h => h.c === S.colorOf(ti));
   if (me.mounted && !mount) army.dismount(me, false); if (!me.mounted && mount) { const hh = { id: ++G.horseN, x: me.x, z: me.z, face: 0, state: 'coming', rider: me, t: 0, spd: 0, ti, fall: 1 }; G.horses.push(hh); army.mountUp(me, hh); }
   if (foe.mounted) army.dismount(foe, false); me.x = h.x * .5; me.z = h.z * .5;
+  for (const u of G.units) if (u.ti === ti && !u.leader) u.dead = true; // (her own men out of it)
   for (const u of G.units) if (u !== me && u !== foe && !u.dead && Math.hypot(u.x - me.x, u.z - me.z) < 14) { const hh = G.layout.homes.find(k => k.c === S.colorOf(u.ti)) || h; u.x = hh.x; u.z = hh.z; } // (nobody else near her) me.face = 0; me.shieldT = 0; me.shieldHp = null; me.st = 999; me.cd = 0;
   Object.assign(foe, { x: me.x, z: me.z + 1.9, hp: 3000, max: 3000, stun: 30, cd: 30, pending: null, shieldT: 0, shieldHp: null, slowUntil: 0 }); window.__foe = foe; window.__kinds = []; return foe.id; }`;
 const HOLD = `() => { const f = window.__foe, G = window.__fb.G; f.stun = 30; f.cd = 30; const me = G.units.find(u => u.leader && u.ti === window.__ti); f.x = me.x; f.z = me.z + 1.9; }`;
@@ -61,13 +62,26 @@ for (const mount of [false, true]) {
 await A.evaluate(async ti => { const L = await import('/src/core/sim/levels.js'), G = window.__fb.G; while ((G.teams[ti].lvl || 1) < 3) L.gainXp(ti, 50, 'test'); }, ti); await sleep(1500);
 for (const mount of [false, true]) {
   await A.evaluate(`(${PLACE})(${ti}, ${mount})`); await A.evaluate(ti => { const f = window.__foe, me = window.__fb.G.teams[ti].leader; f.z = me.z + (me.mounted ? 6.5 : 4); const T = window.__fb.G.teams[ti]; (T.cds || (T.cds = {})).sp1 = 0; }, ti); await sleep(1500);
-  await A.evaluate(async () => { const S = await import('/src/core/state.js'); window.__pl = []; if (!window.__plOn) { window.__plOn = 1; S.bus.on('fxmsg', e => { if (e.k === 'fxpounce' || e.k === 'fxpounceland') window.__pl.push([e.k, e.q, e.a ? e.a.id : null, window.__foe && window.__foe.id, e.u.x.toFixed(1), e.u.z.toFixed(1), window.__foe.x.toFixed(1), window.__foe.z.toFixed(1)]); }); } });
-  await A.evaluate(ti => { window.__hold = setInterval(() => { const f = window.__foe; f.stun = 30; f.cd = 30; f.guardT = 0; f.blockT = 0; f.guardUp = false; }, 30); }, ti);
+  await A.evaluate(async () => { const S = await import('/src/core/state.js'); window.__pl = []; if (!window.__plOn) { window.__plOn = 1; S.bus.on('fxmsg', e => { if (/^fx(pounce|spin)/.test(e.k)) window.__pl.push([e.k, e.q, e.a ? e.a.id : null, window.__foe && window.__foe.id, e.u.x.toFixed(1), e.u.z.toFixed(1), window.__foe.x.toFixed(1), window.__foe.z.toFixed(1)]); }); } });
+  await A.evaluate(([ti, dz]) => { window.__go = 0; window.__hold = setInterval(() => { const f = window.__foe, me = window.__fb.G.teams[ti].leader; f.stun = 30; f.cd = 30; f.guardT = 0; f.blockT = 0; f.guardUp = false; if (!me.pounce && !window.__go) { f.x = me.x + Math.sin(me.face) * dz; f.z = me.z + Math.cos(me.face) * dz; } if (me.pounce) window.__go = 1; }, 30); }, [ti, mount ? 6.5 : 4]); await sleep(500); // (the joined phone moves her: he is kept ahead of her as the host sees her)
   await B.evaluate(() => { window.__flew = 0; const G = window.__fb.G; window.__fw = setInterval(() => { if (G.player && G.player.pounce) window.__flew++; }, 20); window.__fb.ability(0); });
   await A.waitForFunction(ti => !!window.__fb.G.teams[ti].leader.pounce, ti, { timeout: 15000, polling: 20 }).catch(() => {});
   await A.waitForFunction(ti => !window.__fb.G.teams[ti].leader.pounce, ti, { timeout: 15000, polling: 20 }).catch(() => {}); await sleep(600);
   const r = await A.evaluate(() => { clearInterval(window.__hold); return +(3000 - window.__foe.hp).toFixed(1); }), flew = await B.evaluate(() => { clearInterval(window.__fw); return window.__flew; });
+  if (Math.abs(r - 45) >= 1) console.log('DBG', JSON.stringify(await A.evaluate(() => window.__pl)));
   ok(Math.abs(r - 45) < 1 && flew > 0, `${mount ? 'on the wolf' : 'on foot'}: the joined phone's Pounce lands ${r} on the champion (45); her phone flew it (${flew})`);
+}
+
+// ---- C5d: the joined phone's Spin: on the wolf a charge through the champion 6 m ahead (35); on foot 4 blows of 12
+await A.evaluate(async ti => { const L = await import('/src/core/sim/levels.js'), G = window.__fb.G; while ((G.teams[ti].lvl || 1) < 5) L.gainXp(ti, 50, 'test'); }, ti); await sleep(1500);
+for (const mount of [true, false]) {
+  await A.evaluate(`(${PLACE})(${ti}, ${mount})`); await A.evaluate(([ti, mount]) => { const f = window.__foe, me = window.__fb.G.teams[ti].leader; f.z = me.z + (mount ? 6 : 1.2); me.face = 0; const T = window.__fb.G.teams[ti]; (T.cds || (T.cds = {})).sp2 = 0; }, [ti, mount]); await sleep(1500);
+  await A.evaluate(([ti, dz]) => { window.__go = 0; window.__hold = setInterval(() => { const f = window.__foe, me = window.__fb.G.teams[ti].leader; f.stun = 30; f.cd = 30; f.guardT = 0; f.blockT = 0; f.guardUp = false; if (!me.mounted || (!me.spin && !window.__go)) { f.x = me.x + Math.sin(me.face) * dz; f.z = me.z + Math.cos(me.face) * dz; } if (me.spin) window.__go = 1; }, 30); }, [ti, mount ? 6 : 1.2]); await sleep(500);
+  await B.evaluate(() => { window.__fb.ability(1); });
+  await A.waitForFunction(ti => !!window.__fb.G.teams[ti].leader.spin, ti, { timeout: 15000, polling: 20 }).catch(() => {});
+  await A.waitForFunction(ti => !window.__fb.G.teams[ti].leader.spin, ti, { timeout: 30000, polling: 50 }).catch(() => {}); await sleep(600);
+  const r = await A.evaluate(() => { clearInterval(window.__hold); return +(3000 - window.__foe.hp).toFixed(1); });
+  ok(mount ? r === 35 : r === 48, `${mount ? 'on the wolf: the joined phone\'s charge cuts the champion' : 'on foot: the joined phone\'s spin'}: ${r} (${mount ? 35 : 48})`);
 }
 
 await b1.close(); await b2.close();

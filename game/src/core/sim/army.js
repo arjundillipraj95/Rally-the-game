@@ -201,7 +201,8 @@ export function speedOf(u) {
   if (u.bracing) s *= HOLD_ATK.braceSlow;
   if (u.firingT > G.T && !u.mounted) s *= RANGED.pace; // (RANGE1: shooting, she plants her feet to loose)
   if (u.slowUntil > G.T) s *= u.slowK;
-  if (u.wolfPaceT > G.T && u.mounted) s *= champOf(u.ti).wolfHits.pace; // (C5b: riding on while the wolf strikes) // (C4: hit by a Piercing shot)
+  if (u.wolfPaceT > G.T && u.mounted) s *= champOf(u.ti).wolfHits.pace; // (C5b: riding on while the wolf strikes)
+  if (u.spin && !u.spin.ride) s *= 1 + u.spin.d.pace; // (C5d: her spin, quicker) // (C4: hit by a Piercing shot)
   if (u.pierce || u.pdraw) s *= (u.pierce || u.pdraw).d.walk; // (FIX9: she walks while she draws a Piercing shot; pdraw: her own phone's)
   if (u.haltUntil > G.T || u.tvolley) s = 0; // (C4: a galloping horse stopped dead; her feet planted for the volley)
   return s;

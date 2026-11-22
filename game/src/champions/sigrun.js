@@ -38,6 +38,14 @@ export default {
     champ: 45, soldier: 30, lvlUp: .05, killCd: .5,
     ai: (u, foe, fd) => (fd > 2 && fd < (u.mounted ? 7.5 : 4.8) ? { x: foe.x, z: foe.z } : false), // (a computer Sigrun: onto whoever she's after, from a little way off)
     run(u, at, B) { B.pounce(u, at, this); } },
+  // Spin (C5d, level 5): on the wolf a `rideDist` m charge in `rideDur` s the way she aims (tap: ahead), the axe spinning,
+  // cutting through all in its `w` m width (no shove): `soldier` each, `champ` a champion; a braced spear line stops it,
+  // the wolf taking their spears (x`horseX`). On foot `dur` s of spin: `ticks` blows of `tick` within `r` m, +`pace`
+  // speed, her slows gone; no basic hits. +`lvlUp` a level from 5.
+  sp2: { name: 'Spin', short: 'Spin', cd: 9, range: 10, rideRange: 10, aimFace: true, mounted: true, rideDist: 10, rideDur: .6, w: 1.1, soldier: 25, champ: 35, horseX: 1.2,
+    dur: 2.5, ticks: 4, tick: 12, r: 2.3, pace: .2, lvlUp: .05,
+    ai: (u, foe, fd, B) => (u.mounted ? fd < 9 && B.line(u, 10, 1.1).length >= 2 : fd < 3.5 && (!!foe.leader || B.circle(u, u.x, u.z, 2.5).length >= 2)) ? { x: foe.x, z: foe.z } : false, // (a computer Sigrun: through a crowd on the wolf; on foot when they're on her)
+    run(u, at, B) { B.spin(u, at, this); } },
   lines: {
     self: ['Your gate was more of a suggestion.', 'Fast is a kind of armour.', 'They\'ll sing about this. I\'ll see to it.', 'Ships don\'t wait. Neither do I.'],
     army: {},

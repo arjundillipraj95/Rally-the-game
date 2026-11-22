@@ -4,10 +4,13 @@
 // - the wolf's claws: three bright rakes on the ground where it struck; the bite: a jaw-mark and a burst;
 // - her overhead chop: the 120° arc it cuts lit on the ground, a burst where the axe lands, dust;
 // - Pounce: a ring tightening on the one she springs at and a streak to him, frost trailing her through the air; the
-//   landing a burst, a shockwave, a big claw (or axe) mark that lingers, and the hit felt by both (the wolf bites).
+//   landing a burst, a shockwave, a big claw (or axe) mark that lingers, and the hit felt by both (the wolf bites);
+// - Spin: on the wolf its path lit ahead and a whirl of the axe round her, a spark and a burst on each one it cuts, a
+//   clang and the wolf's yelp on a braced line; on foot a bright ring round her feet and the whirl, a pulse each blow.
 // drawSigrun() runs every frame (render/overlay.js). Drawing and sounds only.
 import * as THREE from 'three';
-import { bus, G, colorOf } from '../core/state.js';
+import { bus, G, colorOf, isEnemy } from '../core/state.js';
+import { scene } from './scene.js';
 import { TEAMS } from '../config.js';
 import { champOf } from '../champions/index.js';
 import { spark, dust, shockwave, puff } from './effects.js';
@@ -78,7 +81,38 @@ bus.on('fxmsg', e => {
     if (tg && tg.leader) impact(tg, u, e.q === 'kill' ? 1.4 : 1.1); else if (tg) spark(x, 1.1, z, '#e9f8ff', 10);
   }
 });
+// (C5d) the axe's whirl: a flat ring of light round her at waist height, turning
+const whirlGeo = new THREE.RingGeometry(1.15, 1.75, 40, 1, 0, Math.PI * 1.6); whirlGeo.rotateX(-Math.PI / 2);
+const spins = new Map(); // u.id -> { u, whirl, ring, t0, end }
+function endSpinFx(id) { const S = spins.get(id); if (!S) return; scene.remove(S.whirl); S.whirl.material.dispose(); if (S.ring) drop(S.ring); spins.delete(id); }
+bus.on('fxmsg', e => {
+  const u = e.u; if (!u) return; const d = champOf(u.ti).sp2 || {};
+  if (e.k === 'fxspin') {
+    endSpinFx(u.id); const ride = String(e.q)[0] === 'c', col = teamIce(u);
+    const whirl = new THREE.Mesh(whirlGeo, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: .85, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+    whirl.renderOrder = 4; whirl.frustumCulled = false; scene.add(whirl);
+    let ring = null;
+    if (ride) { const a = +String(e.q).split(',')[3]; mark(pathTex, (d.w || 1.1) * 2 + .4, d.rideDist || 10, u.x, u.z, a, { life: (d.rideDur || .6) + .7, color: col, from: 0, opacity: .95 }); }
+    else { ring = decal(ringTex, (d.r || 2.3) * 2, (d.r || 2.3) * 2, { color: col }); if (e.fromNet) u.act = { name: 'spin', t: G.T }; }
+    spins.set(u.id, { u, whirl, ring, t0: now(), end: now() + (ride ? (d.rideDur || .6) + .1 : (d.dur || 2.5)) + .2, ride });
+    sfx.spinLoop(u.x, u.z); if (ride) sfx.wolfSnarl(u.x, u.z);
+  } else if (e.k === 'fxspintick') {
+    sfx.spinLoop(u.x, u.z); shockwave(u.x, u.z, d.r || 2.3, '#dff6ff');
+    for (const o of G.units) if (!o.dead && o.leader && o.ti !== u.ti && isEnemy(o, u) && Math.hypot(o.x - u.x, o.z - u.z) <= (d.r || 2.3) + (o.r || 0)) impact(o, u, .6);
+  } else if (e.k === 'fxspincut' && e.a) {
+    const o = e.a; starburst(o.x, (o.y || 0) + 1.1, o.z, o.leader ? 2.4 : 1.6); spark(o.x, (o.y || 0) + 1.1, o.z, '#e9f8ff', 6); sfx.axeChop(o.x, o.z);
+    if (o.leader) impact(o, u, .9);
+  } else if (e.k === 'fxspinbrace') {
+    sfx.clang && sfx.clang(u.x, u.z); spark(u.x, (u.y || 0) + 1.2, u.z, '#ffffff', 12); impact(u, e.a || null, 1.3); endSpinFx(u.id);
+  } else if (e.k === 'fxspinend') { const S = spins.get(u.id); if (S) S.end = Math.min(S.end, now() + .15); if (e.fromNet && u.act && u.act.name === 'spin') u.act = null; }
+});
 export function drawSigrun() {
+  for (const [id, S] of spins) { const u = S.u;
+    if (now() > S.end || u.dead || now() < S.t0) { endSpinFx(id); continue; }
+    S.whirl.position.set(u.x, (u.y || 0) + (S.ride ? 1.9 : 1.05), u.z); S.whirl.rotation.y = -now() * 16; S.whirl.material.opacity = .55 + .3 * Math.sin(now() * 30);
+    if (S.ring) { place(S.ring, u.x, u.z, now() * 4, .13); S.ring.material.opacity = .7 + .3 * Math.sin(now() * 12); }
+    if (S.ride && Math.random() < .7) puff({ x: u.x + (Math.random() - .5), y: (u.y || 0) + .4, z: u.z + (Math.random() - .5), vx: 0, vy: .6, vz: 0, life: .5, c: '#e8f6ff', s: .6 });
+  }
   for (let i = flights.length - 1; i >= 0; i--) { const F = flights[i], u = F.u;
     if (now() > F.end + .1 || u.dead) { flights.splice(i, 1); continue; }
     if (F.tg && !F.tg.dead) place(F.ring, F.tg.x, F.tg.z, now() * 3, .14); F.ring.scale.setScalar(1.3 - .6 * Math.min(1, (now() - F.t0) / (F.end - F.t0)));

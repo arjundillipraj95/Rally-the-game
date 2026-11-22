@@ -27,7 +27,7 @@ import { respawnSpot, underAttack } from './respawn.js'; // (CASTLE7)
 import { xpTick } from './levels.js';
 import { abilityTick } from './abilities.js';
 import { eagleStep } from './eagle.js';
-import { pounceStep, wolfRider } from './sigrun.js'; // (C5b, C5c)
+import { pounceStep, wolfRider, spinStep } from './sigrun.js'; // (C5b, C5c, C5d)
 import { ramStep } from './ram.js';
 import { testudoStalls, testudoTick } from './testudo.js';
 import { scutumTick, scutumPace } from './scutum.js';
@@ -332,7 +332,7 @@ export function update(dt, input) {
     const a = live[i], ci = Math.floor(a.x / SC) + 128, cj = Math.floor(a.z / SC) + 128;
     for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) { const cell = sg.get((ci + di) * 512 + cj + dj); if (!cell) continue;
     for (let q = 0; q < cell.length; q++) {
-      const b = cell[q]; if (b.sepI <= i || a.flood || b.flood) continue; // (the flood carries men through each other)
+      const b = cell[q]; if (b.sepI <= i || a.flood || b.flood || (a.spin && a.spin.ride) || (b.spin && b.spin.ride)) continue; // (the flood carries men through each other; C5d: so does her spinning charge)
       const dx = b.x - a.x, dz = b.z - a.z, min = a.r + b.r;
       if (dx > min || dx < -min || dz > min || dz < -min) continue;
       const d = Math.hypot(dx, dz) || .01; if (d >= min) continue;
@@ -352,6 +352,7 @@ export function update(dt, input) {
     if (u.ram && ramStep(u, dt)) continue; // (C3b: his rush moves him)
     if (u.eagle && eagleStep(u, dt)) continue;
     if (u.pounce && pounceStep(u, dt)) continue; // (C5c)
+    if (u.spin && spinStep(u, dt)) continue; // (C5d)
     if (u.testudo) continue; // (C3e: the block places its men) // (C3d: his leap moves him; a joined phone's is flown there, landed here)
     if (u.remote) { u.y = groundY(u.x, u.z) + (u.jy || 0); continue; } // moved by their own phone
     if (u.rest) continue; // (F4: standing still at his spot)

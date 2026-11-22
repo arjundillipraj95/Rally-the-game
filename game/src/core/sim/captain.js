@@ -151,7 +151,7 @@ export function captainAttack(p) {
   if (p && p.pending && p.pending !== had && p.pending.side != null && !p.pending.heavy) p.pending.t = Math.max(p.pending.t, DUEL_DIR.tell);
 }
 function captainAttack0(p) {
-  if (!p || p.dead || p.carrying) return;
+  if (!p || p.dead || p.carrying || p.spin) return; // (C5d: no basic hits in her spin)
   if (p.cd > 0 || p.stun > 0) { p.atkBuf = .4; return; }
   p.atkBuf = 0;
   if (tryPull(p)) return; // (PULL1: a rider going by, on the beat: pulled down)
