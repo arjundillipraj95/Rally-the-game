@@ -31,6 +31,13 @@ export default {
   upNames: { sw1: ['Huskarl', 'Pursuit: the first hit on a runner slows him; x1.5 from behind'], sw2: ['Úlfheðnar', 'Mail and wolf pelts: +30% health, +15% damage, a charge-in burst'],
     cav1: ['Spear riders', 'Lances: +40% charge damage, +10 horse health'], cav2: ['Barded riders', 'Barding: horse health +50%, harder to hit at a gallop'] },
   influence: null,
+  // Pounce (C5c, level 3): tap, the nearest enemy; drag, the one nearest the spot (within `pick` m). A `crouch` s crouch,
+  // a low `air` s arc (`h` m high, `rideH` on the wolf) of up to `range` m (`rideRange` on the wolf) onto him: `champ`
+  // to a champion, `soldier` to a soldier, +`lvlUp` a level from 3. A kill takes the recharge down to `killCd` of it.
+  sp1: { name: 'Pounce', short: 'Pounce', cd: 7, range: 5, rideRange: 8, pick: 2.5, tapNear: true, mounted: true, crouch: .15, air: .3, after: .15, h: .9, rideH: .7,
+    champ: 45, soldier: 30, lvlUp: .05, killCd: .5,
+    ai: (u, foe, fd) => (fd > 2 && fd < (u.mounted ? 7.5 : 4.8) ? { x: foe.x, z: foe.z } : false), // (a computer Sigrun: onto whoever she's after, from a little way off)
+    run(u, at, B) { B.pounce(u, at, this); } },
   lines: {
     self: ['Your gate was more of a suggestion.', 'Fast is a kind of armour.', 'They\'ll sing about this. I\'ll see to it.', 'Ships don\'t wait. Neither do I.'],
     army: {},

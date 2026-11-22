@@ -155,7 +155,7 @@ export function attackHold(p, held, dt, remote) {
     if (held) p.ahT = (p.ahT || 0) + dt;
     const t = held ? p.ahT : 0;
     p.javDraw = w === 'jav' && t > HOLD_ATK.jav ? Math.min(1, (t - HOLD_ATK.jav) / (HOLD_ATK.javFull - HOLD_ATK.jav)) : 0;
-    p.rideReady = w !== 'jav' && t > RIDE.tap;
+    p.rideReady = w !== 'jav' && t > RIDE.tap && !wolfRider(p); // (C5b: no ride-by on the wolf: it strikes at the press)
     if (p.rideReady) { if (!p.rideTg || p.rideTg.dead || !inLock(p, p.rideTg)) p.rideTg = rideLock(p); } else p.rideTg = null;
     if (!held && p.ahT > 0) { const ht = p.ahT; p.ahT = 0; p.rideReady = false; if (!remote) rideRelease(p, w, ht); }
     return;

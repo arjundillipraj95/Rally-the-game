@@ -3,7 +3,7 @@
 // how many soldiers are alive — more in a full 12-army Trio match — sent
 // about 12 times a second).
 import { pierceInput } from '../core/sim/deviShots.js'; // (FIX9)
-import { wolfRider } from '../core/sim/sigrun.js'; // (C5b)
+import { wolfRider, flyPounce, pounceStep } from '../core/sim/sigrun.js'; // (C5b, C5c)
 import { CROWN2, CROWN26, SMOOTH, FEEL, NEUTRAL, HANDOVER } from '../config.js';
 import { SHOUTS, CROWN, HUMAN_CAPTAIN, ARMOUR, RHYTHM, BASH, EVADE, TEAMS, MAPS, KINDS, STATS, RECRUITS, ORDERS, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT, HOLD_ATK, PARRY, STONE } from '../config.js';
 import { G, bus, colorOf, isEnemyTi, activeFrom, ARMIES, duoStr, duoParse } from '../core/state.js';
@@ -446,7 +446,7 @@ function clientApply(hp) {
   }
   for (const m of (hp.m || [])) if (m[0] > C.lastMsgN) {
     C.lastMsgN = m[0];
-    if (typeof m[1] === 'string' && m[1].startsWith('fx')) { const u = G.units.find(x => x.id === m[2]), a = G.units.find(x => x.id === m[4]); if (u && u === G.player) { if (m[1] === 'fxeagle') flyEagle(u, m[6], champOf(u.ti).ult); else if (m[1] === 'fxram') flyRam(u, m[6], champOf(u.ti).sp1); else if (m[1] === 'fxramend') endRam(u, m[6]); else if (m[1] === 'fxscutum' || m[1] === 'fxscutumoff') showScutum(u, m[6], champOf(u.ti).sp2, m[1] === 'fxscutum'); } if (u) bus.emit('fxmsg', { k: m[1], u, a, heavy: !!m[3], byAI: !!m[5], q: m[6], fromNet: true }); }
+    if (typeof m[1] === 'string' && m[1].startsWith('fx')) { const u = G.units.find(x => x.id === m[2]), a = G.units.find(x => x.id === m[4]); if (u && u === G.player) { if (m[1] === 'fxeagle') flyEagle(u, m[6], champOf(u.ti).ult); else if (m[1] === 'fxram') flyRam(u, m[6], champOf(u.ti).sp1); else if (m[1] === 'fxramend') endRam(u, m[6]); else if (m[1] === 'fxpounce') flyPounce(u, m[6], champOf(u.ti).sp1); else if (m[1] === 'fxscutum' || m[1] === 'fxscutumoff') showScutum(u, m[6], champOf(u.ti).sp2, m[1] === 'fxscutum'); } if (u) bus.emit('fxmsg', { k: m[1], u, a, heavy: !!m[3], byAI: !!m[5], q: m[6], fromNet: true }); }
     else { showMsg(m[1], m.slice(2)); bus.emit('msgIn', { k: m[1], a: m.slice(2) }); } // (CASTLE10: the castle moments on joined phones too, render/castlefx.js)
   }
 }
@@ -490,6 +490,7 @@ export function clientTick(dt) {
     const mdt = (me.slowT > 0 ? dt * PARRY.slow : dt) * scutumPace(me); // (C3c: slower behind the shield)
     if (me.ram) ramStep(me, dt); // (C3b: his rush, run here; the host's hits)
     else if (me.eagle) eagleStep(me, dt); // (C3d: his Eagle's fall, flown here as the host lands it)
+    else if (me.pounce) pounceStep(me, dt); // (C5c: her Pounce, the same)
     else if (me.marchT > 0 && !(mv.mag > .3) && !mv.attackHeld && !mv.block) { if (!G.introOn) marchStep(me, mdt); } // (F7: stepping out, once the opening is over)
     else { me.marchT = 0; driveCaptain(me, mv, mdt); }
     if (me.scutum) scutumTick(me, dt); // (C3c: he faces front, backing away)
@@ -521,7 +522,7 @@ export function clientTick(dt) {
         t.predHitAt = performance.now();
       }
     }
-    if (C.atkBuf > 0 && C.localCd <= 0 && !me.mounted && !me.eagle && !me.ram && !me.scutum) actions.attack();
+    if (C.atkBuf > 0 && C.localCd <= 0 && (!me.mounted || wolfRider(me)) && !me.eagle && !me.pounce && !me.ram && !me.scutum) actions.attack();
   }
   const k = Math.min(1, dt * 15);
   // (P0.7) everyone else is drawn a moment in the past: two snapshot gaps plus however late snapshots are running

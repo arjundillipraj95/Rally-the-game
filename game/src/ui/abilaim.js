@@ -64,7 +64,7 @@ function dirOf() {
 }
 function point() {
   const p = G.player, d = slotDef(G.myTi, SLOTS[aim.k]); if (!p || !d) return null;
-  const { a, f } = dirOf(), far = d.aimFace ? d.range || 5 : Math.max(1.5, (d.range || 8) * f);
+  const { a, f } = dirOf(), R = p.mounted && d.rideRange ? d.rideRange : d.range, far = d.aimFace ? R || 5 : Math.max(1.5, (R || 8) * f); // (C5: from the saddle, its own reach)
   return { x: p.x + Math.sin(a) * far, z: p.z + Math.cos(a) * far };
 }
 // how far the Ram would get: walls stop it; each enemy soldier in its width shortens it, the `men`th or a champion ends it

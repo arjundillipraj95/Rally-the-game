@@ -27,6 +27,7 @@ import { respawnSpot, underAttack } from './respawn.js'; // (CASTLE7)
 import { xpTick } from './levels.js';
 import { abilityTick } from './abilities.js';
 import { eagleStep } from './eagle.js';
+import { pounceStep, wolfRider } from './sigrun.js'; // (C5b, C5c)
 import { ramStep } from './ram.js';
 import { testudoStalls, testudoTick } from './testudo.js';
 import { scutumTick, scutumPace } from './scutum.js';
@@ -172,7 +173,7 @@ export function update(dt, input) {
     if (input.block && !p.blkPrev) blockPress(p); p.blkPrev = !!input.block;
     p.aimChamp = aimChampPref(); // (RANGE1: the Targeting setting)
     attackHold(p, !!input.attackHeld, pdt);
-    if (p.atkBuf > 0 && p.cd <= 0 && p.stun <= 0 && !p.mounted) captainAttack(p);
+    if (p.atkBuf > 0 && p.cd <= 0 && p.stun <= 0 && (!p.mounted || wolfRider(p))) captainAttack(p); // (C5b: her wolf too)
   }
   for (const s of G.teams) { const L = s.leader; if (L && L.human && !L.dead && L.remote) attackHold(L, !!L.ahHeld, dt, true); }
   for (const s of G.teams) { const L = s.leader; if (L && L.human && L.streak && G.T - (L.streakT ?? -9) > STREAK.gap) L.streak = 0; }
@@ -350,6 +351,7 @@ export function update(dt, input) {
     if (u.scutum) scutumTick(u, dt); // (C3c: shield raised: its time and his facing)
     if (u.ram && ramStep(u, dt)) continue; // (C3b: his rush moves him)
     if (u.eagle && eagleStep(u, dt)) continue;
+    if (u.pounce && pounceStep(u, dt)) continue; // (C5c)
     if (u.testudo) continue; // (C3e: the block places its men) // (C3d: his leap moves him; a joined phone's is flown there, landed here)
     if (u.remote) { u.y = groundY(u.x, u.z) + (u.jy || 0); continue; } // moved by their own phone
     if (u.rest) continue; // (F4: standing still at his spot)

@@ -15,7 +15,10 @@ const svg = d => `<svg class="abI" viewBox="0 0 24 24" fill="none" stroke="curre
 const ICON = { Ram: '<rect x="3" y="6" width="7" height="12" rx="2"/><path d="M12 12h9M17 8l4 4-4 4"/>', Shield: '<path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z"/>',
   Eagle: '<path d="M2 9l6 2 4-5 4 5 6-2-5 7H7z"/><path d="M12 16v5"/>', Block: '<path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z"/><path d="M8 12h8"/>', Evade: '<path d="M4 16c3-8 9-10 16-8"/><path d="M16 4l4 4-4 4"/>',
   Pierce: '<path d="M3 21L21 3"/><path d="M14 3h7v7"/><path d="M3 21l2-5M3 21l5-2"/><circle cx="10" cy="14" r="2.6"/>', // (FIX8: an arrow through a mark)
-  Volley: '<path d="M4 20L16 8M8 20L20 8M12 20L22 10"/><path d="M12 8h4v4M16 8h4v4"/>' }; // (FIX8: arrows in a stream)
+  Volley: '<path d="M4 20L16 8M8 20L20 8M12 20L22 10"/><path d="M12 8h4v4M16 8h4v4"/>', // (FIX8: arrows in a stream)
+  Pounce: '<path d="M3 19c4-9 9-12 15-11"/><path d="M15 5l4 3-4 3"/><path d="M14 15l2 5M17 14l3 4M11 16l1 5"/>', // (C5: a leap and three claws)
+  Spin: '<path d="M20 12a8 8 0 1 1-3-6.2"/><path d="M17 2v4h4"/><path d="M12 8v8M9 9l6 6"/>', // (an axe spinning)
+  Hunt: '<path d="M4 4l4 5h8l4-5-1 9-3 4-4 3-4-3-3-4z"/><circle cx="9.5" cy="12" r="1"/><circle cx="14.5" cy="12" r="1"/>' }; // (a wolf's head)
 function icons(duel) {
   const key = G.myTi + ':' + duel; if (iconFor === key) return; iconFor = key;
   for (let k = 1; k <= 3; k++) { const b = $('ab' + k), d = slotDef(G.myTi, ['sp1', 'sp2', 'ult'][k - 1]); if (!b || !d) continue;

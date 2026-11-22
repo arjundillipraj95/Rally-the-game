@@ -613,7 +613,7 @@ export const ANIM = {
   acts: { kick: { steps: ['kick'], legs: true }, crouch: { steps: ['crouch', 'crouchIdle'], legs: true, then: 'crouchUp' }, crouchUp: { steps: ['crouchUp'], legs: true },
     sheath: { steps: ['sheath1', 'sheath2'] }, powerUp: { steps: ['powerUp'] }, cast: { steps: ['casting'] },
     knockdown: { steps: ['knockdown'], legs: true, then: 'getUp', rate: 2.2, cut: .22 }, getUp: { steps: ['getUp'], legs: true, rate: 2.6, cut: .85 }, // (FALL1: the fall only (first 22% of the 4.8 s clip, fast), held while the rules keep him down (act.down s), then a quick get-up; moving or swinging cancels it)
-    eagle: { steps: ['eagleFall'], legs: true }, ram: { steps: ['blockIdle'], hold: true, lean: .2 } }, // (RAM2: the charge: scutum driven out in front, his legs running (the loco below), leaning `lean` rad into it; was the overhead shieldBash) // (C3b Ram of Cassius: the shield-first lunge) // (C3d Eagle's fall: crouch, leap, the slam at .97 s, on the rules' landing at 1.0 s) // (F17: ready for the roles' knockdowns; nothing sets them yet)
+    eagle: { steps: ['eagleFall'], legs: true }, pounce: { steps: ['leapSmash'], legs: true, rate: 2.2 }, /* (C5c: her pouncing strike, quick) */ ram: { steps: ['blockIdle'], hold: true, lean: .2 } }, // (RAM2: the charge: scutum driven out in front, his legs running (the loco below), leaning `lean` rad into it; was the overhead shieldBash) // (C3b Ram of Cassius: the shield-first lunge) // (C3d Eagle's fall: crouch, leap, the slam at .97 s, on the rules' landing at 1.0 s) // (F17: ready for the roles' knockdowns; nothing sets them yet)
 };
 
 // F14 Adapts to any phone (graphics on Auto only; Low/Medium/High are fixed choices).

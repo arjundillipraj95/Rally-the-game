@@ -8,6 +8,7 @@ import { startEagle } from '../core/sim/eagle.js';
 import { startRam } from '../core/sim/ram.js';
 import { raiseScutum } from '../core/sim/scutum.js';
 import { startTestudo } from '../core/sim/testudo.js';
+import { startPounce } from '../core/sim/sigrun.js'; // (C5)
 import { startPierce, startEvade, startVolley, startStorm, awayAim } from '../core/sim/deviShots.js'; // (C4)
 
 const foes = (u, keep) => G.units.filter(o => !o.dead && !o.rest && isEnemy(o, u) && !(o.fog && o.bush >= 0) && keep(o));
@@ -46,7 +47,10 @@ export const leap = (u, at, d) => startEagle(u, at, d);
 // a shield-first rush along a path: Ram of Cassius (core/sim/ram.js)
 export const ram = (u, at, d) => startRam(u, at, d);
 // where a press aims: straight ahead for a page that says so (aimFace), else autoAim
-export const aimOf = (u, d) => d.aimAway ? awayAim(u, d.dist || 5) : d.aimFace ? { x: u.x + Math.sin(u.face) * (d.range || 5), z: u.z + Math.cos(u.face) * (d.range || 5) } : autoAim(u, d.range || 8);
+// (C5) a move with a reach of its own from the saddle (rideRange); one that a tap aims at simply the nearest enemy (tapNear)
+export const rangeOf = (u, d) => (u && u.mounted && d.rideRange ? d.rideRange : d.range);
+export const aimOf = (u, d) => d.aimAway ? awayAim(u, d.dist || 5) : d.aimFace ? { x: u.x + Math.sin(u.face) * (d.range || 5), z: u.z + Math.cos(u.face) * (d.range || 5) } : d.tapNear ? Object.assign(autoAimNear(u, rangeOf(u, d)), { tap: true }) : autoAim(u, rangeOf(u, d) || 8);
+function autoAimNear(u, r) { let b = null, bd = 1e9; for (const o of foes(u, o => Math.hypot(o.x - u.x, o.z - u.z) < r + (o.r || 0))) { const dd = Math.hypot(o.x - u.x, o.z - u.z); if (dd < bd) { bd = dd; b = o; } } return b ? { x: b.x, z: b.z, u: b } : { x: u.x + Math.sin(u.face) * r, z: u.z + Math.cos(u.face) * r }; }
 // a shield raised for a while: Shield of Cassius (core/sim/scutum.js)
 export const raise = (u, d) => raiseScutum(u, d);
 // an army's shields locked into a marching block: Testudo march (core/sim/testudo.js)
@@ -57,3 +61,5 @@ export const evade = (u, at, d) => startEvade(u, at, d);
 export const tigerVolley = (u, at, d) => startVolley(u, at, d);
 export const storm = (u, at, d) => startStorm(u, at, d);
 export const away = (u, dist) => awayAim(u, dist);
+// (C5) Sigrun's: a pounce onto one enemy (core/sim/sigrun.js)
+export const pounce = (u, at, d) => startPounce(u, at, d);

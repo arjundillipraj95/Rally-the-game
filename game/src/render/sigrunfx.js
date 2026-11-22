@@ -2,14 +2,17 @@
 // white and ice blue with her team's colour (Arjun: Unite-like, big readable shapes, a clear area on the ground, a
 // bright impact, a trace that lingers; felt by both sides through render/feel.js impact):
 // - the wolf's claws: three bright rakes on the ground where it struck; the bite: a jaw-mark and a burst;
-// - her overhead chop: the 120° arc it cuts lit on the ground, a burst where the axe lands, dust.
+// - her overhead chop: the 120° arc it cuts lit on the ground, a burst where the axe lands, dust;
+// - Pounce: a ring tightening on the one she springs at and a streak to him, frost trailing her through the air; the
+//   landing a burst, a shockwave, a big claw (or axe) mark that lingers, and the hit felt by both (the wolf bites).
 // drawSigrun() runs every frame (render/overlay.js). Drawing and sounds only.
 import * as THREE from 'three';
 import { bus, G, colorOf } from '../core/state.js';
 import { TEAMS } from '../config.js';
 import { champOf } from '../champions/index.js';
-import { spark, dust } from './effects.js';
-import { decal, place, drop, starburst } from './fxkit.js';
+import { spark, dust, shockwave, puff } from './effects.js';
+import { decal, place, drop, starburst, ringTex, pathTex } from './fxkit.js';
+import { impact } from './feel.js';
 import { sfx } from '../ui/audio.js';
 import { wolfOf } from './heroes.js';
 import { wolfMove } from './wolf.js';
@@ -55,7 +58,32 @@ bus.on('fxmsg', e => {
     at(.32, () => { const [x, z] = ahead(u, 1.6); sfx.axeChop(x, z); starburst(x, (u.y || 0) + .6, z, 2.4); dust(x, z); });
   }
 });
+const flights = []; // (C5c) pounces in the air: { u, t0, tg, ring }
+bus.on('fxmsg', e => {
+  const u = e.u; if (!u) return;
+  if (e.k === 'fxpounce') {
+    const W = u.mounted && wolfOf(u), [x, z] = String(e.q).split(',').map(Number), d = champOf(u.ti).sp1 || {};
+    if (W) wolfMove(W, 'pounce'); else if (e.fromNet) u.act = { name: 'pounce', t: G.T };
+    (W ? sfx.wolfSnarl : sfx.axeWhoosh)(u.x, u.z);
+    const len = Math.hypot(x - u.x, z - u.z), tg = e.a || null;
+    if (len > .5) mark(pathTex, 1.4, len, u.x, u.z, Math.atan2(x - u.x, z - u.z), { life: (d.crouch || .15) + (d.air || .3) + .5, color: teamIce(u), from: 0, opacity: .9 });
+    const ring = mark(ringTex, 3, 3, tg ? tg.x : x, tg ? tg.z : z, 0, { life: (d.crouch || .15) + (d.air || .3) + .1, color: teamIce(u) });
+    flights.push({ u, t0: now(), tg, ring, end: now() + (d.crouch || .15) + (d.air || .3) });
+  } else if (e.k === 'fxpounceland') {
+    const W = u.mounted && wolfOf(u), tg = e.a; if (e.q === 'miss') { dust(u.x, u.z); return; }
+    if (W) wolfMove(W, 'bite');
+    const x = tg ? tg.x : u.x, z = tg ? tg.z : u.z;
+    (W ? sfx.wolfBite : sfx.axeChop)(x, z); starburst(x, (tg && tg.y || 0) + 1.2, z, e.heavy ? 3.2 : 2.4); shockwave(x, z, 2.2, '#dff6ff'); dust(x, z);
+    mark(W ? clawTex : chopTex, 3, 3.2, x, z, u.face, { life: 1.3, color: teamIce(u), grow: .2, from: W ? .5 : .15 });
+    if (tg && tg.leader) impact(tg, u, e.q === 'kill' ? 1.4 : 1.1); else if (tg) spark(x, 1.1, z, '#e9f8ff', 10);
+  }
+});
 export function drawSigrun() {
+  for (let i = flights.length - 1; i >= 0; i--) { const F = flights[i], u = F.u;
+    if (now() > F.end + .1 || u.dead) { flights.splice(i, 1); continue; }
+    if (F.tg && !F.tg.dead) place(F.ring, F.tg.x, F.tg.z, now() * 3, .14); F.ring.scale.setScalar(1.3 - .6 * Math.min(1, (now() - F.t0) / (F.end - F.t0)));
+    if (now() - F.t0 > .12) puff({ x: u.x + (Math.random() - .5) * .6, y: (u.y || 0) + .8 + Math.random() * .8, z: u.z + (Math.random() - .5) * .6, vx: 0, vy: .4, vz: 0, life: .45, c: '#dff6ff', s: .5 });
+  }
   const T = now();
   for (let i = later.length - 1; i >= 0; i--) if (T >= later[i].t || T < later[i].t - 5) { const f = later[i].f; later.splice(i, 1); f(); }
   for (let i = marks.length - 1; i >= 0; i--) { const k = (T - marks[i].t0) / marks[i].life, M = marks[i];
