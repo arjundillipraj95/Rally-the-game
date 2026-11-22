@@ -15,6 +15,7 @@ actions.abilityReady = k => {
   const p = G.player, slot = SLOTS[k]; if (G.state !== 'play' || !p || p.dead || !slot) return false;
   let why = blocked(G.myTi, slot); if (why === 'down' && isClient()) why = ''; // (a joined phone's own captain is G.player)
   if (why === 'level') floatText(p.x, p.y + 3.2, p.z, `Opens at level ${LEVELS.unlock[slot]}`, '#fff');
+  if (why === 'target') floatText(p.x, p.y + 3.2, p.z, slotDef(G.myTi, slot).needText || 'No target', '#fff'); // (C5e)
   if (why === 'cd') floatText(p.x, p.y + 3.2, p.z, `${Math.ceil(cdLeft(G.myTi, slot))} s`, '#fff');
   return !why;
 };

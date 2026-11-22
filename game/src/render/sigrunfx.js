@@ -6,14 +6,19 @@
 // - Pounce: a ring tightening on the one she springs at and a streak to him, frost trailing her through the air; the
 //   landing a burst, a shockwave, a big claw (or axe) mark that lingers, and the hit felt by both (the wolf bites);
 // - Spin: on the wolf its path lit ahead and a whirl of the axe round her, a spark and a burst on each one it cuts, a
-//   clang and the wolf's yelp on a braced line; on foot a bright ring round her feet and the whirl, a pulse each blow.
+//   clang and the wolf's yelp on a braced line; on foot a bright ring round her feet and the whirl, a pulse each blow;
+// - The Hunt: a wolf's head over every champion she could hunt now (they see it too); the strike a white flash, slow
+//   motion, a bright arc that lingers, the howl and HUNTED!; dodged, DODGED!
 // drawSigrun() runs every frame (render/overlay.js). Drawing and sounds only.
 import * as THREE from 'three';
 import { bus, G, colorOf, isEnemy } from '../core/state.js';
 import { scene } from './scene.js';
 import { TEAMS } from '../config.js';
 import { champOf } from '../champions/index.js';
-import { spark, dust, shockwave, puff } from './effects.js';
+import { spark, dust, shockwave, puff, pow } from './effects.js';
+import { S as AS } from '../app/state.js';
+import { cdLeft, unlocked } from '../core/sim/abilities.js';
+import { huntable } from '../core/sim/sigrun.js';
 import { decal, place, drop, starburst, ringTex, pathTex } from './fxkit.js';
 import { impact } from './feel.js';
 import { sfx } from '../ui/audio.js';
@@ -106,7 +111,41 @@ bus.on('fxmsg', e => {
     sfx.clang && sfx.clang(u.x, u.z); spark(u.x, (u.y || 0) + 1.2, u.z, '#ffffff', 12); impact(u, e.a || null, 1.3); endSpinFx(u.id);
   } else if (e.k === 'fxspinend') { const S = spins.get(u.id); if (S) S.end = Math.min(S.end, now() + .15); if (e.fromNet && u.act && u.act.name === 'spin') u.act = null; }
 });
+// (C5e) the wolf's-head mark: a snarling head in frost white on a dark-red glow
+const headTex = tex(128, 128, g => { const gr = g.createRadialGradient(64, 64, 6, 64, 64, 62); gr.addColorStop(0, 'rgba(200,30,20,.75)'); gr.addColorStop(1, 'rgba(200,30,20,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+  g.fillStyle = '#f2fbff'; g.strokeStyle = '#2a0c08'; g.lineWidth = 4; g.beginPath(); g.moveTo(30, 22); g.lineTo(50, 46); g.lineTo(78, 46); g.lineTo(98, 22); g.lineTo(100, 66); g.lineTo(82, 92); g.lineTo(64, 112); g.lineTo(46, 92); g.lineTo(28, 66); g.closePath(); g.fill(); g.stroke();
+  g.fillStyle = '#c8261a'; for (const x of [50, 78]) { g.beginPath(); g.moveTo(x - 9, 64); g.lineTo(x + 9, 60); g.lineTo(x, 70); g.fill(); } g.fillStyle = '#2a0c08'; g.beginPath(); g.arc(64, 96, 6, 0, Math.PI * 2); g.fill(); });
+const heads = new Map(); // target id -> sprite
+function drawHeads() {
+  const want = new Set();
+  for (const s of G.teams) { const u = s && s.leader; if (!u || u.dead) continue; const d = champOf(u.ti).ult; if (!d || !d.need || !unlocked(u.ti, 'ult') || cdLeft(u.ti, 'ult') > 0) continue;
+    for (const o of G.units) if (huntable(u, o, d)) { want.add(o.id); let m = heads.get(o.id); if (!m) { m = new THREE.Sprite(new THREE.SpriteMaterial({ map: headTex, transparent: true, depthWrite: false, depthTest: false })); m.renderOrder = 6; scene.add(m); heads.set(o.id, m); } m.userData.o = o; } }
+  for (const [id, m] of heads) { const o = m.userData.o; if (!want.has(id) || o.dead) { scene.remove(m); m.material.dispose(); heads.delete(id); continue; }
+    const p = 1 + .12 * Math.sin(now() * 9); m.position.set(o.x, (o.y || 0) + 3.9, o.z); m.scale.setScalar(1.25 * p); }
+}
+export const huntMarks = () => heads.size; // (tests)
+let flashEl = null;
+function whiteFlash() { if (typeof document === 'undefined') return; if (!flashEl) { flashEl = document.createElement('div'); flashEl.style.cssText = 'position:fixed;inset:0;background:#fff;pointer-events:none;z-index:40;opacity:0;transition:opacity .35s ease-out'; document.body.appendChild(flashEl); }
+  flashEl.style.transition = 'none'; flashEl.style.opacity = '.85'; void flashEl.offsetWidth; flashEl.style.transition = 'opacity .35s ease-out'; flashEl.style.opacity = '0'; }
+bus.on('fxmsg', e => {
+  const u = e.u; if (!u) return;
+  if (e.k === 'fxhunt') {
+    const W = u.mounted && wolfOf(u), tg = e.a; if (W) wolfMove(W, 'pounce'); else if (e.fromNet) u.act = { name: 'pounce', t: G.T };
+    sfx.wolfSnarl(u.x, u.z); if (tg) mark(pathTex, 1.6, Math.hypot(tg.x - u.x, tg.z - u.z), u.x, u.z, Math.atan2(tg.x - u.x, tg.z - u.z), { life: .9, color: 0xff6a5a, from: 0 });
+  } else if (e.k === 'fxhuntend') {
+    const tg = e.a, W = u.mounted && wolfOf(u);
+    if (e.q === 'dodged' && tg) { pow(tg.x, (tg.y || 0) + 3.2, tg.z, 'DODGED!', '#bfeaff', 3); return; }
+    if (e.q !== 'kill' || !tg) return;
+    const me = G.player, near = me && Math.hypot(me.x - tg.x, me.z - tg.z) < 30, mine = me === u || me === tg;
+    if (W) { wolfMove(W, 'shake'); at(.55, () => { const W2 = wolfOf(u); wolfMove(W2, 'howl'); }); }
+    at(.4, () => sfx.howl(u.x, u.z)); sfx.huntSting(tg.x, tg.z);
+    if (near || mine) { whiteFlash(); AS.slowmo = Math.max(AS.slowmo || 0, .5); }
+    mark(W ? clawTex : chopTex, 4.2, 4.2, tg.x, tg.z, u.face, { life: 2, color: 0xffffff, grow: .3, from: W ? .5 : .15 });
+    starburst(tg.x, (tg.y || 0) + 1.3, tg.z, 4); shockwave(tg.x, tg.z, 6, '#ffffff'); pow(tg.x, (tg.y || 0) + 3.4, tg.z, 'HUNTED!', '#e8f8ff', 3); impact(tg, u, 1.6);
+  }
+});
 export function drawSigrun() {
+  drawHeads();
   for (const [id, S] of spins) { const u = S.u;
     if (now() > S.end || u.dead || now() < S.t0) { endSpinFx(id); continue; }
     S.whirl.position.set(u.x, (u.y || 0) + (S.ride ? 1.9 : 1.05), u.z); S.whirl.rotation.y = -now() * 16; S.whirl.material.opacity = .55 + .3 * Math.sin(now() * 30);

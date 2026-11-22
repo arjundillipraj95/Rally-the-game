@@ -7,6 +7,7 @@ import { G } from '../core/state.js';
 import { castleHere, upgradeCost } from '../core/sim.js';
 import { cdLeft, slotDef, unlocked } from '../core/sim/abilities.js';
 import { champOf } from '../champions/index.js';
+import * as BL from '../champions/blocks.js'; // (C5e)
 
 const $ = id => document.getElementById(id);
 let wasDuel = null, clockBound = false, iconFor = '';
@@ -43,7 +44,7 @@ export function battleHud() {
   wasDuel = duel; icons(duel);
   // the ult's ring fills as it recharges
   { const b = $('ab3'), d = slotDef(G.myTi, 'ult'); if (b && d) { const lock = !unlocked(G.myTi, 'ult'), cd = cdLeft(G.myTi, 'ult'), f = lock ? 0 : d.cd ? 1 - cd / d.cd : 1;
-    b.style.setProperty('--chg', Math.max(0, Math.min(1, f)).toFixed(3)); b.classList.toggle('ready', !lock && cd <= 0); } }
+    b.style.setProperty('--chg', Math.max(0, Math.min(1, f)).toFixed(3)); const can = !d.need || (p && !p.dead && d.need(p, BL)); b.classList.toggle('ready', !lock && cd <= 0 && can); b.classList.toggle('noTarget', !lock && cd <= 0 && !can); } } // (C5e: the Hunt glows only with someone to hunt, dark otherwise)
   { const w = $('wpn'); if (w) w.classList.toggle('onew', (champOf(G.myTi).weapons || []).length <= 1); }
   // the army ult: the horn's bar; lit when full
   { const b = $('armyBtn'), d = slotDef(G.myTi, 'armyUlt'); set(b, 'hidden', !d);

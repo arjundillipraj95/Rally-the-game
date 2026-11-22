@@ -8,7 +8,7 @@ import { startEagle } from '../core/sim/eagle.js';
 import { startRam } from '../core/sim/ram.js';
 import { raiseScutum } from '../core/sim/scutum.js';
 import { startTestudo } from '../core/sim/testudo.js';
-import { startPounce, startSpin } from '../core/sim/sigrun.js'; // (C5)
+import { startPounce, startSpin, startHunt, huntTarget as huntTarget0 } from '../core/sim/sigrun.js'; // (C5)
 import { startPierce, startEvade, startVolley, startStorm, awayAim } from '../core/sim/deviShots.js'; // (C4)
 
 const foes = (u, keep) => G.units.filter(o => !o.dead && !o.rest && isEnemy(o, u) && !(o.fog && o.bush >= 0) && keep(o));
@@ -64,3 +64,5 @@ export const away = (u, dist) => awayAim(u, dist);
 // (C5) Sigrun's: a pounce onto one enemy (core/sim/sigrun.js)
 export const pounce = (u, at, d) => startPounce(u, at, d);
 export const spin = (u, at, d) => startSpin(u, at, d);
+export const hunt = (u, at, d) => startHunt(u, at, d);
+export const huntTarget = (u, d, at) => huntTarget0(u, d, at);

@@ -27,6 +27,7 @@ body.bs #ab3::before{content:'';position:absolute;inset:-5px;border-radius:50%;p
   background:conic-gradient(#ffd36e calc(var(--chg,1) * 360deg), rgba(40,30,14,.55) 0);
   -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 5px));mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 5px));}
 body.bs #ab3.ready{box-shadow:0 0 16px rgba(255,211,110,.6),0 4px 10px rgba(0,0,0,.45);}
+body.bs #ab3.noTarget{filter:grayscale(.85) brightness(.55);} /* (C5e: the Hunt with nobody to hunt: dark, never wasted) */
 body.bs .pad .ab.wait{background:rgba(30,30,36,.5);}
 body.bs .pad .ab .lbl{position:absolute;bottom:-13px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:9px;}
 body.bs .pad .ab.duelSw{background:rgba(58,92,240,.4);}

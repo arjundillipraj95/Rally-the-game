@@ -5,7 +5,8 @@ import { CAPTAIN_COMBAT as CC } from '../../config.js';
 import { G, isEnemy } from '../state.js';
 import { groundY, angDiff } from '../world.js';
 import { integrate } from './move.js';
-import { braced, horseDamage } from './army.js';
+import { braced, horseDamage, dismount } from './army.js';
+import { dropScutum } from './scutum.js';
 import { champOf } from '../../champions/index.js';
 import { paceOf, levelOf } from '../../champions/stats.js';
 import { startSwing, hit } from './melee.js';
@@ -145,4 +146,47 @@ function cuts(u, S) {
     fx('fxmsg', { k: 'fxspincut', u, a: o });
   }
   return false;
+}
+
+// (C5e) The Hunt (ult, level 7): only on an enemy champion below `below` of his health within `range` m (`rideRange` on
+// the wolf); never wasted (the button is dark without one). It locks on and strikes in `strike` s: he dies, whatever
+// shield he holds; a dash that makes him untouchable at that moment (Devi's Evade) dodges it. On the wolf: the pounce,
+// the jaws on his neck, one shake (`after` s); on foot: a leaping overhead chop. No gore: a white flash, `slow` s of
+// slow motion, a bright arc, the howl. The page's ult has the numbers.
+export const huntable = (u, o, d) => !!o && !o.dead && o.leader && isEnemy(u, o) && o.hp < o.max * d.below && Math.hypot(o.x - u.x, o.z - u.z) <= reachOf(u, d) + (o.r || 0);
+export function huntTarget(u, d, at) {
+  const L = G.units.filter(o => huntable(u, o, d)); if (!L.length) return null;
+  return at && Number.isFinite(at.x) && !at.tap ? near(L, at.x, at.z) : L.reduce((b, o) => (o.hp / o.max < b.hp / b.max ? o : b));
+}
+export function startHunt(u, at, d) {
+  const tg = huntTarget(u, d, at); if (!tg) return false;
+  u.hunt = { t: 0, x0: u.x, z0: u.z, tg, d, ride: !!u.mounted, done: false, x: tg.x, z: tg.z };
+  u.vx = u.vz = 0; u.swing = 0; u.pending = null; u.face = Math.atan2(tg.x - u.x, tg.z - u.z);
+  if (!u.mounted) u.act = { name: 'pounce', t: G.T };
+  fx('fxmsg', { k: 'fxhunt', u, a: tg, q: `${tg.x.toFixed(2)},${tg.z.toFixed(2)}` });
+  return true;
+}
+export function flyHunt(u, q, d) {
+  const [x, z] = String(q).split(',').map(Number); if (!Number.isFinite(x) || !d) return;
+  u.hunt = { t: 0, x0: u.x, z0: u.z, tg: null, d, ride: !!u.mounted, done: true, own: true, x, z };
+}
+export function huntStep(u, dt) {
+  const H = u.hunt, d = H.d, tg = H.tg; H.t += dt; u.stun = 0; u.vx = u.vz = 0; u.pending = null;
+  if (tg && !tg.dead && !H.done) { const a = Math.atan2(tg.x - H.x0, tg.z - H.z0), g = Math.max(0, Math.hypot(tg.x - H.x0, tg.z - H.z0) - (u.r + (tg.r || 0)) * .8); H.x = H.x0 + Math.sin(a) * g; H.z = H.z0 + Math.cos(a) * g; u.face = a; }
+  const s = Math.min(1, H.t / d.strike);
+  if (!u.remote) { u.x = H.x0 + (H.x - H.x0) * s; u.z = H.z0 + (H.z - H.z0) * s; u.jy = 4 * (H.ride ? .6 : 1.1) * s * (1 - s); u.y = groundY(u.x, u.z) + u.jy; }
+  if (!H.done && H.t >= d.strike) { H.done = true; huntStrike(u, H); }
+  if (H.t >= d.strike + d.after) { u.hunt = null; u.jy = 0; if (u.act && u.act.name === 'pounce') u.act = null; }
+  return !u.remote;
+}
+function huntStrike(u, H) {
+  const tg = H.tg;
+  if (!tg || tg.dead) { fx('fxmsg', { k: 'fxhuntend', u, q: 'miss' }); return; }
+  if (tg.iframeT > 0) { fx('fxmsg', { k: 'fxhuntend', u, a: tg, q: 'dodged' }); fx('fxmsg', { k: 'fxevade', u: tg, a: u }); return; } // (untouchable just then: it misses)
+  if (tg.mounted) dismount(tg, true); // (no horse between them)
+  if (tg.scutum) dropScutum(tg, 'ult'); tg.testudo = null; // (shields don't hold it)
+  tg.howBy = 'hunt'; u.slowT = Math.max(u.slowT || 0, H.d.slow); tg.slowT = Math.max(tg.slowT || 0, H.d.slow);
+  hit(u, tg, 1, { fixed: tg.max * 10, ult: true, unblockable: true, unparryable: true, kb: .3 });
+  if (!tg.dead && tg.hp > 0) { tg.hp = 0; } // (whatever else it went through: he falls)
+  fx('fxmsg', { k: 'fxhuntend', u, a: tg, q: 'kill', heavy: true });
 }

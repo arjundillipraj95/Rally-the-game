@@ -27,7 +27,7 @@ import { respawnSpot, underAttack } from './respawn.js'; // (CASTLE7)
 import { xpTick } from './levels.js';
 import { abilityTick } from './abilities.js';
 import { eagleStep } from './eagle.js';
-import { pounceStep, wolfRider, spinStep } from './sigrun.js'; // (C5b, C5c, C5d)
+import { pounceStep, wolfRider, spinStep, huntStep } from './sigrun.js'; // (C5b-C5e)
 import { ramStep } from './ram.js';
 import { testudoStalls, testudoTick } from './testudo.js';
 import { scutumTick, scutumPace } from './scutum.js';
@@ -353,6 +353,7 @@ export function update(dt, input) {
     if (u.eagle && eagleStep(u, dt)) continue;
     if (u.pounce && pounceStep(u, dt)) continue; // (C5c)
     if (u.spin && spinStep(u, dt)) continue; // (C5d)
+    if (u.hunt && huntStep(u, dt)) continue; // (C5e)
     if (u.testudo) continue; // (C3e: the block places its men) // (C3d: his leap moves him; a joined phone's is flown there, landed here)
     if (u.remote) { u.y = groundY(u.x, u.z) + (u.jy || 0); continue; } // moved by their own phone
     if (u.rest) continue; // (F4: standing still at his spot)

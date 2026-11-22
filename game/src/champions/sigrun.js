@@ -46,6 +46,14 @@ export default {
     dur: 2.5, ticks: 4, tick: 12, r: 2.3, pace: .2, lvlUp: .05,
     ai: (u, foe, fd, B) => (u.mounted ? fd < 9 && B.line(u, 10, 1.1).length >= 2 : fd < 3.5 && (!!foe.leader || B.circle(u, u.x, u.z, 2.5).length >= 2)) ? { x: foe.x, z: foe.z } : false, // (a computer Sigrun: through a crowd on the wolf; on foot when they're on her)
     run(u, at, B) { B.spin(u, at, this); } },
+  // The Hunt (C5e, ult, level 7): only on an enemy champion below `below` of his health within `range` m (`rideRange`
+  // on the wolf); the button is dark without one (never wasted). Tap: the lowest of them; drag: the one by the spot. It
+  // strikes in `strike` s and kills; shields don't hold it; an untouchable dash at that moment dodges it. `after` s
+  // for the shake or the chop to finish; `slow` s of slow motion on both.
+  ult: { name: 'The Hunt', short: 'Hunt', needText: 'Nobody wounded enough, close enough', cd: 35, range: 6, rideRange: 12, below: .2, strike: .3, after: .5, slow: .5, mounted: true,
+    need(u, B) { return !!B.huntTarget(u, this); },
+    ai(u, foe, fd, B) { const t = B.huntTarget(u, this); return t ? { x: t.x, z: t.z } : false; }, // (a computer Sigrun: as soon as there's one)
+    run(u, at, B) { B.hunt(u, at, this); } },
   lines: {
     self: ['Your gate was more of a suggestion.', 'Fast is a kind of armour.', 'They\'ll sing about this. I\'ll see to it.', 'Ships don\'t wait. Neither do I.'],
     army: {},

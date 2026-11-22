@@ -22,7 +22,8 @@ export function blocked(ti, slot) {
   const d = slotDef(ti, slot), s = G.teams[ti], u = s && s.leader;
   if (!d) return 'none'; if (!unlocked(ti, slot)) return 'level'; { const v = u || (ti === G.myTi ? G.player : null); if (d.toggle && v && v.scutum && !v.dead) return ''; } if (slot !== 'armyUlt' && cdLeft(ti, slot) > 0) return 'cd'; // (C3c: tap again drops it)
   if (!u || u.dead) return 'down';
-  if (u.eagle || u.pounce || u.spin || u.ram || u.stun > 0 || u.carrying || u.duelId || u.execT > 0 || u.execV || u.flood || (u.mounted && d.needFoot)) return 'busy';
+  if (d.need && !d.need(u, B)) return 'target'; // (C5e: a move that needs someone to use it on: dark without)
+  if (u.eagle || u.pounce || u.spin || u.hunt || u.ram || u.stun > 0 || u.carrying || u.duelId || u.execT > 0 || u.execV || u.flood || (u.mounted && d.needFoot)) return 'busy';
   return '';
 }
 // fire a slot (host and solo): aim is { x, z } on the ground, or none (his facing / the nearest foe in range)

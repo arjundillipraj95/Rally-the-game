@@ -18,7 +18,7 @@ export const deathState = D;
 // how he fell, in the card's words: [the line above the name, what follows the name]
 const HOW = {
   sword: ['Cut down by', 'with a sword'], spear: ['Run through by', 'with a spear'], jav: ['Brought down by', 'with a javelin'], horse: ['Ridden down by', 'on horseback'],
-  exec: ['Executed by', ''], arrow: ['Shot down by', '’s archers'], men: ['Cut down by', '’s men'],
+  exec: ['Executed by', ''], hunt: ['Hunted by', ''], // (C5e: Sigrun's Hunt) arrow: ['Shot down by', '’s archers'], men: ['Cut down by', '’s men'],
   tower: ['Shot down by', 'a watchtower'], garrison: ['Cut down by', 'the garrison'], fall: ['You fell', 'into the chasm'], home: ['You fell', 'inside an enemy home'],
 };
 function fill() {

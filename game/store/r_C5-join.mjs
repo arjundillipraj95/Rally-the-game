@@ -84,5 +84,16 @@ for (const mount of [true, false]) {
   ok(mount ? r === 35 : r === 48, `${mount ? 'on the wolf: the joined phone\'s charge cuts the champion' : 'on foot: the joined phone\'s spin'}: ${r} (${mount ? 35 : 48})`);
 }
 
+// ---- C5e: the joined phone's Hunt: dark with nobody low; a champion at 15% 4 m ahead: hunted on the host
+await A.evaluate(async ti => { const L = await import('/src/core/sim/levels.js'), G = window.__fb.G; while ((G.teams[ti].lvl || 1) < 7) L.gainXp(ti, 80, 'test'); }, ti); await sleep(1500);
+{ await A.evaluate(`(${PLACE})(${ti}, false)`); await A.evaluate(ti => { const T = window.__fb.G.teams[ti]; (T.cds || (T.cds = {})).ult = 0; }, ti);
+  await A.evaluate(ti => { window.__hold = setInterval(() => { const f = window.__foe, me = window.__fb.G.teams[ti].leader; f.stun = 30; f.cd = 30; if (!me.hunt) { f.x = me.x + Math.sin(me.face) * 4; f.z = me.z + Math.cos(me.face) * 4; } }, 30); }, ti); await sleep(1500);
+  const dark = await B.evaluate(() => document.getElementById('ab3').classList.contains('noTarget'));
+  await A.evaluate(() => { const f = window.__foe; f.hp = f.max * .15; }); await sleep(1500);
+  const glow = await B.evaluate(() => document.getElementById('ab3').classList.contains('ready'));
+  await B.evaluate(() => window.__fb.ability(2)); await sleep(3000);
+  const dead = await A.evaluate(() => { clearInterval(window.__hold); return window.__foe.dead || window.__foe.hp <= 0; });
+  ok(dark && glow && dead, `the joined phone's Hunt: dark at full health (${dark}), glows at 15% (${glow}), hunted on the host (${dead})`); }
+
 await b1.close(); await b2.close();
 console.log(fails ? `${fails} FAILED` : 'ALL PASS'); process.exit(fails ? 1 : 0);
