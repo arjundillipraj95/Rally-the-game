@@ -9,6 +9,7 @@ import { startRam } from '../core/sim/ram.js';
 import { raiseScutum } from '../core/sim/scutum.js';
 import { startTestudo } from '../core/sim/testudo.js';
 import { startPounce, startSpin, startHunt, huntTarget as huntTarget0 } from '../core/sim/sigrun.js'; // (C5)
+import { startSvin, svinRiders } from '../core/sim/svin.js'; // (C5f)
 import { startPierce, startEvade, startVolley, startStorm, awayAim } from '../core/sim/deviShots.js'; // (C4)
 
 const foes = (u, keep) => G.units.filter(o => !o.dead && !o.rest && isEnemy(o, u) && !(o.fog && o.bush >= 0) && keep(o));
@@ -65,4 +66,6 @@ export const away = (u, dist) => awayAim(u, dist);
 export const pounce = (u, at, d) => startPounce(u, at, d);
 export const spin = (u, at, d) => startSpin(u, at, d);
 export const hunt = (u, at, d) => startHunt(u, at, d);
+export const svin = (u, at, d) => startSvin(u, at, d);
+export const riders = (u, d) => svinRiders(u, d);
 export const huntTarget = (u, d, at) => huntTarget0(u, d, at);

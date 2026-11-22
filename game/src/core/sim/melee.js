@@ -100,7 +100,7 @@ export function startSweep(u) {
 // A footman facing a captain: shield up for part of each cycle, down (and swinging) for the rest.
 // The raised shield shows on every phone (it's the block pose), so what you see is what you get.
 export function shieldTick(u, dt) {
-  if (u.leader || u.kind !== 'foot' || u.mounted) { u.guardUp = false; return; }
+  if (u.leader || u.kind !== 'foot' || u.mounted || u.disarrayT > G.T) { u.guardUp = false; return; } // (C5f: out of formation: no guard)
   let cap = false;
   for (const s of G.teams) { const L = s.leader; if (L && !L.dead && isEnemy(L, u) && Math.hypot(L.x - u.x, L.z - u.z) < SHIELD.r) { cap = true; break; } }
   if (!cap || u.stun > 0) { u.guardUp = false; if (!cap) u.gT = rnd(0, .8); return; }

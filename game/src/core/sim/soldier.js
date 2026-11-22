@@ -10,6 +10,7 @@ import { guardRing } from './duel.js';
 import { startHeavy } from './guard.js';
 import { shoot, throwJavelin } from './missiles.js';
 import { cavRide, burstIn } from './cavalry.js'; // (C2b)
+import { svinBehind } from './svin.js'; // (C5f)
 import { throwerStep } from './thrower.js'; // (C2)
 import { archerFocus, archerIdle } from './archsiege.js'; // (ARCH2)
 import { c2GateA } from './crown2.js';
@@ -74,7 +75,8 @@ function holdPlace(u, H, dt, range) {
   u.holding = u.kind === 'foot' && d < 1.6;
 }
 export function thinkSoldier(u, dt) {
-  if (u.testudo) return; // (C3e: locked in the testudo, the block moves him)
+  if (u.testudo || u.svin) return; // (C3e: locked in the testudo, the block moves him; C5f: in her wedge, the same)
+  if (u.svinRun) { const [x, z] = svinBehind(u.svinRun); go(u, x, z, speedOf(u), dt, 1.5); if (u.foe && u.fd < u.r + u.foe.r + u.reach && u.cd <= 0) startSwing(u, u.foe); return; } // (C5f: her swordsmen sprint in behind the wedge)
   if (u.windup > 0) { moveToward(u, u.x, u.z, 0, dt); return; }
   const s = G.teams[u.ti], L = s.leader, leaderUp = L && !L.dead;
   // a broken army runs for home, weapons forgotten
@@ -98,7 +100,7 @@ export function thinkSoldier(u, dt) {
     else if (!s.focus.id) u.face = Math.atan2(s.focus.x - u.x, s.focus.z - u.z); // (facing it: the strike rules in step.js do the rest)
   }
   const myOrder = orderOf(u.ti);
-  if (myOrder === 'shieldwall' && leaderUp) {
+  if (myOrder === 'shieldwall' && leaderUp && !(u.disarrayT > G.T)) { // (C5f: struck by the boar's snout, out of formation a while)
     u.aim = false;
     const foe = u.foe;
     if (foe && u.fd < u.r + foe.r + u.reach) { faceTo(u, foe.x, foe.z, dt); startSwing(u, foe); }

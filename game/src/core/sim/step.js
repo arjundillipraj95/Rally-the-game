@@ -30,6 +30,7 @@ import { eagleStep } from './eagle.js';
 import { pounceStep, wolfRider, spinStep, huntStep } from './sigrun.js'; // (C5b-C5e)
 import { ramStep } from './ram.js';
 import { testudoStalls, testudoTick } from './testudo.js';
+import { svinTick } from './svin.js'; // (C5f)
 import { scutumTick, scutumPace } from './scutum.js';
 import { botFortify } from './ai26.js'; // (CASTLE9)
 import { thinkLeader } from './ai.js';
@@ -115,6 +116,7 @@ export function update(dt, input) {
   staminaTick(dt);
   abilityTick(dt); // (C1c: the slots recharge)
   testudoTick(dt); // (C3e: testudo blocks marching)
+  svinTick(dt); // (C5f: her riders' wedge)
   xpTick(dt, underAttack); // (C1b: the trickle near a fight for a castle, or in the arena)
   // Duo battles can field twice the soldiers of a solo one; searching fewer new paths per frame
   // as the field gets crowded keeps worst-case frame cost bounded instead of growing with it.

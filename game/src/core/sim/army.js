@@ -186,6 +186,7 @@ export function speedOf(u) {
   let s = u.spd;
   if (u.mounted) s *= mountMul(u) * (u.charge > 0 ? CHARGE.spd : 1) * (u.human ? .8 + .35 * (u.gallop || 0) : 1); // (a human rider's gallop builds on the straight)
   if (!u.leader) { s *= inflSpd(u); if (u.burstT > G.T) s *= u.burst ? u.burst.x : 1; // (C5)
+    if (u.sprintT > G.T) s *= (champOf(u.ti).armyUlt || {}).sprintX || 1; // (C5f: her swordsmen sprint in)
     if (u.aura) s *= 1 + auraBonus(u.ti) * .5; if (u.shieldwall) s *= .55; }
   if (u.carrying) s *= G.crown ? CROWN.carrierSlow : .7;
   s *= groundSlow(u.x, u.z); // (a ford, a wheat field, an oasis)

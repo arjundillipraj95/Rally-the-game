@@ -9,6 +9,8 @@
 //   clang and the wolf's yelp on a braced line; on foot a bright ring round her feet and the whirl, a pulse each blow;
 // - The Hunt: a wolf's head over every champion she could hunt now (they see it too); the strike a white flash, slow
 //   motion, a bright arc that lingers, the howl and HUNTED!; dodged, DODGED!
+// - Svinfylkingar: the wedge's lane lit on the ground and a boar's-snout point at its head through the warning (seen by
+//   all), then dust behind every rider, a burst on each one struck, the war horn and the word.
 // drawSigrun() runs every frame (render/overlay.js). Drawing and sounds only.
 import * as THREE from 'three';
 import { bus, G, colorOf, isEnemy } from '../core/state.js';
@@ -144,8 +146,28 @@ bus.on('fxmsg', e => {
     starburst(tg.x, (tg.y || 0) + 1.3, tg.z, 4); shockwave(tg.x, tg.z, 6, '#ffffff'); pow(tg.x, (tg.y || 0) + 3.4, tg.z, 'HUNTED!', '#e8f8ff', 3); impact(tg, u, 1.6);
   }
 });
+const snouts = []; // (C5f) { u, t0, warn, dur, lane, tip, riders, a, x, z }
+const snoutTex = fanTex(50);
+bus.on('fxmsg', e => {
+  const u = e.u; if (!u) return;
+  if (e.k === 'fxsvin') {
+    const p = String(e.q).split(','), a = +p[0], x = +p[1], z = +p[2], len = +p[3], warn = +p[4], dur = +p[5], ids = p.slice(6).map(Number), col = 0xff8a6a;
+    const lane = mark(pathTex, 5.5, len + 4, x, z, a, { life: warn + dur + .6, color: col, from: 0, opacity: .9 }), tip = mark(snoutTex, 5, 4, x + Math.sin(a) * 2, z + Math.cos(a) * 2, a, { life: warn + .1, color: 0xffe0d0, from: 0 });
+    snouts.push({ u, t0: now(), warn, dur, lane, tip, a, riders: ids.map(id => G.units.find(o => o.id === id)).filter(Boolean) });
+    sfx.charge && sfx.charge(u.x, u.z); sfx.horn && sfx.horn(); pow(u.x, (u.y || 0) + 3.6, u.z, 'SVINFYLKING!', '#ffb08a', 3);
+  } else if (e.k === 'fxsvinhit') {
+    const o = u, r = e.a; starburst(o.x, (o.y || 0) + 1.1, o.z, 1.8); spark(o.x, (o.y || 0) + 1, o.z, '#ffd2c0', 6); dust(o.x, o.z); if (o.leader) impact(o, r || null, .9);
+  }
+});
+function drawSnouts() {
+  for (let i = snouts.length - 1; i >= 0; i--) { const W = snouts[i], k = now() - W.t0;
+    if (k > W.warn + W.dur + .2) { snouts.splice(i, 1); continue; }
+    if (k < W.warn) { const p = .6 + .4 * Math.sin(k * 18); W.lane.material.opacity = p; continue; }
+    for (const r of W.riders) if (!r.dead && Math.random() < .5) dust(r.x - Math.sin(W.a) * 1.2, r.z - Math.cos(W.a) * 1.2);
+  }
+}
 export function drawSigrun() {
-  drawHeads();
+  drawHeads(); drawSnouts();
   for (const [id, S] of spins) { const u = S.u;
     if (now() > S.end || u.dead || now() < S.t0) { endSpinFx(id); continue; }
     S.whirl.position.set(u.x, (u.y || 0) + (S.ride ? 1.9 : 1.05), u.z); S.whirl.rotation.y = -now() * 16; S.whirl.material.opacity = .55 + .3 * Math.sin(now() * 30);

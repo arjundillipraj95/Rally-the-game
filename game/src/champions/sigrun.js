@@ -54,6 +54,14 @@ export default {
     need(u, B) { return !!B.huntTarget(u, this); },
     ai(u, foe, fd, B) { const t = B.huntTarget(u, this); return t ? { x: t.x, z: t.z } : false; }, // (a computer Sigrun: as soon as there's one)
     run(u, at, B) { B.hunt(u, at, this); } },
+  // Svinfylkingar, the boar's snout (C5f, army ult, from the full horn): her riders within `reach` m wedge up behind her
+  // (`gap` m apart) for `warn` s, then charge `dur` s at `spd` m/s the way she drags; each strikes whoever he rides into
+  // for `hit`, braces don't stop it, and a soldier struck is out of formation `disarray` s. Her swordsmen sprint in
+  // behind (x`sprintX` for `sprint` s). With no rider by her the horn gives the usual rally cry instead.
+  armyUlt: { name: 'Svinfylkingar', short: 'Snout', range: 30, reach: 40, gap: 2.4, warn: 1, dur: 3, spd: 13, hit: 30, disarray: 3, sprint: 4, sprintX: 1.5,
+    need(u, B) { return B.riders(u, this).length > 0; },
+    ai(u, foe, fd, B) { return B.riders(u, this).length >= 2 && fd < 22 ? { x: foe.x, z: foe.z } : false; }, // (a computer Sigrun: with two riders or more and a fight ahead)
+    run(u, at, B) { B.svin(u, at, this); } },
   lines: {
     self: ['Your gate was more of a suggestion.', 'Fast is a kind of armour.', 'They\'ll sing about this. I\'ll see to it.', 'Ships don\'t wait. Neither do I.'],
     army: {},
