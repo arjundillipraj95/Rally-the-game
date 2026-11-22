@@ -19,6 +19,8 @@ import { duelLook, champSwing } from './rig/champgear.js';
 import { skyShot } from './devifx.js';
 import { on, SRC, heroesOn, make, weaponOf, keyOf, RIDE } from './heroload.js';
 import { gait, buck, buckPose } from './herohorse.js';
+import { WOLF_GAITS, FEEL_WOLF } from '../config/wolf.js';
+import { wolfPose, wolfHit } from './wolf.js';
 import { sweepFar } from './herofar.js';
 export { heroesOn } from './heroload.js';
 export { drawFreeHorses } from './herohorse.js';
@@ -253,7 +255,7 @@ export function drawHero(u, a, dt) {
   if (roll) { R.root.rotateZ(roll); R.root.position.y -= .25 * Math.sin(Math.abs(roll) / 2) * h.sc; } // (the side roll: a full turn about his forward axis, tucked low)
   if (R.cape) { const k = R.cape.userData, want = k.base + Math.min(.55, sp * .07) + Math.sin(FRAME * .09 + u.id) * .03 * mv; k.a = k.a === undefined ? want : k.a + (want - k.a) * Math.min(1, dt * 6); R.cape.rotation.x = k.a; } // (C4: lifts behind him as he runs, eased)
   top.visible = true;
-  if (h.legs) { const [bob, pitch] = gait(h.legs, sp, dt); top.position.y += bob; top.rotation.order = 'YXZ'; top.rotation.x = pitch; }
+  if (h.legs) { const [bob, pitch] = gait(h.legs, sp, dt, h.wolf ? WOLF_GAITS : undefined), [wr, wp] = wolfPose(h.wolf, h.legs, sp, dt); top.position.y += bob + wr; top.rotation.order = 'YXZ'; top.rotation.x = pitch + wp; } // (C5: the wolf's own gait, head, tail and strikes)
   const B = h.legs && buckPose(h.legs, dt); // (FX2: hit, the horse tosses, steps aside, or rears)
   if (B) { const f = u.face; top.rotation.x += B.rp; top.rotation.y += B.yp; top.position.y += Math.sin(-B.rp) * FEEL.horse.lift * h.sc; top.position.x += Math.cos(f) * B.sp; top.position.z -= Math.sin(f) * B.sp; } // (the horse walks, trots or gallops for its speed, the rider going with it)
   if (R.clip) lookAlong(R, h, top, u.face + (a.yaw || 0)); // (F26: his head, then his chest, toward the target)
@@ -261,7 +263,15 @@ export function drawHero(u, a, dt) {
   return true;
 }
 // (FX2) a hit on a mounted champion reaches his horse: true when it rears
-export function horseHit(u, from, power) { const h = live.get(u); return !!(h && h.U && h.legs) && buck(h.legs, from - u.face, power); }
+// (C5) a wolf flinches low and skips aside, its head jerking away; it yelps, and snarls on a heavy blow. Returns the
+// sound to play ('' none): a horse whinnies only when it rears
+export function horseHit(u, from, power) {
+  const h = live.get(u); if (!(h && h.U && h.legs)) return '';
+  if (!h.wolf) return buck(h.legs, from - u.face, power) ? 'neigh' : '';
+  buck(h.legs, from - u.face, power, FEEL_WOLF); wolfHit(h.wolf, from - u.face, power);
+  return power >= FEEL_WOLF.snarlAt ? 'wolfSnarl' : power >= FEEL_WOLF.yelpAt ? 'wolfYelp' : '';
+}
+export const wolfOf = u => { const h = live.get(u); return (h && h.wolf) || null; }; // (C5: its strikes)
 // which blow his clips are playing (null between blows), for the swoosh
 export const heroScale = u => { const h = live.get(u); return h ? h.R.root.scale.x : 0; }; // (SIZE1: the size a unit is drawn at: tests read it)
 export const heroBlow = u => { const h = live.get(u); return h && h.swClip && h.swT != null && G.T - h.swT < .38 + ANIM.swingTail ? h.swClip : null; };

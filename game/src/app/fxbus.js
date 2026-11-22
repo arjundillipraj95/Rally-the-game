@@ -5,7 +5,7 @@ import { endMatch } from '../core/sim.js';
 import { groundY } from '../core/world.js';
 import { spark, splat, dust, floatText, pow, shockwave } from '../render/effects.js';
 import { cam, camTarget } from '../render/camera.js';
-import { sfx, buzz, gateS, musicCue } from '../ui/audio.js';
+import { sfx, buzz, gateS, musicCue } from '../ui/audio.js'; import '../ui/wolfsfx.js'; // (C5: Sigrun's and her wolf's sounds)
 import { showMsg } from '../ui/messages.js';
 import { updateHud } from '../ui/hud.js';
 import { C } from '../net/netgame.js';

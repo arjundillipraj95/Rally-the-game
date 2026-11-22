@@ -49,7 +49,7 @@ bus.on('fxmsg', e => {
     if (e.a && e.a === G.player || u === G.player) bus.emit('hitstop', wall ? .12 : .07); // (your own ram, or rammed yourself: the world holds a beat)
     if (u === G.player) hurtEdge();
     if (e.a) reel(u, Math.atan2(e.a.x - u.x, e.a.z - u.z), wall ? 9 : 7); // (FX1: his body rocks from the side it came)
-    if (e.a && u.mounted && horseHit(u, Math.atan2(e.a.x - u.x, e.a.z - u.z), wall ? 1.6 : 1.3)) bus.emit('sfx', { name: 'neigh', x: u.x, z: u.z }); // (FX2: rammed in the saddle, his horse rears)
+    { const hs = e.a && u.mounted && horseHit(u, Math.atan2(e.a.x - u.x, e.a.z - u.z), wall ? 1.6 : 1.3); if (hs) bus.emit('sfx', { name: hs, x: u.x, z: u.z }); } // (FX2: rammed in the saddle, his horse rears)
     if (e.a) { const l = Math.hypot(u.x - e.a.x, u.z - e.a.z) || 1; skids.push({ u, dx: (u.x - e.a.x) / l, dz: (u.z - e.a.z) / l, t0: G.T }); }
     if (wall && !u.mounted) u.act = { name: 'knockdown', t: G.T, down: (e.a && champOf(e.a.ti).sp1 && champOf(e.a.ti).sp1.wallStun) || 1 }; // (FALL1: down as long as the wall slam's stun)
   } else if (e.k === 'fxramclang' || e.k === 'fxramclash') { // off a shield or a testudo; or two rams head-on

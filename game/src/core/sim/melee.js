@@ -17,7 +17,7 @@ import { auraBonus, behind, gainRally, horseDamage, push, routing } from './army
 import { CC, breach, destroyCastle, die, duelFoe, hitTower, hitWall, lastStand, parry, soak } from './step.js'; // (later files: through the entry, so files still load in the old order)
 import { inflDmg, inflTaken } from '../../champions/influence.js';
 import { spearman } from '../../champions/army.js';
-import { blowGap } from '../../champions/stats.js';
+import { blowGap, rideReach } from '../../champions/stats.js';
 
 // ---------- combat ----------
 // A spatial grid of the living, rebuilt every step (8 m cells): the big battles have hundreds of men,
@@ -137,7 +137,7 @@ export function resolveSwing(u) {
     if (s.points <= 0) destroyCastle(tg.castle, u.ti);
     return;
   }
-  const reach = u.reach + (pend.reachB || 0), ex = pend.kb || pend.heavy || pend.stun || pend.bash ? { kb: pend.kb || 1, heavy: !!pend.heavy, stun: pend.stun, shove: pend.shove, bash: pend.bash, unblockable: pend.streak, unparryable: pend.streak || pend.bash, streak: pend.streak } : undefined;
+  const reach = rideReach(u) + (pend.reachB || 0), ex = pend.kb || pend.heavy || pend.stun || pend.bash ? { kb: pend.kb || 1, heavy: !!pend.heavy, stun: pend.stun, shove: pend.shove, bash: pend.bash, unblockable: pend.streak, unparryable: pend.streak || pend.bash, streak: pend.streak } : undefined;
   const exS = pend.side != null ? Object.assign({}, ex, { side: pend.side }) : ex; // (a duel blow carries its side)
   let landed = false;
   const slack = u.human ? .9 : .5; // (a player's blow at a man who has just stepped back still connects)

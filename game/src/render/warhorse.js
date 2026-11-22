@@ -15,6 +15,10 @@ export function warHorse(sc, scale) {
     const piv = new THREE.Group(); piv.name = 'leg_' + k; H.add(piv); piv.position.copy(H.worldToLocal(hb.getWorldPosition(_v))); piv.updateMatrixWorld(true); piv.attach(hb);
     const kn = new THREE.Group(); kn.name = 'knee_' + k; piv.add(kn); kn.position.copy(piv.worldToLocal(kb.getWorldPosition(_v))); kn.updateMatrixWorld(true); kn.attach(kb);
   }
+  for (const n of ['head', 'tail']) { // (C5: the wolf's own bones: neck and head, tail; hung from pivots too, so code can move them)
+    const b = sc.getObjectByName(n); if (!b || !b.isBone) continue;
+    b.name = 'bone_' + n; const piv = new THREE.Group(); piv.name = 'pv_' + n; H.add(piv); piv.position.copy(H.worldToLocal(b.getWorldPosition(_v))); piv.updateMatrixWorld(true); piv.attach(b);
+  }
   tpl.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; if (o.material) { o.material.metalness = 0; o.material.roughness = .8; } } });
   tpl.updateMatrixWorld(true);
   const s = sc.getObjectByName('seat'), p = s ? s.getWorldPosition(new THREE.Vector3()) : new THREE.Vector3(0, 2.28 * scale, -.08 * scale);

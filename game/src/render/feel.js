@@ -146,7 +146,7 @@ export function impact(u, a, power = 1) {
   const F = FEEL.special, me = G.player, t = camTarget(), mine = !!me && (u === me || a === me);
   const ang = a ? Math.atan2(a.x - u.x, a.z - u.z) : u.face || 0;
   reel(u, ang, F.reel * power);
-  if (u.mounted && horseHit(u, ang, power)) bus.emit('sfx', { name: 'neigh', x: u.x, z: u.z }); // (FX2: his horse feels it too)
+  { const hs = u.mounted && horseHit(u, ang, power); if (hs) bus.emit('sfx', { name: hs, x: u.x, z: u.z }); } // (FX2: his horse feels it too)
   if (!mine && !(t && Math.hypot(u.x - t.x, u.z - t.z) < F.near)) return;
   burst(0, u.x, (u.y || 0) + 1.5, u.z, WHITE, .5, F.flash * power, F.flashT); feelStats.flash++;
   if (u === me) { hurtEdge(ang, power); cam.shake = Math.max(cam.shake, F.shake[1] * power); buzz(F.buzz[1] * power); camKick(-Math.sin(ang) * F.kick * power, -Math.cos(ang) * F.kick * power); }

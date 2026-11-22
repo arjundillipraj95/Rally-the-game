@@ -9,7 +9,7 @@ import { nearestEnemyCastle, nearestFoe, startSwing } from './melee.js';
 import { guardRing } from './duel.js';
 import { startHeavy } from './guard.js';
 import { shoot, throwJavelin } from './missiles.js';
-import { cavRide } from './cavalry.js'; // (C2b)
+import { cavRide, burstIn } from './cavalry.js'; // (C2b)
 import { throwerStep } from './thrower.js'; // (C2)
 import { archerFocus, archerIdle } from './archsiege.js'; // (ARCH2)
 import { c2GateA } from './crown2.js';
@@ -127,6 +127,7 @@ export function thinkSoldier(u, dt) {
   const leash = myOrder === 'follow' && leaderUp && foe && Math.hypot(foe.x - L.x, foe.z - L.z) > 18;
   if (myOrder === 'focus' && u.kind === 'arch' && foe && fd > range) { go(u, foe.x, foe.z, speedOf(u), dt, range * .8); return; } // (archers close to bow range of the group)
   if (foe && fd < engage && !leash) {
+    if (u.burst) burstIn(u, fd); // (C5: the Úlfheðnar close in at a burst)
     if (u.kind === 'arch') {
       if (fd < u.r + foe.r + u.reach) { startSwing(u, foe); faceTo(u, foe.x, foe.z, dt); moveToward(u, u.x, u.z, 0, dt); }
       else if (fd < 5.5) { moveToward(u, u.x - (foe.x - u.x), u.z - (foe.z - u.z), u.spd, dt); faceTo(u, foe.x, foe.z, dt, 6); }

@@ -24,7 +24,7 @@ function fit(u, t, keepHp) {
   const nmax = t.hp * inflHp(u.ti), f = keepHp && u.max ? u.hp / u.max : 1;
   u.max = nmax; u.hp = Math.max(1, Math.min(nmax, nmax * f));
   u.dmg = t.dmg; u.reach = t.reach; u.block = t.block || 0; u.spd = t.spd; u.gap = t.cd; u.r = t.r;
-  u.pursuit = !!t.pursuit;
+  u.pursuit = !!t.pursuit; u.burst = t.burst || null; // (C5: the Úlfheðnar's charge-in burst)
 }
 // at birth (mkUnit) and on an upgrade
 export function setSword(u, keepHp = false) { u.tier = swordTier(u.ti); fit(u, unitRow(u.ti, 'sword', u.tier), keepHp); }
@@ -65,6 +65,8 @@ export function applyCavTier(ti) {
   }
 }
 // (melee) a swordsman's Pursuit: his first hit on a man running slows him; any hit from behind bites harder
+// (C5) a swordsman with a burst (his champion's top tier) closing on a foe within its reach: a short sprint in
+export function burstIn(u, fd) { const b = u.burst; if (b && u.kind === 'sword' && fd < b.near && fd > b.min && !(u.burstCd > G.T)) { u.burstT = G.T + b.t; u.burstCd = G.T + b.cd; } }
 export function pursuitHit(a, b, dmg, fromBehind) {
   if (!a || !a.pursuit || a.kind !== 'sword') return dmg;
   if (fromBehind && b.leader) dmg *= SWORD_TIERS[1].behind; // (a soldier hit from behind already takes the flank's share, melee.js)

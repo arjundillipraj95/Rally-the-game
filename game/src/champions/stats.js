@@ -11,6 +11,7 @@ export const champHp = (ti, lv = levelOf(ti)) => st(ti, 'hp') * growth(lv, 'hp')
 export const champDmg = (ti, lv = levelOf(ti)) => st(ti, 'dmg') * growth(lv, 'dmg');
 export const champSpd = ti => st(ti, 'spd');
 export const champReach = ti => st(ti, 'reach');
+export const rideReach = u => (u.leader && u.mounted && champOf(u.ti).mount && champOf(u.ti).mount.reach) || u.reach; // (C5: from the saddle, the mount's own reach when its page says)
 // (C1g) his pace: how much longer than the sword combo's own timing his combo runs, so 3 blows take 3/rate s
 const S = CAPTAIN_COMBAT.sword, COMBO = 2 * S.cd + S.finisherCd;
 export const paceOf = ti => 3 / st(ti, 'rate') / COMBO;

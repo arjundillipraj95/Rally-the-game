@@ -5,6 +5,13 @@ import { scene } from './scene.js';
 import { groundY } from '../core/world.js';
 import { cloneHorse } from './warhorse.js';
 import { on, SRC } from './heroload.js';
+import { champOf } from '../champions/index.js';
+import { champHorse, horseNamed } from './rig/champgear.js';
+import { WOLF_GAITS } from '../config/wolf.js';
+import { wolfRig, wolfPose } from './wolf.js';
+// (C5) which model a horse is: a cavalryman's his champion's cavalry horse; a champion's his page's (a wolf, Devi's)
+const modelOf = h => { const c = h.ti != null && champOf(h.ti); return (c && (h.cav ? horseNamed((c.look || {}).cavHorse || 'horse_fjord') : champHorse(c.look))) || null; };
+export const isWolf = h => !h.cav && h.ti != null && (champOf(h.ti).mount || {}).kind === 'wolf';
 
 // the war horse's legs (render/warhorse.js hangs each leg's bones from pivots by these names)
 const LEGS = { frontL: 1, frontR: 1, backL: 1, backR: 1 };
@@ -27,20 +34,20 @@ function legAt(ph, g, front) {
   return [g.amp * (1 - 2 * sstep(0, 1, s)), Math.sin(Math.PI * s) * (front ? 1.25 : .9) * Math.min(1, g.amp * 1.8)];
 }
 // move a horse's legs and body for its speed this frame; returns the body's rise and pitch (nose down +)
-export function gait(L, sp, dt) {
+export function gait(L, sp, dt, GA = GAITS) { // (C5: a wolf passes its own table)
   const prev = L.vs; L.vs += (sp - L.vs) * Math.min(1, dt * 4); // (the gait follows the speed a little behind, so it shifts gear, not snaps)
   L.acc += ((L.vs - prev) / Math.max(dt, 1e-3) - L.acc) * Math.min(1, dt * 5);
   const v = L.vs, w2 = sstep(6.5, 9.5, v), w1 = sstep(2, 4, v) * (1 - w2), w0 = 1 - w1 - w2, W = [w0, w1, w2];
-  const stride = W.reduce((s, w, i) => s + w * GAITS[i].stride, 0) * (1 + w2 * Math.max(0, v - 9) * .05), still = Math.min(1, v / .6);
+  const stride = W.reduce((s, w, i) => s + w * GA[i].stride, 0) * (1 + w2 * Math.max(0, v - 9) * .05), still = Math.min(1, v / .6);
   L.gp = (L.gp + dt * sp / stride) % 1;
   for (const k in L.hip) {
     let hip = 0, knee = 0; const front = k[0] === 'f';
-    GAITS.forEach((g, i) => { if (W[i] < .001) return; const [a, b] = legAt(((L.gp - g.at[k]) % 1 + 1) % 1, g, front); hip += W[i] * a; knee += W[i] * b; });
+    GA.forEach((g, i) => { if (W[i] < .001) return; const [a, b] = legAt(((L.gp - g.at[k]) % 1 + 1) % 1, g, front); hip += W[i] * a; knee += W[i] * b; });
     if (L.hip[k]) L.hip[k].rotation.x = hip * still;
     if (L.knee[k]) L.knee[k].rotation.x = (front ? 1 : -.7) * knee * still; // (the foreleg's knee folds back; the hind hock the other way)
   }
   let bob = 0, rock = 0;
-  GAITS.forEach((g, i) => { bob += W[i] * g.bob * Math.abs(Math.sin(Math.PI * g.bobN * L.gp)); rock += W[i] * g.rock * Math.sin(Math.PI * 2 * L.gp + .6); });
+  GA.forEach((g, i) => { bob += W[i] * g.bob * Math.abs(Math.sin(Math.PI * g.bobN * L.gp)); rock += W[i] * g.rock * Math.sin(Math.PI * 2 * L.gp + .6); });
   L.pitch += (Math.max(-.12, Math.min(.12, -L.acc * .012)) - L.pitch) * Math.min(1, dt * 3); // (gathers and leans in as it picks up speed, sits back as it pulls up)
   return [bob * still, rock * still + L.pitch];
 }
@@ -55,12 +62,12 @@ export function drawFreeHorses(list, dt) {
     if (h.state === 'ridden') continue;
     seen.add(h.key);
     let m = freeH.get(h.key);
-    if (!m) { const hc = cloneHorse(SRC.horse, h.ti != null && TEAMS[colorOf(h.ti)] ? TEAMS[colorOf(h.ti)].hex : null); scene.add(hc); m = { root: hc, legs: legsOf(hc), run: 0 }; freeH.set(h.key, m); }
+    if (!m) { const M = modelOf(h), hc = cloneHorse(M ? M.tpl : SRC.horse, h.ti != null && TEAMS[colorOf(h.ti)] ? TEAMS[colorOf(h.ti)].hex : null); scene.add(hc); m = { root: hc, legs: legsOf(hc), run: 0, wolf: isWolf(h) ? wolfRig(hc) : null }; freeH.set(h.key, m); } // (C5: its own model)
     const sp = h.spd || 0; m.run += dt * (.55 + sp * .12);
     const down = h.state === 'dead' ? Math.min(1, (h.t || 0) * 2.5) : 0; // (a fallen horse rolls onto its side)
-    const [bob, pitch] = gait(m.legs, down ? 0 : sp, dt);
-    m.root.position.set(h.x, groundY(h.x, h.z) + bob, h.z);
-    m.root.rotation.order = 'YXZ'; m.root.rotation.set(down ? 0 : pitch, h.face || 0, (h.fall || 1) * down * Math.PI / 2);
+    const [bob, pitch] = gait(m.legs, down ? 0 : sp, dt, m.wolf ? WOLF_GAITS : undefined), [wr, wp] = wolfPose(m.wolf, m.legs, down ? 0 : sp, dt);
+    m.root.position.set(h.x, groundY(h.x, h.z) + bob + wr, h.z);
+    m.root.rotation.order = 'YXZ'; m.root.rotation.set(down ? 0 : pitch + wp, h.face || 0, (h.fall || 1) * down * Math.PI / 2);
   }
   for (const [k, m] of freeH) if (!seen.has(k)) { scene.remove(m.root); freeH.delete(k); }
   return true;
@@ -68,15 +75,15 @@ export function drawFreeHorses(list, dt) {
 
 // (FX2) a champion's horse taking a hit: rel is the blow's angle from its facing. It tosses its head and steps away
 // from the blow; a heavy one (power FEEL.horse.rearAt or more) makes it rear, the rider staying on
-export function buck(L, rel, power) {
-  const H = FEEL.horse, B = L.bk || (L.bk = { rp: 0, rv: 0, sp: 0, sv: 0, yp: 0, yv: 0 });
+export function buck(L, rel, power, H = FEEL.horse) { // (C5: a wolf passes FEEL_WOLF)
+  const B = L.bk || (L.bk = { rp: 0, rv: 0, sp: 0, sv: 0, yp: 0, yv: 0 }); L.bkH = H;
   B.rv -= (power >= H.rearAt ? H.rear : H.toss) * power;
   B.sv -= Math.sin(rel) * H.side * power; B.yv -= Math.sin(rel) * H.twist * power;
   return power >= H.rearAt;
 }
 // each frame: its rear (pitch, nose up -), step aside (m, to its right +) and twist (rad), springing back
 export function buckPose(L, dt) {
-  const B = L.bk; if (!B) return null; const H = FEEL.horse, t = Math.min(dt, .05);
+  const B = L.bk; if (!B) return null; const H = L.bkH || FEEL.horse, t = Math.min(dt, .05);
   B.rv += (-H.rearK[0] * B.rp - H.rearK[1] * B.rv) * t; B.rp = Math.max(-H.rearMax, B.rp + B.rv * t);
   for (const [p, v] of [['sp', 'sv'], ['yp', 'yv']]) { B[v] += (-H.sideK[0] * B[p] - H.sideK[1] * B[v]) * t; B[p] += B[v] * t; }
   if (Math.abs(B.rp) + Math.abs(B.sp) + Math.abs(B.yp) + Math.abs(B.rv) + Math.abs(B.sv) < 1e-3) { L.bk = null; return null; }

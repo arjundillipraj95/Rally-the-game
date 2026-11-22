@@ -18,7 +18,8 @@ import { warHorse, cloneHorse } from './warhorse.js';
 import { tierLook, archerQuiver } from './rig/tierlook.js';
 import { loadChampGear, champGear, champHorse, horseNamed, archerBow } from './rig/champgear.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { legsOf } from './herohorse.js';
+import { legsOf, isWolf } from './herohorse.js';
+import { wolfRig } from './wolf.js';
 
 export const HORSE_SCALE = .85 * body.champ; // (the raw horse is about 3.2 units long; a man on foot is about 2.4 in game; SIZE1: with his champion)
 // the legs of a rider in the saddle: thighs forward over the horse, shins bent down its flanks
@@ -37,7 +38,7 @@ export let SRC = null;
 // the look's choices (core/look.js) become pack pieces: helmet, armour and shield. The weapon stays the
 // one you fight with (gameplay), so it is not a look here.
 const PACK = { helmet: ['blue_crest', 'gold_ridge', 'red_crest'], shield: ['red_scutum', 'blue_oval', 'blue_kite'] };
-const CHAMP_SHIELDS = ['scutum_titus', 'gladius_titus', 'roundshield_sigrun', 'axe_sigrun'], CHAMP_MODELS = ['titus', 'spearman', 'archer', 'devi', 'archer_chola', 'swordsman_viking', 'ulfhednar']; // (C2b: the Viking swordsman, his round shield and axe) // (his own pieces: shields and swords) // (C3: a champion's own shield, from his page's look; models/<name>.glb)
+const CHAMP_SHIELDS = ['scutum_titus', 'gladius_titus', 'roundshield_sigrun', 'axe_sigrun'], CHAMP_MODELS = ['titus', 'spearman', 'archer', 'devi', 'archer_chola', 'swordsman_viking', 'ulfhednar', 'sigrun']; // (C2b: the Viking swordsman, his round shield and axe) // (his own pieces: shields and swords) // (C3: a champion's own shield, from his page's look; models/<name>.glb)
 // the armour choices: the painted armour in its finishes (C2: 'Burnished iron', once 'Leather & fur', is dark worked iron; 'leather' stays for the archers' jerkin) (the tint multiplies its painted steel)
 const ARMOUR_FINISH = { steel: [0xffffff, .35, .45], bronze: [0xe0a458, .55, .38], leather: [0x9a6238, 0, .85], iron: [0xb4a08c, .65, .32], black: [0x3b3e46, .6, .3] };
 // C1: a helmet's metal (dome, cheek guards) is the colour of the armour finish the player picked
@@ -114,7 +115,7 @@ export function make(u) {
     const H = (!soldier && champHorse(cl)) || (soldier && swl && horseNamed(swl.cavHorse || 'horse_fjord')) || { tpl: SRC.horse, seat: SRC.seat }, // (C2b: his cavalry's horse)
       hc = cloneHorse(H.tpl, team), U = new THREE.Group();
     U.add(hc); U.add(R.root); R.root.position.set(0, H.seat.top + (.38 + .04) * sc, H.seat.z); // (his hips, .38 below his root, on the seat)
-    h.U = U; h.legs = legsOf(hc);
+    h.U = U; h.legs = legsOf(hc); h.wolf = !soldier && isWolf({ ti: u.ti }) ? wolfRig(hc) : null; // (C5: her wolf: its head, tail and strikes)
     scene.add(U);
   } else scene.add(R.root);
   return h;

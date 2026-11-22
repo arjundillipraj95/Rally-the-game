@@ -68,6 +68,7 @@ export function setSoundLevel(k) { if (!(k in AUDIO.levels)) return; volK = k; t
 export function setMuted(m) { muted = !!m; if (out && ac) out.gain.setTargetAtTime(muted ? 0 : vol(), ac.currentTime, .05); }
 // for automated checks: what loaded, how many sounds are playing right now, the battle's heat
 export const audioStats = () => ({ music: { on: musicOn, level: M.level, want: M.want, move: +M.move.toFixed(2), hurt: +M.hurt.toFixed(2), night: M.night, rec: musReady(), samples: Object.keys(mb).length, drone: !!M.drone, bar: M.bar, beat: M.beat, next: ac && +M.next.toFixed(2), now: ac && +ac.currentTime.toFixed(2) }, state: ac && ac.state, muted, banks: Object.fromEntries(Object.entries(bufs).map(([k, v]) => [k, v.length])), voices, heat: +(amb.heat || 0).toFixed(2), near: amb.near || 0, far: amb.far || 0 });
+export { play as playS, tone as toneS, noise as noiseS }; export const atS = (x, z) => place(x, z); // (C5: ui/wolfsfx.js builds on these)
 export function gateS(n, ms) { const t = performance.now(); if (lastS[n] && t - lastS[n] < ms) return false; lastS[n] = t; return true; }
 
 // ---------- where a sound is, from the listener ----------

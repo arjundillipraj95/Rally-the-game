@@ -6,8 +6,9 @@ import { G, ARMIES, colorOf } from '../core/state.js';
 import legionary from './legionary.js';
 import titus from './titus.js';
 import devi from './devi.js';
+import sigrun from './sigrun.js';
 
-export const CHAMPS = { legionary, titus, devi };
+export const CHAMPS = { legionary, titus, devi, sigrun }; // (wire codes: a champion's place here, so new ones go last)
 // (tests) extra champions a test page sets up before the game loads: window.__champs = [{ id, ... }], dev only
 try { if (import.meta.env.DEV && typeof window !== 'undefined' && Array.isArray(window.__champs)) for (const d of window.__champs) CHAMPS[d.id] = d; } catch (e) { /* none */ }
 export const CHAMP_IDS = Object.keys(CHAMPS);
@@ -37,12 +38,12 @@ export function setBackup(id) { if (id && (!owned(id) || id === myChamp())) retu
 export function fromAccount(main, backup) { if (okId(main) && owned(main)) setMyChamp(main); if (backup !== undefined) ls.set('rally-backup', okId(backup) && owned(backup) ? backup : null); }
 export const botChamp = () => okId(q('botchamp')) || null;
 // (BOT1, Arjun 21 Nov) a computer army picks like a player would: first a class its team (colorOf) still lacks, then a
-// champion its team doesn't have yet, else any, at random among the playable ones. Until there are as many champions
-// as a team has places (Sigrun), a team may hold the same one twice. ?botchamp= forces one (tests).
+// champion its team doesn't have yet, else any, at random among the playable ones. (C5) One champion a team: a
+// computer never takes one its team already has while another is free. ?botchamp= forces one (tests).
 const pool = () => CHAMP_IDS.filter(id => playable(id) && id !== 'legionary');
 function botPick(team, rnd) {
-  const P = pool(); if (!P.length) return CHAMP.def;
-  const have = team.filter(Boolean), cls = new Set(have.map(id => CHAMPS[id].cls));
+  const have = team.filter(Boolean), all = pool(), P = all.filter(id => !have.includes(id)).length ? all.filter(id => !have.includes(id)) : all; if (!P.length) return CHAMP.def;
+  const cls = new Set(have.map(id => CHAMPS[id].cls));
   const score = id => (cls.has(CHAMPS[id].cls) ? 0 : 2) + (have.includes(id) ? 0 : 1);
   const best = Math.max(...P.map(score)), top = P.filter(id => score(id) === best);
   return top[Math.floor(rnd() * top.length)];

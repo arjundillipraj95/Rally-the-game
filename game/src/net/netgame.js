@@ -548,7 +548,7 @@ export function clientTick(dt) {
   for (const u of G.units) {
     const key = C.riderKeys.get(u);
     if (u.mounted && !u.dead && !key) C.riderKeys.set(u, 100000 + (++C.horseKey));
-    if ((!u.mounted || u.dead) && key) { C.leaving.push({ key, ti: u.ti, x: u.x, z: u.z, face: u.face, spd: 10, state: 'leaving', t: 0 }); C.riderKeys.delete(u); }
+    if ((!u.mounted || u.dead) && key) { C.leaving.push({ key, ti: u.ti, x: u.x, z: u.z, face: u.face, spd: 10, state: 'leaving', t: 0, cav: !u.leader }); C.riderKeys.delete(u); }
   }
   for (const h of C.coming) { h.x += (h.tx - h.x) * k; h.z += (h.tz - h.z) * k; }
   for (const h of C.leaving) { h.t += dt; h.x += Math.sin(h.face) * 10 * dt; h.z += Math.cos(h.face) * 10 * dt; }

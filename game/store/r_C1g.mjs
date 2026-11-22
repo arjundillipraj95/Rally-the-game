@@ -18,7 +18,7 @@ const o = await page.evaluate(async () => {
     legionary: lim.checkChamp(reg.CHAMPS.legionary), slow: lim.checkChamp(reg.CHAMPS.slow),
     titus: lim.checkChamp(page('titus', { hp: 480, dmg: 30, rate: 1.2, reach: 1.4, spd: 5.9 }, 11.2)),
     devi: lim.checkChamp(page('devi', { hp: 300, dmg: 24, rate: 1.75, reach: 14, spd: 5.9 }, 11.2, true)),
-    sigrun: lim.checkChamp(page('sigrun', { hp: 320, dmg: 26, rate: 1.8, reach: 1.3, spd: 6.5 }, 12.1)),
+    sigrun: lim.checkChamp(reg.CHAMPS.sigrun), // (C5: her page)
     unfair: lim.checkChamp(page('unfair', { hp: 560, dmg: 40, rate: 1.3, reach: 1.3, spd: 7 }, 12.5)),
   };
   G.T = 30; F.step(30);
