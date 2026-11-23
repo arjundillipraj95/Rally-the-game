@@ -1,4 +1,5 @@
 // CASTLE10: the castle numbers, measured. A computer champion with MEN footmen (default 6) attacks an enemy castle with
+// (STRUCT, 23 Nov: swordsmen and riders now hit gates too, so a lone laner's gate falls ~0.2 s sooner: the floor is 19 s, the castle still falls at ~26 s.)
 // nobody defending it, at level 1, 2 and 3: seconds until a gate breaks and until the castle is taken, men left, and
 // whether the champion fell. Targets (Arjun, 16 Nov): a lone laner takes a level 1 castle with real work, about 30 s
 // on the gate; level 2 about 1.7x; level 3 needs more: with MEN=12 (about a laner and a jungler's armies) it falls on a
@@ -40,7 +41,7 @@ for (const lv of [1, 2, 3]) {
   }, [lv, MEN]);
   console.log(`level ${lv}: ${JSON.stringify(out[lv])}`);
 }
-ok(out[1].tTake != null && out[1].tGate <= 45 && (MEN > 6 || out[1].tGate >= 20), `level 1, ${MEN} men: gate ${out[1].tGate} s, taken ${out[1].tTake} s, men left ${out[1].alive}`);
+ok(out[1].tTake != null && out[1].tGate <= 45 && (MEN > 6 || out[1].tGate >= 19), `level 1, ${MEN} men: gate ${out[1].tGate} s, taken ${out[1].tTake} s, men left ${out[1].alive}`);
 ok(out[2].tGate == null || out[2].tGate > out[1].tGate * 1.3, `level 2: gate ${out[2].tGate} s, ${out[2].plates} plates (${out[2].capDead ? 'champion fell' : 'champion up'})`);
 ok(MEN < 12 ? out[3].plates >= 1 : out[3].tTake != null, `level 3: ${out[3].plates} plates in the first push; ${out[3].tTake != null ? 'taken on the second at ' + out[3].tTake + ' s of fighting' : 'not taken in two pushes'}`);
 ok(!errs.length, `no errors${errs.length ? ' (' + errs[0] + ')' : ''}`);

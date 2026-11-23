@@ -6,7 +6,8 @@ import { clamp, angDiff, turn } from '../world.js';
 import { fx, sound, spark } from './util.js';
 import { hl } from './match.js';
 import { dismount, gainRally, horseDamage, loseHeart, push } from './army.js';
-import { hit, spendSt, startSweep, startSwing } from './melee.js';
+import { hit, nearestFoe, spendSt, startSweep, startSwing } from './melee.js';
+import { structureSwing } from './buildfocus.js'; // (C5)
 import { rangedOf, rangedHold } from './ranged.js'; // (RANGE1)
 import { CC, die, javTarget, softAim, throwJavelin } from './step.js'; // (later files: through the entry, so files still load in the old order)
 
@@ -39,8 +40,10 @@ export function rideRelease(p, w, t) {
   if (wolfRider(p)) { p.rideTg = null; return; } // (C5b: on the wolf the press struck)
   if (!p || p.dead || !p.mounted || p.cd > 0 || p.stun > 0) { p.rideTg = null; return; }
   if (w === 'jav') { javThrow(p, t > HOLD_ATK.jav ? Math.min(1, (t - HOLD_ATK.jav) / (HOLD_ATK.javFull - HOLD_ATK.jav)) : 0); return; }
-  if (t < RIDE.tap) { startSweep(p); if (p.pending) p.pending.mult = RIDE.tapMult; p.rideTg = null; return; } // a tap: a weak swipe at whatever's close
+  const near = !p.rideTg && !rideLock(p) && structureSwing(p); // (C5: no man close: a gate, wall, tower, nexus or chest in reach takes the blow)
+  if (t < RIDE.tap) { if (near && !nearestFoe(p, 3)[0]) { startSwing(p, near); p.rideTg = null; return; } startSweep(p); if (p.pending) p.pending.mult = RIDE.tapMult; p.rideTg = null; return; } // a tap: a weak swipe at whatever's close
   const tg = p.rideTg && !p.rideTg.dead ? p.rideTg : rideLock(p); p.rideTg = null;
+  if (!tg && near) { startSwing(p, near); return; } // (C5: the ride-by at a structure, no man in reach)
   rideStrike(p, tg, rideQuality(p, tg));
 }
 // the ride-by blow: its worth set by the timing and how fast the horse is going

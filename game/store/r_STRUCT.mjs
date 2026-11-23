@@ -33,6 +33,10 @@ const o = await page.evaluate(async () => {
     r['f_' + kind] = Math.round(h0 - st.hp[gi]); r['d_' + kind] = Math.round(Math.hypot(grp[0].x - gate.x, grp[0].z - gate.z));
     G.units = keep;
   }
+  // her champion on his horse, next to the gate: his Attack (a tap, or a ride-by with no man close) takes the gate (C5 build)
+  G.units = [p]; [p.x, p.z] = at(2.6); { const army = await import('/src/core/sim/army.js'); const h = { id: ++G.horseN, x: p.x, z: p.z, face: 0, state: 'coming', rider: p, t: 0, spd: 0, ti: me, fall: 1 }; G.horses.push(h); army.mountUp(p, h); }
+  p.face = Math.atan2(gate.x - p.x, gate.z - p.z); s.order = 'hold'; s.holdPt = { x: p.x, z: p.z };
+  st.hp[gi] = 5000; const hm = st.hp[gi]; for (let k = 0; k < 6; k++) { F.step(3, 1 / 30, { attackHeld: true }); F.step(12, 1 / 30, { attackHeld: false }); } r.mounted = Math.round(hm - st.hp[gi]);
   G.units = keep; return r;
 });
 if (o.none) ok(false, 'no castle gate found');
@@ -40,6 +44,7 @@ else {
   ok(o.foot > 0, `footmen take the gate (${o.foot} in 5 s, the baseline)`);
   ok(o.sword > 0, `swordsmen take the gate (${o.sword} in 5 s)`);
   ok(o.cav > 0, `riders take the gate (${o.cav} in 5 s)`);
+  ok(o.mounted > 0, `her champion on his horse, Attack, takes the gate (${o.mounted} in 5 s)`);
   ok(o.f_sword > 0 && o.d_sword < 6, `ordered at the gate from 40 m, swordsmen walk to ${o.d_sword} m and hit it (${o.f_sword})`);
   ok(o.f_cav > 0 && o.d_cav < 6, `ordered at the gate from 40 m, riders walk to ${o.d_cav} m and hit it (${o.f_cav})`);
 }

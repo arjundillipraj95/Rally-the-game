@@ -7,6 +7,7 @@ import { go, moveToward } from './move.js';
 import { wallInRange } from './ranged.js';
 import { structureInRange } from './ranged.js';
 import { c2BreakInReach } from './crown2.js';
+import { towerInReach, wallInReach } from './forts.js';
 
 // the building the focus point is on (a gate or wall first, else a watchtower): the same finder archers use
 const bldAt = (u, x, z) => { const q = { x, z, ti: u.ti, r: 0, reach: 0, kind: u.kind }, w = wallInRange(q, 4, -99); return w ? { bld: w, x: w.x, z: w.z, r: w.r || 1 } : structureInRange(q, 4); };
@@ -30,4 +31,12 @@ export function meleeFocus(u, s, dt) {
   u.face = Math.atan2(tg.x - u.x, tg.z - u.z); moveToward(u, u.x, u.z, 0, dt);
   if (u.cd <= 0) startSwing(u, tg.bld.pal ? { wall: tg.bld } : { tower: tg.bld });
   return true;
+}
+
+// a horseback champion's strike with no man close (C5 build): the gate, wall, watchtower, nexus or chest in reach, or null
+export function structureSwing(u) {
+  const w = wallInReach(u, 2.2); if (w) return { wall: w };
+  const t = towerInReach(u); if (t) return { tower: t };
+  const b = breakNear(u); if (b) return { brk: b };
+  return null;
 }
