@@ -2,6 +2,7 @@
 import { STAMINA, CROWN2, FEEL, ECON, TEAMS, DIFF, UPGRADES, CHARGE, PARRY, FORT, RIDE, MORALE, STREAK } from '../../config.js';
 import { G, bus, isEnemy, colorOf, ARMIES, noCastle, capOf, isC2 } from '../state.js';
 import { stance, markBraces } from '../charge.js';
+import { hitsBuildings, breakNear } from './buildfocus.js'; // (C5)
 import { groundY, clamp, rnd, angDiff, turn } from '../world.js';
 import { syncGates } from '../nav.js';
 import { fx, say, sound, spark } from './util.js';
@@ -240,17 +241,18 @@ export function update(dt, input) {
     if (u.neutral) { if (u.stun > 0) moveToward(u, u.x, u.z, 0, dt); else thinkNeutral(u, dt); continue; } // (F4: a garrison's man)
     if (u.stun > 0 && !u.mounted) { moveToward(u, u.x, u.z, 0, dt); continue; } // (reeling: he can't turn to face you, so a stagger is the moment to get round him)
     if (u.leader) { stepJump(u, dt); regenJavs(u, dt); thinkLeader(u, G.teams[u.ti], dt);
-      if (!u.human && G.plazaWall && G.plazaWall.up && u.cd <= 0 && !(u.fd < 3.5) && !u.mounted && !insidePlaza(u)) { const w = wallInReach(u, 1.9); if (w && w.plazaGate != null) startSwing(u, { wall: w }); }
-      if (!u.human && G.crown && u.cd <= 0 && !(u.fd < 3.5) && !u.mounted) { const w = wallInReach(u, 1.9); if (w && w.cgate != null) startSwing(u, { wall: w }); }
+      if (!u.human && G.plazaWall && G.plazaWall.up && u.cd <= 0 && !(u.fd < 3.5) && !insidePlaza(u)) { const w = wallInReach(u, 1.9); if (w && w.plazaGate != null) startSwing(u, { wall: w }); }
+      if (!u.human && G.crown && u.cd <= 0 && !(u.fd < 3.5)) { const w = wallInReach(u, 1.9); if (w && w.cgate != null) startSwing(u, { wall: w }); }
       if (!u.human && G.c2) breakWatch(u, dt); // (AI1: stuck at the glacier or the chest? then guard)
-      if (!u.human && G.c2 && u.cd <= 0 && !(u.fd < 3.5) && !u.mounted) { const w = c2BreakInReach(u); if (w) { if (u.weapon === 'jav') swordUp(u); u.face = Math.atan2(w.x - u.x, w.z - u.z); captainAttack(u); } } } // (AI1: javelins don't count as blows on the glacier or the chest: the sword does)
+      if (!u.human && G.c2 && u.cd <= 0 && !(u.fd < 3.5)) { const w = c2BreakInReach(u); if (w) { if (u.weapon === 'jav') swordUp(u); u.face = Math.atan2(w.x - u.x, w.z - u.z); captainAttack(u); } } } // (AI1: javelins don't count as blows on the glacier or the chest: the sword does)
     else {
       u.slot = u.kind === 'arch' ? archIdx[u.ti]++ : slotIdx[u.ti]++; u.meleeN = meleeN[u.ti]; u.archN = archN[u.ti]; thinkSoldier(u, dt);
       // besiegers up against the palisade of the castle they're after (nobody to fight close by) hack at it
-      if (((G.wtowers && G.wtowers.length) || G.c2) && u.kind === 'foot' && u.cd <= 0 && !(u.fd < 3.5)) { const w = towerInReach(u); if (w) { u.face = Math.atan2(w.x - u.x, w.z - u.z); startSwing(u, { tower: w }); } }
-      if (G.plazaWall && G.plazaWall.up && u.kind === 'foot' && u.cd <= 0 && !(u.fd < 3.5) && !insidePlaza(u)) { const w = wallInReach(u, 1.9); if (w && w.plazaGate != null) startSwing(u, { wall: w }); }
-      if (G.crown && u.kind === 'foot' && u.cd <= 0 && !(u.fd < 3.5)) { const w = wallInReach(u, 1.9); if (w && w.cgate != null) startSwing(u, { wall: w }); }
-      if (u.kind === 'foot' && u.cd <= 0 && !(u.fd < 3.5)) { const pl = G.teams[u.ti].plan; if (pl && pl.kind === 'castle') { const w = wallInReach(u, 1.7); if (w && w.c === colorOf(pl.ti)) startSwing(u, { wall: w }); } }
+      if (((G.wtowers && G.wtowers.length) || G.c2) && hitsBuildings(u) && u.cd <= 0 && !(u.fd < 3.5)) { const w = towerInReach(u); if (w) { u.face = Math.atan2(w.x - u.x, w.z - u.z); startSwing(u, { tower: w }); } }
+      if (G.c2 && hitsBuildings(u) && u.cd <= 0 && !(u.fd < 3.5)) { const b = breakNear(u); if (b) { u.face = Math.atan2(b.x - u.x, b.z - u.z); startSwing(u, { brk: b }); } } // (C5: soldiers hack at the nexus and the chest too)
+      if (G.plazaWall && G.plazaWall.up && hitsBuildings(u) && u.cd <= 0 && !(u.fd < 3.5) && !insidePlaza(u)) { const w = wallInReach(u, 1.9); if (w && w.plazaGate != null) startSwing(u, { wall: w }); }
+      if (G.crown && hitsBuildings(u) && u.cd <= 0 && !(u.fd < 3.5)) { const w = wallInReach(u, 1.9); if (w && w.cgate != null) startSwing(u, { wall: w }); }
+      if (hitsBuildings(u) && u.cd <= 0 && !(u.fd < 3.5)) { const pl = G.teams[u.ti].plan; if (pl && pl.kind === 'castle') { const w = wallInReach(u, 1.7); if (w && w.c === colorOf(pl.ti)) startSwing(u, { wall: w }); } }
     }
   }
 

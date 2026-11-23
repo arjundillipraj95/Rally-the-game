@@ -13,6 +13,7 @@ import { cavRide, burstIn } from './cavalry.js'; // (C2b)
 import { svinBehind } from './svin.js'; // (C5f)
 import { throwerStep } from './thrower.js'; // (C2)
 import { archerFocus, archerIdle } from './archsiege.js'; // (ARCH2)
+import { meleeFocus } from './buildfocus.js'; // (C5: a melee soldier ordered at a gate or tower hits only it)
 import { c2GateA } from './crown2.js';
 import { faceTo, go, moveToward } from './move.js';
 import { champOf } from '../../champions/index.js';
@@ -92,6 +93,7 @@ export function thinkSoldier(u, dt) {
   // ordered at one enemy group: go for the men around it
   if (orderOf(u.ti) === 'focus' && s.focus) {
     if (u.kind === 'arch' && archerFocus(u, s, dt)) return; // (ARCH2: ordered at a building, archers shoot it)
+    if (u.kind !== 'arch' && meleeFocus(u, s, dt)) return; // (C5: ordered at a building, the melee soldiers hit only it)
     let best = null, bd = 1e9;
     const mark = s.focus.id ? G.units.find(o => o.id === s.focus.id && !o.dead && isEnemy(o, u)) : null; // (ARCH2: ordered at a man, they go for him)
     if (mark) { best = mark; bd = Math.hypot(mark.x - u.x, mark.z - u.z); } else

@@ -14,7 +14,7 @@ import { hiddenFrom } from './bush.js';
 import { drumDmg } from './buffs.js';
 import { champHit } from './turret.js'; // (CASTLE3)
 import { auraBonus, behind, gainRally, horseDamage, push, routing } from './army.js';
-import { CC, breach, destroyCastle, die, duelFoe, hitTower, hitWall, lastStand, parry, soak } from './step.js'; // (later files: through the entry, so files still load in the old order)
+import { CC, breach, c2Hit, destroyCastle, die, duelFoe, hitTower, hitWall, lastStand, parry, soak } from './step.js'; // (later files: through the entry, so files still load in the old order)
 import { inflDmg, inflTaken } from '../../champions/influence.js';
 import { spearman } from '../../champions/army.js';
 import { blowGap, rideReach } from '../../champions/stats.js';
@@ -127,6 +127,7 @@ export function resolveSwing(u) {
   }
   if (tg && tg.wall) { hitWall(u, tg.wall); return; }
   if (tg && tg.tower) { hitTower(u, tg.tower); return; }
+  if (tg && tg.brk) { c2Hit(u, tg.brk); return; } // (C5: a soldier's blow on the nexus or the chest)
   if (tg && tg.castle !== undefined) {
     const s = G.teams[tg.castle];
     if (!s.alive || u.mounted || !isEnemyTi(tg.castle, u.ti)) return;
