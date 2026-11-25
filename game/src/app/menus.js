@@ -161,7 +161,7 @@ function playStart() {
   const pick = a => a[(Math.random() * a.length) | 0];
   if (!S.soloPick) S.soloPick = { mode: G.mode, time: G.time, target: G.target };
   G.mode = 'crown'; G.time = 10; G.target = null;
-  soloStart({ al: [0, 1, 2, 3], duo: [S.playFmt, S.playFmt, S.playFmt, S.playFmt], map: MAPS.mount });
+  soloStart({ al: [0, 1, 2, 3], duo: [2, 2, 2, 2], map: MAPS.mount }); // (MATCH1: always 12 captains)
   lastStart = playStart;
 }
 $('playBtn').addEventListener('pointerdown', showVeil);

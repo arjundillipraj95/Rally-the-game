@@ -57,7 +57,7 @@ bus.on('end', ({ w, why }) => {
     const m = myLine(rep); $('myRate').hidden = !m; if (m) { $('myRateN').textContent = m.me.rating.toFixed(1); $('myRateT').textContent = `${m.text}${m.me.mvp ? ' · MVP' : ''}`; }
     // an online Crown battle moves your crowns for its format
     if (m && session.NET && session.NET.match && G.mode === 'crown') {
-      if (!G.crownAward) { G.crownAward = award(Math.max(0, G.duo[0] | 0), result, m.me.rating); online.crowns(G.crownAward.all); }
+      if (!G.crownAward) { G.crownAward = award(Math.max(0, Math.min(2, S.playFmt | 0)), result, m.me.rating); online.crowns(G.crownAward.all); }
       const A = G.crownAward; $('myRateT').textContent += ` · ${A.delta >= 0 ? '+' : ''}${A.delta} crowns${A.up ? ` · now ${A.up}!` : ''}`;
     }
     renderCaptains($('endCaps'), rep); renderAwards($('endAw'), rep); };

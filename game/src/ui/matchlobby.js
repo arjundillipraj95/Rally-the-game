@@ -11,7 +11,7 @@ const cpuFace = () => '<span class="chface cpuq">?</span>'; // (FX3: a computer 
 
 const $ = id => document.getElementById(id);
 export const LANE_NAME = { L: 'Left', J: 'Jungle', R: 'Right' };
-const FMT = ['Solo', 'Duo', 'Trio'];
+// (MATCH1: every lobby is The Crown, 12 captains; the party's size is shown elsewhere)
 const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const ML = { room: null, open: false, ask: null, L: null };
 const mine = L => { const me = ON.me && ON.me.id; for (const [c, sd] of L.sides.entries()) { const k = sd.findIndex(x => x && x.id === me); if (k >= 0) return { c, k, x: sd[k] }; } return null; };
@@ -64,7 +64,7 @@ function render() {
     return `<div class="mlseat${you ? ' me' : ''}${kick ? ' haskick' : ''}">${face(you ? myChamp() : x.ch)}<b>${esc(x.nick)}${you ? ' <em>you</em>' : ''}</b><small>${x.away ? 'Reconnecting…' : x.lane ? LANE_NAME[x.lane] : c === (me && me.c) ? 'No lane yet' : ''}${x.ready && !x.away ? ' <i>✓ Ready</i>' : ''}</small>${kick}</div>`;
   };
   const html = `<div class="mlbox">
-    <div class="mlhead"><b>${FMT[L.fmt]} · ${filled}/${cap * 4} players</b><span id="mlClock">${ML.clockTxt || ''}</span></div>
+    <div class="mlhead"><b>The Crown · ${filled}/${cap * 4} players</b><span id="mlClock">${ML.clockTxt || ''}</span></div>
     <div class="mlsides">${L.sides.map((sd, c) => `<div class="mlside${me && me.c === c ? ' mine' : ''}" style="--c:${TEAMS[c].css}"><h4>Army ${'ABCD'[c]}${me && me.c === c ? ' · yours' : ''}</h4>${sd.map((x, k) => seat(x, c, k)).join('')}</div>`).join('')}</div>
     <div class="mlpick"><span>Your lane</span>${['L', 'J', 'R'].map(l => `<button type="button" class="mllane${lane === l ? ' on' : ''}" data-lane="${l}" aria-pressed="${lane === l}">${LANE_NAME[l]}</button>`).join('')}
       <button type="button" class="go mldone" data-done ${lane ? '' : 'disabled'}>Done</button>

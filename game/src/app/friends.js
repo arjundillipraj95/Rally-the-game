@@ -43,7 +43,7 @@ function renderSearch() {
   const v2 = L.v === 2; $('searchLobby').hidden = !v2; // (F2: the lobby is a pop-up over the warm-up; an older service has none)
   const cap = [1, 2, 3][L.fmt], filled = L.sides.flat().filter(Boolean).length, total = cap * 4, me = ON.me && ON.me.id;
   const mineX = L.sides.flat().find(x => x && x.id === me);
-  $('searchT').textContent = v2 ? `${['Solo', 'Duo', 'Trio'][L.fmt]} · ${filled}/${total}${mineX && mineX.ready ? ' · Ready' : ''}` : filled === total ? 'Full: starting now' : `Finding players · ${['Solo', 'Duo', 'Trio'][L.fmt]} · ${filled}/${total}`;
+  $('searchT').textContent = v2 ? `The Crown · ${filled}/${total}${mineX && mineX.ready ? ' · Ready' : ''}` : filled === total ? 'Full: starting now' : `Finding players · ${['Solo', 'Duo', 'Trio'][L.fmt]} · ${filled}/${total}`;
   if (v2) mlRender(L);
   // a small flash as someone takes a seat (the seat list stays out of the way while you warm up)
   const ids = L.sides.flat().filter(x => x && x.id !== me), seen = renderSearch.seen || new Set();

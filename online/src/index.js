@@ -10,6 +10,7 @@ import { adminPage } from './admin.js';
 import { turnResponse } from './turn.js';
 
 const FMT_CAP = [1, 2, 3]; // captains per side: Solo, Duo, Trio
+const ROOM_FMT = 2; // (MATCH1, Arjun 18 Nov: every battle is 12 captains, 3 a side; Solo/Duo/Trio is only your party's size)
 const LOBBY_WAIT = 60e3, READY_WAIT = 10e3, VERSUS_MS = 10e3, LANES = ['L', 'J', 'R'], LATE_JOIN = 60e3, QUEUE_JOIN = 110e3, PARTY_MAX = 3; // (searchers drop into a battle in its first 110 s: the game takes late captains for 120) // (a friend can join a running battle in its first minute)
 const cleanCh = v => String(v || '').replace(/[^a-z]/g, '').slice(0, 16); // (MENU4: a champion id)
 const CODE = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -180,13 +181,13 @@ export class Hub {
     this.partyUpdate(p.id); return true;
   }
   // join a friend wherever they are: their party; their lobby (on their side if there's a seat, else
-  // against them); their battle in its first minutes (against them); otherwise their next battle
+  // against them); their battle in its first minutes (on their side if there's a computer seat, MATCH1); otherwise their next battle
   async m_join(s, m) {
     const me = await this.acct(s.id); if (!me.friends.includes(m.id)) return this.send(s, { t: 'note', msg: 'You can only join friends' });
     const f = this.live.get(m.id); if (!f) return this.send(s, { t: 'note', msg: 'They are not online' });
     const room = f.room && this.rooms.get(f.room);
     if (room && !room.started) { this.cancelQueue(s); this.leaveParty(s); this.seat(room, [s.id], f.id); return this.lobbyUpdate(room); }
-    if (room && room.started && Date.now() - room.startedAt < LATE_JOIN && this.seat(room, [s.id], null, true)) {
+    if (room && room.started && Date.now() - room.startedAt < LATE_JOIN && this.seat(room, [s.id], f.id, true)) {
       this.cancelQueue(s); this.leaveParty(s); s.room = room.id; s.where = 'battle';
       this.send(s, { t: 'start', room: room.id, fmt: room.fmt, host: room.host, code: room.code, seats: room.seats, late: true });
       this.to(room.host, { t: 'lateJoin', id: s.id, nick: s.nick, ti: room.seats[s.id] });
@@ -216,17 +217,17 @@ export class Hub {
     // Trio) and sees who's in it. It starts when every seat is full or after the wait, the computer
     // playing the empty seats. A battle still in its first minutes also takes a late party in.
     const now = Date.now();
-    let room = [...this.rooms.values()].find(r => !r.started && r.fmt === fmt && this.fits(r, ids.length));
+    let room = [...this.rooms.values()].find(r => !r.started && r.fmt === ROOM_FMT && this.fits(r, ids.length));
     if (room) { this.seat(room, ids); this.lobbyUpdate(room); this.arm(); return; }
-    const open = [...this.rooms.values()].filter(r => r.started && r.fmt === fmt && now - r.startedAt < QUEUE_JOIN && this.live.has(r.host) && this.fits(r, ids.length))
+    const open = [...this.rooms.values()].filter(r => r.started && r.fmt === ROOM_FMT && now - r.startedAt < QUEUE_JOIN && this.live.has(r.host) && this.fits(r, ids.length))
       .sort((a, b) => this.humans(b) - this.humans(a));
     if (open[0] && this.seat(open[0], ids, null, true)) {
       const room2 = open[0], nicks = Object.fromEntries(Object.keys(room2.seats).filter(i => this.live.has(i)).map(i => [i, this.live.get(i).nick]));
       for (const id of ids) { const x = this.live.get(id); if (!x) continue; this.send(x, { t: 'start', room: room2.id, fmt: room2.fmt, host: room2.host, code: room2.code, seats: room2.seats, nicks, late: true }); this.to(room2.host, { t: 'lateJoin', id, nick: x.nick, ti: room2.seats[id] }); this.notifyFriends(id); }
       return;
     }
-    const cap = FMT_CAP[fmt];
-    room = { id: rid(8), fmt, sides: [0, 1, 2, 3].map(() => new Array(cap).fill(null)), p: {}, created: now, deadline: now + (s.dev && m.wait > 0 ? Math.min(m.wait, 600e3) : LOBBY_WAIT), started: false }; this.rooms.set(room.id, room);
+    const cap = FMT_CAP[ROOM_FMT];
+    room = { id: rid(8), fmt: ROOM_FMT, sides: [0, 1, 2, 3].map(() => new Array(cap).fill(null)), p: {}, created: now, deadline: now + (s.dev && m.wait > 0 ? Math.min(m.wait, 600e3) : LOBBY_WAIT), started: false }; this.rooms.set(room.id, room);
     this.seat(room, ids); this.lobbyUpdate(room); this.arm();
   }
   // F2: every seat is a fixed slot (an id, or null: a computer captain plays it), so nobody moves when someone

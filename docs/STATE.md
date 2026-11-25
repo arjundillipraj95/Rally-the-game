@@ -2,12 +2,14 @@
 
 Current work: **friends' playtest fixes (F tickets) and lag (Phase 0)**, then Roles & Combat (design and plan in
 Claude Docs, links in CLAUDE.md). Every builder updates this file as the last step of its ticket. Owner: Opus owner chat.
-Last updated: 2026-11-22 (C5 Sigrun and C5fix shipped to main). 2026-11-21 (BOT1, FAC1, FX1 on launch26, not shipped). 2026-11-19 (FIX6-12 shipped). Before: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pages and the online service deployed). Before: 2026-11-17 (castle set CASTLE1-10 + ORD1 shipped: main = launch26 at aa8b0ad). Before: CASTLE1. Before: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT built on `t/SPLIT`). Before: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
+Last updated: 2026-11-25 (GOLD1, SCEP1, RATE1, MATCH1 built on launch26). 2026-11-22 (C5 Sigrun and C5fix shipped to main; BOT1, FAC1, FX1-3 shipped with it). 2026-11-21 (BOT1, FAC1, FX1 on launch26, not shipped). 2026-11-19 (FIX6-12 shipped). Before: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pages and the online service deployed). Before: 2026-11-17 (castle set CASTLE1-10 + ORD1 shipped: main = launch26 at aa8b0ad). Before: CASTLE1. Before: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT built on `t/SPLIT`). Before: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
 
 ## Stage 1 finish (25 Nov, Arjun's go: GOLD1, SCEP1, RATE1, MATCH1). On `launch26`
 - GOLD1 gold 2/s, +1/s a castle, 150 a capture (card has before/after): built, waiting for Arjun's ship.
 - SCEP1 the war chest is now the Sceptre: 5 points, warned at 4:30, caged relic look; built.
 - RATE1 skill-only match rating (35/25/25/15, average 6.0), kill assists, cover, objective assists, Assists and Objectives on results; built.
+- MATCH1 full online match to 10:00 with a leaver passes; every battle is now 12 captains (service + client), late friends sit on your side; built.
+- Stage 1 left: Arjun's look at GOLD1's numbers, a real friends match, then his "ship" (the online service deploys with main).
 
 ## C5 Sigrun, Viking Raider (Sigrun chat 21-22 Nov, Arjun's go). SHIPPED to main 22 Nov (f4e2830) + C5fix
 - C5fix (22 Nov, from Arjun's playtest): (1) death card threw an error for arrow/men deaths: my `//` comment in death.js HOW had eaten those two entries (now on their own line, unknown cause falls back to sword); (2) swordsmen and riders (kinds sword/cav) were never drawn by `drawHero`, so they stood frozen / were the old cartoon figure: now animated, riders on the fjord horse (broken since C2b, every army); (3) the wolf's lower-leg joints sat almost at the paw: raised to wrist/hock (`tools/models/sigrun/rejoint_wolf.py`, bpy from pip, works on the finished glb) and `fold` per gait in config/wolf.js. Proof: `store/r_C5fix.mjs`. Known: `r_C5-join.mjs` is flaky here (1-3 timing checks fail, also without C5fix).
@@ -24,7 +26,7 @@ Last updated: 2026-11-22 (C5 Sigrun and C5fix shipped to main). 2026-11-21 (BOT1
 - Test note: after editing src, restart the vite server before Playwright runs: HMR adds `?t=` to edited modules and a
   test's `import('/src/...')` then gets a second copy (its own `live` maps), so render checks read empty.
 
-## BOT1, FAC1, FX1-3 (Arjun 21 Nov, his go). On `launch26`, NOT shipped: waiting for his "ship"
+## BOT1, FAC1, FX1-3 (Arjun 21 Nov, his go). Shipped to main with C5 (22 Nov)
 - BOT1 computers pick champions: a class their team lacks first, then one it lacks, at random; one champion per team
   since C5a. `r_BOT1.mjs`.
 - FAC1 factions: Tideseat (blue, water), Emberseat (red, fire), Stoneseat (green, earth), Windseat (yellow, air);
