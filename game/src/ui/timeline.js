@@ -53,7 +53,7 @@ export function tlAdopt(o) {
 }
 
 // ---------- drawing ----------
-const SRC = [['places', 'Places', '#d9b45a'], ['chest', 'War chest', '#e0803a'], ['crown', 'Crown', '#9fdcf5'], ['caps', 'Captains', '#e8665a']];
+const SRC = [['places', 'Places', '#d9b45a'], ['chest', 'Sceptre', '#e0803a'], ['crown', 'Crown', '#9fdcf5'], ['caps', 'Captains', '#e8665a']];
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const mmss = t => Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0');
 const short = n => String(n).replace(/^Castle /, '').replace(/^the /, '');
@@ -81,7 +81,7 @@ export function ledger(ti) {
   for (const [key, c] of Object.entries(claimed)) { const [sa, vi] = key.split(':').map(Number);
     if (sa === a && c.by === ti) ev.push({ T: c.T ?? 600, v: c.v, k: 'kill', t: c.v >= P.killCaptain ? `Cut down ${nameOf(vi)}` : `Your men cut down ${nameOf(vi)}`.replace('Your', ti === G.myTi ? 'Your' : 'His') });
     if (vi === ti) ev.push({ T: c.T ?? 600, v: c.v, k: 'gave', t: `${nameOf(c.by)} cut you down`.replace('you', ti === G.myTi ? 'you' : 'him'), to: sa }); }
-  if (glory.chest && glory.chest.ti === ti) ev.push({ T: glory.chest.T, v: P.chest, k: 'chest', t: 'Broke the war chest' });
+  if (glory.chest && glory.chest.ti === ti) ev.push({ T: glory.chest.T, v: P.chest, k: 'chest', t: 'Took the Sceptre' });
   if (glory.crown && glory.crown.ti === ti) ev.push({ T: glory.crown.T, v: P.crown, k: 'crown', t: 'Broke the glacier: the Crown' });
   ev.sort((p, q) => p.T - q.T);
   return { ev, net: ev.filter(e => e.k !== 'gave').reduce((n, e) => n + e.v, 0), gave: ev.filter(e => e.k === 'gave').reduce((n, e) => n + e.v, 0) };
@@ -120,7 +120,7 @@ function draw(el, w) {
       g += `<polygon points="${pts.map((s, i) => `${X(s.T).toFixed(1)},${Y(nxt[i]).toFixed(1)}`).concat(pts.map((s, i) => `${X(s.T).toFixed(1)},${Y(base[i]).toFixed(1)}`).reverse()).join(' ')}" fill="${c}" opacity="${lvl === 3 ? .3 : .8}"/>`; } base = nxt; } }
   let mk = 0; const mark = (t, label, c) => `<line x1="${X(t)}" x2="${X(t)}" y1="${Tp - 4}" y2="${H - B}" class="tl-mk" style="stroke:${c}"/><text x="${X(t) + 3}" y="${Tp + 4 + (mk++ % 2) * 11}" class="tl-ml" style="fill:${c}">${label}</text>`;
   g += mark(CROWN2.night, 'Night', '#8fa3d8');
-  if (glory.chest) g += mark(glory.chest.T, 'Chest', '#e0803a');
+  if (glory.chest) g += mark(glory.chest.T, 'Sceptre', '#e0803a');
   if (glory.crown) g += mark(glory.crown.T, 'Crown', '#9fdcf5');
   for (const a of order.slice().reverse()) { const pts = S.filter(s => s.by[a]).map(s => `${X(s.T).toFixed(1)},${Y(s.by[a].total).toFixed(1)}`).join(' ');
     const op = lvl === 1 ? (a === mine ? 1 : .85) : a === focus ? (lvl === 2 ? 1 : .45) : .22;
@@ -139,7 +139,7 @@ function draw(el, w) {
     if (capL) g += `<text x="${W - R + 4}" y="${Y(capL.net) + 4}" class="tl-end" style="fill:#ffcf3a">${sgn(capL.net)}</text>`; }
   g += `<line class="tl-cur" x1="0" x2="0" y1="${Tp}" y2="${H - B}" visibility="hidden"/>`;
   const evTxt = (e, ti) => `<b>${mmss(e.T)}</b> ${esc(e.t)}${e.to != null && e.to >= 0 ? (e.k === 'lose' ? ' to ' : ' ') + dots(e.to) : ''} ${e.k === 'gave' ? `<span class="dim">+${e.v} to them</span>` : `<span class="${e.v > 0 ? 'pos' : 'neg'}">${sgn(e.v)}</span>`}`;
-  const moments = [glory.chest ? `War chest to ${glory.chest.a === mine ? 'your side' : esc(allyNames(glory.chest.a))} at ${mmss(glory.chest.T)}` : '', glory.crown ? `Crown to ${glory.crown.a === mine ? 'your side' : esc(allyNames(glory.crown.a))} at ${mmss(glory.crown.T)}` : ''].filter(Boolean).join(' · ');
+  const moments = [glory.chest ? `Sceptre to ${glory.chest.a === mine ? 'your side' : esc(allyNames(glory.chest.a))} at ${mmss(glory.chest.T)}` : '', glory.crown ? `Crown to ${glory.crown.a === mine ? 'your side' : esc(allyNames(glory.crown.a))} at ${mmss(glory.crown.T)}` : ''].filter(Boolean).join(' · ');
   const chartTitle = lvl === 1 ? 'How the points went <small>tap a side, or the chart</small>' : lvl === 2 ? `${dots(focus)}${esc(allyNames(focus))}: where the points came from <small>tap the chart</small>` : `${esc(cap === G.myTi ? 'Your' : capName(cap) + "'s")} points through the battle <small>tap a dot</small>`;
   const at = lvl === 3 ? (pick != null && capL.ev[pick] ? evTxt(capL.ev[pick]) : 'Tap a dot to see what it was') : (moments || 'Tap the chart to see any moment');
   // the side panel, by level

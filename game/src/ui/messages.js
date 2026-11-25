@@ -1,6 +1,6 @@
 // Turns rule announcements ('castleDown', 'flagTaken'...) into banners, sounds and buzzes,
 // worded for this player. Hosts and clients use the same wording.
-import { TEAMS, MODES, UPGRADES, CALM, DUEL } from '../config.js';
+import { TEAMS, MODES, UPGRADES, CALM, DUEL, CROWN2 } from '../config.js';
 import { G, isEnemyTi, colorOf, bus, rules } from '../core/state.js';
 import { allianceCaps, horseCooldown } from '../core/sim.js';
 import { groundY } from '../core/world.js';
@@ -51,9 +51,9 @@ export function msgText(k, a) {
       return ours ? [`Your side holds ${what}!`, give[0], '#ffcf3a'] : [`${allyNames(a[0])} took ${what}`, give[1], '#e0352b'];
     }
     // the war chest: a[0] the hold it lands in
-    case 'chestSoon': return ['A war chest is coming!', `It lands in ${(G.holds && G.holds[a[0]] && G.holds[a[0]].name) || 'the middle'} in ${a[1]} seconds`, '#ffcf3a'];
-    case 'chestUp': return ['The war chest has landed!', `${(G.holds && G.holds[a[0]] && G.holds[a[0]].name) || 'The middle'} is up for grabs: take it`, '#ffcf3a'];
-    case 'chestTaken': return a[0] === G.ALLY[colorOf(myTi)] ? ['Your side took the war chest!', `+${a[1]} gold for every army, horns full`, '#ffcf3a'] : [`${allyNames(a[0])} took the war chest`, 'Their horns are full: brace yourself', '#e0352b'];
+    case 'chestSoon': return ['The Sceptre is coming!', `It lands in ${(G.holds && G.holds[a[0]] && G.holds[a[0]].name) || 'the middle'} in ${a[1]} seconds`, '#ffcf3a'];
+    case 'chestUp': return ['The Sceptre has landed!', `${(G.holds && G.holds[a[0]] && G.holds[a[0]].name) || 'The middle'} is up for grabs: take it`, '#ffcf3a'];
+    case 'chestTaken': return a[0] === G.ALLY[colorOf(myTi)] ? ['Your side took the Sceptre!', `+${a[1]} gold for every army, horns full`, '#ffcf3a'] : [`${allyNames(a[0])} took the Sceptre`, 'Their horns are full: brace yourself', '#e0352b'];
     case 'breach': { // a[0]: the castle (color) breached, a[1]: by whom
       if (colorOf(a[0]) === colorOf(myTi)) return ['Your palisade is breached!', 'Hold the gap', '#e0352b'];
       return !isEnemyTi(a[1], myTi) ? [`Breach in ${nm(a[0])}'s palisade!`, a[1] === myTi ? 'Your doing: through the gap!' : 'Through the gap!', css(a[0])] : null;
@@ -107,8 +107,8 @@ export function msgText(k, a) {
     case 'villageFort': return mine(a[0]) ? ['Palisade up!', `${(G.holds[a[1]] || {}).name || 'The village'} now takes 11 seconds to take`, css(a[0])] : null;
     case 'c2capPoint': return mine(a[0]) ? ['Captain point claimed!', `You cut down ${nm(a[1])}: +${a[2] || 1}`, '#ffcf3a'] : null;
     case 'mineOn': return mine(a[0]) ? ["He's mine!", `${nm(a[1])} won't duel. Your men leave him to you for ${DUEL.mineT} seconds`, css(a[0])] : mine(a[1]) ? [`${nm(a[0])} is coming for you`, "You refused the duel: his men are leaving you to him", css(a[0])] : null;
-    case 'c2chestSoon': return ['A war chest is coming!', `In ${a[0]} seconds the lake drains and it lands in the arena, open to everyone`, '#ffcf3a'];
-    case 'c2chestUp': return ['The war chest has landed!', 'The arena is open: break the chest for +4 points and gold', '#ffcf3a'];
+    case 'c2chestSoon': return ['The Sceptre is coming!', `In ${a[0]} seconds the lake drains and it lands in the arena, open to everyone`, '#ffcf3a'];
+    case 'c2chestUp': return ['The Sceptre has landed!', `The arena is open: break its cage for +${CROWN2.points.chest} points and gold`, '#ffcf3a'];
     case 'c2flood': return ['The waters rise!', `In ${a[0]} seconds the lake floods the arena and washes everyone out`, '#8fd8ff'];
     case 'c2nightSoon': return ['Night is coming', 'At 8:00 the arena opens to captains', '#bfe6f5'];
     case 'c2night': return ['The Crown awakens', 'Captains only: climb to the arena and break the glacier. +7 points', '#bfe6f5'];

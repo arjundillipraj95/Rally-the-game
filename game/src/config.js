@@ -24,7 +24,7 @@ export const MODES = {
   dm:       { name: 'Deathmatch', time: 480, title: 'Tickets', desc: 'Each team has {tickets} tickets. A lost soldier costs 1, a lost captain 5. The leading captain carries a bounty worth double gold.' },
   ctf:      { name: 'Capture the Fort', time: 600, title: 'Captures', desc: 'A banner waits in the fort at the centre. Carry it home on foot to score. Allies pool captures; first side to {caps} wins.' },
   ctrl:     { name: 'Control', time: 600, title: 'Control Score', desc: 'Five points are scattered across the map. Whoever has the most soldiers on a point owns it, and every point you hold adds to your score each second. Allies pool their score; first alliance to {win} wins.' },
-  crown:    { name: 'The Crown', time: 600, title: 'Places held', desc: 'Four armies, one mountain, ten minutes. Take castles, keeps and villages to grow your army; break the war chest at 5:00; at 8:00 the captains climb for the Crown, frozen in the glacier. Most points at the end wins.' },
+  crown:    { name: 'The Crown', time: 600, title: 'Places held', desc: 'Four armies, one mountain, ten minutes. Take castles, keeps and villages to grow your army; break the Sceptre free at 5:00; at 8:00 the captains climb for the Crown, frozen in the glacier. Most points at the end wins.' },
 };
 // The Crown: the online mode's ten minutes, in phases. Times in seconds.
 // (F24) when a joined phone takes over from a silent host, and how long the old host may come back
@@ -74,8 +74,8 @@ export const CROWN2 = {
   // cleared camp's men return. A castle can't be taken while one of its guards lives.
   guards: { foot: 3, arch: 2, ambush: 9, leash: 14, calm: 3, archR: 18, manGold: 0 },
   camp: { foot: 3, arch: 2, ambush: 9, leash: 14, calm: 3, archR: 18, manGold: 0, gold: 50, back: 90 },
-  points: { castle: 3, village: 2, chest: 4, crown: 8, killCaptain: 2, killArmy: 1 }, // (an enemy captain is worth 2 to the captain who cuts him down, 1 if your men get there first; once only)
-  chest: 300, chestWarn: 20, chestShut: 420, chestHp: 250, // (the chest: 250 blows, any blow counts one, a soldier's or a captain's: whole armies swing at it, so it holds about 30 s under a full crowd)
+  points: { castle: 3, village: 2, chest: 5, crown: 8, killCaptain: 2, killArmy: 1 }, // (an enemy captain is worth 2 to the captain who cuts him down, 1 if your men get there first; once only)
+  chest: 300, chestWarn: 30, chestShut: 420, chestHp: 250, // (the chest: 250 blows, any blow counts one, a soldier's or a captain's: whole armies swing at it, so it holds about 30 s under a full crowd)
   // (the war chest lands at 5:00 in the arena, armies let in; broken open, or at 7:00, the gates shut)
   dusk: 450, night: 480, crack: 570, glacierHits: 80, // (dusk at 7:30; at 8:00 the arena opens to captains and the glacier can be hit; it breaks after so many captain blows)
   bridgeHw: 2.2, chasmBridgeHw: 2.1, arenaGateW: 5.2,

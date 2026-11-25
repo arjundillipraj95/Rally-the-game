@@ -20,8 +20,8 @@ const HERALD = {
   sunrise: ['Dawn breaks over the mountain.', 'The sun rises. The legions march.', 'First light. Ready your men.'],
   noon: ['High noon on the mountain.', 'The sun stands at its height.', 'Midday. No shade, no excuses.'],
   sunset: ['The sun sinks. Night draws near.', 'Dusk is coming. Hold what you have.', 'Golden hour on the mountain.'],
-  chestSoon: ['A war chest approaches.', 'Gold is coming. Be ready to take it.'],
-  chest: ['The war chest is claimed.', 'The war chest has a new owner.'],
+  chestSoon: ['The Sceptre approaches.', 'The Crown\'s pair is coming. Be ready to take it.'],
+  chest: ['The Sceptre is claimed.', 'The Sceptre has a new keeper.'],
   duel: ['A duel is decided.', 'Honour is settled.'],
   spree: ['is on a rampage!', 'is cutting through the captains.', 'cannot be stopped!'],
   last: ['One minute remains!', 'The final minute. Make it count.'],
@@ -81,8 +81,8 @@ export function feedLine(k, a) {
     case 'capDown': return a[1] != null && a[1] >= 0 && a[1] !== a[0] ? `${who(a[1])} cut down ${who(a[0])}` : `${who(a[0])} fell`;
     case 'castleDown': return `${who(a[0])}'s castle fell${a[1] != null && a[1] >= 0 ? ` to ${who(a[1])}` : ''}`;
     case 'holdTaken': return `${side(a[0])} took ${place(a[2])}`;
-    case 'chestTaken': return `${side(a[0])} grabbed the war chest`;
-    case 'chestUp': return `The war chest landed at ${place(a[0])}`;
+    case 'chestTaken': return `${side(a[0])} took the Sceptre`;
+    case 'chestUp': return `The Sceptre landed at ${place(a[0])}`;
     case 'breach': return `${who(a[1])} breached ${who(a[0])}'s palisade`;
     case 'gateBroken': return `${who(a[1])} broke ${who(a[0])}'s gate`;
     case 'gateRepaired': return `${who(a[0])} mended the gate`;

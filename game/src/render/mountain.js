@@ -1,6 +1,6 @@
 // The new Crown's mountain: what the shared world builder doesn't already draw. The homes (cottages,
 // a banner, the safe ring), the bridges over the chasm, the glacier on the summit with the Crown frozen
-// in it, the war chest, a neutral castle's guards and the bandits round their campfires.
+// in it, the Sceptre, a neutral castle's guards and the bandits round their campfires.
 import * as THREE from 'three';
 import { keepLive, batchOn, abOn, abOld, abShow, mergeInto } from './batch.js';
 import { TEAMS, CROWN2, NEUTRAL } from '../config.js';
@@ -273,11 +273,18 @@ export function buildMount(world, L) {
     if (batchOn()) { M.torchGlow = torchBatch(spots, mat.map); grp.add(M.torchGlow); } // (F1a: every glow in one draw, hidden while unlit)
     if (!batchOn() || abOn()) M.torches = spots.map(([x2, z2], i) => { const sp = new THREE.Sprite(mat); sp.position.set(x2, groundY(x2, z2) + 3, z2); sp.scale.setScalar(2.4); sp.userData.ph = i * 1.7; grp.add(sp); return sp; });
     M.torchMat = mat; }
-  // the war chest (hidden until it lands)
-  { const g = new THREE.Group(), box = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1, 1.1), wood); box.position.y = .5; g.add(box);
-    const lid = new THREE.Mesh(new THREE.CylinderGeometry(.55, .55, 1.6, 12, 1, false, 0, Math.PI), wood); lid.rotation.z = Math.PI / 2; lid.position.y = 1; g.add(lid);
-    for (const x of [-.6, .6]) { const band = new THREE.Mesh(new THREE.BoxGeometry(.12, 1.62, 1.16), new THREE.MeshPhongMaterial({ color: 0xffcf3a, emissive: 0x4a3400 })); band.position.set(x, .78, 0); g.add(band); }
-    g.visible = false; grp.add(shadowy(g)); keepLive(g); M.chest = g; }
+  // (SCEP1) the Sceptre (hidden until it lands): a stone plinth, a gold sceptre crowned with a star-white gem, an iron cage round it
+  // that the armies break open (the blows count as the war chest's did)
+  { const g = new THREE.Group(), stone = new THREE.MeshLambertMaterial({ color: 0x8d8a82 }), iron = new THREE.MeshLambertMaterial({ color: 0x3a3a3e }),
+      gold = new THREE.MeshPhongMaterial({ color: 0xffcf3a, emissive: 0x4a3400, shininess: 80 }), gem = new THREE.MeshBasicMaterial({ color: 0xcfeeff });
+    const plinth = new THREE.Mesh(new THREE.CylinderGeometry(.75, .9, .55, 8), stone); plinth.position.y = .27; g.add(plinth);
+    const rod = new THREE.Group(); rod.position.y = .55; g.add(rod);
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(.07, .09, 1.5, 8), gold); shaft.position.y = .75; rod.add(shaft);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(.16, .035, 6, 16), gold); ring.position.y = 1.5; ring.rotation.x = Math.PI / 2; rod.add(ring);
+    const star = new THREE.Mesh(new THREE.OctahedronGeometry(.24), gem); star.position.y = 1.68; rod.add(star);
+    const bars = []; for (let k = 0; k < 6; k++) { const t = k / 6 * Math.PI * 2, bar = new THREE.Mesh(new THREE.CylinderGeometry(.035, .035, 2.1, 5), iron); bar.position.set(Math.sin(t) * .62, 1.6, Math.cos(t) * .62); g.add(bar); bars.push(bar); }
+    const cap = new THREE.Mesh(new THREE.TorusGeometry(.62, .05, 5, 12), iron); cap.position.y = 2.62; cap.rotation.x = Math.PI / 2; g.add(cap);
+    g.visible = false; grp.add(shadowy(g)); keepLive(g); M.chest = g; M.sceptre = { rod, star, bars }; }
   // guards and bandits alike: one grey banner each over their post (the pole and cloth shared by all of them). The men
   // are real soldiers in the battle (F4, core/sim.js), drawn with the armies by render/soldiers.js in neutral grey steel.
   const poleGeo = new THREE.CylinderGeometry(.06, .07, NEUTRAL.h, 6), clothGeo = new THREE.PlaneGeometry(NEUTRAL.w, NEUTRAL.ch);
@@ -368,5 +375,5 @@ export function updateMount(dt) {
     edge.visible = glow > 0; edge.scale.setScalar(rad); edge.position.set(0, y + .03, 0); edge.material.opacity = glow;
   }
   const ch = K.breaks.find(b => b.kind === 'chest');
-  if (M.chest) { M.chest.visible = !!ch && ch.hp > 0; if (ch && ch.hp > 0) { M.chest.position.set(ch.x, groundY(ch.x, ch.z), ch.z); if (ch.hitT && T - ch.hitT < .12) M.chest.rotation.y = Math.sin(M.t * 60) * .05; } }
+  if (M.chest) { M.chest.visible = !!ch && ch.hp > 0; if (ch && ch.hp > 0) { M.chest.position.set(ch.x, groundY(ch.x, ch.z), ch.z); if (ch.hitT && T - ch.hitT < .12) M.chest.rotation.y = Math.sin(M.t * 60) * .05; M.sceptre.rod.rotation.y = M.t * .8; M.sceptre.star.scale.setScalar(1 + Math.sin(M.t * 3) * .15); const left = Math.ceil(6 * ch.hp / (ch.max || 1)); M.sceptre.bars.forEach((b, k) => { b.visible = k < left; }); } }
 }

@@ -39,7 +39,7 @@ function capList() {
   const m26 = G.layout && G.layout.map26; // (MAP4: the new mountain has castles only, three a side)
   const html = `<div><h4>${m26 ? 'Castles' : 'Castles &amp; keeps'} <em>${P.castle} each</em></h4><div class="pls">${cas.map(place).join('')}</div>
     ${m26 ? '' : `<h4>Villages <em>${P.village} each</em></h4><div class="pls">${vil.map(place).join('')}</div>`}</div>
-    <div><h4>War chest <em>${P.chest}</em></h4><div class="gl">${chestTxt}</div>
+    <div><h4>Sceptre <em>${P.chest}</em></h4><div class="gl">${chestTxt}</div>
     <h4>The Crown <em>${P.crown}</em></h4><div class="gl">${crownTxt}</div>
     <h4>Enemy captains <em>${P.killCaptain} / ${P.killArmy}</em></h4>${caps}</div>`;
   if (html === capSig) return; capSig = html; el.innerHTML = html;
@@ -110,14 +110,14 @@ export function updateHud(lastSnapAt) {
         pe.className = m == null ? 'h' : ['dg', 'g', 'a', 'r', 'dr'][k] || 'nf'; } } } }
   const sq = squadOf(G.myTi), cap = capOf(G.myTi), used = armyPlaces(G.myTi); $('squadN').textContent = G.mode === 'crown' ? `${used}/${cap}` : sq.length; // (C2: places; a stone thrower takes five)
   if (isC2()) { // the mountain's phase, under the clock
-    const T = G.T, C = CROWN2, K = G.c2, ph = !K ? '' : T < C.chest ? `War chest in ${fmt(C.chest - T)}` : K.phase === 'open' ? 'Arena open · break the chest' : T < C.night ? `The Crown wakes in ${fmt(C.night - T)}` : 'Night · captains to the glacier';
+    const T = G.T, C = CROWN2, K = G.c2, ph = !K ? '' : T < C.chest ? `Sceptre in ${fmt(C.chest - T)}` : K.phase === 'open' ? 'Arena open · break the Sceptre free' : T < C.night ? `The Crown wakes in ${fmt(C.night - T)}` : 'Night · captains to the glacier';
     capList();
     // the war chest's and the glacier's health, big and in the middle for everyone: the chest while it's in the
     // arena, the glacier once night falls (or once anyone's chipped it)
     { const ch = K && K.chest === 1 && K.breaks.find(b => b.kind === 'chest' && b.hp > 0), gl = K && K.breaks.find(b => b.kind === 'glacier'),
         b = ch || (gl && gl.hp > 0 && (T >= C.night || gl.hp < gl.max) ? gl : null), box = $('glacier'), on = !!b;
       if (box && box.hidden === on) box.hidden = !on;
-      if (box && on) { box.classList.toggle('chest', !!ch); const lbl = ch ? 'The War Chest' : 'The Glacier'; if (box.firstChild.textContent !== lbl) box.firstChild.textContent = lbl;
+      if (box && on) { box.classList.toggle('chest', !!ch); const lbl = ch ? 'The Sceptre' : 'The Glacier'; if (box.firstChild.textContent !== lbl) box.firstChild.textContent = lbl;
         const n = `${Math.ceil(b.hp)} / ${b.max}`; $('glacierBar').style.transform = `scaleX(${b.hp / b.max})`; if ($('glacierN').textContent !== n) { $('glacierN').textContent = n; box.classList.remove('hit'); void box.offsetWidth; box.classList.add('hit'); } box.classList.toggle('crack', !ch && T >= C.crack); } }
     { // (HUD1) your side's buff from a camp's mini captain, with its seconds left
       const t = G.teams[G.myTi], b = t && t.buff && t.buff.until > T ? t.buff : null, B = CROWN26.buffs, el = $('buffTag');

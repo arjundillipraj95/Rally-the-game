@@ -142,7 +142,7 @@ function showMoments(h) {
     n('ridedown', 'Rode down a beaten captain', 'Rode down # beaten captains'),
     n('rampage', 'Went on a rampage', 'Went on # rampages'),
     n('castle', 'Brought down a castle', 'Brought down # castles'),
-    n('chest', 'Took the war chest', 'Took the war chest'),
+    n('chest', 'Took the Sceptre', 'Took the Sceptre'),
     n('capkill', 'Cut down an enemy captain', 'Cut down # enemy captains'),
     n('disarm', 'Disarmed a captain with a perfect parry', 'Disarmed # captains with perfect parries'),
     h.streak >= 5 ? `Landed ${h.streak} blows in a row` : null,
@@ -168,7 +168,7 @@ function showSideMoments() {
   let best = null; for (const i of side) { const v = (G.teams[i].hl || {}).streak || 0; if (v >= 5 && (!best || v > best.v)) best = { i, v }; }
   const lines = [
     line('castle', 'Brought down a castle', 'Brought down # castles'),
-    sum('chest') ? 'Took the war chest' : null,
+    sum('chest') ? 'Took the Sceptre' : null,
     line('duel', 'Won a duel', 'Won # duels'),
     line('exec', 'Executed a captain', 'Executed # captains'),
     line('capkill', 'Cut down an enemy captain', 'Cut down # enemy captains'),

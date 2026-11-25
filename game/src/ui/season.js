@@ -99,7 +99,7 @@ export const POOL = [
   { id: 'crown', text: 'Carry the Crown', k: 'crown', n: 1 },
   { id: 'parry', text: 'Parry 5 blows', k: 'parry', n: 5 },
   { id: 'bash', text: 'Shield-bash 4 times', k: 'bash', n: 4 },
-  { id: 'chest', text: 'Grab a war chest', k: 'chest', n: 1 },
+  { id: 'chest', text: 'Take the Sceptre', k: 'chest', n: 1 },
 ];
 export const MISSION_STARS = 60, BATTLE_STARS = 15, WIN_STARS = 25;
 const today = (now = Date.now()) => Math.floor(now / DAY);
