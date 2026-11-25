@@ -32,35 +32,36 @@ export function tlTick() {
 const R = Math.round;
 export function tlPack() {
   tlTick();
-  return { s: TL.samples.map(x => [R(x.T), Object.entries(x.by).map(([a, b]) => [+a, b.castles, b.villages, b.chest, b.crown, b.caps, b.total])]),
+  return { s: TL.samples.map(x => [R(x.T), Object.entries(x.by).map(([a, b]) => [+a, b.castles, b.villages, b.chest, b.crown, b.caps, b.total, b.nexus || 0])]),
     p: [...TL.places.values()].map(({ h, hist }) => [h.id, hist.map(x => [R(x.T), x.owner, x.by ?? -1])]),
     c: Object.entries(claimed).map(([k, c]) => [k, c.by, c.v, R(c.T ?? 600)]),
-    g: [glory.chest ? [glory.chest.a, R(glory.chest.T), glory.chest.ti ?? -1] : 0, glory.crown ? [glory.crown.a, R(glory.crown.T), glory.crown.ti ?? -1] : 0] };
+    g: [glory.chest ? [glory.chest.a, R(glory.chest.T), glory.chest.ti ?? -1] : 0, glory.crown ? [glory.crown.a, R(glory.crown.T), glory.crown.ti ?? -1] : 0, (glory.nexus || []).map(n => [n.c, n.a, n.ti, n.v, R(n.T)])] }; // (GOLD3: the banners broken)
 }
 export function tlAdopt(o) {
   if (!o || !Array.isArray(o.s) || !Array.isArray(o.p) || !G.holds) return false;
   const num = v => (typeof v === 'number' && isFinite(v) ? v : 0);
-  const samples = o.s.map(([T, by]) => ({ T: num(T), by: Object.fromEntries((by || []).map(r => [num(r[0]), { castles: num(r[1]), villages: num(r[2]), chest: num(r[3]), crown: num(r[4]), caps: num(r[5]), total: num(r[6]) }])) }));
+  const samples = o.s.map(([T, by]) => ({ T: num(T), by: Object.fromEntries((by || []).map(r => [num(r[0]), { castles: num(r[1]), villages: num(r[2]), chest: num(r[3]), crown: num(r[4]), caps: num(r[5]), total: num(r[6]), nexus: num(r[7]) }])) }));
   const places = new Map();
   for (const [id, hist] of o.p) { const h = G.holds.find(x => x.id === id); if (h) places.set(id, { h, hist: (hist || []).map(x => ({ T: num(x[0]), owner: num(x[1]), by: x[2] >= 0 ? num(x[2]) : undefined })) }); }
   Object.assign(TL, { seed: G.seed, samples, places, lastT: samples.length ? samples[samples.length - 1].T : -99, final: true, host: true });
   for (const k in claimed) delete claimed[k];
   for (const [k, by, v, T] of o.c || []) if (/^-?\d+:-?\d+$/.test(String(k))) claimed[k] = { by: num(by), v: num(v), T: num(T) };
-  const [ch, cr] = o.g || [];
+  const [ch, cr, nx] = o.g || [];
+  glory.nexus = Array.isArray(nx) ? nx.map(r => ({ c: num(r[0]), a: num(r[1]), ti: num(r[2]), v: num(r[3]), T: num(r[4]) })) : [];
   glory.chest = Array.isArray(ch) ? { a: num(ch[0]), T: num(ch[1]), ti: num(ch[2]) } : null;
   glory.crown = Array.isArray(cr) ? { a: num(cr[0]), T: num(cr[1]), ti: num(cr[2]) } : null;
   return true;
 }
 
 // ---------- drawing ----------
-const SRC = [['places', 'Places', '#d9b45a'], ['chest', 'Sceptre', '#e0803a'], ['crown', 'Crown', '#9fdcf5'], ['caps', 'Captains', '#e8665a']];
+const SRC = [['places', 'Places', '#d9b45a'], ['chest', 'Sceptre', '#e0803a'], ['crown', 'Crown', '#9fdcf5'], ['caps', 'Captains', '#e8665a'], ['nexus', 'Nexus', '#b48cff']]; // (GOLD3)
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const mmss = t => Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0');
 const short = n => String(n).replace(/^Castle /, '').replace(/^the /, '');
 const cols = a => TEAMS.map((t, i) => i).filter(i => G.ALLY[i] === a && G.teams.some((s, j) => s && s.active && colorOf(j) === i));
 const dots = a => cols(a).map(i => `<i class="pd" style="background:${TEAMS[i].css}"></i>`).join('');
 const lineCol = a => TEAMS[cols(a)[0] ?? 0].css;
-const parts = b => ({ places: b.castles * CROWN2.points.castle + b.villages * CROWN2.points.village, chest: b.chest, crown: b.crown, caps: b.caps });
+const parts = b => { const nexus = b.nexus || 0; return { places: Math.max(0, b.total - b.chest - b.crown - b.caps - nexus), chest: b.chest, crown: b.crown, caps: b.caps, nexus }; }; // (GOLD3: places from the total: a middle castle's 5 counts right)
 const sideOf = ti => G.ALLY[colorOf(ti)];
 const capName = ti => ti === G.myTi ? 'You' : nameOf(ti);
 
@@ -82,6 +83,7 @@ export function ledger(ti) {
     if (sa === a && c.by === ti) ev.push({ T: c.T ?? 600, v: c.v, k: 'kill', t: c.v >= P.killCaptain ? `Cut down ${nameOf(vi)}` : `Your men cut down ${nameOf(vi)}`.replace('Your', ti === G.myTi ? 'Your' : 'His') });
     if (vi === ti) ev.push({ T: c.T ?? 600, v: c.v, k: 'gave', t: `${nameOf(c.by)} cut you down`.replace('you', ti === G.myTi ? 'you' : 'him'), to: sa }); }
   if (glory.chest && glory.chest.ti === ti) ev.push({ T: glory.chest.T, v: P.chest, k: 'chest', t: 'Took the Sceptre' });
+  for (const n of glory.nexus || []) if (n.ti === ti) ev.push({ T: n.T, v: n.v, k: 'nexus', t: `Broke ${TEAMS[n.c] ? TEAMS[n.c].name : 'an enemy'}'s nexus` }); // (GOLD3)
   if (glory.crown && glory.crown.ti === ti) ev.push({ T: glory.crown.T, v: P.crown, k: 'crown', t: 'Broke the glacier: the Crown' });
   ev.sort((p, q) => p.T - q.T);
   return { ev, net: ev.filter(e => e.k !== 'gave').reduce((n, e) => n + e.v, 0), gave: ev.filter(e => e.k === 'gave').reduce((n, e) => n + e.v, 0) };
@@ -122,6 +124,7 @@ function draw(el, w) {
   g += mark(CROWN2.night, 'Night', '#8fa3d8');
   if (glory.chest) g += mark(glory.chest.T, 'Sceptre', '#e0803a');
   if (glory.crown) g += mark(glory.crown.T, 'Crown', '#9fdcf5');
+  for (const n of glory.nexus || []) g += mark(n.T, 'Nexus', '#b48cff'); // (GOLD3)
   for (const a of order.slice().reverse()) { const pts = S.filter(s => s.by[a]).map(s => `${X(s.T).toFixed(1)},${Y(s.by[a].total).toFixed(1)}`).join(' ');
     const op = lvl === 1 ? (a === mine ? 1 : .85) : a === focus ? (lvl === 2 ? 1 : .45) : .22;
     g += `<polyline points="${pts}" fill="none" stroke="${lvl === 2 && a === focus ? '#fff' : lineCol(a)}" stroke-width="${a === focus || (lvl === 1 && a === mine) ? 3.2 : 2.2}" stroke-linejoin="round" stroke-linecap="round" opacity="${op}"/>`; }
@@ -139,7 +142,7 @@ function draw(el, w) {
     if (capL) g += `<text x="${W - R + 4}" y="${Y(capL.net) + 4}" class="tl-end" style="fill:#ffcf3a">${sgn(capL.net)}</text>`; }
   g += `<line class="tl-cur" x1="0" x2="0" y1="${Tp}" y2="${H - B}" visibility="hidden"/>`;
   const evTxt = (e, ti) => `<b>${mmss(e.T)}</b> ${esc(e.t)}${e.to != null && e.to >= 0 ? (e.k === 'lose' ? ' to ' : ' ') + dots(e.to) : ''} ${e.k === 'gave' ? `<span class="dim">+${e.v} to them</span>` : `<span class="${e.v > 0 ? 'pos' : 'neg'}">${sgn(e.v)}</span>`}`;
-  const moments = [glory.chest ? `Sceptre to ${glory.chest.a === mine ? 'your side' : esc(allyNames(glory.chest.a))} at ${mmss(glory.chest.T)}` : '', glory.crown ? `Crown to ${glory.crown.a === mine ? 'your side' : esc(allyNames(glory.crown.a))} at ${mmss(glory.crown.T)}` : ''].filter(Boolean).join(' · ');
+  const moments = [glory.chest ? `Sceptre to ${glory.chest.a === mine ? 'your side' : esc(allyNames(glory.chest.a))} at ${mmss(glory.chest.T)}` : '', glory.crown ? `Crown to ${glory.crown.a === mine ? 'your side' : esc(allyNames(glory.crown.a))} at ${mmss(glory.crown.T)}` : '', ...(glory.nexus || []).map(n => `Nexus to ${n.a === mine ? 'your side' : esc(allyNames(n.a))} at ${mmss(n.T)}`)].filter(Boolean).join(' · ');
   const chartTitle = lvl === 1 ? 'How the points went <small>tap a side, or the chart</small>' : lvl === 2 ? `${dots(focus)}${esc(allyNames(focus))}: where the points came from <small>tap the chart</small>` : `${esc(cap === G.myTi ? 'Your' : capName(cap) + "'s")} points through the battle <small>tap a dot</small>`;
   const at = lvl === 3 ? (pick != null && capL.ev[pick] ? evTxt(capL.ev[pick]) : 'Tap a dot to see what it was') : (moments || 'Tap the chart to see any moment');
   // the side panel, by level

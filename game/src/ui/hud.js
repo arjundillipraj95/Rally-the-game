@@ -1,5 +1,5 @@
 // Scoreboard, clock, health, gold, squad count and button labels.
-import { STAMINA, CROWN2, CROWN26, PING } from '../config.js';
+import { STAMINA, CROWN2, CROWN26, CASTLE26, PING } from '../config.js';
 import { CROWN, TEAMS, MODES, STATS, AL_LETTER, ORDER_NAMES, UPGRADES, WEAPON_NAMES, WEAPON_CLASS, STREAK, LAST } from '../config.js';
 import { G, isFfa, colorOf, rules, matchTime, SLOT_NAME, isOut, capOf, isC2 } from '../core/state.js';
 import { mountMul, c2Lake, colorOut, colorScore, colorHuman, squadOf, armyPlaces, placeOf, canRecruit, horseMax, upgradeCost, javMax, execTarget, castleHere, villageHere } from '../core/sim.js';
@@ -36,12 +36,16 @@ function capList() {
   const caps = foes.map(i => { const c = claimed[own + ':' + i], k = (K.kills[own] || {})[i];
     const who = c ? (c.by === G.myTi ? (c.v >= P.killCaptain ? 'you' : 'your men') : (c.v >= P.killCaptain ? nameOf(c.by) : `${nameOf(c.by)}'s men`)) : '';
     return `<div class="cl"><i style="background:${TEAMS[colorOf(i)].css}"></i><b>${nameOf(i).replace(/[<>&]/g, '')}</b>${c || k ? `<span class="ok">✓ ${who ? who + ' ' : ''}+${c ? c.v : k}</span>` : `<span class="open">+${P.killCaptain} open</span>`}</div>`; }).join('');
+  // (GOLD3) each side's nexus: who broke it and when, or its health
+  const nx = (K.breaks || []).filter(b => b.kind === 'nexus' && G.teams.some((s, j) => s && s.active && colorOf(j) === b.c)).map(b => { const n = (glory.nexus || []).find(x => x.c === b.c), mineN = G.ALLY[b.c] === own;
+    return `<div class="cl"><i style="background:${TEAMS[b.c].css}"></i><b>${TEAMS[b.c].name}${mineN ? ' (yours)' : ''}</b>${n ? `<span class="${n.a === own ? 'ok' : 'open'}">✓ ${n.a === own ? 'your side' : side(n.a)} ${fmt(n.T)}</span>` : `<span class="open">${Math.ceil(Math.max(0, b.hp))}/${b.max}</span>`}</div>`; }).join('');
   const m26 = G.layout && G.layout.map26; // (MAP4: the new mountain has castles only, three a side)
   const html = `<div><h4>${m26 ? 'Castles' : 'Castles &amp; keeps'} <em>${P.castle} each</em></h4><div class="pls">${cas.map(place).join('')}</div>
     ${m26 ? '' : `<h4>Villages <em>${P.village} each</em></h4><div class="pls">${vil.map(place).join('')}</div>`}</div>
     <div><h4>Sceptre <em>${P.chest}</em></h4><div class="gl">${chestTxt}</div>
     <h4>The Crown <em>${P.crown}</em></h4><div class="gl">${crownTxt}</div>
-    <h4>Enemy captains <em>${P.killCaptain} / ${P.killArmy}</em></h4>${caps}</div>`;
+    <h4>Enemy captains <em>${P.killCaptain} / ${P.killArmy}</em></h4>${caps}
+    ${nx ? `<h4>Nexus <em>${CASTLE26.nexus.pts} each</em></h4>${nx}` : ''}</div>`;
   if (html === capSig) return; capSig = html; el.innerHTML = html;
 }
 export function buildHud() {

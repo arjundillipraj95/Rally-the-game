@@ -70,10 +70,10 @@ export const CROWN2 = {
   // each fighting and dying on his own. They hold their post until an army's man comes within `ambush` m (or one of them
   // is struck), then the whole post wakes: footmen go for the nearest foe but never past `leash` m from the post, archers
   // shoot from it out to `archR` m. With no foe inside the leash for `calm` s they walk back and, at their spots, heal to
-  // full. `manGold`: gold for each man cut down (kept 0: the camp's `gold` is paid for the last one); `back`: s till a
+  // full. `manGold`: gold for each man cut down (GOLD3: 20 a man, guards and camps alike; the camp pays nothing more when cleared); `back`: s till a
   // cleared camp's men return. A castle can't be taken while one of its guards lives.
-  guards: { foot: 3, arch: 2, ambush: 9, leash: 14, calm: 3, archR: 18, manGold: 0 },
-  camp: { foot: 3, arch: 2, ambush: 9, leash: 14, calm: 3, archR: 18, manGold: 0, gold: 50, back: 90 },
+  guards: { foot: 3, arch: 2, ambush: 9, leash: 14, calm: 3, archR: 18, manGold: 20 },
+  camp: { foot: 3, arch: 2, ambush: 9, leash: 14, calm: 3, archR: 18, manGold: 20, gold: 0, back: 90 },
   points: { castle: 3, village: 2, chest: 5, crown: 8, killCaptain: 2, killArmy: 1 }, // (an enemy captain is worth 2 to the captain who cuts him down, 1 if your men get there first; once only)
   chest: 300, chestWarn: 30, chestShut: 420, chestHp: 250, // (the chest: 250 blows, any blow counts one, a soldier's or a captain's: whole armies swing at it, so it holds about 30 s under a full crowd)
   // (the war chest lands at 5:00 in the arena, armies let in; broken open, or at 7:00, the gates shut)

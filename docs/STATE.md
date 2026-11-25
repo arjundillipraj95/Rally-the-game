@@ -549,3 +549,4 @@ Last updated: 2026-11-25 (GOLD1, SCEP1, RATE1, MATCH1 built on launch26). 2026-1
   (no recording exists, so built from the bank and synthesis, `sfx.throwRelease/creak/crackle`), played from the
   drawing so every phone hears them; the sim's 'heavy' on the throw is gone. r_C2b. Open: Devi's army crews wear the
   Roman spearman (no Chola crew figure yet).
+- GOLD3 done on launch26 (25 Nov): neutral soldiers 20 gold each (camp clear bonus gone); nexus +5 shown in Points panel and results summary. Not on main yet.

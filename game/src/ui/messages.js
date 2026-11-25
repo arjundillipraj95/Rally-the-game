@@ -141,14 +141,15 @@ export function c2Tier(k, a) {
 }
 export const c2On = () => G.mode === 'crown' && G.map && G.map.id === 'mount';
 let namer = () => null; export const setNamer = f => { namer = f; }; export const nameOf = i => namer(i) || TEAMS[colorOf(i)].name; // (captains by name: players' nicknames, computer captains' names)
-export const glory = { chest: null, crown: null }; // (who took the war chest and the Crown, and when)
+export const glory = { chest: null, crown: null, nexus: [] }; // (GOLD3: nexus: each banner broken, {c, a, ti, v, T}) // (who took the war chest and the Crown, and when)
 export const claimed = {}; // (enemy captains your side has claimed on the mountain: for the +2 marker on every phone)
 function note(k, a) { // (bookkeeping every phone does from the messages: the host's arrive here too)
   if (k === 'mineOn' && G.teams && G.teams[a[0]]) G.teams[a[0]].mine = { ti: a[1], id: (G.teams[a[1]] && G.teams[a[1]].leader || {}).id, until: G.T + DUEL.mineT };
   if (k === 'c2capPoint' && G.ALLY) claimed[G.ALLY[colorOf(a[0])] + ':' + a[1]] = { by: a[0], v: a[2] || 1, T: G.T }; // (who got him, and for what)
   if (k === 'chestTaken' && G.ALLY) glory.chest = { a: a[0], T: G.T, ti: a[2] ?? -1 };
   if (k === 'crownTaken' && G.ALLY) glory.crown = { a: G.ALLY[colorOf(a[0])], ti: a[0], T: G.T };
-  if (k === 'start') { for (const x in claimed) delete claimed[x]; glory.chest = glory.crown = null; }
+  if (k === 'start') { for (const x in claimed) delete claimed[x]; glory.chest = glory.crown = null; glory.nexus = []; }
+  if (k === 'nexusBroken' && G.ALLY) glory.nexus.push({ c: a[0], a: a[1], ti: a[2] ?? -1, v: a[3] | 0, T: G.T });
 }
 export function showMsg(k, a) {
   if (k === 'levelUp') { levelUp(a); return; }

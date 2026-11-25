@@ -3,7 +3,7 @@ import { CROWN2, CROWN26, LAUNCH, NEUTRAL, STATS, RALLY } from '../../config.js'
 import { giveBuff } from './buffs.js';
 import { G, NEUTRAL_TI } from '../state.js';
 import { rnd, angDiff, turn } from '../world.js';
-import { fx, sound } from './util.js';
+import { fx, sound, say } from './util.js';
 import { hl, mkUnit } from './match.js';
 import { gainRally, speedOf } from './army.js';
 import { eachNear, gridOk, nearestFoe, startSwing } from './melee.js';
@@ -79,7 +79,7 @@ export function dieNeutral(u, killer, ang, launch) {
   u.fallDir = Math.random() < .5 ? 1 : -1;
   fx('splat', { x: u.x, z: u.z, s: rnd(1, 1.5), ti: u.ti }); sound('die', u.x, u.z);
   const b = u.post, Q = postQ(b);
-  if (killer && G.teams[killer.ti]) { G.teams[killer.ti].gold += Q.manGold; gainRally(killer, RALLY.kill); xpForKill(killer.ti, u); } // (C1b: XP, a mini captain's more)
+  if (killer && G.teams[killer.ti]) { G.teams[killer.ti].gold += Q.manGold; if (killer.human && Q.manGold) say('gold', killer.ti, Math.round(u.x * 10) / 10, Math.round(u.z * 10) / 10, Q.manGold); gainRally(killer, RALLY.kill); xpForKill(killer.ti, u); } // (C1b: XP, a mini captain's more)
   if (u.boss && killer && G.teams[killer.ti] && b.buff) { giveBuff(killer.ti, b.buff); hl(killer.ti, 'hold'); } // (CAMP1: the camp's buff to his killer's side)
   b.n = b.units.filter(m => m && !m.dead).length;
   if (!b.n) c2PostCleared(b, killer);
