@@ -3,6 +3,7 @@
 // how many soldiers are alive — more in a full 12-army Trio match — sent
 // about 12 times a second).
 import { pierceInput } from '../core/sim/deviShots.js'; // (FIX9)
+import { holdingTick } from '../core/sim/holding.js'; // (HEAL1)
 import { wolfRider, flyPounce, pounceStep, flySpin, spinStep, flyHunt, huntStep } from '../core/sim/sigrun.js'; // (C5b-C5e)
 import { CROWN2, CROWN26, SMOOTH, FEEL, NEUTRAL, HANDOVER } from '../config.js';
 import { SHOUTS, CROWN, HUMAN_CAPTAIN, ARMOUR, RHYTHM, BASH, EVADE, TEAMS, MAPS, KINDS, STATS, RECRUITS, ORDERS, UPGRADES, WEAPONS, WEAPON_NAMES, CAPTAIN_COMBAT, HOLD_ATK, PARRY, STONE } from '../config.js';
@@ -99,7 +100,9 @@ function encodeSnap() {
   const sf = [...G.stones.map(st => ['s', b36(st.id), encX(st.x0), encX(st.z0), encX(st.x1), encX(st.z1), b36(st.t * 100), st.fire ? 1 : 0, st.sh ? b36(st.sh.id) : ''].join(',')),
     ...G.fires.map(f => ['f', b36(f.id), encX(f.x), encX(f.z), b36(Math.max(0, f.until - G.T) * 10)].join(',')),
     ...(G.storms || []).map(w => ['w', b36(w.id), encX(w.x), encX(w.z), b36(w.r * 10), b36(Math.max(0, G.T - w.T0) * 10), b36(w.warn * 10), b36(w.dur * 10), w.ti].join(','))].join(';'); // (C4: arrow storms, marked for everyone)
-  return [Math.round(G.T * 10), teams, us.join(';'), ars.join(';'), hs.join(';'), fl, pl, G.bounty, hd, cp, fo, du, wt, cx, c2, sf].join('|');
+  // (BAR1) every champion's mount and armour, for the bars over their heads
+  const lm = G.teams.map(t => t.leader && !t.leader.dead ? Math.round(t.leader.horseHp || 0) + ',' + Math.round(t.leader.armour || 0) : '').join(';');
+  return [Math.round(G.T * 10), teams, us.join(';'), ars.join(';'), hs.join(';'), fl, pl, G.bounty, hd, cp, fo, du, wt, cx, c2, sf, lm].join('|');
 }
 // a remote player's blow landing (or landing on them) goes out at once rather than waiting for the
 // next regular snapshot, so their hits register as quickly as the network allows
@@ -419,6 +422,7 @@ function clientApply(hp) {
   if (C.arrowIds.size > 400) C.arrowIds = new Set([...C.arrowIds].slice(-200));
   { // (C2) the stones and fire pots, as the host has them (new stones: its thrower swings its arm here too)
     const have = new Map(G.stones.map(s => [s.id, s])), stones = [], fires = [], storms = [];
+    if (secs[16] != null) secs[16].split(';').forEach((r, i) => { const L = G.teams[i] && G.teams[i].leader; if (!r || !L || i === myTi) return; const v = r.split(','); L.horseHp = +v[0]; L.armour = +v[1]; }); // (BAR1)
     for (const row of (secs[15] || '').split(';')) {
       const f = row.split(','); if (f[0] === 's') {
         const id = p36(f[1]), old = have.get(id), t = p36(f[6]) / 100; if (G.stoneLanded && G.stoneLanded.has(id)) continue;
@@ -465,6 +469,7 @@ export function clientTick(dt) {
     }
   } else {
     NET.hostGoneAt = 0;
+    if (G.c2 && G.state === 'play') holdingTick(dt); // (HEAL1: the castle heal's "+20"s; the host does the healing)
     const hp = hostP.presence || {};
     if (hp.seats && typeof hp.seats === 'object') { NET.lastSeats = hp.seats; seatHumans(hp.seats); }
     if (hp.ph === 'gone') { hooks.onAbort('The host ended the battle.'); return false; } // (the host chose to leave)

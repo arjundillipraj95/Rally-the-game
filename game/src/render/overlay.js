@@ -18,6 +18,19 @@ import { bubbles } from './banter.js';
 import { sideCss } from './holds.js';
 import { gatePct, plateHp } from '../core/sim/forts.js';
 import { drawTurretRange } from './turretring.js';
+
+import { horseMax } from '../core/sim/army.js'; // (BAR1)
+// (BAR1, Arjun 25 Nov) health bars like the gates': a dark backing, green for your side and red for theirs, a tick every
+// 100 health, a thin white edge; armour is a grey block past the health (the bar stretches to fit it, like a shield)
+const BAR = { ally: '#5fd35a', foe: '#e2483d', armour: '#c9d2dc', mount: '#b07a42', tick: 100 };
+function healthBar(sx, sy, w, h, u, col) {
+  const hp = Math.max(0, u.hp), ar = u.leader ? Math.max(0, u.armour || 0) : 0, scale = Math.max(u.max, hp + ar) || 1, x0 = sx - w / 2;
+  ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillRect(x0 - 2, sy - 2, w + 4, h + 4);
+  ctx.fillStyle = col; ctx.fillRect(x0, sy, w * hp / scale, h);
+  if (ar > .5) { ctx.fillStyle = BAR.armour; ctx.fillRect(x0 + w * hp / scale, sy, w * ar / scale, h); }
+  if (u.leader || u.boss) { ctx.fillStyle = 'rgba(0,0,0,.7)'; for (let k = BAR.tick; k < scale - 1; k += BAR.tick) { const tx = x0 + w * k / scale; ctx.fillRect(tx - .5, sy, 1, h); } }
+  ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 1; ctx.strokeRect(x0 - .5, sy - .5, w + 1, h + 1);
+}
 import { drawEagle } from './eaglefx.js';
 import { drawRam } from './ramfx.js';
 import { drawDevi } from './devifx.js'; // (ARCH2)
@@ -106,27 +119,26 @@ export function drawOverlay(opts) {
   const player = G.player;
   // your own captain: health (and armour, stamina, horse) over his head, where your eyes already are
   if (G.state === 'play' && player && !player.dead) {
-    const [sx, sy, ok] = proj(player.x, player.y + 3.3 + (player.mounted ? 1.2 : 0), player.z);
-    if (ok) { const w = 58, k = Math.max(0, player.hp / player.max), low = k < .3;
-      ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(sx - w / 2 - 1, sy - 1, w + 2, 8);
-      ctx.fillStyle = low ? (Math.sin(G.T * 10) > 0 ? '#ff5a4a' : '#c0302a') : '#b8d43a'; ctx.fillRect(sx - w / 2, sy, w * k, 6);
-      let y = sy + 8; const thin = (v, col) => { ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, y, w, 3); ctx.fillStyle = col; ctx.fillRect(sx - w / 2, y, w * Math.min(1, Math.max(0, v)), 3); y += 4; };
+    const [sx, sy, ok] = proj(player.x, player.y + 3.3 + (player.mounted ? 1.6 : 0), player.z);
+    if (ok) { const w = 62, low = player.hp / player.max < .3;
+      healthBar(sx, sy, w, 7, player, low ? (Math.sin(G.T * 10) > 0 ? '#ff5a4a' : '#c0302a') : BAR.ally); // (BAR1: gate-style)
+      let y = sy + 10; const thin = (v, col) => { ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, y, w, 3); ctx.fillStyle = col; ctx.fillRect(sx - w / 2, y, w * Math.min(1, Math.max(0, v)), 3); y += 4; };
       const st = player.st ?? STAMINA.max; if (st < STAMINA.max - 1) thin(st / STAMINA.max, st < STAMINA.low ? '#e0703a' : '#f2dc8a');
-      if (player.mounted && player.horseK != null) thin(player.horseK, '#b07a42');
+      if (player.mounted) thin(Math.max(0, player.horseHp) / horseMax(G.myTi), BAR.mount); // (BAR1: your mount)
       thin(xpShare(G.myTi), '#9fd8ff'); drawLevel(ctx, sx - w / 2 - 10, sy + 3, G.myTi, true); // (C1b: XP and level)
-      if (player.armour > .5) { ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, sy - 5, w, 3); ctx.fillStyle = '#c9d2dc'; ctx.fillRect(sx - w / 2, sy - 5, w * Math.min(1, player.armour / ARMOUR.hp), 3); } }
+    } // (BAR1: armour is the grey end of the health bar)
   }
   if (G.state === 'play') {
     for (const u of G.units) {
       if (u.dead || u.fog || u === player || (u.hp >= u.max - .5 && !u.leader && !u.boss)) continue;
       const d = Math.hypot(u.x - camera.position.x, u.z - camera.position.z); if (d > 34) continue;
-      const [sx, sy, ok] = proj(u.x, u.y + (u.leader ? 3.2 : 2.8) * bodyOf(u) + (u.mounted ? 1.2 * body.champ : 0), u.z); if (!ok) continue;
-      const w = u.leader || u.boss ? 40 : 26;
-      ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, sy, w, 4);
-      ctx.fillStyle = u.neutral ? NEUTRAL.css : TEAMS[colorOf(u.ti)].css; ctx.fillRect(sx - w / 2, sy, w * Math.max(0, u.hp / u.max), 4);
+      const [sx, sy, ok] = proj(u.x, u.y + (u.leader ? 3.2 : 2.8) * bodyOf(u) + (u.mounted ? 1.6 * body.champ : 0), u.z); if (!ok) continue;
+      const w = u.leader || u.boss ? 44 : 26, foe = isEnemyTi(u.ti, G.myTi);
+      healthBar(sx, sy, w, u.leader || u.boss ? 5 : 4, u, u.neutral ? NEUTRAL.css : foe ? BAR.foe : BAR.ally); // (BAR1: gate-style: green yours, red theirs)
       if (u.leader) drawLevel(ctx, sx - w / 2 - 8, sy + 2, u.ti, false); // (C1b)
-      if (u.leader && (u.st ?? STAMINA.max) < STAMINA.max - 1) { ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, sy + 5, w, 2.5); ctx.fillStyle = u.st < STAMINA.low ? '#e0703a' : '#f2dc8a'; ctx.fillRect(sx - w / 2, sy + 5, w * Math.max(0, u.st) / STAMINA.max, 2.5); } // (stamina, when it's not full)
-      if (u.leader && u.armour > .5) { ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(sx - w / 2, sy - 4, w, 3); ctx.fillStyle = '#c9d2dc'; ctx.fillRect(sx - w / 2, sy - 4, w * Math.min(1, u.armour / ARMOUR.hp), 3); } // (armour: a steel bar over the health)
+      let ly = sy + 7; const thin = (v, col) => { ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(sx - w / 2, ly, w, 2.5); ctx.fillStyle = col; ctx.fillRect(sx - w / 2, ly, w * Math.min(1, Math.max(0, v)), 2.5); ly += 3.5; };
+      if (u.leader && u.mounted) thin(Math.max(0, u.horseHp) / horseMax(u.ti), BAR.mount); // (BAR1: the mount's health under the rider's)
+      if (u.leader && (u.st ?? STAMINA.max) < STAMINA.max - 1) thin(u.st / STAMINA.max, u.st < STAMINA.low ? '#e0703a' : '#f2dc8a');
       if (u.boss && u.post && u.post.buff) { // (HUD1: a buff camp's mini captain: his buff's name over his bar, in its colour)
         ctx.font = '800 11px "Barlow Semi Condensed", sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.65)';
         const t = u.post.buff === 'drum' ? 'WAR DRUM' : 'SWIFT'; ctx.strokeText(t, sx, sy - 5); ctx.fillStyle = u.post.buff === 'drum' ? '#ff6a5c' : '#7cc4ff'; ctx.fillText(t, sx, sy - 5);

@@ -9,6 +9,7 @@ Last updated: 2026-11-25 (GOLD1, SCEP1, RATE1, MATCH1 built on launch26). 2026-1
 - SCEP1 the war chest is now the Sceptre: 5 points, warned at 4:30, caged relic look; built.
 - RATE1 skill-only match rating (35/25/25/15, average 6.0), kill assists, cover, objective assists, Assists and Objectives on results; built.
 - MATCH1 full online match to 10:00 with a leaver passes; every battle is now 12 captains (service + client), late friends sit on your side; built.
+- GOLD2 kill gold 50/20/8, mount 20; HEAL1 castle heal +20/s champions, +10/s soldiers with "+20"; BAR1 gate-style bars (ticks, armour, mount); Sigrun's 2D portrait and face: built.
 - Stage 1 left: Arjun's look at GOLD1's numbers, a real friends match, then his "ship" (the online service deploys with main).
 
 ## C5 Sigrun, Viking Raider (Sigrun chat 21-22 Nov, Arjun's go). SHIPPED to main 22 Nov (f4e2830) + C5fix

@@ -1,6 +1,6 @@
 // Battle rules: death, castles falling, scores, the end of a match, control points.
 import { respawnTime } from './respawn.js'; // (CASTLE7)
-import { CROWN2, LAUNCH, TEAMS, MORALE, RALLY, CAPKILL_SLOW, CTRL, LAST } from '../../config.js';
+import { CROWN2, LAUNCH, TEAMS, MORALE, RALLY, CAPKILL_SLOW, CTRL, LAST, KILLGOLD } from '../../config.js';
 import { G, bus, isEnemyTi, colorOf, activeArmies, rules, matchTime, isC2 } from '../state.js';
 import { rnd } from '../world.js';
 import { fx, say, sound } from './util.js';
@@ -51,7 +51,7 @@ export function die(u, killer, ang, launch = 0) {
   }
   if (killer) {
     const bounty = G.mode === 'dm' && u.leader && u.ti === G.bounty;
-    const reward = u.leader ? (bounty ? 50 : 25) : 8;
+    const reward = u.leader ? (bounty ? KILLGOLD.champ * 2 : KILLGOLD.champ) : killer.leader ? KILLGOLD.byChamp : KILLGOLD.soldier; // (GOLD2)
     G.teams[killer.ti].gold += reward;
     // every player captain's kills are counted on the host; clients get theirs at the final whistle
     if (killer.human) { G.teams[killer.ti].kills = (G.teams[killer.ti].kills | 0) + 1; if (killer.ti === G.myTi) G.kills++; }

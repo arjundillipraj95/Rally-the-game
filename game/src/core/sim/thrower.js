@@ -120,7 +120,7 @@ function land(st) {
 export function hurt(b, dmg, sh, ti, cause, testudo = STONE.testudo) {
   if (b.testudo) dmg *= testudo;
   if (b.iframeT > 0 || b.execT > 0) return;
-  if (b.mounted) { horseDamage(b, dmg); return; }
+  if (b.mounted) { horseDamage(b, dmg, sh || { ti }); return; }
   if (b.leader && b.armour > 0) dmg = soak(b, dmg, true);
   if (sh && !sh.dead) champHit(sh, b);
   dmg *= takenX(b);

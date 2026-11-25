@@ -1,7 +1,7 @@
 // Battle rules: orders, morale and rally, recruiting, upgrades, speed, horses.
 import { moraleBounds } from './nexus.js'; // (CASTLE8)
 import { CAV, RANGED, CROWN2, CROWN, STATS, HUMAN_CAPTAIN, CAPTAIN_SPD, HORSE_HP, HORSE_CD, UPGRADES, FOOT_TIERS, ARCH_TIERS, CAPTAIN_TIERS, CHARGE, EXEC, FORT, HOLD_ATK, MORALE, RALLY, AURA, LAST, ARMOUR, CASTLE26 } from '../../config.js';
-import { G, isEnemy, colorOf, capOf, isC2 } from '../state.js';
+import { G, isEnemy, isEnemyTi, colorOf, capOf, isC2 } from '../state.js';
 import { groundY, clamp, rnd, angDiff, W, groundSlow } from '../world.js';
 import { fx, say, sound, spark } from './util.js';
 import { homeAt, mkUnit, squadOf, armyPlaces, placeOf, startMarch } from './match.js';
@@ -9,7 +9,7 @@ import { applyFort, castleHere, fortLvl, fortifyGates, lastStand, nearestFoe, vi
 import { swiftSpd } from './buffs.js';
 import { applyChamp, champSpd } from '../../champions/stats.js';
 import { champOf } from '../../champions/index.js';
-import { UNITS } from '../../config.js';
+import { UNITS, KILLGOLD } from '../../config.js';
 import { mountSwordsman, applySwordTier, applyCavTier, horseLost, bardingMiss } from './cavalry.js'; // (C2b)
 import { inflHp, inflSpd } from '../../champions/influence.js';
 import { unitRow, spearman } from '../../champions/army.js';
@@ -232,14 +232,21 @@ export function dismount(u, thrown) {
     if (u.human) say('horseDown', u.ti);
   } else if (thrown) {
     h.state = 'dead'; h.t = 0; h.fall = Math.random() < .5 ? 1 : -1;
+    mountGold(u);
     u.horseCd = horseCooldown(u.ti); u.horseHp = horseMax(u.ti);
     push(u, Math.sin(u.face + Math.PI / 2) * 5, Math.cos(u.face + Math.PI / 2) * 5, 1.0);
     if (u.human) say('horseDown', u.ti);
   } else { h.state = 'leaving'; h.t = 0; }
 }
-export function horseDamage(r, dmg) {
+// (GOLD2) a champion's mount killed: KILLGOLD.mount to the army whose blow hit it last (within byT s), if an enemy's
+function mountGold(u) {
+  const b = u.horseBy; u.horseBy = null;
+  if (!u.leader || !b || G.T - b.T > KILLGOLD.byT || !isEnemyTi(b.ti, u.ti) || !G.teams[b.ti]) return;
+  G.teams[b.ti].gold += KILLGOLD.mount; // (earned is counted from the gold's rise, step.js)
+}
+export function horseDamage(r, dmg, by = null) {
   if (bardingMiss(r)) return; // (C2b: Barding)
-  r.horseHp -= dmg;
+  r.horseHp -= dmg; if (by && by.ti != null && by.ti !== r.ti) r.horseBy = { ti: by.ti, T: G.T }; // (GOLD2: who gets the mount's gold)
   spark(r.x, r.y + 1.3, r.z, '#d42a1e', 5); sound('hit', r.x, r.z);
   if (r.horseHp <= 0) dismount(r, true);
 }

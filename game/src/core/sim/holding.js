@@ -4,19 +4,25 @@
 // side's armies' horn (the army ult, until the champions' army ults come); breaking a nexus takes shards from its side.
 import { CASTLE26 } from '../../config.js';
 import { G } from '../state.js';
-import { say } from './util.js';
+import { say, fx } from './util.js';
 import { allianceOf, sideArmies } from './holds.js';
 
 const H = () => CASTLE26.hold;
 export const castlePts = h => (h.mid ? H().pts.mid : H().pts.outer);
 export function holdingTick(dt) {
-  if (G.role === 'client' || !G.layout || !G.layout.cwalls) return;
+  if (!G.layout || !G.layout.cwalls) return;
+  const client = G.role === 'client'; // (HEAL1: a joined phone only shows the "+20"s; the host heals)
   for (const cw of G.layout.cwalls) {
     const h = G.holds[cw.hid]; if (!h || h.owner < 0) continue;
     h.healT = (h.healT || 0) + dt; if (h.healT < H().healEvery) continue; h.healT = 0;
     const inYard = u => !u.dead && !u.neutral && Math.hypot(u.x - cw.x, u.z - cw.z) < cw.r;
     if (G.units.some(u => inYard(u) && allianceOf(u.ti) >= 0 && allianceOf(u.ti) !== h.owner)) continue;
-    for (const u of G.units) if (inYard(u) && allianceOf(u.ti) === h.owner && u.hp < u.max) u.hp = Math.min(u.max, u.hp + H().heal);
+    for (const u of G.units) {
+      if (!inYard(u) || allianceOf(u.ti) !== h.owner || u.hp >= u.max - .5) continue;
+      const n = u.leader ? H().healChamp : H().healMan;
+      if (u.leader) fx('float', { x: u.x, y: u.y + 3.6, z: u.z, text: `+${n}`, color: '#6ee86a' });
+      if (!client) u.hp = Math.min(u.max, u.hp + n);
+    }
   }
 }
 const gain = (a, n) => { const K = G.c2; K.shards = K.shards || {}; K.shards[a] = (K.shards[a] || 0) + n;

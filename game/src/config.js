@@ -102,6 +102,9 @@ export const CROWN2 = {
 // recruited against soldiers lost), teamwork 15% (objective assists, kill assists, cover). Each part is scored against this
 // match's average, so an average game is about `avg` and 9+ takes about three times the average in every part.
 // assistT/coverT: seconds a blow on a champion counts toward an assist / as cover; objR: m from an objective for its assist.
+// (GOLD2, Arjun 25 Nov) gold for kills, to the killer's army: a champion 50; a soldier 20 when your champion lands the
+// blow, 8 when your soldiers do; an enemy champion's mount (horse or wolf) 20. byT: s a blow on a mount still credits its killer.
+export const KILLGOLD = { champ: 50, byChamp: 20, soldier: 8, mount: 20, byT: 4 };
 export const RATING = { w: { pts: .35, kda: .25, army: .25, team: .15 }, avg: 6, assistT: 10, coverT: 5, objR: 30, recruitX: .5, assistX: .5, coverX: .1 };
 
 export const CROWN26 = {
@@ -151,7 +154,7 @@ export const CASTLE26 = {
   // (CASTLE6) holding a castle: points at the end (middle, outer); +heal health every healEvery s for its side's men in
   // its yard while no enemy is in it; a Crown shard (the first side to take it) adds shardRally to each army's horn;
   // breaking a nexus takes up to nexusShards of its side's shards
-  hold: { pts: { mid: 5, outer: 3 }, heal: 8, healEvery: 3, shardRally: 25, nexusShards: 2 },
+  hold: { pts: { mid: 5, outer: 3 }, heal: 8, healEvery: 1, healChamp: 20, healMan: 10, shardRally: 25, nexusShards: 2 }, // (HEAL1, Arjun 25 Nov: every second, champions +20, soldiers +10, a "+20" over each champion healed; `heal` is the old flat 8, unused)
   nexus: { hp: 3000, pts: 5, morale: 30, low: 50, lowT: 60, crownFloor: 50 },
   // (CASTLE9) computer champions: go for an open enemy nexus within nexusR m, and at a fortified castle, only with
   // minMen soldiers; fortify a castle of theirs within fortR m when they have its cost and fortSpare more; an attack

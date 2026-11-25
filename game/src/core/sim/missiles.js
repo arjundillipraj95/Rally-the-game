@@ -72,12 +72,12 @@ export function arrowHit(a, b) {
   // a shieldwall turns arrows from the front only — locked shields don't cover the sides or back
   if (b.shieldwall && frontal && !a.bolt && !a.turret && (b.kind === 'foot' || a.champ || Math.random() < .6)) { spark(b.x, b.y + 2.2, b.z, '#e8d9b0', 4); sound('thud', b.x, b.z); return; }
   b.lastHit = G.T;
-  if (a.unhorse && b.mounted) { horseDamage(b, dmg); if (b.mounted) dismount(b, true); gainRally(a.shooter, RALLY.unhorse); fx('fxmsg', { k: 'fxunhorse', u: b }); return; } // a full-draw javelin knocks a rider clean off
+  if (a.unhorse && b.mounted) { horseDamage(b, dmg, a.shooter || a); if (b.mounted) dismount(b, true); gainRally(a.shooter, RALLY.unhorse); fx('fxmsg', { k: 'fxunhorse', u: b }); return; } // a full-draw javelin knocks a rider clean off
   if (b.testudo && !a.bolt) { blockedBy(null, b, a.shooter); return; } // (C3e: arrows do nothing on the testudo's roof)
   if (shields.length) { const S = coverOf(b, a.x0 ?? b.x - (a.vx || 0), a.z0 ?? b.z - (a.vz || 0)); if (S) { blockedBy(S, b, a.shooter); return; } } // (C3c: the Shield of Cassius stops it, castle shots too)
   if (shooter && shooter.fireArrows && b.kind === 'thrower') dmg *= 3; // (C4: Agni Villalar's fire arrows on siege engines)
   if (!a.javelin && !a.turret && !a.champ && b.kind === 'foot') dmg *= COUNTER.mult; // (C1d the counter rule: soldiers' arrows on infantry; RANGE1: not a champion's)
-  if (b.mounted) { horseDamage(b, dmg); return; } // (C1d: a mounted champion's horse takes every arrow)
+  if (b.mounted) { horseDamage(b, dmg, a.shooter || a); return; } // (C1d: a mounted champion's horse takes every arrow)
   let blocked = false;
   if (frontal && !b.mounted && !b.carrying && loc !== 'head' && !a.bolt && !a.turret && !a.champ) { // (RANGE1: a plain shield doesn't turn a champion's arrow) // (CASTLE2: a ballista bolt goes through a shield)
     if (b.kind === 'foot' && !a.plunge && Math.random() < .7) blocked = true; // (a plain shield; arrows plunging from a tower come in over it)

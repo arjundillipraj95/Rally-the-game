@@ -286,7 +286,7 @@ export function update(dt, input) {
       }
       // F9 spearmen on Hold, still and facing him: any rider at speed is stopped on the spears and thrown
       if (st === 'stop' && d < o.r + r.r + 1.6) {
-        r.charge = 0; if (r.remote) r.kick.halt = 1; horseDamage(r, CHARGE.stopHorse); push(r, -Math.sin(r.face) * 6, -Math.cos(r.face) * 6, .5); if (r.mounted) dismount(r, true);
+        r.charge = 0; if (r.remote) r.kick.halt = 1; horseDamage(r, CHARGE.stopHorse, o); push(r, -Math.sin(r.face) * 6, -Math.cos(r.face) * 6, .5); if (r.mounted) dismount(r, true);
         spark(o.x, o.y + 1.5, o.z, '#fff3b0', 8); sound('clang', o.x, o.z);
         fx('float', { x: o.x, y: o.y + 2.8, z: o.z, text: 'Spear wall!', color: TEAMS[colorOf(o.ti)].css });
         if (r.isMe) { fx('shake', .4); fx('buzz', 40); }

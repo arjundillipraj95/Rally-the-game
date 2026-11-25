@@ -91,7 +91,7 @@ function contacts(u, R) {
     if (o.kind === 'foot' && braced(o) && faces(o)) { // a braced spear line: it stops here, and lands on the front of it
       for (const f of G.units) if (!f.dead && isEnemy(u, f) && f.kind === 'foot' && braced(f) && faces(f) && ahead(f, 1.2) != null) {
         R.hit.add(f.id); hit(u, f, 1, { fixed: d.soldier * k, stun: d.stumble, kb: .05, unblockable: true, unparryable: true });
-        if (u.mounted) horseDamage(u, f.dmg * d.horseX);
+        if (u.mounted) horseDamage(u, f.dmg * d.horseX, f);
       }
       if (!u.mounted) hit(o, u, 1, { fixed: d.braceHurt, kb: .05 }); // (the spears bite him)
       recoil(u, R); fx('fxmsg', { k: 'fxrambrace', u }); return true;

@@ -56,7 +56,7 @@ function rideStrike(p, tg, q) {
   // a beaten captain, marked, taken at full gallop with a perfect release: ridden down
   if (q === 'perfect' && p.human && tg.leader && tg.execReady && !tg.dead && (p.gallop || 0) >= .6 && (tg.duelId || 0) === (p.duelId || 0)) { rideDown(p, tg, ang); return; }
   const mult = RIDE[w].mult * (q === 'perfect' ? RIDE.perfectX : q === 'good' ? RIDE.goodX : RIDE.grazeX) * (.5 + .6 * sf);
-  if (q === 'perfect' && w === 'spear' && tg.mounted) { horseDamage(tg, 999); if (tg.mounted) dismount(tg, true); gainRally(p, RALLY.unhorse); fx('fxmsg', { k: 'fxjoust', u: tg, a: p }); } // a lance square on another rider: off he goes
+  if (q === 'perfect' && w === 'spear' && tg.mounted) { horseDamage(tg, 999, p); if (tg.mounted) dismount(tg, true); gainRally(p, RALLY.unhorse); fx('fxmsg', { k: 'fxjoust', u: tg, a: p }); } // a lance square on another rider: off he goes
   hit(p, tg, mult, { heavy: q !== 'graze', shown: true, kb: q === 'perfect' ? 2.2 : 1.2, stun: q === 'perfect' ? 1 : .4 }); // (shown: a rider's blow is always announced, so always parryable on the glint)
   if (q === 'perfect') {
     gainRally(p, RALLY.ride);
@@ -213,7 +213,7 @@ export function braceTick(p, dt) {
     if (d > reach || Math.abs(angDiff(p.face, Math.atan2(dx, dz))) > .7) continue;
     p.braceCd = HOLD_ATK.braceCd; p.swing = .38; p.swingKind = 3;
     if (o.mounted) {
-      horseDamage(o, 60); if (o.mounted) dismount(o, true); gainRally(p, RALLY.unhorse); hit(p, o, 1.6, { unparryable: true, kb: 1.5 });
+      horseDamage(o, 60, p); if (o.mounted) dismount(o, true); gainRally(p, RALLY.unhorse); hit(p, o, 1.6, { unparryable: true, kb: 1.5 });
       fx('fxmsg', { k: 'fximpale', u: o }); if (p.isMe) { fx('hitstop', .12); fx('shake', .45); }
     } else hit(p, o, 1.45, { kb: 1.6, stun: .5 });
     break;
