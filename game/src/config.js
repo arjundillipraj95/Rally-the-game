@@ -63,8 +63,8 @@ export const CROWN2 = {
   safeR: 9.6, safe: { dmg: 45, heal: 18, shield: 3, boost: 1.3, boostT: 4 }, // (home: enemies inside burn, yours heal; after you step out you're untouchable shield s and quicker for boostT s. F7: safeR is the yard inside the walls, was 15)
   yard: { r: 10.5, open: 10, h: 2.5, post: 3.6 }, // (F7: each home is a courtyard, walls r m round its middle, open at the front `open` m wide toward the keep; h: wall height, post: the two posts at the opening)
   base: 5, perCastle: 5, perVillage: 3, startSquad: ['foot', 'foot', 'foot', 'arch', 'arch'],
-  income: 6, gold: { castle: 2, village: 1 }, startGold: 150,
-  bonus: { castle: 200, village: 100 }, steal: { castle: .1, village: .05 },
+  income: 2, gold: { castle: 1, village: 1 }, startGold: 150, // (GOLD1, Arjun 15 Nov: 2/s base (was 6), +1/s a castle held (was 2), 150 a capture (was 200))
+  bonus: { castle: 150, village: 100 }, steal: { castle: .1, village: .05 },
   take: { village: 7, villageFort: 11, castle: [10, 14, 18] }, villageFort: 80, // (seconds to take: a village; a castle at level 1, 2, 3)
   // the neutral garrisons (F4): a castle's guards and a jungle camp's bandits are real soldiers, 3 footmen and 2 archers,
   // each fighting and dying on his own. They hold their post until an army's man comes within `ambush` m (or one of them
