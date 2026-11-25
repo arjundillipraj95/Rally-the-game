@@ -2,7 +2,7 @@
 // retrospect with the good and the bad, awards that have to be earned (honours and roasts), the full
 // table and the battle's timeline. Honest, not a participation prize: a quiet match gets a low rating
 // and a roast, and an award only goes out when someone actually cleared its bar.
-import { TEAMS } from '../config.js';
+import { TEAMS, RATING, CROWN2, CASTLE26 } from '../config.js';
 import { G, bus, colorOf, activeArmies, SLOT_NAME } from '../core/state.js';
 
 const pick = a => a[(Math.random() * a.length) | 0];
@@ -31,23 +31,29 @@ function statsOf(i, w) {
     i, capK, menK, kills: capK + menK, falls: s.falls | 0, lost: s.lost | 0,
     earned: Math.round(s.earned || 0), purse: Math.round(s.endGold ?? s.gold ?? 0), dist: Math.round(s.dist || 0),
     castle: h.castle | 0, hold: h.hold | 0, chest: h.chest | 0, duel: h.duel | 0, exec: h.exec | 0, ride: h.ridedown | 0,
-    recruits: s.recruits | 0, capkill: h.capkill | 0, streak: h.streak | 0, disarm: h.disarm | 0, crown: h.crown | 0,
+    recruits: s.recruits | 0, assists: s.assists | 0, cover: s.cover | 0, objA: s.objA | 0, sceptre: h.sceptre | 0, nexus: h.nexus | 0, capkill: h.capkill | 0, streak: h.streak | 0, disarm: h.disarm | 0, crown: h.crown | 0,
     result: w < 0 ? 'draw' : G.ALLY[colorOf(i)] === w ? 'win' : 'lose',
   };
 }
 // Out of 10, measured against the others in this battle (a long, bloody one inflates everyone's numbers).
-// Winning matters but can't carry a captain who did nothing; falling more than the rest and wasting men costs.
+// (RATE1) Skill only: where your side placed doesn't count; falling more than the rest and wasting men costs.
 const place = x => x.castle * 3 + x.hold + x.chest * 2;
 export function contextOf(xs) {
   const mx = f => Math.max(1, ...xs.map(f)), mean = f => xs.reduce((n, x) => n + f(x), 0) / Math.max(1, xs.length);
   return { n: xs.length, kills: mx(x => x.kills), capK: mx(x => x.capK), menK: mx(x => x.menK), meanKills: mean(x => x.kills),
-    maxFalls: Math.max(0, ...xs.map(x => x.falls)), minFalls: Math.min(...xs.map(x => x.falls)), maxLost: Math.max(0, ...xs.map(x => x.lost)), minCapK: Math.min(...xs.map(x => x.capK)), place: mx(place), earned: mx(x => x.earned), falls: mean(x => x.falls), lost: mx(x => Math.max(0, x.lost - x.kills)) };
+    maxFalls: Math.max(0, ...xs.map(x => x.falls)), minFalls: Math.min(...xs.map(x => x.falls)), maxLost: Math.max(0, ...xs.map(x => x.lost)), minCapK: Math.min(...xs.map(x => x.capK)), place: mx(place), earned: mx(x => x.earned), falls: mean(x => x.falls), lost: mx(x => Math.max(0, x.lost - x.kills)),
+    mean: Object.fromEntries(Object.keys(RATING.w).map(k => [k, mean(x => parts(x)[k])])) }; // (RATE1)
 }
+// (RATE1) the four parts of the rating (RATING): what each champion did, before it is scored against the match's average
+export function parts(x) {
+  const P = CROWN2.points, pts = x.castle * P.castle + x.sceptre * P.chest + x.crown * P.crown + x.nexus * CASTLE26.nexus.pts + x.capkill * P.killCaptain + x.objA;
+  return { pts, kda: (x.capK + RATING.assistX * x.assists) / (1 + x.falls), army: (x.menK + RATING.recruitX * x.recruits) / (1 + x.lost),
+    team: x.objA + x.assists + RATING.coverX * x.cover };
+}
+// each part against the match's average: the average scores RATING.avg / 10, three times it about 0.94, nothing 0
 export function ratingOf(x, c) {
-  let r = 2 + (x.result === 'win' ? 2 : x.result === 'draw' ? 1 : 0);
-  r += 2.2 * x.kills / c.kills + 1.2 * x.capK / c.capK + 1.6 * place(x) / c.place + .6 * x.earned / c.earned;
-  r += Math.min(1, x.duel * .5 + (x.exec + x.ride) * .25) + Math.min(.8, x.crown * .4);
-  r -= Math.min(1.8, .6 * x.falls / (c.falls + 1)) + .8 * Math.max(0, x.lost - x.kills) / c.lost;
+  const q = parts(x), base = 1 - RATING.avg / 10; let r = 0;
+  for (const k in RATING.w) { const m = c.mean[k]; r += RATING.w[k] * 10 * (m > 0 ? 1 - Math.pow(base, q[k] / m) : RATING.avg / 10); }
   return Math.round(Math.max(1, Math.min(10, r)) * 10) / 10;
 }
 
@@ -155,14 +161,14 @@ export function myLine(rep) {
   return { me, text: `${ordinal(me.place)} of ${rep.rows.length}` };
 }
 export function renderCaptains(el, rep) {
-  el.innerHTML = `<table class="ctab"><thead><tr><th></th><th class="nm">Captain</th><th>Rating</th><th>Kills</th><th>Army kills</th><th>Recruited</th><th>Fell</th><th>Lost</th><th>Gold</th></tr></thead><tbody>${rep.rows.map(r => `
+  el.innerHTML = `<table class="ctab"><thead><tr><th></th><th class="nm">Captain</th><th>Rating</th><th>Kills</th><th>Assists</th><th>Objectives</th><th>Army kills</th><th>Recruited</th><th>Fell</th><th>Lost</th><th>Gold</th></tr></thead><tbody>${rep.rows.map(r => `
     <tr class="crow${r.i === G.myTi ? ' me' : ''}" data-i="${r.i}" tabindex="0">
       <td class="pl">${MEDAL[r.place - 1] || r.place}</td>
       <td class="nm"><i style="background:${r.css}"></i>${esc(r.name)}${r.mvp ? ' <em class="mvp">MVP</em>' : ''}${(r.awards || []).map(a => ` <em class="aw${a.honour ? '' : ' roast'}">${esc(a.name)}</em>`).join('')}</td>
       <td><b class="rt${r.rating >= 8 ? ' hi' : r.rating < 4 ? ' lo' : ''}">${r.rating.toFixed(1)}</b></td>
-      <td>${r.capK}</td><td>${r.menK}</td><td>${r.recruits}</td><td>${r.falls}</td><td>${r.lost}</td><td>${r.earned}</td>
+      <td>${r.capK}</td><td>${r.assists}</td><td title="taken, plus helped">${r.castle + r.sceptre + r.crown + r.nexus}${r.objA ? ` +${r.objA}` : ''}</td><td>${r.menK}</td><td>${r.recruits}</td><td>${r.falls}</td><td>${r.lost}</td><td>${r.earned}</td>
     </tr>
-    <tr class="retro" data-for="${r.i}" hidden><td></td><td colspan="9"><span class="g">👍 ${esc(r.good)}</span><span class="b">👎 ${esc(r.bad)}</span></td></tr>`).join('')}</tbody></table>
+    <tr class="retro" data-for="${r.i}" hidden><td></td><td colspan="11"><span class="g">👍 ${esc(r.good)}</span><span class="b">👎 ${esc(r.bad)}</span></td></tr>`).join('')}</tbody></table>
     <small class="hint">Tap a captain for his retrospect</small>`;
   el.querySelectorAll('.crow').forEach(tr => {
     const toggle = () => { const rt = el.querySelector(`.retro[data-for="${tr.dataset.i}"]`); rt.hidden = !rt.hidden; tr.classList.toggle('open', !rt.hidden); };

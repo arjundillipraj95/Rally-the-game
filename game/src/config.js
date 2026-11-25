@@ -97,6 +97,13 @@ export const CROWN2 = {
 // castleA: the outer castles' angle from the middle one; bridgeA: the river ring's side bridges, angle from the King's Road.
 // camps: each jungle half's camps, [angle from the King's Road, radius, kind]; the buff camp is the war drum on the
 // left half and swift on the right (placed only: their rules come later).
+// (RATE1, design 15 Nov) the match rating out of 10, skill only (place doesn't matter, gold isn't counted): points the
+// champion brought his side 35%, champion kills and assists against deaths 25%, army 25% (enemy soldiers killed and soldiers
+// recruited against soldiers lost), teamwork 15% (objective assists, kill assists, cover). Each part is scored against this
+// match's average, so an average game is about `avg` and 9+ takes about three times the average in every part.
+// assistT/coverT: seconds a blow on a champion counts toward an assist / as cover; objR: m from an objective for its assist.
+export const RATING = { w: { pts: .35, kda: .25, army: .25, team: .15 }, avg: 6, assistT: 10, coverT: 5, objR: 30, recruitX: .5, assistX: .5, coverX: .1 };
+
 export const CROWN26 = {
   R: 170, // (MAP12: the mountain's rim, 15 m behind the castles' walls; each base, its nexus and road stand out on a peak over the clouds)
   r: { home: 1.2235, nexus: 1.0529, lane: 0.8471, ridge: 0.6965, river: 0.4824, riverW: 0.0241, chasm: 0.2111, chasmW: 0.0289, arena: 0.1809 }, // (metres: base 208, nexus 179, lane 144, ridge 118, river 82)

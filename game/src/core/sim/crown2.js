@@ -10,6 +10,7 @@ import { duels, endDuel } from './duel.js';
 import { die, endMatch } from './score.js';
 import { applyCastleGates, castleTowersTick, freshGates, towersTick } from './forts.js';
 import { allianceOf, sideArmies } from './holds.js';
+import { creditObjective } from './credit.js'; // (RATE1)
 import { castle3Tick } from './castle3.js';
 import { captureTick } from './capture.js';
 import { siegeTick } from './siege.js';
@@ -50,7 +51,7 @@ export function c2Take(h, a, per) {
   h.siege = null; if (k === 'castle') shardOnTake(h, a); // (CASTLE6)
   h.owner = a; h.by = by; h.prog = 0; h.cap = -1; h.tick = 0; h.fort = 0; // (a palisade doesn't change hands)
   say('holdTaken', a, h.kind, h.id); hl(by, h.kind === 'castle' ? 'castle' : 'hold');
-  if (h.kind === 'castle') xpForCastle(h, a, by, sideArmies); // (C1b)
+  if (h.kind === 'castle') { xpForCastle(h, a, by, sideArmies); creditObjective(a, h.x, h.z, by); } // (C1b; RATE1)
   for (const s of G.teams) s.homeSpot = null; for (const u of G.units) u.runTo = null;
   if (G.cgates[h.id]) { G.cgates[h.id] = freshGates(0); applyCastleGates(); } // (CASTLE1: taken: level 0, gates open)
   if (h.kind === 'castle') h.shieldT = G.T + CASTLE26.shield; // (CASTLE1: the banner rises; nobody takes it back meanwhile)
@@ -114,13 +115,13 @@ export function c2Hit(u, b) {
   if (b.hp > 0) return;
   b.hp = 0; const a = allianceOf(u.ti), K = G.c2;
   if (b.kind === 'chest') { c2ChestTo(a, u.ti); }
-  else if (b.kind === 'glacier') { K.crownPts[a] = CROWN2.points.crown; hl(u.ti, 'crown'); say('crownTaken', u.ti); fx('netFlush'); } // (CASTLE8: the Crown no longer ends the battle: 10:00 does)
+  else if (b.kind === 'glacier') { K.crownPts[a] = CROWN2.points.crown; hl(u.ti, 'crown'); creditObjective(a, b.x, b.z, u.ti); say('crownTaken', u.ti); fx('netFlush'); } // (CASTLE8: the Crown no longer ends the battle: 10:00 does)
   else if (b.kind === 'nexus') nexusBroken(b, a, u.ti);
 }
 function c2ChestTo(a, ti = -1) { // (ti: the captain whose blow broke it, if anyone's)
   const K = G.c2; K.chest = 2; const b = K.breaks.find(x => x.kind === 'chest'); if (b) b.hp = 0;
   if (K.floodAt == null && G.T < CROWN2.night) K.floodAt = G.T; // (F7a: the chest is done; the lake's countdown starts)
-  if (a != null) { xpForSceptre(a, sideArmies); K.chestPts[a] = CROWN2.points.chest; // (C1b: the Sceptre's XP)
+  if (a != null) { xpForSceptre(a, sideArmies); K.chestPts[a] = CROWN2.points.chest; if (ti >= 0) hl(ti, 'sceptre'); if (b) creditObjective(a, b.x, b.z, ti); // (C1b: the Sceptre's XP; RATE1: who broke it, and who helped)
  for (const i of sideArmies(a)) { hl(i, 'chest'); const s = G.teams[i]; s.gold += CHEST.gold; s.rally = 100; s.morale = Math.min(100, s.morale + 15); } say('chestTaken', a, CHEST.gold, ti); }
   fx('netFlush');
 }

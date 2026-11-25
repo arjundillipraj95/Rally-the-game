@@ -9,6 +9,7 @@ import { behind, canRespawn, dismount, gainRally, loseHeart } from './army.js';
 import { endDuel } from './duel.js';
 import { allianceOf, c2Points, dieNeutral, dropFlag } from './step.js'; // (later files: through the entry, so files still load in the old order)
 import { xpForKill } from './levels.js';
+import { creditKill } from './credit.js'; // (RATE1)
 
 export function die(u, killer, ang, launch = 0) {
   if (killer && killer.neutral) { if (!u.cause) u.cause = 'garrison'; killer = null; } // (F4: cut down by a garrison: nobody's kill)
@@ -30,6 +31,7 @@ export function die(u, killer, ang, launch = 0) {
   if (u.mounted) dismount(u, false);
   if (u.summon) { u.summon.state = 'leaving'; u.summon.t = 0; u.summon = null; }
   if (u.carrying) dropFlag(u);
+  if (u.leader) creditKill(u, killer && isEnemyTi(killer.ti, u.ti) ? killer : null); // (RATE1: kill assists)
   { // the tally, for the results screen: kills by each captain and by his men, his falls and his men lost
     const vs = G.teams[u.ti]; if (vs) { if (u.leader) vs.falls = (vs.falls | 0) + 1; else vs.lost = (vs.lost | 0) + 1; }
     const ks = killer && G.teams[killer.ti]; if (ks && isEnemyTi(killer.ti, u.ti)) { if (killer.leader) ks.capK = (ks.capK | 0) + 1; else ks.menK = (ks.menK | 0) + 1; xpForKill(killer.ti, u); } // (C1b: XP to his army's champion)

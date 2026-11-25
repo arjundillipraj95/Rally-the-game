@@ -3,6 +3,7 @@
 // its side holds the Crown. The side that breaks it scores CASTLE26.nexus.pts; its owners' morale drops and stays low
 // for a while. It stays broken all match; nobody is out.
 import { CASTLE26 } from '../../config.js';
+import { creditObjective } from './credit.js'; // (RATE1)
 import { G, activeArmies, colorOf } from '../state.js';
 import { say, fx } from './util.js';
 import { hl } from './match.js';
@@ -22,6 +23,7 @@ export function nexusBroken(b, a, ti) {
   const K = G.c2, own = G.ALLY[b.c]; K.nexusPts = K.nexusPts || {}; K.nexusPts[a] = (K.nexusPts[a] || 0) + N().pts;
   for (const i of activeArmies()) if (G.ALLY[colorOf(i)] === own && G.teams[i]) { const s = G.teams[i]; s.morale = Math.max(0, s.morale - N().morale); s.lowT = G.T + N().lowT; }
   if (ti != null && ti >= 0) hl(ti, 'nexus');
+  creditObjective(a, b.x, b.z, ti ?? -1); // (RATE1)
   const sh = shardsOnNexus(own, a); // (CASTLE6)
   say('nexusBroken', b.c, a, ti ?? -1, N().pts, sh); fx('netFlush');
 }

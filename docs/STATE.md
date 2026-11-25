@@ -7,6 +7,7 @@ Last updated: 2026-11-22 (C5 Sigrun and C5fix shipped to main). 2026-11-21 (BOT1
 ## Stage 1 finish (25 Nov, Arjun's go: GOLD1, SCEP1, RATE1, MATCH1). On `launch26`
 - GOLD1 gold 2/s, +1/s a castle, 150 a capture (card has before/after): built, waiting for Arjun's ship.
 - SCEP1 the war chest is now the Sceptre: 5 points, warned at 4:30, caged relic look; built.
+- RATE1 skill-only match rating (35/25/25/15, average 6.0), kill assists, cover, objective assists, Assists and Objectives on results; built.
 
 ## C5 Sigrun, Viking Raider (Sigrun chat 21-22 Nov, Arjun's go). SHIPPED to main 22 Nov (f4e2830) + C5fix
 - C5fix (22 Nov, from Arjun's playtest): (1) death card threw an error for arrow/men deaths: my `//` comment in death.js HOW had eaten those two entries (now on their own line, unknown cause falls back to sword); (2) swordsmen and riders (kinds sword/cav) were never drawn by `drawHero`, so they stood frozen / were the old cartoon figure: now animated, riders on the fjord horse (broken since C2b, every army); (3) the wolf's lower-leg joints sat almost at the paw: raised to wrist/hock (`tools/models/sigrun/rejoint_wolf.py`, bpy from pip, works on the finished glb) and `fold` per gait in config/wolf.js. Proof: `store/r_C5fix.mjs`. Known: `r_C5-join.mjs` is flaky here (1-3 timing checks fail, also without C5fix).

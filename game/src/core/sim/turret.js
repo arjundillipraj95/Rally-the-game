@@ -3,6 +3,7 @@
 // already shooting (it sticks), else the nearest enemy soldier, else a champion (only while no soldier is in range). Shots on the same
 // champion ramp up volley by volley. Turret shots don't miss on a shield and don't roll for the head (missiles.js).
 import { CASTLE26 } from '../../config.js';
+import { creditHit } from './credit.js'; // (RATE1)
 import { G, bus } from '../state.js';
 import { makeArrow } from './missiles.js';
 import { allianceOf } from './holds.js';
@@ -37,4 +38,4 @@ export function turretShot(x, y, z, ti, e, dmg, bolt = false, cw = null) {
   if (bolt) bus.emit('boltShot', G.arrows[G.arrows.length - 1]); else sound('bow', x, z); // (FIX4: a bolt has its own twang)
 }
 // (for the hit code) a champion's blow or arrow on a champion: the turrets of the victim's side take note
-export function champHit(a, b) { if (a && b && a.leader && b.leader && a.ti !== b.ti) { a.champHitT = G.T; a.champHitA = allianceOf(b.ti); } }
+export function champHit(a, b) { if (a && b && a.leader && b.leader && a.ti !== b.ti) { creditHit(a, b); a.champHitT = G.T; a.champHitA = allianceOf(b.ti); a.champHitTi = b.ti; } } // (RATE1: credit first: it reads b's last blow)
