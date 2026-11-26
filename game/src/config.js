@@ -158,6 +158,14 @@ export const CASTLE26 = {
   // minMen soldiers; fortify a castle of theirs within fortR m when they have its cost and fortSpare more; an attack
   // alert in the last alertT s makes a castle worth defending
   ai: { nexusR: 90, minMen: 3, fortR: 45, fortSpare: 20, alertT: 10 },
+  // (AI3, Arjun 26 Nov) lanes: a left-laner defends an owned castle of his lane within defendR m (a right-laner any); the
+  // jungler helps a lane mate within pushingR m of his next castle when it is within helpR m, steals an enemy camp within
+  // stealR m with no enemy champion within stealSafeR m. Sceptre/Crown plans: score lead >= strat.lead holds, within
+  // strat.close it's all in when strength >= strat.bold of the average (else third party); behind at the Crown all in from
+  // strat.strong; a man counts manW of a level. Lurk lurkR m off the prize; go in when its health < stealAt, or two sides'
+  // champions within prizeR m are below hurtAt on average, or after waitT s. Backdoor: a castle with no owner champion within emptyR m.
+  lanes: { defendR: 60, pushingR: 25, helpR: 80, stealR: 60, stealSafeR: 30, lurkR: 20, prizeR: 14, stealAt: .3, hurtAt: .6, waitT: 45, emptyR: 35, manW: .2,
+    strat: { lead: 8, close: 5, bold: 1.1, strong: .9 } },
   respawn: { clock: [[0, 6], [180, 8], [360, 13], [480, 17], [600, 20]], calm: 8 },
   circle: { r: 4.5, fill: [10, 6, 4, 3], soldier: .1, soldierMax: .5, drain: 12, cam: .15 }, // (fill[0]: soldiers alone, Arjun 16 Nov; then 1, 2, 3+ champions)
 };

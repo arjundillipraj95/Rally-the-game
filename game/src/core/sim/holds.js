@@ -1,5 +1,6 @@
 // Battle rules: holds, the chest, the flag.
 import { castlePlan, castleThreat, castleReady } from './ai26.js'; // (CASTLE9)
+import { lanePlan, laneOf } from './lanes.js'; // (AI3)
 import { CROWN2, CROWN26, CROWN, TEAMS, CASTLE_R, HOLDS, CHEST } from '../../config.js';
 import { G, colorOf, NEUTRAL_TI, activeArmies, matchTime } from '../state.js';
 import { rnd, W } from '../world.js';
@@ -86,6 +87,7 @@ function jungleCamp(u, s) {
   if (!G.layout.map26 || G.c2.phase === 'night') return null;
   const c = colorOf(u.ti), mates = activeArmies().filter(i => colorOf(i) === c && G.teams[i] && G.teams[i].leader && !G.teams[i].leader.human);
   const lone = activeArmies().filter(i => colorOf(i) === c).length < 2;
+  if (laneOf(u.ti) && laneOf(u.ti) !== 'jungle') return null; // (AI3: a laner keeps to his lane)
   if (!lone && mates[mates.length - 1] !== u.ti) return null;
   const up = G.c2.breaks.filter(b => b.kind === 'camp' && b.n > 0 && G.layout.camps[b.id] && G.layout.camps[b.id].side === c && (!lone || b.buff));
   if (!up.length) return null;
@@ -107,6 +109,7 @@ function jungleCamp(u, s) {
 // attack nearby) is worth a march, more so for some captains than others.
 export function holdPlan(u, s) {
   const hs = G.holds; if (!hs || !hs.length) return null;
+  { const lp = lanePlan(u); if (lp !== undefined) return lp; } // (AI3: his lane's job)
   const a = allianceOf(u.ti);
   if (G.c2) { // the mountain: the war chest while it's in the arena, the glacier at night (some go, some hold)
     const K = G.c2, keep = s.plan && s.plan.kind === 'spot' && Math.random() > .1;

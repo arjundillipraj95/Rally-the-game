@@ -1,4 +1,5 @@
 // Friends, invites, the online search, the warm-up while searching, matchmade starts.
+import { setLanePicks } from '../core/sim/lanes.js';
 import { TEAMS, MAPS } from '../config.js';
 import { G, bus } from '../core/state.js';
 import { initAudio } from '../ui/audio.js';
@@ -87,6 +88,7 @@ async function startMatchmade(m) {
   if (G.warmup) warmupStop(false);
   renderSearch(); initAudio();
   const mine = m.seats[ON.me.id]; if (mine == null) return;
+  setLanePicks(Object.fromEntries(Object.entries(m.lanes || {}).filter(([id, l]) => l && m.seats[id] != null).map(([id, l]) => [m.seats[id], l]))); // (AI3: computers take the lanes players left)
   const vsUntil = m.vs && !m.late ? showVersus(m) : 0; // (F2: 10 s of every army before the battle loads; the phones link up meanwhile)
   $('playBtn').hidden = false;
   if (m.host === ON.me.id) { if (!(await matchHost(m.code, m.fmt, mine, Object.keys(m.seats).length, t => toast(t), vsUntil))) hideVersus(); }

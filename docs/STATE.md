@@ -3,7 +3,7 @@
 Work on `launch26` (test site https://rally-preview.arjun-rally.workers.dev deploys on every push; `main` = live).
 Every builder updates this file as the last step of its ticket. Keep it under ~120 lines; finished detail goes to
 `docs/history/2026-11-log.md` (the full board as of 26 Nov is at its end).
-Last updated: 2026-11-26 (FEEL3, FEEL4 built on launch26, not shipped).
+Last updated: 2026-11-26 (AI3, FEEL3, FEEL4 built on launch26, not shipped).
 
 ## Live on main (26 Nov)
 - The relaunch: new mountain (MAP), castles (CASTLE1-10, ORD1), champions Titus (C3), Devi (C4), Sigrun (C5), Stage 1
@@ -19,6 +19,10 @@ Last updated: 2026-11-26 (FEEL3, FEEL4 built on launch26, not shipped).
   AI1's hunt had left a computer's guard up for minutes (now `huntT`). r_FEEL3 11/11.
 - FEEL4 (card): a joined phone shows its own blow's hit on the target at once (~130 ms after the press at 250 ms
   lag), the host's word not played twice. r_FEEL4. Both: crown2sim/online roles off+on, r_FEEL1/2, r_DUEL4 pass.
+
+- AI3 (card): computers take a lane (left / right / jungle, by what players left, then class) and its job; at the
+  Sceptre and the Crown each side picks All in / Split / Hold / Third party and calls it to its players. `core/sim/lanes.js`.
+  r_AI3, crown2sim/online roles off+on, r_CASTLE9, r_AI1, r_AI2, r_BOT1 pass.
 
 ## Agreed, not built (fight feel)
 - Same per-move review for Devi, then Sigrun, then each champion's soldiers.
