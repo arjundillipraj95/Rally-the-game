@@ -302,7 +302,7 @@ export const STREAK = { gap: 3, n: 8, mult: 2.2, kb: 2.2, stun: .9, cleaveN: 5 }
 // The shield bash: Block tapped, then Attack within window s (not at once: one after the other). A shove
 // with the shield: little damage, but it knocks a raised shield or guard aside (open s stunned). Unless
 // that Block press parried something: then it's the riposte as ever.
-export const BASH = { step: 3.2, window: .3, cd: 1.5, mult: .3, kb: 1.8, stun: .45, open: 1.1, reach: 2.6 };
+export const BASH = { shove: { r: 2.4, cos: .35, kb: 9, stun: .25 }, step: 3.2, window: .3, cd: 1.5, mult: .3, kb: 1.8, stun: .45, open: 1.1, reach: 2.6 };
 export const PARRY = { perfect: .08, disarm: 2.5, window: .26, light: .14, remote: .28, lock: .6, slow: .25, slowT: .4, stun: .8, heavyStun: 1.3, riposteT: 1.8, riposteN: 2, riposteMult: 1.5 };
 // slow/slowT: a parry slows the two men in it (only them) to this speed for this long.
 // Enemy captains raise their guard in spells you can see (shield up, pressing in). While guarded they
@@ -541,6 +541,9 @@ export const FEEL = {
   // `rearAt` power or more it rears (`rear` rad/s, at most `rearMax` rad, nose up) with a whinny. Springs: [stiffness, damping]
   horse: { toss: 1.6, side: 2.4, twist: 1.4, rearAt: 1.2, rear: 4.6, rearMax: .62, lift: 1.1, rearK: [22, 5.5], sideK: [60, 10] },
   // your own blows, as before F6 (seconds of hold, shake) plus a short buzz when one lands
+  // FEEL1b a champion's basic blow on a champion, for the one hit (render/champhit.js): power of FX1's impact (red edge,
+  // shake, buzz, kick) for a slash and the bash; the bash also staggers him back (ANIM.impact.bashRate)
+  basic: { slash: .4, bash: 1.1, reel: [0, 2] }, // reel: extra body rock [slash, bash] on top of every blow's own (soldiers.js)
   own: { stop: { blocked: .03, heavy: .1, shove: .075, hit: .055 }, shake: { heavy: .22, shove: .16, hit: .1 }, buzz: { hit: 12, heavy: 28, blocked: 0 } },
   // any blow that lands on anybody: the struck man holds his pose this long, by how hard it was (light, heavy)
   light: { stop: [.025, .06], near: 22 },
@@ -620,7 +623,7 @@ export const ANIM = {
   turn: { clip: 'turn180', min: 2.3, maxSpeed: 1.5, rate: 2 },
   skyLegs: 'crouchIdle', skyLean: [-.45, -.3], // (ARCH4: archers loosing into the Arrow storm kneel low while they stand; their spine and chest lean back to the sky, rad)
   block: ['block', 'blockIdle'], blockHit: { clip: 'blockImpact', rate: 1.4 },
-  impact: { clips: ['impact', 'impact2'], rate: 1.5, minDmg: .5 },
+  impact: { clips: ['impact', 'impact2'], rate: 1.5, minDmg: .5, bashRate: 1 }, // (FEEL1b: bashed, the reaction plays slower: a stagger)
   death: { front: 'death', back: 'death2', rate: 1.15 },
   acts: { kick: { steps: ['kick'], legs: true }, crouch: { steps: ['crouch', 'crouchIdle'], legs: true, then: 'crouchUp' }, crouchUp: { steps: ['crouchUp'], legs: true },
     sheath: { steps: ['sheath1', 'sheath2'] }, powerUp: { steps: ['powerUp'] }, cast: { steps: ['casting'] },

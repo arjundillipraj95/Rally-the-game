@@ -13,9 +13,15 @@ slash 2 ended with both arms thrown up; every blow raced at 1.5-2x and let go at
   hips), a step in (BASH.step), then the shield held up (blockIdle) to near his next blow. No blade ribbon on it.
 - Titus's second blow uses slash3 (ends back on guard).
 
+## FEEL1b felt by the one hit (Arjun's go 25 Nov)
+- A champion's basic blow that takes health off a champion is an 'fxchamp' moment on every phone (core/sim/blowfelt.js).
+  The one hit: red screen edge from that side, shake, buzz, kick (FEEL.basic: slash .4, bash 1.1 of FX1's power).
+- The bash: the hit champion staggers back (hit reaction at ANIM.impact.bashRate, even while stunned) and rocks a
+  little more (FEEL.basic.reel); enemy soldiers in front of Titus are shoved back (BASH.shove). render/champhit.js.
+
 ## Done when
 `game/store/r_FEEL1.mjs`: slash1, slash3, bash; bash on block then blockIdle; no idle between blows; bash steps further
-than a slash; leans in; no page errors. Also r_C3a, r_C3a-join, r_C3c, crown2sim/crown2online roles off and on.
+than a slash; leans in; fxchamp on each blow (bash heavy), bashed champion staggers, soldiers shoved, my edge red when hit; no page errors. Also r_C3a, r_C3a-join, r_C3c, crown2sim/crown2online roles off and on.
 
 ## Where it lives
 `render/rig/swingflow.js` (swingFlow, bashBody), `render/heroes.js` (clipHero), ANIM.flow / clipOf / swing.shieldBash

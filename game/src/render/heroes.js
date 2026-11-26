@@ -169,9 +169,11 @@ function clipHero(u, a, h, dt, sp, blocking, hurt, P, rate, tag) {
   }
   h.swPrev = u.swing || 0;
   if (blocking && !h.wasBlocking) h.blkN = (h.blkN || 0) + 1; h.wasBlocking = blocking;
-  if (hurt && !blocking && !(a.stumble > 0)) { h.impN = (h.impN || 0) + 1; h.impT = T; }
+  if (hurt && !blocking && !(a.stumble > 0)) { h.impN = (h.impN || 0) + 1; h.impT = T; h.impR = 0; }
+  if (u.fxBashT != null && u.fxBashT !== h.bashSeen && !h.U) { h.bashSeen = u.fxBashT; h.impN = (h.impN || 0) + 1; h.impT = T; h.impR = ANIM.impact.bashRate; } // (FEEL1b: bashed: staggered back, slower)
   const d = h.face == null ? 0 : wrapA(u.face - h.face); h.face = u.face;
-  const code = !(tag === 'loco' || tag === 'block' || (tag === 'swing' && h.swClip));
+  const bashed = h.impR && h.impT != null && T - h.impT < C[ANIM.impact.clips[h.impN % ANIM.impact.clips.length]].dur / h.impR; // (FEEL1b: the bash's stagger plays even while he's stunned)
+  const code = !(tag === 'loco' || tag === 'block' || (tag === 'swing' && h.swClip) || (bashed && tag !== 'swing'));
   if (Math.abs(d) > ANIM.turn.min && sp < ANIM.turn.maxSpeed && tag === 'loco' && !h.U) h.turn = { d, key: 'turn' + T };
   if (h.turn && (code || tag !== 'loco')) h.turn = null;
   // the move his clips should show, most pressing first
@@ -185,7 +187,7 @@ function clipHero(u, a, h, dt, sp, blocking, hurt, P, rate, tag) {
   else if (h.swClip && h.swT != null && T - h.swT < (h.swEnd || .38 + ANIM.swingTail)) W = { key: 'sw' + h.swN, steps: h.swHold ? [ANIM.clipOf[h.swClip] || h.swClip, h.swHold] : [ANIM.clipOf[h.swClip] || h.swClip], hold: !!h.swHold, swing: ANIM.swing[h.swClip], fade: ANIM.fast, legs: ANIM.swingLegs.includes(h.swClip) }; // (FEEL1: a bash then holds the shield up)
   else if (blocking && T - h.blockHitT >= 0 && T - h.blockHitT < C[bh.clip].dur / bh.rate) W = { key: 'bh' + h.blockHitT, steps: [bh.clip], rate: bh.rate, fade: ANIM.fast };
   else if (blocking) W = { key: 'blk' + h.blkN, steps: ANIM.block, hold: true };
-  else if (h.impT != null && T - h.impT < C[imp.clips[h.impN % imp.clips.length]].dur / imp.rate) W = { key: 'imp' + h.impN, steps: [imp.clips[h.impN % imp.clips.length]], rate: imp.rate, fade: ANIM.fast };
+  else if (h.impT != null && T - h.impT < C[imp.clips[h.impN % imp.clips.length]].dur / (h.impR || imp.rate)) W = { key: 'imp' + h.impN, steps: [imp.clips[h.impN % imp.clips.length]], rate: h.impR || imp.rate, fade: ANIM.fast };
   else if (X && (X.hold || h.xDone !== xKey)) { W = { key: xKey, steps: ANIM.acts[X.name].steps, legs: ANIM.acts[X.name].legs, hold: !!(X.hold || ANIM.acts[X.name].hold), act: true, name: X.name, rate: ANIM.acts[X.name].rate, cut: ANIM.acts[X.name].cut, down: X.down, t0: X.t }; if (X.hold) h.xHeld = { name: X.name, key: xKey }; }
   else if (h.xAfter) W = h.xAfter;
   h.sky = !!h.bowman && !code && skyShot(u); // (ARCH2: loosing into the Arrow storm: drawn, leaning back to the sky)

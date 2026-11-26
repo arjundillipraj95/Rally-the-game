@@ -34,6 +34,7 @@ import '../render/effects.js';
 import '../render/overlay.js';
 import '../render/camera.js';
 import '../render/feel.js';
+import '../render/champhit.js'; // (FEEL1b)
 import '../ui/death.js';
 import '../ui/audio.js';
 import '../portal.js';
