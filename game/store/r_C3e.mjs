@@ -62,6 +62,6 @@ ok(o.pushed < .2, `nothing knocks them about (${o.pushed} m)`);
 ok(o.arrows === 0, `arrows do nothing (${o.arrows})`);
 ok(o.horse.stalled && o.horse.dmg === 0, 'a rider at speed into its front stalls');
 ok(Math.abs(o.marched - 10) < 1.5 && o.over, `marched ${o.marched} m, then over`);
-ok(o.shout > .8 && o.shout < 1.3, `the shout shoves the enemy in front ${o.shout} m`);
+ok(o.shout > 1.4 && o.shout < 1.8, `the shout shoves the enemy in front ${o.shout} m (FEEL2d: the heavy shove, 1.6x)`);
 ok(o.bot, 'a computer Titus sounds it');
 console.log(fails ? `${fails} FAILED` : 'ALL PASS'); process.exit(fails ? 1 : 0);

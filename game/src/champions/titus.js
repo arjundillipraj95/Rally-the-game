@@ -41,6 +41,9 @@ export default {
   },
   armyUlt: { name: 'Testudo march', short: 'Testudo', aimFace: true, range: 10, r: 15, form: .6, march: 4, dist: 10, heal: .25, gap: .95,
     arc: 2 * Math.PI / 3, ultX: .3, shove: 1, shoutR: 2,
+    // FEEL2d (Arjun 26 Nov): shove, stab, heavy shove. `beats`: at that share of the march; `stab` [champion, soldier];
+    // the end shove is `endX` the shove and knocks them down `down` [champion, soldier] s
+    beats: [{ t: .3, k: 'shove' }, { t: .65, k: 'stab' }], stab: [40, 25], endX: 1.6, down: [.6, 1],
     ai: (u, foe, fd, B) => fd < 12 && B.ownMen(u, 15).length >= 4, // (a computer Titus: with his men round him and a fight close)
     run(u, at, B) { B.testudo(u, at, this); } },
   // Shield of Cassius (C3c, agreed 17 Nov): tap raises the scutum for up to `up` s, tap again drops it. Blocks all from

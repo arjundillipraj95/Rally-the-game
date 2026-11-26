@@ -10,6 +10,7 @@ import { angDiff, groundY } from '../world.js';
 import { integrate } from './move.js';
 import { push } from './army.js';
 import { fx, sound } from './util.js';
+import { hit } from './melee.js'; // (FEEL2d)
 
 const live = []; // the blocks marching: { ti, t, d, men, fx, fz (front centre), dx, dz, gone, dist, face, cols }
 export function startTestudo(u, at, d) {
@@ -41,19 +42,35 @@ export function testudoTick(dt) {
     }
     const k = B.t < d.form ? Math.min(1, dt * 8) : 1;
     for (const o of B.men) { const [x, z] = slotAt(B, o); o.x += (x - o.x) * k; o.z += (z - o.z) * k; o.y = groundY(o.x, o.z); o.vx = o.vz = 0; o.face = B.face; o.stun = 0; o.swing = 0; }
+    for (const [k, at] of (d.beats || []).entries()) if (!(B.beat > k) && B.t >= d.form + d.march * at.t) { B.beat = k + 1; beat(B, at); } // (FEEL2d)
     if (B.t >= d.form + d.march) end(B, i, true);
   }
+}
+// FEEL2d (Arjun 26 Nov): the march hits as it goes: shove, then a spear stab through the gaps (`stab`: champion,
+// soldier), then the end shout, a heavy shove that knocks them down (`down` s). Enemies just in front of the block.
+function front(B, each) {
+  const half = (B.cols - 1) / 2 * B.gap + .8, lead = B.men[0] || B.lead;
+  for (const o of G.units) {
+    if (o.dead || !isEnemy(o, lead)) continue;
+    const rx = o.x - B.fx, rz = o.z - B.fz, f = rx * B.dx + rz * B.dz, s = rx * B.dz - rz * B.dx;
+    if (f > -.3 && f < B.d.shoutR && Math.abs(s) < half) each(o);
+  }
+}
+const shove = (B, o, m, stun) => { if (o.remote || o.mounted) push(o, B.dx * m / .32, B.dz * m / .32, stun); else { o.x += B.dx * m; o.z += B.dz * m; o.stun = Math.max(o.stun || 0, stun); } };
+function beat(B, at) {
+  const by = B.men.find(o => !o.dead) || B.lead; if (!by) return;
+  front(B, o => {
+    if (at.k === 'stab') hit(by, o, 1, { fixed: o.leader ? B.d.stab[0] : B.d.stab[1], kb: .05, unblockable: true, unparryable: true });
+    else shove(B, o, B.d.shove, .3);
+  });
+  sound(at.k === 'stab' ? 'swing' : 'clang', B.fx, B.fz);
+  if (B.lead) fx('fxmsg', { k: 'fxtestudobeat', u: B.lead, q: at.k });
 }
 function end(B, i, shout) {
   live.splice(i, 1);
   for (const o of B.men) { if (o.testudo === B) o.testudo = null; }
   if (shout) { // the shout: the enemies just in front are shoved back
-    const half = (B.cols - 1) / 2 * B.gap + .8;
-    for (const o of G.units) {
-      if (o.dead || !isEnemy(o, B.men[0] || B.lead)) continue;
-      const rx = o.x - B.fx, rz = o.z - B.fz, f = rx * B.dx + rz * B.dz, s = rx * B.dz - rz * B.dx;
-      if (f > -.3 && f < B.d.shoutR && Math.abs(s) < half) { if (o.remote) push(o, B.dx * B.d.shove / .32, B.dz * B.d.shove / .32, .3); else { o.x += B.dx * B.d.shove; o.z += B.dz * B.d.shove; o.stun = Math.max(o.stun || 0, .3); } }
-    }
+    front(B, o => shove(B, o, B.d.shove * B.d.endX, o.leader ? B.d.down[0] : B.d.down[1])); // (FEEL2d: the heavy one: down; every phone draws the fall, render/testudofx.js)
     sound('heavy', B.fx, B.fz);
   }
   if (B.lead) fx('fxmsg', { k: 'fxtestudoend', u: B.lead, q: shout ? '1' : '0' });

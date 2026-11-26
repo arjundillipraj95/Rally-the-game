@@ -84,6 +84,31 @@ if (PARTS.includes('c')) {
   await page.close();
 }
 
+if (PARTS.includes('d')) {
+  const { page } = await battle();
+  const r = await page.evaluate(async () => {
+    const F = window.__fb, G = F.G, p = G.player, foe = window.__foe, sim = window.__sim, me = G.myTi, f = p.face;
+    const at = (d, s = 0) => [p.x + Math.sin(f) * d + Math.cos(f) * s, p.z + Math.cos(f) * d - Math.sin(f) * s];
+    const men = [[1, -1.5], [1, 0], [1, 1.5], [0, -.8], [0, .8], [-1, 0]].map(([d, s]) => sim.mkUnit(me, ...at(d, s), 'foot'));
+    const eteam = foe.ti, man = sim.mkUnit(eteam, ...at(4, .5), 'foot'); man.hp = man.max = 300;
+    const msgs = []; const { bus } = await import('/src/core/state.js'); bus.on('fxmsg', e => { if (e.k === 'fxtestudobeat') msgs.push(e.q); });
+    G.teams[me].rally = 100; F.rally(); const B = men[0].testudo; if (!B) return { err: 'no block' };
+    const out = { beats: msgs }; let h0m = man.hp, h0f = foe.hp, pushed = 0;
+    for (let k = 0; k < 400 && men.some(u => u.testudo); k++) {
+      window.__plain(); foe.stun = Math.max(foe.stun, 0); foe.cd = 9;
+      for (const [o, s] of [[man, .4], [foe, -.6]]) { const x = B.fx + Math.sin(B.face) * 1.1 + Math.cos(B.face) * s, z = B.fz + Math.cos(B.face) * 1.1 - Math.sin(B.face) * s; if (Math.hypot(o.x - x, o.z - z) > .35) pushed++; o.x = x; o.z = z; o.vx = o.vz = 0; }
+      F.step(1);
+    }
+    out.manHurt = +(h0m - man.hp).toFixed(1); out.foeHurt = +(h0f - foe.hp).toFixed(1); out.pushedFrames = pushed;
+    out.endStun = [+(foe.stun || 0).toFixed(2), +(man.stun || 0).toFixed(2)];
+    return out;
+  });
+  ok(!r.err && r.beats.join() === 'shove,stab', 'd: the march shoves, then stabs (beats)', r);
+  ok(r.manHurt >= 20 && r.foeHurt >= 35, 'd: the stab hurts the soldier and the champion in front', r);
+  ok(r.endStun[0] > .4 && r.endStun[1] > .8, 'd: the end shove knocks them down (stun: champion, soldier)', r);
+  await page.close();
+}
+
 ok(!errs.length, 'no page errors', errs.slice(0, 2));
 console.log(fails ? `${fails} FAILED` : 'ALL PASS');
 await browser.close();

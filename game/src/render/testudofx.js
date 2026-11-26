@@ -21,11 +21,16 @@ bus.on('fxmsg', e => {
     const [cx, cz] = mid(men), path = decal(pathTex, 3.2, d.dist, { from: 0, opacity: .7 }), end = decal(ringTex, 3, 3, { opacity: .9 });
     place(path, cx, cz, a, .09); place(end, cx + Math.sin(a) * d.dist, cz + Math.cos(a) * d.dist, 0, .1);
     live.set(e.u.id, { men, a, t0: G.T, dur, x: cx, z: cz, d, beat: 0, path, end, locked: false });
+  } else if (e.k === 'fxtestudobeat') { // FEEL2d the march's shove and stab: a pulse off the front and every enemy in front feels it
+    const L = live.get(e.u.id); if (!L) return;
+    const [x, z] = mid(L.men.filter(o => !o.dead)), fx = x + Math.sin(L.a) * 1.5, fz = z + Math.cos(L.a) * 1.5, stab = e.q === 'stab';
+    shockwave(fx, fz, 3, stab ? 0xfff1c2 : 0xffd36e); pow(fx, groundY(fx, fz) + 2.6, fz, stab ? 'STAB!' : 'SHOVE!', '#ffd36e', 2);
+    for (const o of G.units) if (!o.dead && isEnemy(o, e.u)) { const rx = o.x - fx, rz = o.z - fz, f = rx * Math.sin(L.a) + rz * Math.cos(L.a); if (f > -1 && f < 4 && Math.hypot(rx, rz) < 6) impact(o, e.u, (o.leader ? .7 : .35) * (stab ? 1 : .8)); }
   } else if (e.k === 'fxtestudoend') {
     const L = live.get(e.u.id);
     if (L && e.q === '1') { const [x, z] = mid(L.men.filter(o => !o.dead)), fx = x + Math.sin(L.a) * 1.5, fz = z + Math.cos(L.a) * 1.5;
       shockwave(fx, fz, 4, 0xffd36e); shockwave(fx, fz, 6.5, 0xfff1c2); starburst(fx, groundY(fx, fz) + 1.4, fz, 4.5); pow(fx, groundY(fx, fz) + 3, fz, 'SHOVE!', '#ffd36e', 3); // (FX1)
-      for (const o of G.units) if (!o.dead && isEnemy(o, e.u)) { const rx = o.x - fx, rz = o.z - fz, f = rx * Math.sin(L.a) + rz * Math.cos(L.a); if (f > -1 && f < 5 && Math.hypot(rx, rz) < 6) impact(o, e.u, o.leader ? 1 : .5); } }
+      for (const o of G.units) if (!o.dead && isEnemy(o, e.u)) { const rx = o.x - fx, rz = o.z - fz, f = rx * Math.sin(L.a) + rz * Math.cos(L.a); if (f > -1 && f < 5 && Math.hypot(rx, rz) < 6) { impact(o, e.u, o.leader ? 1 : .5); if (!o.mounted) o.act = { name: 'knockdown', t: G.T, down: champOf(e.u.ti).armyUlt.down[o.leader ? 0 : 1] }; } } } // (FEEL2d: knocked down)
     clear(e.u.id);
   }
 });
