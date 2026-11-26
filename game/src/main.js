@@ -15,6 +15,7 @@ import { fogTick, fogGrid, seenAt } from './render/fog.js';
 import { updateSeeThrough } from './render/seethrough.js';
 import { drawVolleyAim } from './ui/volleyaim.js';
 import { drawHoldAim, drawJavAim, drawRideAim } from './ui/holdaim.js';
+import { drawDrawAim } from './ui/drawaim.js'; // (FEEL2g)
 import { drawAbilAim } from './ui/abilaim.js';
 import { drawPull } from './render/pullfx.js';
 import { duelTagTick } from './ui/dueltag.js';
@@ -86,7 +87,7 @@ function drawScene(dt) {
   if (import.meta.env.DEV && window.__camAt) { const c = window.__camAt; camera.position.set(c[0], c[1], c[2]); camera.lookAt(c[3], c[4], c[5]); } // (dev: fixed shots of the scenery)
   updateSeeThrough(dt, camera.position, camTarget(), camMode.fixed);
   drawAura(G.player, auraRange(G.myTi), grassTime());
-  drawVolleyAim(grassTime()); drawHoldAim(grassTime()); drawJavAim(); drawRideAim(); drawAbilAim(); drawPull();
+  drawVolleyAim(grassTime()); drawHoldAim(grassTime()); drawJavAim(); drawRideAim(); drawDrawAim(); drawAbilAim(); drawPull();
   const tg = camTarget(); followSun(tg ? tg.x : 0, tg ? tg.z : 0, grassTime());
 }
 initFeed({ nickFor: ti => nickFor(ti) }); setNamer(nickFor); initDeath({ nickFor: ti => nickFor(ti) });

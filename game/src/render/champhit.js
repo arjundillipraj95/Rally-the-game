@@ -32,3 +32,10 @@ bus.on('fxmsg', d => {
   pow(u.x, (u.y || 0) + 2.6, u.z, 'CLANG!', '#e8d8a8', 1); cam.shake = Math.max(cam.shake, .18); buzz(25);
   camKick(-Math.sin(ang) * .2, -Math.cos(ang) * .2);
 });
+
+// FEEL2g her mounted shot: how well she let go, on her phone
+bus.on('fxmsg', d => {
+  if (d.k !== 'fxdraw' || d.a !== G.player || !d.u) return;
+  const W = { perfect: ['PERFECT!', '#ffd23a'], tired: ['TOO LATE', '#c9c2b2'] }[d.q]; if (!W) return;
+  pow(d.u.x, (d.u.y || 0) + 3, d.u.z, W[0], W[1], 1); if (d.q === 'perfect') buzz(30);
+});

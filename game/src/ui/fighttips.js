@@ -1,6 +1,7 @@
 // One-line tips that teach the captain's fighting moves the first couple of times they matter:
 // a heavy blow coming at you, your guard broken, a new weapon in hand. Shown over your captain.
 import { wolfRider } from '../core/sim/sigrun.js';
+import { rangedOf } from '../core/sim/ranged.js'; // (FEEL2g)
 import { G, bus, isEnemyTi } from '../core/state.js';
 import { floatText } from '../render/effects.js';
 
@@ -15,6 +16,7 @@ const TIPS = {
   jav: 'Hold Attack to draw back: a full draw knocks riders off their horses',
   guard: "He's on guard: tap Block then Attack to bash it aside",
   ride: 'Hold Attack as you ride at someone. Let go when the ring turns gold',
+  draw: 'Tap Attack for a quick shot, or hold to draw. Let go when the aim turns gold', // (FEEL2g)
   rider: 'A rider is coming! Tap Block as his weapon glints, or plant a spear',
   horn: 'Your rally horn is full! Press and hold the Order button to sound it',
   attack: 'Drag the Order button onto enemies to send your men at them',
@@ -44,7 +46,7 @@ setInterval(() => {
   const p = G.player; if (!p || p.dead || G.state !== 'play') return;
   const T = G.teams[G.myTi]; if (T && T.rally >= 100) fightTip('horn');
   if (T && T.order === 'hold') fightTip('attack');
-  if (p.mounted) { if ((p.weapon || 'sword') !== 'jav' && !wolfRider(p)) fightTip('ride'); return; } // (C5b: not on her wolf)
+  if (p.mounted) { if (rangedOf(p)) fightTip('draw'); else if ((p.weapon || 'sword') !== 'jav' && !wolfRider(p)) fightTip('ride'); return; } // (C5b: not on her wolf; FEEL2g: a bow on horseback draws)
   if (G.units.some(o => !o.dead && o.leader && o !== p && Math.hypot(o.x - p.x, o.z - p.z) < 6 && isEnemyTi(o.ti, p.ti))) fightTip('evade');
   if ((p.weapon || 'sword') !== 'sword') return;
   if (G.units.some(o => !o.dead && o.ti !== p.ti && Math.hypot(o.x - p.x, o.z - p.z) < 5 && isEnemyTi(o.ti, p.ti))) fightTip('sword');

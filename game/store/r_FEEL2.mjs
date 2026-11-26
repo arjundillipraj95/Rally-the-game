@@ -143,6 +143,25 @@ if (PARTS.includes('f')) {
   await page.close();
 }
 
+if (PARTS.includes('g')) {
+  const { page } = await battle('devi', 'titus');
+  const r = await page.evaluate(async () => {
+    const G = window.__fb.G, p = G.player, foe = window.__foe, sim = window.__sim, Gd = await import('/src/core/sim/guard.js'), MD = await import('/src/core/sim/mountdraw.js'), { bus } = await import('/src/core/state.js');
+    for (const t of G.teams) t.cds = {}; sim.toggleHorseFor(p); for (let k = 0; k < 120 && !p.mounted; k++) window.__frame(1);
+    const q = []; bus.on('fxmsg', e => { if (e.k === 'fxdraw') q.push(e.q); });
+    const f = p.face; foe.x = p.x + Math.sin(f) * 12; foe.z = p.z + Math.cos(f) * 12; foe.stun = 9;
+    const shot = (secs) => { p.cd = 0; p.vx = p.vz = 0; const n0 = G.arrows.length; for (let t = 0; t < secs; t += 1 / 60) Gd.attackHold(p, true, 1 / 60); Gd.attackHold(p, false, 1 / 60); const a = G.arrows[G.arrows.length - 1]; return G.arrows.length > n0 ? +(a.jd / p.dmg).toFixed(2) : 0; };
+    const full = MD.drawFull(p);
+    const out = { full: +full.toFixed(2), tap: shot(.1), early: shot(full * .5), perfect: shot(full + .1), tired: shot(full + .6) };
+    p.vx = Math.sin(f) * 11; p.vz = Math.cos(f) * 11; out.fullGallop = +MD.drawFull(p).toFixed(2); out.q = q;
+    return out;
+  });
+  ok(r.tap > 0 && r.tap < 1 && r.early === 1, 'g: a tap is a quick weak shot; an early release a normal one', r);
+  ok(r.perfect >= 1.5 && r.q.includes('perfect'), 'g: let go on gold: a perfect shot (1.6x)', r);
+  ok(r.tired > 0 && r.tired < 1 && r.fullGallop > r.full, 'g: held too long her arm tires; at a gallop the draw takes longer', r);
+  await page.close();
+}
+
 ok(!errs.length, 'no page errors', errs.slice(0, 2));
 console.log(fails ? `${fails} FAILED` : 'ALL PASS');
 await browser.close();

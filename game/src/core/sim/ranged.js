@@ -7,6 +7,7 @@
 // chest, a nexus or the glacier in range, as a melee champion hits them. On horseback she shoots at a walk; riding fast,
 // one ride-by shot a press. Flat damage: no head or leg roll, and the counter rule is for soldiers' arrows.
 import { RANGED } from '../../config.js';
+import { mountedDraw } from './mountdraw.js'; // (FEEL2g)
 import { G, isEnemy } from '../state.js';
 import { groundY } from '../world.js';
 import { sound } from './util.js';
@@ -24,8 +25,8 @@ const champBlow = u => champOf(u.ti).stats.dmg; // (her blow at level 1, in show
 const inRange = (u, o, R) => Math.hypot(o.x - u.x, o.z - u.z) <= R + (o.r || .5);
 const canShoot = (u, o) => !o.dead && isEnemy(o, u) && duelFoe(u, o) && !(o.execT > 0) && !hiddenFrom(o, u);
 // what she shoots: the champion she's on, else the nearest enemy (champions first if she has asked), else a structure
-export function rangedTarget(u) {
-  const R = rangeOf(u), st = u.rTg;
+export function rangedTarget(u, R = rangeOf(u)) {
+  const st = u.rTg; // (FEEL2g: R, a perfect mounted shot reaches further)
   if (st && canShoot(u, st) && inRange(u, st, R)) return st;
   u.rTg = null;
   let best = null, bd = 1e9, champ = null, cd = 1e9;
@@ -58,7 +59,7 @@ export function structureInRange(u, R) {
   return w ? { bld: w, x: w.x, z: w.z, r: w.r || 1 } : null;
 }
 // one arrow at the mark, `mult` of her blow
-function loose(u, tg, mult) {
+export function loose(u, tg, mult) {
   const tx = tg.x, tz = tg.z, d = Math.hypot(tx - u.x, tz - u.z), y0 = (u.y || 0) + (u.mounted ? 2.4 : 1.6);
   const a = makeArrow({ id: ++G.arrowN, x0: u.x, y0, z0: u.z, x1: tx, z1: tz, y1: groundY(tx, tz) + (tg.bld ? 1.4 : 1.1), dur: Math.max(.06, d / RANGED.speed),
     peak: Math.min(1.2, d * .04), ti: u.ti, t: 0, shooter: u, champ: true, jd: u.dmg * mult });
@@ -89,9 +90,9 @@ export function rangedTick(u) {
 export function rangedHold(p, held, dt) {
   p.heavyCharge = 0; p.bracing = false; p.javDraw = 0; p.rideReady = false;
   p.ahT = held ? (p.ahT || 0) + dt : 0;
-  if (G.role === 'client') { rangedPaceLocal(p, held); return; } // (a joined phone: the host shoots; here only her pace)
+  if (G.role === 'client') { if (p.mounted) p.drawT = held ? (p.drawT || 0) + dt : 0; rangedPaceLocal(p, held); return; } // (a joined phone: the host shoots; here only her pace, and her draw for the aim)
+  if (mountedDraw(p, held, dt)) return; // (FEEL2g: on her mount she draws and lets go)
   if (!held || p.cd > 0 || p.stun > 0) return;
-  if (p.mounted && Math.hypot(p.vx, p.vz) > RANGED.gallop) return;
   rangedShot(p);
 }
 // (her own phone, joined to a host) the pace while she shoots: Attack held with something in range

@@ -158,6 +158,7 @@ function captainAttack0(p) {
   p.atkBuf = 0;
   if (tryPull(p)) return; // (PULL1: a rider going by, on the beat: pulled down)
   if (rangedOf(p) && !p.duelId) { // (RANGE1: a ranged champion shoots; in a duel she fights close, C4g)
+    if (p.mounted) return; // (FEEL2g: on her mount the release shoots: core/sim/mountdraw.js)
     const v = p.human && !p.mounted ? execTarget(p) : null; // (a beaten captain in reach: finish him, as a melee champion does)
     if (v) startExec(p, v); else rangedShot(p);
     return;

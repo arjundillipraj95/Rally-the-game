@@ -84,7 +84,12 @@ export const CHAMP_LIMITS = {
 // fire); on the war chest, which counts blows, `chest` of a blow a shot (`fireChest` with fire). `scan`: how often an
 // idle archer looks for a building in bow range (seconds)
 export const ARCH_BLD = { k: 1.5, fire: 4.5, chest: .3, fireChest: 1, scan: .5 };
-export const RANGED = { speed: 40, thirdGap: .1, pace: .65, hold: .15, gallop: 8, keep: 9, close: .8 };
+export const RANGED = { speed: 40, thirdGap: .1, pace: .65, hold: .15, gallop: 8, keep: 9, close: .8,
+  // FEEL2g on her mount she draws (s): `tap` or less a quick shot at `tapX` (recharge `tapCd`); full draw after `full` s
+  // (longer at speed: x(1 + gallopK * speed/refSpd)), gold for `gold` s: `perfectX`, reach `rangeX`, the one hit slowed
+  // slow[0] for slow[1] s; past gold `tiredX`; a joined player's gold is `remote` s wider
+  drawAim: { wide: .5, narrow: .05, opacity: .32 }, // (FEEL2g her draw's wedge on her phone: half-angle rad from wide to narrow)
+  draw: { tap: .2, tapX: .6, tapCd: .8, full: .7, gallopK: .5, refSpd: 10, gold: .25, perfectX: 1.6, rangeX: 1.3, slow: [.3, 1], tiredX: .7, remote: .08 } };
 
 // (C2) the stone thrower's stone (design doc, Units table): it can't hit within `min` m; a stone flies `flight` s in a
 // high arc (`peak` m) to where the mark stood, a marker on the ground the whole way for everyone; it lands on `area` m:
