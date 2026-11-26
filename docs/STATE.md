@@ -3,7 +3,7 @@
 Work on `launch26` (test site https://rally-preview.arjun-rally.workers.dev deploys on every push; `main` = live).
 Every builder updates this file as the last step of its ticket. Keep it under ~120 lines; finished detail goes to
 `docs/history/2026-11-log.md` (the full board as of 26 Nov is at its end).
-Last updated: 2026-11-26 (trimmed; FEEL1, FEEL2, CAM2, FIX13, AUD1 shipped to main).
+Last updated: 2026-11-26 (FEEL3, FEEL4 built on launch26, not shipped).
 
 ## Live on main (26 Nov)
 - The relaunch: new mountain (MAP), castles (CASTLE1-10, ORD1), champions Titus (C3), Devi (C4), Sigrun (C5), Stage 1
@@ -14,9 +14,13 @@ Last updated: 2026-11-26 (trimmed; FEEL1, FEEL2, CAM2, FIX13, AUD1 shipped to ma
   camera back as default (Settings > Camera). FIX13 picture after rotate, Fortify tappable. AUD1 sound bars.
 - Arjun hasn't played the FEEL build on his Android yet.
 
+## Built on launch26, waiting for Arjun's "ship"
+- FEEL3 (card): block, parry, clash, computers' guard, champions turning arrows and the finisher only in a duel.
+  AI1's hunt had left a computer's guard up for minutes (now `huntT`). r_FEEL3 11/11.
+- FEEL4 (card): a joined phone shows its own blow's hit on the target at once (~130 ms after the press at 250 ms
+  lag), the host's word not played twice. r_FEEL4. Both: crown2sim/online roles off+on, r_FEEL1/2, r_DUEL4 pass.
+
 ## Agreed, not built (fight feel)
-- Block, parry, blade clash and computers' guarding only inside duels. Finisher only in duels.
-- The attacker's own phone shows his hit at once; the host only checks it (lag).
 - Same per-move review for Devi, then Sigrun, then each champion's soldiers.
 
 ## Open decisions
@@ -28,8 +32,8 @@ Last updated: 2026-11-26 (trimmed; FEEL1, FEEL2, CAM2, FIX13, AUD1 shipped to ma
 
 ## Next (Arjun's order, 26 Nov)
 1. Readability: crowds of soldiers hide your champion. Needs a design talk and a card.
-2. P0.7b version check: old and new phones must not play together (CAM1 changed the map's blockers). Plan line:
-   "finer positions in snapshots; version check". No card yet.
+2. P0.7b version check: still needed (26 Nov check: CAM2 kept CAM1's tree clearances in map26.js, and every ship
+   changes host rules or joined-phone prediction). No card yet.
 3. Fight-feel review: Devi, then Sigrun, then the soldiers.
 
 ## Build queue (open)
@@ -57,7 +61,7 @@ Last updated: 2026-11-26 (trimmed; FEEL1, FEEL2, CAM2, FIX13, AUD1 shipped to ma
 - Branches never shipped and likely stale: t/CL2 (only the Crown in menus), t/F25, t/F26 (spear reach/facing).
 
 ## Known test issues
-- Flaky before FEEL: r_C3k, r_C4. Out of date: r_F17, r_F26. Also flaky: r_C5-join, r_F8 (e), r_F22, r_F24.
+- Flaky before FEEL: r_C3k, r_C4. Out of date: r_F17, r_F26, r_F7 (b-d, f fail before FEEL3). Also flaky: r_C5-join, r_F8 (e), r_F22, r_F24.
 - After editing src, restart vite (`pkill -f "vite --port 8766"`; `store/t.sh` does it) or tests import a second copy
   of modules and read empty. servers.sh can hang: start vite directly.
 - Headless renders can't judge feel; Arjun checks on his phone (851x393 landscape touch for screenshots).
