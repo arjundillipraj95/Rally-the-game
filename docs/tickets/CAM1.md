@@ -1,6 +1,6 @@
 # CAM1 The fixed high camera
 
-Model: O · Written by the owner 25 Nov 2026 (Arjun's review chat: "fights feel average") · Status: built (not shipped)
+Model: O · Written by the owner 25 Nov 2026 (Arjun's review chat: "fights feel average") · Status: shipped (main 6860440, 26 Nov)
 
 ## What to build
 Agreed with Arjun 25 Nov after a played-match review (fights unreadable: low camera blocked by towers/trees, own back fills the screen).

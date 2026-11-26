@@ -4,11 +4,11 @@ Current work: **friends' playtest fixes (F tickets) and lag (Phase 0)**, then Ro
 Claude Docs, links in CLAUDE.md). Every builder updates this file as the last step of its ticket. Owner: Opus owner chat.
 Last updated: 2026-11-25 (CAM1 built on t/CAM1). 2026-11-25 (GOLD1, SCEP1, RATE1, MATCH1 built on launch26). 2026-11-22 (C5 Sigrun and C5fix shipped to main; BOT1, FAC1, FX1-3 shipped with it). 2026-11-21 (BOT1, FAC1, FX1 on launch26, not shipped). 2026-11-19 (FIX6-12 shipped). Before: 2026-11-17 (C1 and FIX1-5 shipped: main = launch26 at 133eff0, Pages and the online service deployed). Before: 2026-11-17 (castle set CASTLE1-10 + ORD1 shipped: main = launch26 at aa8b0ad). Before: CASTLE1. Before: 2026-11-16 (MAP built on `launch26`). Before: 2026-11-16 (SPLIT built on `t/SPLIT`). Before: 2026-11-14 (F4 built on `t/F4`; F2 one lobby built on `roles`; M3 dropped by Arjun). Before: 2026-11-13 (F14 rebuilt to Arjun's picks on `roles`; F7 built on `roles`; F15, F12, F13, F16 shipped to main at 1018462; voice diagnostics on `roles`). Older detail: `docs/history/2026-11-log.md`.
 
-## CAM1 fixed high camera (25 Nov, Arjun's go; card `docs/tickets/CAM1.md`). Built on `t/CAM1`, not shipped
+## CAM1 fixed high camera (25 Nov, Arjun's go; card `docs/tickets/CAM1.md`). SHIPPED to main 26 Nov (6860440)
 - Unite-like fixed camera per faction (50° default, Settings Lower/Standard/Higher, `?cam=old` for the old one), eases out in
   fights, minimap look (shout tray open: ping), dead camera (drag/stick/minimap, teammates' faces), faction rings, see-through
   tube for towers/walls, wider tree fade, slimmer pines kept off lanes and castles. r_CAM1 17/17; crown2sim/online pass roles
-  off and on; r_BS2 updated (tray ping). Arjun: play a match at each angle on his phone, then "ship".
+  off and on; r_BS2 updated (tray ping). Arjun to play a match at each angle and pick the default.
 
 ## Stage 1 finish (25 Nov, Arjun's go: GOLD1, SCEP1, RATE1, MATCH1, GOLD2/HEAL1/BAR1/SIGART). SHIPPED to main 25 Nov (game and online service)
 - GOLD1 gold 2/s, +1/s a castle, 150 a capture (card has before/after): built, waiting for Arjun's ship.
