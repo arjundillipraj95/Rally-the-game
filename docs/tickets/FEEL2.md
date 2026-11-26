@@ -1,7 +1,7 @@
 # FEEL2 Titus's specials and every mount: how they feel
 
 Model: O · Written by the owner 2026-11-26 from Arjun's fight-feel review (chat 26 Nov, his "go")
-Status: built (not shipped), branch t/FEEL2 (on top of t/FEEL1)
+Status: shipped to main 26 Nov, branch t/FEEL2 (on top of t/FEEL1)
 
 ## What was built (one commit each)
 - a Ram: wind-up .15 -> .3 s (a fair warning at ~400 ms lag); soldiers, braced or not, never slow or stop him (each takes

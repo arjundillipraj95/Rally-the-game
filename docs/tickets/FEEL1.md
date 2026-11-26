@@ -1,7 +1,7 @@
 # FEEL1 Titus's sword, sword, shield bash
 
 Model: O · Written by the owner 2026-11-26 from Arjun's fight-feel review (chat 25 Nov)
-Status: built (not shipped), branch t/FEEL1
+Status: shipped to main 26 Nov, branch t/FEEL1
 
 ## What to build
 Arjun: the bash "does not look like a shield bash"; "check the animation for sword sword and bash", "you check and fix this".
