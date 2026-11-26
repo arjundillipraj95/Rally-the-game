@@ -546,7 +546,7 @@ export const FEEL = {
   basic: { slash: .4, bash: 1.1, reel: [0, 2] }, // reel: extra body rock [slash, bash] on top of every blow's own (soldiers.js)
   own: { stop: { blocked: .03, heavy: .1, shove: .075, hit: .055 }, shake: { heavy: .22, shove: .16, hit: .1 }, buzz: { hit: 12, heavy: 28, blocked: 0 } },
   // any blow that lands on anybody: the struck man holds his pose this long, by how hard it was (light, heavy)
-  light: { stop: [.025, .06], near: 22 },
+  light: { stop: [.025, .06], near: 22, flash: [.03, .3] }, // flash: FEEL1 (Arjun 26 Nov, was .55/.75: read as a white body) the white of a hit, [3D bodies' glow, far figures' tint]
   // blows you take
   hurt: { shake: .35, buzz: 35, blockBuzz: 15, arrowShake: .25, arrowBuzz: 20 },
   // the death sequence. body: how long a fallen man lies before he is taken away (he sinks into the ground over the last

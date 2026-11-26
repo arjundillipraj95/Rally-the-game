@@ -9,13 +9,13 @@ import { push } from './army.js';
 export function blowFelt(u, tg, hp0) {
   if (!u || !u.leader || u.mounted) return;
   const bash = (u.swingKind | 0) === 6;
-  if (tg && tg.leader && tg.hp < hp0 && !tg.dead) fx('fxmsg', { k: 'fxchamp', u: tg, a: u, heavy: bash });
+  if (tg && tg.hp < hp0 && !tg.dead && (tg.leader || bash)) fx('fxmsg', { k: 'fxchamp', u: tg, a: u, heavy: bash }); // (a soldier only for the bash: his stagger)
   if (!bash) return;
   const S = BASH.shove, fx0 = Math.sin(u.face), fz0 = Math.cos(u.face);
   for (const o of G.units) {
     if (o.dead || o.leader || o === tg || !isEnemy(o, u) || o.mounted) continue;
     const dx = o.x - u.x, dz = o.z - u.z, d = Math.hypot(dx, dz);
     if (d > S.r || d < .01 || (dx * fx0 + dz * fz0) / d < S.cos) continue;
-    push(o, dx / d * S.kb, dz / d * S.kb, S.stun);
+    push(o, dx / d * S.kb, dz / d * S.kb, S.stun); fx('fxmsg', { k: 'fxchamp', u: o, a: u, heavy: true, shove: true }); // (FEEL1: he staggers back too)
   }
 }

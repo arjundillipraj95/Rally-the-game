@@ -252,7 +252,7 @@ export function drawHero(u, a, dt) {
     applyPose(R, reeled(h.cur, a));
   }
   // the blow landing: a white flash through him (his own body's material only: the gear is shared)
-  const fl = Math.max(0, Math.min(1, a.flash || 0)); if (R.mesh.material.emissive && fl !== h.fl) { h.fl = fl; R.mesh.material.emissive.setScalar(fl * .55); }
+  const fl = Math.max(0, Math.min(1, a.flash || 0)); if (R.mesh.material.emissive && fl !== h.fl) { h.fl = fl; R.mesh.material.emissive.setScalar(fl * FEEL.light.flash[0]); } // (FEEL1: toned down, Arjun 26 Nov)
   top.position.set(u.x, (u.y || 0) + (a.lift || 0) - (a.sink || 0) + (h.U ? 0 : .998 * h.sc), u.z);
   top.rotation.set(0, (R.clip ? strikeYaw(u, h, G.T) : u.face) + (a.yaw || 0) + turn, 0); // (F26: a spear strike turns him so the clip's strike lands along his facing)
   if (u.ram && !h.U && R.clip) { top.rotation.order = 'YXZ'; h.lean = (h.lean || 0) + ((ANIM.acts.ram.lean || 0) - (h.lean || 0)) * Math.min(1, dt * 18); top.rotation.x = h.lean; } else h.lean = 0; // (RAM2: leaning into the charge)

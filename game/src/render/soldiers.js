@@ -858,7 +858,7 @@ export function drawSoldiers(units, dt, extra = null) {
       const b = p.batch, i = b.n++;
       out.multiplyMatrices(M[p.bone], p.m);
       b.mesh.setMatrixAt(i, out);
-      if (p.col) { let c = p.col(u); if (wear > .15 && p.mat === 'metal') c = wearC.copy(c).lerp(SOOT, wear * .4); b.mesh.setColorAt(i, a.flash > 0 ? flashC.copy(c).lerp(WHITE, a.flash * .75) : c); }
+      if (p.col) { let c = p.col(u); if (wear > .15 && p.mat === 'metal') c = wearC.copy(c).lerp(SOOT, wear * .4); b.mesh.setColorAt(i, a.flash > 0 ? flashC.copy(c).lerp(WHITE, a.flash * FEEL.light.flash[1]) : c); }
     }
   }
   drawProps(dt); sweepHeroes();

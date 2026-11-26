@@ -47,7 +47,7 @@ const felt = await page.evaluate(async () => {
   const put = () => { const f = p.face, sx = Math.sin(f), sz = Math.cos(f);
     foe.x = p.x + sx * 1.6; foe.z = p.z + sz * 1.6; foe.face = f + Math.PI; foe.vx = foe.vz = 0; foe.stun = 9; foe.hp = foe.max; foe.guardT = 0; foe.blockT = 0; foe.cd = 9;
     men.forEach((o, i) => { o.x = p.x + sx * 1.7 + Math.cos(f) * (i - 1) * 1.1; o.z = p.z + sz * 1.7 - Math.sin(f) * (i - 1) * 1.1; o.vx = o.vz = 0; }); };
-  const msgs = []; bus.on('fxmsg', d => { if (d.k === 'fxchamp') msgs.push([d.u === foe ? 'foe' : d.u === p ? 'me' : '?', !!d.heavy]); });
+  const msgs = []; bus.on('fxmsg', d => { if (d.k === 'fxchamp') msgs.push([d.u === foe ? 'foe' : d.u === p ? 'me' : d.u.leader ? '?' : 'man', !!d.heavy]); });
   const out = { menMoved: 0 }; let n = 0, seenSlow = false;
   for (let f = 0; f < 110 && n <= 3; f++) {
     if (n < 3 && p.cd <= 0) { put(); if (n === 2) out.men0 = men.map(o => [o.x, o.z]); m.captainAttack(p); n++; }
@@ -69,6 +69,7 @@ ok(!felt.err && !felt.mounted, 'staged (the champion on foot)', felt.err);
 ok(felt.msgs && felt.msgs.filter(x => x[0] === 'foe').length >= 3, 'each of his blows on the champion is a moment on every phone (fxchamp)', felt.msgs);
 ok(felt.msgs && felt.msgs.some(x => x[0] === 'foe' && x[1]), 'the bash is the heavy one', felt.msgs);
 ok(felt.seenSlow, 'the bashed champion staggers (slow hit reaction)');
+ok(felt.msgs && felt.msgs.some(x => x[0] === 'man' && x[1]), 'the soldiers shoved by the bash stagger too (fxchamp, heavy)');
 ok(felt.menMoved >= 1, 'the bash shoves soldiers in front of him back (moved)', felt.menMoved);
 ok(felt.meHit && felt.edge, 'hit by a champion: my screen edge goes red', [felt.meHit, felt.edge, felt.meHp]);
 ok(!errs.length, 'no page errors', errs.slice(0, 2));

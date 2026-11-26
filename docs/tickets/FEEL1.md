@@ -19,6 +19,9 @@ slash 2 ended with both arms thrown up; every blow raced at 1.5-2x and let go at
 - The bash: the hit champion staggers back (hit reaction at ANIM.impact.bashRate, even while stunned) and rocks a
   little more (FEEL.basic.reel); enemy soldiers in front of Titus are shoved back (BASH.shove). render/champhit.js.
 
+- 26 Nov (Arjun): the hit flash toned down for everyone (FEEL.light.flash, was a white body); soldiers shoved by the
+  bash stagger too.
+
 ## Done when
 `game/store/r_FEEL1.mjs`: slash1, slash3, bash; bash on block then blockIdle; no idle between blows; bash steps further
 than a slash; leans in; fxchamp on each blow (bash heavy), bashed champion staggers, soldiers shoved, my edge red when hit; no page errors. Also r_C3a, r_C3a-join, r_C3c, crown2sim/crown2online roles off and on.

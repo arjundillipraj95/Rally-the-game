@@ -14,7 +14,7 @@ bus.on('fxmsg', d => {
   if (d.k !== 'fxchamp' || !d.u || d.u.dead) return;
   const u = d.u, a = d.a, B = FEEL.basic, F = FEEL.special, p = d.heavy ? B.bash : B.slash;
   const ang = a ? Math.atan2(a.x - u.x, a.z - u.z) : u.face || 0;
-  const r = B.reel[d.heavy ? 1 : 0]; if (r) reel(u, ang, r); // (every blow already rocks him: soldiers.js)
+  const r = d.shove ? B.reel[1] * 2 : B.reel[d.heavy ? 1 : 0]; if (r) reel(u, ang, r); // (every blow already rocks him: soldiers.js; a man only shoved gets a rock of his own)
   if (u.mounted) { const hs = horseHit(u, ang, p); if (hs) bus.emit('sfx', { name: hs, x: u.x, z: u.z }); }
   else if (d.heavy) u.fxBashT = G.T; // (the stagger back)
   if (u !== G.player) return;
