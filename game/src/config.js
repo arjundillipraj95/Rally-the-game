@@ -333,7 +333,7 @@ export const HOLD_ATK = { sword: .38, swordFull: .7, brace: .28, braceCd: .65, b
 // shows from `show` s out. Pulled off: `mult` of a blow, down `stun` s, your next swing `cd` s off. Computer captains
 // catch it `ai` of the time (by difficulty).
 export const PULL = { lead: .25, reach: 2.2, spd: 4, perfect: .09, good: .2, remote: .08, show: .9, mult: 1, stun: .7, cd: .7, ai: [.15, .3, .45] };
-export const RIDE = { gallop: 1.6, turnLoss: 1.1, lockR: 16, lockCone: .9, perfect: 1.2, good: 2.6, remote: .9, tap: .2, tapMult: .55,
+export const RIDE = { ringY: .9, /* FEEL2f: the ride-by ring's height on the target (m) */ gallop: 1.6, turnLoss: 1.1, lockR: 16, lockCone: .9, perfect: 1.2, good: 2.6, remote: .9, tap: .2, tapMult: .55,
   sword: { at: 2.6, mult: 1.45 }, spear: { at: 3.6, mult: 1.65 }, perfectX: 1.7, goodX: 1.0, grazeX: .45, ai: { perfect: [.2, .4, .6], good: [.45, .4, .3] } };
 // Morale. Every army has the heart to fight (0-100). Losing men drains it (more when they fall to a
 // blow from the side or behind: flankAng is how far off their front that counts), and so does losing

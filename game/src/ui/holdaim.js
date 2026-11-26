@@ -7,7 +7,7 @@ import { groundY } from '../core/world.js';
 import { scene } from '../render/scene.js';
 import { screenToGround } from './volleyaim.js';
 import { HOLD_W, javTarget, strikeAt, rideQuality } from '../core/sim.js';
-import { CAPTAIN_COMBAT, HOLD_ATK} from '../config.js';
+import { CAPTAIN_COMBAT, HOLD_ATK, RIDE } from '../config.js';
 
 export const hold = { on: false, moved: false, x: 0, z: 0, face: 0, sx: 0, sy: 0, t0: 0 };
 const FINGER_LIFT = 70, SHOW_AFTER = 220; // (ms: a quick tap never flashes the bar)
@@ -101,9 +101,10 @@ export function drawRideAim() {
   const p = G.player, tg = p && p.rideTg; rInner.visible = rOuter.visible = false;
   if (!p || p.dead || !p.mounted || !p.rideReady || !tg || tg.dead || G.state !== 'play') return;
   const d = Math.hypot(tg.x - p.x, tg.z - p.z), gap = d - strikeAt(p, tg), q = rideQuality(p, tg);
-  const y = groundY(tg.x, tg.z) + .2;
+  const y = groundY(tg.x, tg.z) + RIDE.ringY; // (FEEL2f: at his waist, so your own horse doesn't hide it)
   rInner.visible = rOuter.visible = true; rInner.position.set(tg.x, y, tg.z); rOuter.position.set(tg.x, y, tg.z);
   rOuter.scale.setScalar(1 + Math.max(0, gap) * .45);
   const col = q === 'perfect' ? 0xffd23a : q === 'good' ? 0xffffff : q === 'graze' ? 0xff6a4a : 0xb8b8b8;
   rInner.material.color.setHex(col); rOuter.material.color.setHex(col);
+  if (q === 'perfect') rInner.scale.setScalar(1 + .12 * Math.sin(performance.now() / 45)); else rInner.scale.setScalar(1); // (FEEL2f: gold pulses: let go now)
 }

@@ -125,6 +125,24 @@ if (PARTS.includes('e')) {
   await page.close();
 }
 
+if (PARTS.includes('f')) {
+  const { page } = await battle();
+  const r = await page.evaluate(async () => {
+    const G = window.__fb.G, p = G.player, foe = window.__foe, sim = window.__sim, Gd = await import('/src/core/sim/guard.js'), { bus } = await import('/src/core/state.js');
+    for (const t of G.teams) t.cds = {}; sim.toggleHorseFor(p); for (let k = 0; k < 120 && !p.mounted; k++) window.__frame(1);
+    const q = []; bus.on('fxmsg', e => { if (e.k === 'fxride') q.push(e.q); });
+    const f = p.face, put = m => { foe.x = p.x + Math.sin(f) * m; foe.z = p.z + Math.cos(f) * m; foe.vx = foe.vz = 0; foe.stun = 9; };
+    put(9); p.vx = Math.sin(f) * 10; p.vz = Math.cos(f) * 10; p.cd = 0;
+    Gd.attackHold(p, true, .4); const locked = p.rideTg === foe;
+    put(Gd.strikeAt(p, foe)); const gold = Gd.rideQuality(p, foe);
+    const hp0 = foe.hp; Gd.attackHold(p, false, .016);
+    return { mounted: p.mounted, locked, gold, q, hurt: +(hp0 - foe.hp).toFixed(1) };
+  });
+  ok(r.mounted && r.locked, 'f: holding Attack on a horse locks the ride-by on the champion ahead (the ring shows on him)', r);
+  ok(r.gold === 'perfect' && r.q.includes('perfect'), 'f: let go when it turns gold: a perfect ride-by', r);
+  await page.close();
+}
+
 ok(!errs.length, 'no page errors', errs.slice(0, 2));
 console.log(fails ? `${fails} FAILED` : 'ALL PASS');
 await browser.close();
