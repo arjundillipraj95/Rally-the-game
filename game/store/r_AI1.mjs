@@ -18,9 +18,9 @@ const r = await page.evaluate(() => { const { G } = window.__fb;
     window.__fb.step(1); }
   const hp1 = gl.hp;
   // if his blows do nothing (his swing held back here, as when stuck), after 6 s he turns guard and hunts an enemy captain
-  for (let k = 0; k < 240; k++) { if (!cap.guardT) { cap.x = gl.x + 3; cap.z = gl.z; cap.vx = cap.vz = 0; cap.cd = 9; cap.pending = null; for (const u of G.units) if (u !== cap && !u.dead && Math.hypot(u.x - gl.x, u.z - gl.z) < 20) { u.x = gl.x + 40; u.z = gl.z + 40; } } window.__fb.step(1); }
+  for (let k = 0; k < 240; k++) { if (!(cap.huntT > G.T)) { cap.x = gl.x + 3; cap.z = gl.z; cap.vx = cap.vz = 0; cap.cd = 9; cap.pending = null; for (const u of G.units) if (u !== cap && !u.dead && Math.hypot(u.x - gl.x, u.z - gl.z) < 20) { u.x = gl.x + 40; u.z = gl.z + 40; } } window.__fb.step(1); }
   const plan = G.teams[cap.ti].plan;
-  return { phase: G.c2.phase, hp0, hp1, wpn: cap.weapon, guard: cap.guardT > G.T, plan: plan && plan.kind, tgt: plan && plan.target && plan.target.leader }; });
+  return { phase: G.c2.phase, hp0, hp1, wpn: cap.weapon, guard: cap.huntT > G.T, plan: plan && plan.kind, tgt: plan && plan.target && plan.target.leader }; });
 ok(r.phase === 'night', `it's night (${r.phase})`);
 ok(r.hp1 < r.hp0, `a javelin captain at the glacier strikes it: ${r.hp0} -> ${r.hp1} in 10 s, now with his ${r.wpn}`);
 ok(r.guard && r.plan === 'hunt' && r.tgt, `blows doing nothing for 6 s: he turns guard and hunts an enemy captain (${r.plan})`);
