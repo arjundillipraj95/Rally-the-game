@@ -527,6 +527,7 @@ export function clientTick(dt) {
         // (a raised shield shows on every phone, so a clang here is the clang the host rolls too)
         { const O = FEEL.own, kind = shield ? 'blocked' : spear ? 'shove' : 'hit'; bus.emit('hitstop', O.stop[kind]); if (!shield) cam.shake = Math.max(cam.shake, O.shake[kind]); if (O.buzz[kind]) buzz(O.buzz[kind]); }
         t.predHitAt = performance.now();
+        if (!shield) bus.emit('predhit', { u: t, a: me, heavy: me.swingKind === 6 }); // (FEEL4: his body takes it now, not when the host's word comes)
       }
     }
     if (C.atkBuf > 0 && C.localCd <= 0 && (!me.mounted || wolfRider(me)) && !me.eagle && !me.pounce && !me.ram && (!me.scutum || (champOf(G.myTi).sp2 || {}).stab)) actions.attack(); // (FEEL2b: a stab over the shield)

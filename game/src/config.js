@@ -547,7 +547,8 @@ export const FEEL = {
   // FEEL2e (Arjun 26 Nov) the most a blow from a mount (horse, wolf) pushes: [champion, soldier] m/s; a push of v m/s
   // slides him about v/1.8 m (measured, r_FEEL2 e): a champion ~1 m, a soldier ~1.5 m (was up to 22 m/s: ~6 m)
   mountPush: [1.8, 2.7],
-  own: { stop: { blocked: .03, heavy: .1, shove: .075, hit: .055 }, shake: { heavy: .22, shove: .16, hit: .1 }, buzz: { hit: 12, heavy: 28, blocked: 0 } },
+  own: { pred: { hold: 700, sev: [.8, 1] }, // (FEEL4: a joined phone shows its own blow's hit on the target at once; the host's word inside `hold` ms isn't played again)
+    stop: { blocked: .03, heavy: .1, shove: .075, hit: .055 }, shake: { heavy: .22, shove: .16, hit: .1 }, buzz: { hit: 12, heavy: 28, blocked: 0 } },
   // any blow that lands on anybody: the struck man holds his pose this long, by how hard it was (light, heavy)
   light: { stop: [.025, .06], near: 22, flash: [.03, .3] }, // flash: FEEL1 (Arjun 26 Nov, was .55/.75: read as a white body) the white of a hit, [3D bodies' glow, far figures' tint]
   // blows you take

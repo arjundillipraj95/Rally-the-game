@@ -169,7 +169,8 @@ function clipHero(u, a, h, dt, sp, blocking, hurt, P, rate, tag) {
   }
   h.swPrev = u.swing || 0;
   if (blocking && !h.wasBlocking) h.blkN = (h.blkN || 0) + 1; h.wasBlocking = blocking;
-  if (hurt && !blocking && !(a.stumble > 0)) { h.impN = (h.impN || 0) + 1; h.impT = T; h.impR = 0; }
+  const pre = u.predImpT != null && u.predImpT !== h.predSeen; if (pre) { h.predSeen = u.predImpT; h.predAt = performance.now(); } // (FEEL4: his own blow, shown at once)
+  if ((pre || (hurt && !(performance.now() - (h.predAt ?? -1e9) < FEEL.own.pred.hold))) && !blocking && !(a.stumble > 0)) { h.impN = (h.impN || 0) + 1; h.impT = T; h.impR = 0; }
   if (u.fxBashT != null && u.fxBashT !== h.bashSeen && !h.U) { h.bashSeen = u.fxBashT; h.impN = (h.impN || 0) + 1; h.impT = T; h.impR = ANIM.impact.bashRate; } // (FEEL1b: bashed: staggered back, slower)
   const d = h.face == null ? 0 : wrapA(u.face - h.face); h.face = u.face;
   const bashed = h.impR && h.impT != null && T - h.impT < C[ANIM.impact.clips[h.impN % ANIM.impact.clips.length]].dur / h.impR; // (FEEL1b: the bash's stagger plays even while he's stunned)

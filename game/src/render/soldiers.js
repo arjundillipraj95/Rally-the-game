@@ -427,7 +427,7 @@ const pick = a => a[(Math.random() * a.length) | 0];
 const anim = new WeakMap();
 if (import.meta.env.DEV) window.__anim = anim; // (dev: tests read poses)
 function exprOf(u) { const a = anim.get(u); return (a && a.expr) || 'normal'; }
-function stateOf(u) {
+export function stateOf(u) {
   let a = anim.get(u);
   if (!a) {
     a = { walk: Math.random() * 6, bodyY: 0, bodyRX: 0, bodyRZ: 0, yaw: 0, lift: 0, sink: 0, legL: [0, 0, 0], legR: [0, 0, 0], sArmX: 0, sArmPX: .5, wArmX: 0, wArmZ: 0, spearRX: 0, spearZ: 0, block: 0, over: 0, rag: null };
@@ -518,7 +518,7 @@ function pose(u, dt) {
   a.idle = (a.idle || 0) + dt;
   if (u.shoveAt && u.shoveAt !== a.shoveSeen) { a.shoveSeen = u.shoveAt; a.stumble = FEEL.duel.stumble; } // (F7: shoved out of a duel's ring: a stumble)
   // got hit: flash toward white and get knocked back on a spring that overshoots and settles
-  if (a.hp != null && u.hp < a.hp - .5) {
+  if (a.hp != null && u.hp < a.hp - .5 && !(performance.now() - (a.predT || 0) < FEEL.own.pred.hold && !(a.predT = 0))) { // (FEEL4: shown already)
     const dmg = a.hp - u.hp, sev = Math.min(1, dmg / 18), blocked = u.blockT > 0 || (u.human && u.blocking);
     a.flash = Math.min(1, Math.max(a.flash || 0, sev));
     if (!(u.fz > 0) && nearCam(u, FEEL.light.near)) u.fz = FEEL.light.stop[0] + (FEEL.light.stop[1] - FEEL.light.stop[0]) * sev; // (F6: every blow that lands has a beat of weight, on every phone)
