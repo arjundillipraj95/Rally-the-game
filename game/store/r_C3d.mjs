@@ -32,9 +32,9 @@ const o = await page.evaluate(async () => {
   F.step(6); r.after = { eagle: !!p.eagle, act: p.act ? p.act.name : '', jy: +(p.jy || 0).toFixed(2) };
   const g0 = al.hp; M.hit(f, al, 1, { fixed: 50, unblockable: true, unparryable: true }); r.guardHit = +(g0 - al.hp).toFixed(1);
   r.again = A.blocked(me, 'ult');
-  // the second: she walks out of the circle while he is in the air
-  G.teams[me].cds.ult = 0; hold.length = 0; f.x += 40; f.vx = f.vz = 0; p.stun = 0; put(E, 8); E.hp = E.max; const hpE2 = E.hp; F.ability(2); const spot = p.eagle && { x: p.eagle.x, z: p.eagle.z };
-  F.step(6); put(E, 8, 6); hold.push([E, E.x, E.z]); for (let k = 0; k < 36; k++) { F.step(1); freeze(); } r.dodge = { dE: +(hpE2 - E.hp).toFixed(1), out: +Math.hypot(E.x - spot.x, E.z - spot.z).toFixed(1), onSpot: +Math.hypot(p.x - spot.x, p.z - spot.z).toFixed(2) };
+  // the second: she walks out of the circle while he is in the air (FEEL2c: the circle follows her through the crouch)
+  G.teams[me].cds.ult = 0; hold.length = 0; f.x += 40; f.vx = f.vz = 0; p.stun = 0; put(E, 8); E.hp = E.max; const hpE2 = E.hp; F.ability(2); let spot = p.eagle && { x: p.eagle.x, z: p.eagle.z };
+  F.step(14); spot = p.eagle && { x: p.eagle.x, z: p.eagle.z }; put(E, 8, 6); hold.push([E, E.x, E.z]); for (let k = 0; k < 36; k++) { F.step(1); freeze(); } r.dodge = { dE: +(hpE2 - E.hp).toFixed(1), out: +Math.hypot(E.x - spot.x, E.z - spot.z).toFixed(1), onSpot: +Math.hypot(p.x - spot.x, p.z - spot.z).toFixed(2) };
   // from the saddle
   G.teams[me].cds.ult = 0; hold.length = 0; p.stun = 0; p.mounted = true; p.horse = { state: 'ridden', x: p.x, z: p.z }; put(E, 7); const why = A.blocked(me, 'ult'); F.ability(2); r.saddle = { why, mounted: p.mounted, eagle: !!p.eagle }; F.step(40);
   // a bot at level 7, his enemy champion 7 m away

@@ -58,6 +58,32 @@ if (PARTS.includes('b')) {
   await page.close();
 }
 
+if (PARTS.includes('c')) {
+  const { page } = await battle();
+  const r = await page.evaluate(async () => {
+    const G = window.__fb.G, p = G.player, foe = window.__foe, f = p.face, out = {};
+    window.__plain(); foe.x = p.x + Math.sin(f) * 7; foe.z = p.z + Math.cos(f) * 7; foe.stun = 9; const h0 = foe.hp;
+    window.__ab.useAbility(G.myTi, 'ult', { x: foe.x, z: foe.z }); out.on = !!p.eagle; out.locked = !!(p.eagle && p.eagle.tg);
+    const side = [Math.cos(f), -Math.sin(f)];
+    for (let k = 0; k < 6; k++) { foe.x += side[0] * .35; foe.z += side[1] * .35; foe.vx = foe.vz = 0; window.__plain(); window.__frame(1); } // (walks 2 m aside through the crouch)
+    const fx = foe.x, fz = foe.z;
+    for (let k = 0; k < 40 && p.eagle; k++) { window.__plain(); window.__frame(1); }
+    out.land = +Math.hypot(p.x - fx, p.z - fz).toFixed(2); out.hurt = +(h0 - foe.hp).toFixed(1);
+    // from the saddle
+    for (const t of G.teams) t.cds = {}; window.__sim.toggleHorseFor(p); for (let k = 0; k < 90 && !p.mounted; k++) window.__frame(1);
+    out.rode = p.mounted; const horse = p.horse;
+    window.__ab.useAbility(G.myTi, 'ult', { x: p.x + Math.sin(p.face) * 6, z: p.z + Math.cos(p.face) * 6 });
+    out.offAtOnce = !p.mounted; let hy = 0;
+    for (let k = 0; k < 40 && p.eagle; k++) { window.__frame(1); hy = Math.max(hy, (horse && horse.y) || 0); }
+    out.footAfter = !p.mounted && !p.eagle; out.horseState = horse && horse.state;
+    return out;
+  });
+  ok(r.on && r.locked, 'c: aimed at a champion, Eagle\'s fall locks on him', r);
+  ok(r.land < 1.6 && r.hurt > 50, 'c: he walked 2 m aside through the crouch; Titus still lands on him (m off) and hurts him', r);
+  ok(r.rode && r.offAtOnce && r.footAfter && r.horseState !== 'ridden', 'c: from the saddle Titus springs off (the horse not lifted) and lands on foot', r);
+  await page.close();
+}
+
 ok(!errs.length, 'no page errors', errs.slice(0, 2));
 console.log(fails ? `${fails} FAILED` : 'ALL PASS');
 await browser.close();

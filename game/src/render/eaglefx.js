@@ -17,12 +17,12 @@ const standUp = u => { if (u.act && u.act.name === 'eagle' && !u.eagle) u.act = 
 bus.on('fxmsg', e => {
   if (!e.u) return;
   if (e.k === 'fxeagle') {
-    const [x, z] = at(e.q), d = champOf(e.u.ti).ult; if (!d || !Number.isFinite(x)) return;
+    const [x, z, late] = at(e.q), d = champOf(e.u.ti).ult; if (!d || !Number.isFinite(x)) return; const t0 = G.T - (late ? d.crouch : 0); // (FEEL2c: a lock-on's circle comes as he leaves the ground)
     clear(e.u.id);
     const ring = decal(ringTex, d.r * 2, d.r * 2), inner = decal(ringTex, d.r * 2, d.r * 2, { opacity: .8 }), bird = decal(eagleTex, 4.4, 2.75, { add: false, opacity: 0, color: 0x000000 });
     place(ring, x, z); place(inner, x, z, 0, .14); bird.visible = false;
-    live.set(e.u.id, { u: e.u, x, z, t0: G.T, d, ring, inner, bird });
-    if (e.fromNet) e.u.act = { name: 'eagle', t: G.T }; // (the host's rules set it there)
+    live.set(e.u.id, { u: e.u, x, z, t0, d, ring, inner, bird });
+    if (e.fromNet && !late) e.u.act = { name: 'eagle', t: G.T }; // (the host's rules set it there; a lock-on's leap began a crouch ago, its act already sent)
   } else if (e.k === 'fxeagleland') {
     const [x, z] = at(e.q); clear(e.u.id);
     shockwave(x, z, 5, 0xffd36e); shockwave(x, z, 3, 0xfff1c2); spark(x, (e.u.y || 0) + .6, z, '#ffd36e', 30);
