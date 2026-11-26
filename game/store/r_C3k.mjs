@@ -25,6 +25,7 @@ const o = await page.evaluate(async () => {
   const stage = () => { if (p.mounted) sim.dismount(p, false); away(); E.x += 0; E.shieldT = 0; E.iframeT = 0; E.marchT = 0; E.armour = 0; E.hp = E.max; E.stun = 0; if (E.mounted) sim.dismount(E, false); E.horseCd = 99; };
   const ready = () => { ready0(); p.mounted = false; p.horse = null; p.r = .5 * 0 + p.r; p.ram = null; };
   const RM = await import('/src/core/sim/ram.js'), SC = await import('/src/core/sim/scutum.js'), TD = await import('/src/core/sim/testudo.js'), EG = await import('/src/core/sim/eagle.js'), CH = await import('/src/champions/index.js');
+  CH.champOf(e).sp1.wind = .15; // (FEEL2a made the wind-up .3 s; these collision checks keep their old frame counts. r_C3b times the new one)
   const T = CH.champOf(e), cls0 = T.cls, rest = () => { for (let i = 0; i < 30 * 7; i++) { F.step(1); if (E.scutum) SC.dropScutum(E); } };
   const front = (d = 3) => { [E.x, E.z] = at(d); E.face = p.face + Math.PI; };
   const run = n => { const x0 = p.x, z0 = p.z, f = p.face; let far = 0; for (let i = 0; i < n; i++) { F.step(1); const g = (p.x - x0) * Math.sin(f) + (p.z - z0) * Math.cos(f); far = Math.max(far, g); } return { far: +far.toFixed(2), end: +((p.x - x0) * Math.sin(f) + (p.z - z0) * Math.cos(f)).toFixed(2) }; };
@@ -66,7 +67,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); 
 console.log(JSON.stringify(o));
 ok(o.shield.far < 2.6 && o.shield.end < o.shield.far - .5 && o.shield.stun > .3 && o.shield.herHp === 0 && o.shield.slid > -.1, `a raised shield: stops at ${o.shield.far} m, bounces back to ${o.shield.end}, staggered ${o.shield.stun} s; she takes ${o.shield.herHp}, slides ${o.shield.slid} m`);
 ok(o.clash.me > 10 && o.clash.her > 10 && o.clash.st > .25 && o.clash.es > .25 && !o.clash.rams, `head-on: both stop, ${o.clash.me}/${o.clash.her} each, dazed ${o.clash.st}/${o.clash.es} s, ${o.clash.gap} m apart`);
-ok(o.file.hit === '1110' && o.file.far < 3.4, `soldiers slow him: the third stops him at ${o.file.far} m (hit ${o.file.hit})`);
+ok(o.file.hit.startsWith('111') && o.file.far > 4.5, `FEEL2a: soldiers never stop him: ran ${o.file.far} m through them (hit ${o.file.hit})`);
 ok(o.testudo.on && o.testudo.far < 3 && o.testudo.end < o.testudo.far && o.testudo.hurt === 0, `a testudo: he bounces off at ${o.testudo.far} m, nobody hurt`);
 ok(o.air.hurt === 0, `she's in the air: he passes under (${o.air.hurt})`);
 ok(!o.unhorse.mounted && o.unhorse.horse === 'leaving' && o.unhorse.cd && o.unhorse.hp === 200, `a Vanguard on a horse: knocked off, the horse ${o.unhorse.horse}, unhurt`);

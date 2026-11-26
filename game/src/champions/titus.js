@@ -55,7 +55,7 @@ export default {
   // `shove` m/s, stumbling `stumble` s. The first champion: `champ`, knocked back `kb` m, stunned `stun` s; into a
   // wall, gate or rock `wall` and `wallStun` s. A braced spear line stops it (the horse takes their blows x`horseX`).
   // Damage +`lvlUp` a level from 3. Recharge `cd` s.
-  sp1: { name: 'Ram of Cassius', short: 'Ram', cd: 6, range: 5, aimFace: true, mounted: true, wind: .15, dist: 5, rideDist: 8, dur: .35, w: .7,
+  sp1: { name: 'Ram of Cassius', short: 'Ram', cd: 6, range: 5, aimFace: true, mounted: true, wind: .3, part: 5, /* FEEL2a: wind .15 -> .3 (a fair warning at 400 ms lag); own men step aside at `part` m/s */ dist: 5, rideDist: 8, dur: .35, w: .7,
     soldier: 20, shove: 6, stumble: .3, champ: 35, kb: 2, stun: .5, wall: 70, wallStun: 1, horseX: 1.2, lvlUp: .05,
     // (C3k) bounced off a shield, a braced line or a testudo: `recoil` m back, `recoilStun` s; the holder slides `slide` m;
     // the spears bite `braceHurt`; head-on with another ram: `clashKb` m apart, `clashStun` s; each soldier in the way takes

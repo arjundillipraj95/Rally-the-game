@@ -1,7 +1,7 @@
 // C3b Ram of Cassius on the host: locked until level 3; tap rushes the way he faces, 0.15 s wind-up then 5 m; soldiers
 // in the path take 20 (+5% a level from 3), stumble 0.3 s and are shoved aside, not forward; the first enemy champion
 // takes 35, knocked back 2 m, stunned 0.5 s, and the rush ends on him; into a rock 70 and 1 s; a rock stops the rush
-// itself; a braced spear line stops it and its front takes the damage (he takes none); from the saddle 8 m, still
+// itself; (FEEL2a) a braced spear line no longer stops it: its men are knocked aside; from the saddle 8 m, still
 // mounted, and braced spears hit the horse; 6 s recharge; a bot uses it. The joined phone's is r_C3b-join.
 import { chromium } from 'playwright';
 import { open, frames } from './stage.mjs';
@@ -26,11 +26,11 @@ const o = await page.evaluate(async () => {
   const stage = () => { if (p.mounted) sim.dismount(p, false); away(); E.x += 0; E.shieldT = 0; E.iframeT = 0; E.marchT = 0; E.armour = 0; E.hp = E.max; E.stun = 0; if (E.mounted) sim.dismount(E, false); E.horseCd = 99; };
   // 1. two archers in his path, nothing else: the rush runs its 5 m
   stage(); ready(); E.x = p.x + 60; E.z = p.z; keep.length = 0;
-  const archers = [[2, .25], [3.5, -.25]].map(([d, s]) => { const [x, z] = at(d, s); const u = sim.mkUnit(e, x, z, 'arch'); u.hp = u.max = 300; u.face = p.face + Math.PI; return u; });
+  const archers = [[2, .25], [3.5, -.25]].map(([d, s]) => { const [x, z] = at(d, s); const u = sim.mkUnit(e, x, z, 'arch'); u.hp = u.max = 300; u.face = p.face + Math.PI; u.stun = 1; return u; }); // (FEEL2a: held still through the longer wind-up, archers back off)
   const a0 = archers.map(u => ({ hp: u.hp, ...rel(u) })), x0 = p.x, z0 = p.z;
   F.ability(0); r.cd = Math.round(A.cdLeft(me, 'sp1'));
   F.step(3); r.wind = +Math.hypot(p.x - x0, p.z - z0).toFixed(2);
-  const f0 = p.face, got = watch(archers, 15); r.ran = +Math.hypot(p.x - x0, p.z - z0).toFixed(2); r.ramOn = !!p.ram;
+  const f0 = p.face, got = watch(archers, 32); r.ran = +Math.hypot(p.x - x0, p.z - z0).toFixed(2); r.ramOn = !!p.ram;
   r.arch = archers.map((u, i) => { const q = rel(u); return { dmg: got[i].dmg, side: +(Math.abs(q.s) - Math.abs(a0[i].s)).toFixed(2), fwd: +(got[i].dx * Math.sin(f0) + got[i].dz * Math.cos(f0)).toFixed(2), stun: got[i].stun }; });
   r.again = A.blocked(me, 'sp1');
   for (const u of archers) { u.dead = true; u.hp = 0; }
@@ -54,7 +54,7 @@ const o = await page.evaluate(async () => {
   for (const u of line) { u.dead = true; u.hp = 0; }
   // 5. from the saddle: 8 m and still mounted; then into a braced line, the horse takes it
   F.step(30 * 7); stage(); ready(); E.x = p.x + 60; p.mounted = true; p.horse = { state: 'ridden', x: p.x, z: p.z }; p.horseHp = 200; const x3 = p.x, z3 = p.z;
-  F.ability(0); F.step(24); r.saddle = { ran: +Math.hypot(p.x - x3, p.z - z3).toFixed(2), mounted: p.mounted };
+  F.ability(0); F.step(30); r.saddle = { ran: +Math.hypot(p.x - x3, p.z - z3).toFixed(2), mounted: p.mounted };
   F.step(30 * 7); ready(); p.mounted = true; p.horse = { state: 'ridden', x: p.x, z: p.z }; p.horseHp = 200; keep.length = 0;
   const line2 = [0, 1, 2].map(i => { const [x, z] = at(3, (i - 1) * .7); const u = sim.mkUnit(e, x, z, 'foot'); u.face = p.face + Math.PI; u.vx = u.vz = 0; u.rest = true; return u; });
   F.ability(0); F.step(20); r.horse = { hp: +p.horseHp.toFixed(1), mounted: p.mounted, dmg: line2[0].dmg };
@@ -70,15 +70,15 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); 
 console.log(JSON.stringify(o));
 const w = (v, a, t = 1.5) => Math.abs(v - a) < t;
 ok(o.lv1 === 'level' && o.lvl >= 3 && o.cd === 6, `locked at level 1; at level ${o.lvl} it fires, recharge ${o.cd} s`);
-ok(o.wind < .05 && o.ran > 3.4 && o.ran < 5 && !o.ramOn, // (C3k: each soldier in the way slows him)
+ok(o.wind < .05 && o.ran > 4.5 && o.ran < 5.3 && !o.ramOn, // (FEEL2a: soldiers no longer slow him)
    `wind-up in place (${o.wind} m), then ${o.ran} m`);
 ok(o.arch.every(a => w(a.dmg, 20 * o.k) && a.stun > .2 && a.side > .3 && a.fwd < .6), `soldiers in the path: ${o.arch.map(a => a.dmg + ' dmg, ' + a.side + ' m aside, ' + a.fwd + ' m on').join('; ')}, stumbling`);
 ok(o.again === 'cd', `then recharging (${o.again})`);
 ok(w(o.champ.dmg, 35 * o.k) && w(o.champ.back, 2, .6) && o.champ.stun > .4 && o.champ.ran < 4.5, `the champion: ${o.champ.dmg}, back ${o.champ.back} m, stunned ${o.champ.stun} s, the rush ends at ${o.champ.ran} m`);
 ok(o.rock && w(o.wall.dmg, 70 * o.k) && o.wall.stun > .9, `into a castle wall: ${o.rock && o.wall.dmg}, stunned ${o.rock && o.wall.stun} s`);
 ok(o.rock && o.stopRock.gap < 1.2 && !o.stopRock.ram, `a wall stops the rush (${o.rock && o.stopRock.gap} m from it)`);
-ok(o.brace.ran < o.lineAt && o.brace.dmg.split('/').filter(v => w(+v, 20 * o.k)).length >= 2 && w(o.brace.me, 15, 4), `a braced line (${o.braced}, at ${o.lineAt} m) stops it at ${o.brace.ran} m; its front takes ${o.brace.dmg}; he takes ${o.brace.me}`);
+ok(o.brace.ran > o.lineAt + 1 && o.brace.dmg.split('/').filter(v => w(+v, 20 * o.k)).length >= 2 && o.brace.me < 1, `FEEL2a: a braced line (${o.braced}, at ${o.lineAt} m) no longer stops it (ran ${o.brace.ran} m); the men take ${o.brace.dmg}; he takes ${o.brace.me}`);
 ok(w(o.saddle.ran, 8, .4) && o.saddle.mounted, `from the saddle: ${o.saddle.ran} m, still mounted`);
-ok(o.horse.hp < 200 - o.horse.dmg * 1.2 * 2 + 1, `braced spears hit the horse (${o.horse.hp} of 200 left)`);
+ok(o.horse.hp >= 199, `FEEL2a: braced spears no longer stop the horse charge or hurt the horse (${o.horse.hp} of 200 left)`);
 ok(o.bot, 'a computer Titus uses it');
 console.log(fails ? `${fails} FAILED` : 'ALL PASS'); process.exit(fails ? 1 : 0);

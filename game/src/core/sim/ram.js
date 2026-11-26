@@ -1,14 +1,12 @@
 // Battle rules: C3b Ram of Cassius, Titus's special attack 1 (design doc, Titus card and Mount, 17 Nov). A shield-first
 // rush along the path shown first (the way he faces, or where aimed): a short wind-up, then the dash. Soldiers in the
 // path take a little, are shoved aside and stumble (nobody flies). The first enemy champion ends it: knocked back,
-// stunned, and twice as hard into a wall, gate or rock. Walls, gates and rocks stop it (no harm to them); a braced
-// spear line stops it too, but it lands on the front spearmen and breaks their brace (from the saddle the spears hit
-// the horse instead). From the saddle it is a longer horse charge and he stays mounted. Numbers on his page (sp1).
+// stunned, and twice as hard into a wall, gate or rock. Walls, gates and rocks stop it (no harm to them). From the saddle it is a longer horse charge and he stays mounted. Numbers on his page (sp1).
 // The host runs it; a joined phone runs its own champion's rush (netgame) and stops where the host says.
 // C3k (agreed 18 Nov) what it meets: a raised shield from the front stops it dead and he bounces back staggered (the
 // holder slides, unhurt); two rams head-on both stop, thrown apart and dazed, splitting the blow (a horse beats feet);
-// a braced spear line or a testudo is a wall he bounces off (the spears bite him); anyone in the air it passes under;
-// each soldier slows him, and the `men`th stops him among them; a gate takes `gateX` of his blows; a rider is knocked out
+// a testudo is a wall he bounces off; anyone in the air it passes under; FEEL2a (Arjun 26 Nov): soldiers, braced or not,
+// never slow or stop him (each takes his knock and is shoved aside), his own men step aside (`part`); a gate takes `gateX` of his blows; a rider is knocked out
 // of the saddle (horse unhurt) unless he rides too or the rider is a Raider (then pushed); a champion thrown into
 // another champion hurts him too, `chainX` of it, a short stagger, no further chain.
 import { G, isEnemy } from '../state.js';
@@ -16,7 +14,7 @@ import { groundY, angDiff } from '../world.js';
 import { levelOf } from '../../champions/stats.js';
 import { hit } from './melee.js';
 import { integrate } from './move.js';
-import { braced, dismount, gainRally, horseDamage, push } from './army.js';
+import { dismount, gainRally, push } from './army.js';
 import { wallInReach, hitWall } from './forts.js';
 import { champOf } from '../../champions/index.js';
 import { FORT, RALLY } from '../../config.js';
@@ -88,19 +86,16 @@ function contacts(u, R) {
       for (const f of o.testudo.men) if (!f.dead && ahead(f, 1.2) != null) { f.x += R.dx * d.slide; f.z += R.dz * d.slide; }
       recoil(u, R); fx('fxmsg', { k: 'fxramclang', u: o, a: u }); sound('heavy', o.x, o.z); return true;
     }
-    if (o.kind === 'foot' && braced(o) && faces(o)) { // a braced spear line: it stops here, and lands on the front of it
-      for (const f of G.units) if (!f.dead && isEnemy(u, f) && f.kind === 'foot' && braced(f) && faces(f) && ahead(f, 1.2) != null) {
-        R.hit.add(f.id); hit(u, f, 1, { fixed: d.soldier * k, stun: d.stumble, kb: .05, unblockable: true, unparryable: true });
-        if (u.mounted) horseDamage(u, f.dmg * d.horseX, f);
-      }
-      if (!u.mounted) hit(o, u, 1, { fixed: d.braceHurt, kb: .05 }); // (the spears bite him)
-      recoil(u, R); fx('fxmsg', { k: 'fxrambrace', u }); return true;
-    }
+    // (FEEL2a, Arjun 26 Nov: a special isn't stopped by soldiers: a braced line is knocked aside like any men)
     R.hit.add(o.id); // a soldier: a knock, shoved off the path to his side, a stumble
     hit(u, o, 1, { fixed: d.soldier * k, stun: d.stumble, kb: .05, unblockable: true, unparryable: true });
     const side = s >= 0 ? 1 : -1; push(o, R.dz * side * d.shove, -R.dx * side * d.shove, d.stumble);
-    R.men++; R.v *= 1 - d.slow; R.dist = R.gone + (R.dist - R.gone) * (1 - d.slow); // (each man in the way slows him)
-    if (R.men >= d.men) return true;
+    R.men++; // (FEEL2a: no longer slowed or stopped by men)
+  }
+  for (const o of G.units) { // FEEL2a: his own men in the path step aside (no harm)
+    if (o === u || o.dead || o.leader || o.mounted || isEnemy(u, o) || R.hit.has(o.id)) continue;
+    const s = ahead(o, .6); if (s == null) continue;
+    R.hit.add(o.id); const side = s >= 0 ? 1 : -1; push(o, R.dz * side * d.part, -R.dx * side * d.part, 0);
   }
   return false;
 }
