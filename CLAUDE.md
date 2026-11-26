@@ -26,7 +26,7 @@ designer (Opus, its own chat) owns the design doc. Builders: O tickets = Opus, S
 ## Rules
 1. Discuss first. Never build, commit or push until Arjun says "go" or "build" for that thing.
 2. Do only your ticket. If anything is unclear or conflicts with the design, stop and ask.
-3. Work on `roles`. Never push `main` unless told to ship: `main` is the live game.
+3. Work on `launch26`. Never push `main` unless told to ship: `main` is the live game.
 4. Phase 0, M and F tickets ship live. Phase 1+ stays behind `?roles=1` (G.roles) until Arjun approves the phase.
 5. Numbers come from the design doc and go in `game/src/config.js` tables, never in game logic.
 6. One ticket, one commit, message starting with the ticket ID.
@@ -39,8 +39,8 @@ designer (Opus, its own chat) owns the design doc. Builders: O tickets = Opus, S
 
 ## Several chats at once
 Other chats may be working on the repo at the same time. Work on a branch named after your ticket,
-or `git pull --rebase origin roles` right before pushing. Never force-push. On a conflict in someone
-else's work, stop and tell Arjun. Start every chat with `git checkout roles && git pull`.
+or `git pull --rebase origin launch26` right before pushing. Never force-push. On a conflict in someone
+else's work, stop and tell Arjun. Start every chat with `git checkout launch26 && git pull`.
 
 ## Saving tokens
 - Long chats re-send the whole conversation every message: when a piece of work is done, tell Arjun
@@ -66,8 +66,8 @@ else's work, stop and tell Arjun. Start every chat with `git checkout roles && g
 
 ## Ship
 No built files are committed (`npm run build` in `game/` only writes `game/dist`). `.github/workflows/pages.yml`
-builds `game/` and deploys to GitHub Pages on every push to `main`. Commit and push `roles`. To ship live (only
-when told): `git checkout main && git merge --ff-only roles && git push origin main`, then confirm with
+builds `game/` and deploys to GitHub Pages on every push to `main`. Commit and push `launch26`. To ship live (only
+when told): `git checkout main && git merge --ff-only launch26 && git push origin main`, then confirm with
 `gh run list -L 2 --branch main`.
 
 ## graphify (code map)
