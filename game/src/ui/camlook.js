@@ -1,4 +1,4 @@
-// CAM1 looking somewhere else with the fixed camera (Arjun 25 Nov).
+// CAM1 looking somewhere else (Arjun 25 Nov); CAM2: with the turning camera too (dead, a drag still turns it).
 // Alive: press the minimap and the camera goes there; drag on it to look round; let go and it holds a moment, then slides
 // back to your champion (you can steer the whole time). With the shout tray open, a tap on the minimap is "Attack here!".
 // Dead: drag the screen (or push the stick) to move the camera round the field, tap the minimap to jump there, or tap a
@@ -36,7 +36,6 @@ export function installCamLook(A) {
     const pt = miniToWorld(e); if (!pt) return;
     const tray = $('shoutTray');
     if (tray && !tray.hidden && !dead()) { A.shout(PINGS.from, pt); tray.hidden = true; $('shoutBtn').classList.remove('open'); return; } // (shout tray open: Attack here!)
-    if (!camMode.fixed) { A.shout(PINGS.from, pt); return; } // (?cam=old: as before)
     L.held = e.pointerId; try { mini.setPointerCapture(e.pointerId); } catch (_) {}
     if (dead()) deathCam.u = G.player || deathCam.u; // (back off a teammate: the camera is yours to move)
     lookAt(pt.x, pt.z);
@@ -54,7 +53,7 @@ export function installCamLook(A) {
 }
 // the faces: you first (back to where you fell), then each living teammate's champion
 function bar(force) {
-  const show = camMode.fixed && dead() && G.state === 'play';
+  const show = dead() && G.state === 'play'; // (CAM2: both cameras)
   if (L.bar.hidden === show) L.bar.hidden = !show;
   if (!show) { L.built = ''; return; }
   const mates = G.teams.map((s, ti) => ({ s, ti })).filter(({ s, ti }) => ti !== G.myTi && s.active !== false && s.leader && !s.leader.dead && !isEnemyTi(ti, G.myTi));
@@ -73,7 +72,7 @@ export function camLookTick(dt) {
   L.wasDead = d;
   if (G.state !== 'play') { camLook.on = false; L.held = null; }
   if (!d && camLook.on && L.held === null) { L.stay -= dt; if (L.stay <= 0) camLook.on = false; } // (alive: a look holds a moment, then slides back)
-  if (d && camMode.fixed && inp.joy.active && (inp.joy.x || inp.joy.y)) pan(-inp.joy.x * 520 * dt, -inp.joy.y * 520 * dt); // (dead: the stick moves the camera too)
+  if (d && inp.joy.active && (inp.joy.x || inp.joy.y)) pan(-inp.joy.x * 520 * dt, -inp.joy.y * 520 * dt); // (dead: the stick moves the camera too)
   bar(false);
 }
 bus.on('respawnMe', () => { camLook.on = false; L.held = null; });

@@ -3,7 +3,7 @@ import { TEAMS, MODES, MAPS, RANKS, AL_LETTER, TARGETS } from '../config.js';
 import { G, rules, matchTime, modeDesc, targetFor, SLOT_NAME } from '../core/state.js';
 import { quality, saveSetting } from '../render/quality.js';
 import { clearCritters } from '../render/critters.js';
-import { setShake, shakeEnabled, setCamAngle, camMode } from '../render/camera.js';
+import { setShake, shakeEnabled, setCamAngle, setCamMode, camMode } from '../render/camera.js';
 import { target, setTarget } from '../champions/blocks.js';
 import { initAudio, sfx, setVibe, vibeEnabled } from '../ui/audio.js';
 import { mountSoundBars } from '../ui/soundbars.js';
@@ -97,6 +97,8 @@ seg('segSpecAim', v => { setTarget(v); pressSeg('segSpecAim', v); }); pressSeg('
 seg('segShake', v => { setShake(v === 'on'); pressSeg('segShake', v); });
 pressSeg('segShake', shakeEnabled() ? 'on' : 'off');
 seg('segCam', v => { setCamAngle(+v); pressSeg('segCam', v); }); pressSeg('segCam', String(camMode.angle)); // (CAM1: the same ground at each angle)
+const camAngleRow = () => { const g = document.getElementById('grpCamAngle'); if (g) g.hidden = !camMode.fixed; }; // (CAM2: the angle is the high camera's)
+seg('segCamMode', v => { setCamMode(v === 'high'); pressSeg('segCamMode', v); camAngleRow(); }); pressSeg('segCamMode', camMode.fixed ? 'high' : 'turn'); camAngleRow();
 seg('segQuality', v => {
   if (v === quality.setting) return;
   saveSetting(v);

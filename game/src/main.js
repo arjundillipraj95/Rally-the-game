@@ -7,7 +7,7 @@ import { findPath } from './core/nav.js';
 import { renderer, scene, camera, applyShadowQuality, followSun } from './render/scene.js';
 import { ambientTick } from './render/ambient.js';
 import { quality } from './render/quality.js';
-import { updateWorldView, grassTime, worldGroup } from './render/world.js';
+import { updateWorldView, grassTime } from './render/world.js';
 import { drawSoldiers, drawCalls } from './render/soldiers.js';
 import { banterTick } from './render/banter.js';
 import { initFeed, feedTick } from './ui/feed.js';
@@ -25,7 +25,6 @@ import { drawFreeHorses } from './render/heroes.js';
 import { drawAura, castleFx, effectsTick, drawEffects } from './render/effects.js';
 import { drawOverlay } from './render/overlay.js';
 import { cam, followCamera, camTarget, camMode, camLook } from './render/camera.js';
-import { camHoleTick } from './render/camhole.js';
 import { camLookTick } from './ui/camlook.js';
 import { feelTick, feelStats } from './render/feel.js';
 import { initDeath, deathTick, deathState } from './ui/death.js';
@@ -86,7 +85,6 @@ function drawScene(dt) {
   camLookTick(dt); followCamera(dt); // (CAM1: looking elsewhere, then the camera)
   if (import.meta.env.DEV && window.__camAt) { const c = window.__camAt; camera.position.set(c[0], c[1], c[2]); camera.lookAt(c[3], c[4], c[5]); } // (dev: fixed shots of the scenery)
   updateSeeThrough(dt, camera.position, camTarget(), camMode.fixed);
-  camHoleTick(dt, camMode.fixed && !camLook.on, camera.position, camTarget(), worldGroup()); // (CAM1)
   drawAura(G.player, auraRange(G.myTi), grassTime());
   drawVolleyAim(grassTime()); drawHoldAim(grassTime()); drawJavAim(); drawRideAim(); drawAbilAim(); drawPull();
   const tg = camTarget(); followSun(tg ? tg.x : 0, tg ? tg.z : 0, grassTime());

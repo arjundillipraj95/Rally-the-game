@@ -20,8 +20,5 @@ export const CAMVIEW = {
   // dead: drag the screen to move the camera (pan: metres per pixel at the default distance)
   pan: .045,
 };
-// the see-through tube from the camera to your champion (render/camhole.js): r m wide at his end; min: how much of a cut
-// wall still shows as dither (0 none); chest: where the tube ends on him (m above his feet); feet: nothing below this is cut
-export const HOLE = { r: 3.4, min: .12, chest: 1.2, feet: .5 };
 // trees (render/seethrough.js), fixed camera: the line test is wider (pad m), and any tree within near m of him fades too
 export const TREEFADE = { pad: 1.4, near: 4 };

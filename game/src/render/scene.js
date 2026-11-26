@@ -4,7 +4,7 @@ import { lookFor } from './look.js';
 import { DAY } from '../config.js';
 import { WATER } from './water.js';
 import { CAMVIEW } from '../config/cam.js';
-const FIXED_CAM = new URLSearchParams(location.search).get('cam') !== 'old'; // (CAM1)
+export const fovMode = { high: false }; // (CAM1/CAM2: render/camera.js sets it: the high camera's flatter view)
 
 // Filmic, color-managed rendering with a sun that casts real shadows around the camera.
 export const canvas = document.getElementById('gl');
@@ -59,7 +59,7 @@ export function resize() {
   view.W = innerWidth; view.H = innerHeight; view.DPR = Math.min(window.devicePixelRatio || 1, 2);
   applyPixelRatio();
   renderer.setSize(view.W, view.H, false);
-  camera.aspect = view.W / view.H; camera.fov = FIXED_CAM ? (view.W < view.H ? CAMVIEW.fovTall : CAMVIEW.fov) : view.W < view.H ? 78 : 60; // (CAM1: the high camera sees flatter, Unite-like)
+  camera.aspect = view.W / view.H; camera.fov = fovMode.high ? (view.W < view.H ? CAMVIEW.fovTall : CAMVIEW.fov) : view.W < view.H ? 78 : 60; // (CAM1: the high camera sees flatter, Unite-like)
   camera.updateProjectionMatrix(); // (FIX13: this had slipped into the comment above; the picture stayed stretched after a rotate)
 }
 

@@ -4,7 +4,7 @@ import { FEEL, EXEC, CASTLE26, TEAMS } from '../config.js';
 import { CAMVIEW } from '../config/cam.js';
 import { circleOf } from '../core/sim/capture.js'; // (CASTLE4)
 import { groundY, terrainMeshY, rnd, W } from '../core/world.js';
-import { camera, view } from './scene.js';
+import { camera, view, fovMode, resize } from './scene.js';
 
 export const cam = { yaw: 0, pitch: .42, shake: 0, snap: 0, kx: 0, kz: 0 }; // (snap: for this many frames the camera is put straight where it belongs, no glide: a cut under black, F5)
 // (F5) your fallen captain: the camera stays on him until you're back (ui/death.js sets and clears it)
@@ -14,11 +14,17 @@ export function camKick(dx, dz) { if (reduceMotion) return; cam.kx += dx; cam.kz
 // the match's opening (main.js): when set, it may move the camera after the follow camera has placed it
 export const introCam = { on: null };
 export const CAM_PITCH = .42; // a little higher than eye level, so the squad behind you doesn't wall off the fight
-// CAM1 the fixed high camera (config/cam.js). ?cam=old: the low follow camera that turns, as before.
+// CAM2 (Arjun 26 Nov): the turning third-person camera is the default again; CAM1's fixed high camera (config/cam.js) is
+// Settings > Camera > High. Kept per phone (rally-cammode). ?cam=old|turn: turning; ?cam=high|45|50|55: high.
 const camQ = new URLSearchParams(location.search).get('cam');
-const camSaved = (() => { try { return localStorage.getItem('rally-cam'); } catch (e) { return null; } })();
-export const camMode = { fixed: camQ !== 'old', angle: CAMVIEW.presets[camQ] ? +camQ : CAMVIEW.presets[camSaved] ? +camSaved : CAMVIEW.def };
+const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+const camSaved = lsGet('rally-cam');
+const highQ = camQ === 'high' || !!CAMVIEW.presets[camQ], turnQ = camQ === 'old' || camQ === 'turn';
+export const camMode = { fixed: highQ ? true : turnQ ? false : lsGet('rally-cammode') === 'high', angle: CAMVIEW.presets[camQ] ? +camQ : CAMVIEW.presets[camSaved] ? +camSaved : CAMVIEW.def };
 camMode.preset = CAMVIEW.presets[camMode.angle];
+fovMode.high = camMode.fixed;
+// Settings > Camera: Turning or High
+export function setCamMode(high) { camMode.fixed = !!high; fovMode.high = camMode.fixed; try { localStorage.setItem('rally-cammode', high ? 'high' : 'turn'); } catch (e) {} dir.fx = null; camLook.on = false; resize(); }
 // Settings > Camera angle (45, 50, 55): kept on this phone
 export function setCamAngle(a) { if (!CAMVIEW.presets[a]) return; camMode.angle = +a; camMode.preset = CAMVIEW.presets[a]; try { localStorage.setItem('rally-cam', String(a)); } catch (e) {} }
 // looking somewhere else (ui/camlook.js): on: the camera's on {x, z} instead of on its target
@@ -94,7 +100,8 @@ export function followCamera(dt) {
   if (cam.snap > 0) { dir.zoom = dir.want = 1; dir.lift = dir.wantLift = 0; dir.orbit = 0; dir.t = 0; }
   direct(tgt, dt);
   if (camMode.fixed) { fixedFollow(tgt, dt); return; }
-  const px = tgt.x, pz = tgt.z, py = tgt.y;
+  glide(tgt, dt); const away = camLook.on || dir.back; // (CAM2: the minimap look works with the turning camera too; otherwise exactly as before)
+  const px = away ? dir.fx : tgt.x, pz = away ? dir.fz : tgt.z, py = away ? dir.fy : tgt.y;
   const dist = ((view.W < view.H ? 11 : 9.5) + (tgt.mounted ? 3 : 0)) * dir.zoom, h = 2.2 + Math.sin(cam.pitch) * dist + (tgt.mounted ? 1 : 0) + dir.lift;
   const yaw = cam.yaw + dir.orbit; // (dir.orbit: the director's swing round, for an execution)
   const cx = px - Math.sin(yaw) * Math.cos(cam.pitch) * dist, cz = pz - Math.cos(yaw) * Math.cos(cam.pitch) * dist;
@@ -110,19 +117,23 @@ export function followCamera(dt) {
   if (introCam.on) introCam.on(camera, tgt);
 }
 
-// CAM1 the fixed high camera: the look point is the champion (or a place looked at), a little up-screen of him
-function fixedFollow(tgt, dt) {
-  const V = CAMVIEW, P = camMode.preset, cin = dir.cin, ease = cin * cin * (3 - 2 * cin);
-  cam.yaw = fixedYaw(); cam.pitch = P.pitch * Math.PI / 180;
-  const yaw = cam.yaw + dir.orbit * ease, fx = Math.sin(yaw), fz = Math.cos(yaw);
-  // where the camera is looking: the champion, or a place looked at (gliding there and back)
-  const ty = camLook.on ? null : tgt.y || 0, tx = camLook.on ? camLook.x : tgt.x, tz = camLook.on ? camLook.z : tgt.z;
+// where the camera looks: the champion, or a place looked at from the minimap (gliding there and back). Both cameras.
+function glide(tgt, dt) {
+  const V = CAMVIEW, ty = camLook.on ? null : tgt.y || 0, tx = camLook.on ? camLook.x : tgt.x, tz = camLook.on ? camLook.z : tgt.z;
   if (dir.fx === null || cam.snap > 0) { dir.fx = tx; dir.fz = tz; dir.back = false; }
   if (camLook.on) dir.back = true;
   const rate = camLook.on ? V.look.glide : dir.back ? V.look.back : 0;
   if (rate) { const k = Math.min(1, dt * rate); dir.fx += (tx - dir.fx) * k; dir.fz += (tz - dir.fz) * k; if (!camLook.on && Math.hypot(tx - dir.fx, tz - dir.fz) < .3) dir.back = false; }
   else { dir.fx = tx; dir.fz = tz; }
   const gy = ty === null || dir.back ? groundY(dir.fx, dir.fz) : ty; dir.fy += ((gy || 0) - dir.fy) * Math.min(1, dt * 6); if (cam.snap > 0) dir.fy = gy || 0;
+}
+// CAM1 the fixed high camera: the look point is the champion (or a place looked at), a little up-screen of him
+function fixedFollow(tgt, dt) {
+  const V = CAMVIEW, P = camMode.preset, cin = dir.cin, ease = cin * cin * (3 - 2 * cin);
+  cam.yaw = fixedYaw(); cam.pitch = P.pitch * Math.PI / 180;
+  const yaw = cam.yaw + dir.orbit * ease, fx = Math.sin(yaw), fz = Math.cos(yaw);
+  // where the camera is looking: the champion, or a place looked at (gliding there and back)
+  glide(tgt, dt);
   // on horseback the look point leads the way he rides
   const M = tgt.mounted && !camLook.on && !tgt.dead, sp = Math.hypot(tgt.vx || 0, tgt.vz || 0), lk = Math.min(1, dt * V.mounted.leadK);
   const wl = M && sp > .5 ? V.mounted.lead * Math.min(1, sp / 12) : 0;

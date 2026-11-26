@@ -10,7 +10,7 @@ import { braced } from '../core/sim.js';
 import { spearman } from '../champions/army.js';
 import { lookOf, slotOf, SLOT_IX } from '../core/look.js';
 import { scene, shadowsOn, camera } from './scene.js';
-import { camTarget, camMode } from './camera.js';
+import { camTarget } from './camera.js';
 import { trail, slash, pow, dust, spark, bladeTrail } from './effects.js';
 import { groundY } from '../core/world.js';
 import { quality, fight, markFight } from './quality.js';
@@ -438,7 +438,7 @@ function stateOf(u) {
 export const ringFor = u => {
   if (u.kind !== 'captain') return null;
   if (u.ti === G.myTi) return 'me';
-  if (camMode.fixed && u.ti < ARMIES) return 'c' + colorOf(u.ti); // (CAM1: every champion, in his faction's colour)
+  if (u.ti < ARMIES) return 'c' + colorOf(u.ti); // (CAM1: every champion, in his faction's colour; CAM2: both cameras)
   if (!isFfa() && !isEnemyTi(u.ti, G.myTi)) return 'ally';
   return null;
 };

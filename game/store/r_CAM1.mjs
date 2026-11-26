@@ -1,6 +1,6 @@
 // CAM1 the fixed high camera: never turns (drag or keys), 50° by default with the setting kept, the minimap looks and
 // comes back, the shout tray + minimap pings, dead: drag moves the camera, teammates' faces follow them, faction rings,
-// the see-through hole is on, and ?cam=old still turns.
+// and ?cam=old still turns. (CAM2: this is now Settings > Camera > High, so the test opens it with ?cam=high; no see-through hole.)
 import { chromium } from 'playwright';
 import { open, frames } from './stage.mjs';
 let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); if (!c) fails++; };
@@ -9,20 +9,19 @@ const start = async q => { const p = await open(b, 844, 390, { q }); await p.cli
   await p.evaluate(() => { window.__fb.G.state = 'play'; }); await frames(p, 30);
   // skip the opening flyover
   await p.evaluate(async () => { const H = await import('/src/app/home.js'); for (let i = 0; i < 400 && H.intro; i++) { H.introTick(.1); } }); await frames(p, 30); return p; };
-const S = p => p.evaluate(async () => { const C = await import('/src/render/camera.js'), Sc = await import('/src/render/scene.js'), H = await import('/src/render/camhole.js'), K = await import('/src/ui/camlook.js');
+const S = p => p.evaluate(async () => { const C = await import('/src/render/camera.js'), Sc = await import('/src/render/scene.js'), K = await import('/src/ui/camlook.js');
   const c = Sc.camera.position, d = window.__camDbg; const L = d ? d.L : [0, 0, 0];
   return { yaw: C.cam.yaw, fixedYaw: C.fixedYaw(), angle: C.camMode.angle, pitch: Math.atan2(c.y - L[1], Math.hypot(c.x - L[0], c.z - L[2])) * 180 / Math.PI,
-    look: K.lookState(), f: d && d.f, hole: H.holeStats, fov: Sc.camera.fov }; });
+    look: K.lookState(), f: d && d.f, fov: Sc.camera.fov }; });
 const drag = async (p, x0, y0, dx, dy) => { await p.mouse.move(x0, y0); await p.mouse.down(); for (let i = 1; i <= 6; i++) { await p.mouse.move(x0 + dx * i / 6, y0 + dy * i / 6); await frames(p, 1); } await p.mouse.up(); };
 
-const p = await start('?crown2=1&champ=titus');
+const p = await start('?crown2=1&champ=titus&cam=high');
 let s = await S(p);
 ok(Math.abs(s.yaw - s.fixedYaw) < 1e-6, `camera faces from the base to the summit (yaw ${s.yaw.toFixed(2)})`);
 ok(s.angle === 50 && Math.abs(s.pitch - 50) < 1.5, `standard angle 50°, looking down at ${s.pitch.toFixed(1)}°`);
 ok(s.fov === 45, `narrow view in landscape (fov ${s.fov})`);
 await drag(p, 650, 200, 160, 60); await p.keyboard.down('ArrowLeft'); await frames(p, 20); await p.keyboard.up('ArrowLeft'); await frames(p, 5);
 const s2 = await S(p); ok(Math.abs(s2.yaw - s.yaw) < 1e-6, 'a drag on the right and the arrow keys do not turn it');
-ok(s2.hole.mats > 0 && s2.hole.on, `the see-through hole is on (${s2.hole.mats} scenery materials)`);
 // the minimap looks
 const mini = await p.evaluate(() => { const r = document.getElementById('mini').getBoundingClientRect(); return [r.left, r.top, r.width]; });
 const me0 = await p.evaluate(() => [window.__fb.G.player.x, window.__fb.G.player.z]);
