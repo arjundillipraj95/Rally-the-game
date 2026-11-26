@@ -123,6 +123,7 @@ bus.on('fxmsg', d => {
   if (d.k === 'fxtired' && mine) bus.emit('fighttip', 'tired');
   if (d.k === 'fxevade') { if (!mine && d.a !== me) return; if (mine) { buzz(20); bus.emit('fighttip', 'counter'); } }
   if (d.k === 'fxride') { // your ride-by blow: how well you timed it
+    if (d.q === 'perfect' && u && !u.dead && !u.leader && !u.mounted && d.a !== u) u.act = { name: 'knockdown', t: G.T, down: 1 }; // (FEEL2e: a perfect ride-by puts a soldier down, on every phone)
     if (d.a !== me) return;
     const R = { perfect: ['PERFECT!', '#ffd23a'], good: ['HIT!', '#ffffff'], graze: ['TOO LATE', '#c9c2b2'], miss: ['TOO EARLY', '#c9c2b2'] }[d.q] || ['', ''];
     const at = d.q === 'miss' || u === me ? me : u; if (d.q === 'perfect' || d.q === 'miss' || d.q === 'graze') pow(at.x, at.y + 3.1, at.z, R[0], R[1], 1);

@@ -248,6 +248,7 @@ export function hit(a, b, mult = 1, extra) {
   if (a.mounted && b.kind === 'arch') dmg *= COUNTER.mult; // (C1d the counter rule: cavalry on archers)
   if (b.mounted) { horseDamage(b, dmg * (spearedHorse ? COUNTER.mult : 1), a); return; } // (C1d: a mounted champion's horse takes every blow; spears 120%)
   let kb = (a.leader ? (a.mounted ? 10 : 8) : 5) * (extra && extra.kb || 1) * (!a.leader && G.teams[a.ti] && G.teams[a.ti].vcT > G.T ? VCHARGE.kb : 1);
+  if (a.mounted) kb = Math.min(kb, FEEL.mountPush[b.leader ? 0 : 1]); // (FEEL2e: a blow from any mount pushes him a step, not across the field)
   const frontal = Math.abs(angDiff(b.face, Math.atan2(a.x - b.x, a.z - b.z))) < 1.1;
   const held = frontal && b.holding && !b.human; // a footman standing his place in a held line
   let blocked = onGuard && !(extra && extra.unblockable); // (C3b: an unblockable blow went through a computer captain's guard at a quarter)

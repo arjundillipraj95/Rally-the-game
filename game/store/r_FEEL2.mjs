@@ -109,6 +109,22 @@ if (PARTS.includes('d')) {
   await page.close();
 }
 
+if (PARTS.includes('e')) {
+  const { page } = await battle();
+  const r = await page.evaluate(async () => {
+    const G = window.__fb.G, p = G.player, foe = window.__foe, sim = window.__sim, M = await import('/src/core/sim/melee.js'), f = p.face;
+    for (const t of G.teams) t.cds = {}; sim.toggleHorseFor(p); for (let k = 0; k < 90 && !p.mounted; k++) window.__frame(1);
+    const man = sim.mkUnit(foe.ti, p.x + Math.sin(f) * 2 + 3, p.z + Math.cos(f) * 2, 'foot'); man.hp = man.max = 500;
+    const slide = (o) => { window.__plain(); o.x = p.x + Math.sin(f) * 2; o.z = p.z + Math.cos(f) * 2; o.vx = o.vz = 0; o.stun = 9; o.hp = o.max; const x0 = o.x, z0 = o.z;
+      M.hit(p, o, 1, { heavy: true, shown: true, kb: 2.2, stun: 1, unparryable: true, unblockable: true }); // (a perfect ride-by's blow)
+      for (let k = 0; k < 45; k++) { o.stun = 9; window.__frame(1); } return +Math.hypot(o.x - x0, o.z - z0).toFixed(2); };
+    const champ = slide(foe); foe.x += 30; foe.z += 30; return { mounted: p.mounted, champ, man: slide(man) };
+  });
+  ok(r.mounted && r.champ > .3 && r.champ < 1.4, 'e: a perfect ride-by pushes a champion about 1 m (was ~6)', r);
+  ok(r.man > .5 && r.man < 2, 'e: and a soldier about 1.5 m', r);
+  await page.close();
+}
+
 ok(!errs.length, 'no page errors', errs.slice(0, 2));
 console.log(fails ? `${fails} FAILED` : 'ALL PASS');
 await browser.close();

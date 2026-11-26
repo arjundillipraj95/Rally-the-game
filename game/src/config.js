@@ -543,7 +543,10 @@ export const FEEL = {
   // your own blows, as before F6 (seconds of hold, shake) plus a short buzz when one lands
   // FEEL1b a champion's basic blow on a champion, for the one hit (render/champhit.js): power of FX1's impact (red edge,
   // shake, buzz, kick) for a slash and the bash; the bash also staggers him back (ANIM.impact.bashRate)
-  basic: { slash: .4, bash: 1.1, reel: [0, 2], rebound: 5 }, // rebound: FEEL2b the rock back off the Shield of Cassius // reel: extra body rock [slash, bash] on top of every blow's own (soldiers.js)
+  basic: { slash: .4, bash: 1.1, reel: [0, 2], rebound: 5 }, // reel: extra body rock [slash, bash] on top of every blow's own (soldiers.js); rebound: FEEL2b the rock back off the Shield of Cassius
+  // FEEL2e (Arjun 26 Nov) the most a blow from a mount (horse, wolf) pushes: [champion, soldier] m/s; a push of v m/s
+  // slides him about v/1.8 m (measured, r_FEEL2 e): a champion ~1 m, a soldier ~1.5 m (was up to 22 m/s: ~6 m)
+  mountPush: [1.8, 2.7],
   own: { stop: { blocked: .03, heavy: .1, shove: .075, hit: .055 }, shake: { heavy: .22, shove: .16, hit: .1 }, buzz: { hit: 12, heavy: 28, blocked: 0 } },
   // any blow that lands on anybody: the struck man holds his pose this long, by how hard it was (light, heavy)
   light: { stop: [.025, .06], near: 22, flash: [.03, .3] }, // flash: FEEL1 (Arjun 26 Nov, was .55/.75: read as a white body) the white of a hit, [3D bodies' glow, far figures' tint]
