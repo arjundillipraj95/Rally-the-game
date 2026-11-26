@@ -9,7 +9,7 @@ const pct = v => Math.round(v * 100);
 export function mountSoundBars() {
   document.querySelectorAll('[data-sound-bars]').forEach(box => {
     if (box.dataset.ready) return; box.dataset.ready = '1';
-    box.innerHTML = ROWS.map(([k, name]) => `<div class="sbar"><span class="sbName">${name}</span><input type="range" min="0" max="100" step="5" value="${pct(LV[k])}" data-bar="${k}" aria-label="${name} volume"><output>${pct(LV[k])}%</output></div>`).join('');
+    box.innerHTML = ROWS.map(([k, name]) => `<div class="vbar"><span class="vbName">${name}</span><input type="range" min="0" max="100" step="5" value="${pct(LV[k])}" data-bar="${k}" aria-label="${name} volume"><output>${pct(LV[k])}%</output></div>`).join('');
     box.querySelectorAll('input').forEach(inp => {
       const k = inp.dataset.bar, out = inp.nextElementSibling;
       inp.addEventListener('input', () => { setBar(k, inp.value / 100); });

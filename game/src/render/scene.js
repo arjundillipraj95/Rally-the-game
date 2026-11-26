@@ -59,7 +59,8 @@ export function resize() {
   view.W = innerWidth; view.H = innerHeight; view.DPR = Math.min(window.devicePixelRatio || 1, 2);
   applyPixelRatio();
   renderer.setSize(view.W, view.H, false);
-  camera.aspect = view.W / view.H; camera.fov = FIXED_CAM ? (view.W < view.H ? CAMVIEW.fovTall : CAMVIEW.fov) : view.W < view.H ? 78 : 60; // (CAM1: the high camera sees flatter, Unite-like) camera.updateProjectionMatrix();
+  camera.aspect = view.W / view.H; camera.fov = FIXED_CAM ? (view.W < view.H ? CAMVIEW.fovTall : CAMVIEW.fov) : view.W < view.H ? 78 : 60; // (CAM1: the high camera sees flatter, Unite-like)
+  camera.updateProjectionMatrix(); // (FIX13: this had slipped into the comment above; the picture stayed stretched after a rotate)
 }
 
 // Shadows on or off, and how sharp, per quality level. Returns true if shadows are on.
