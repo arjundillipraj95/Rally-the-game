@@ -177,7 +177,7 @@ function clash(a, b, pend) {
   if (a.ripN > 0 && a.riposteT > G.T) return false; // (so does a riposte)
   if (b.iframeT > 0 || a.execT > 0 || b.execT > 0 || b.stun > 0) return false;
   if (G.crown && G.T < CROWN.breakout) return false;
-  if ((a.duelId || b.duelId) && a.duelId !== b.duelId) return false;
+  if (!a.duelId || a.duelId !== b.duelId) return false; // (FEEL3: blades meet only in a duel)
   const ang = Math.atan2(b.x - a.x, b.z - a.z);
   if (Math.abs(angDiff(a.face, ang)) > C.arc || Math.abs(angDiff(b.face, ang + Math.PI)) > C.arc) return false;
   b.pending = null; b.windup = 0; b.glint = false;
@@ -222,13 +222,13 @@ export function hit(a, b, mult = 1, extra) {
   if (back) { mult *= BACKSTAB.mult; extra = Object.assign({}, extra, { stun: Math.max((extra && extra.stun) || 0, BACKSTAB.stun), unparryable: true }); if (a.human || b.human) fx('fxmsg', { k: 'fxback', u: b, a }); }
   // a captain's Block tapped just before the blow lands turns it aside
   if (a.isMe && G.capStats) G.capStats.blows++;
-  if (b.human && !b.mounted && b.stun <= 0 && !b.carrying && G.T - (b.parryT ?? -9) <= (heavy || (extra && extra.shown) ? PARRY.window : PARRY.light) + (b.remote ? PARRY.remote : 0)
+  if (b.human && b.duelId && !b.mounted && b.stun <= 0 && !b.carrying && G.T - (b.parryT ?? -9) <= (heavy || (extra && extra.shown) ? PARRY.window : PARRY.light) + (b.remote ? PARRY.remote : 0)
     && Math.abs(angDiff(b.face, Math.atan2(a.x - b.x, a.z - b.z))) < 1.5 && !(extra && extra.unparryable)) { parry(b, a, heavy, false, G.T - b.parryT <= PARRY.perfect + (b.remote ? PARRY.remote * .4 : 0)); return; }
   // a computer captain on guard turns most light blows from another captain aside
   // a duel: a light blow from a side is turned only by a guard to that side (a computer captain reads it, or not)
   const dside = extra && extra.side != null && a.duelId && a.duelId === b.duelId && a.leader && b.leader && !heavy && !extra.bash ? extra.side : null;
   const readOk = dside == null || (b.human ? guardMatches(b, dside) : Math.random() < DUEL_DIR.read[G.diff]);
-  const onGuard = !b.human && b.guardT > 0 && b.stun <= 0 && !b.mounted && readOk && Math.abs(angDiff(b.face, Math.atan2(a.x - b.x, a.z - b.z))) < 1.2;
+  const onGuard = !b.human && b.duelId && b.guardT > 0 && b.stun <= 0 && !b.mounted && readOk && Math.abs(angDiff(b.face, Math.atan2(a.x - b.x, a.z - b.z))) < 1.2;
   if (onGuard && a.leader && !heavy && !(extra && (extra.unblockable || extra.unparryable)) && Math.random() < GUARD.parry && spendSt(b, STAMINA.block)) { if (a.isMe && G.capStats) G.capStats.parried++; parry(b, a, false, true); return; }
   if (b.heavyCharge > 0 || b.ahT > 0) b.chargeBrokeT = G.T; // (hit while winding up a heavy blow: it's lost)
   let dmg = a.dmg * rnd(.8, 1.2) * mult * aiDmg(a.ti);
@@ -253,7 +253,7 @@ export function hit(a, b, mult = 1, extra) {
   const held = frontal && b.holding && !b.human; // a footman standing his place in a held line
   let blocked = onGuard && !(extra && extra.unblockable); // (C3b: an unblockable blow went through a computer captain's guard at a quarter)
   if (frontal && b.stun <= 0 && !b.mounted && !b.carrying && !(extra && extra.unblockable)) {
-    if (b.human) blocked = b.blocking && readOk;
+    if (b.human) blocked = b.blocking && !!b.duelId && readOk; // (FEEL3: block, parry, guard and clash only in a duel)
     else if (a.leader && b.kind === 'foot') blocked = !!b.guardUp; // (against a captain: exactly when his shield is up)
     else if (a.leader && b.leader) blocked = onGuard; // (a captain against a captain: only his guard, which shows, stops a blow)
     else if (Math.random() < (b.block || 0) + (b.aura ? auraBonus(b.ti) : 0) + (b.shieldwall && b.kind === 'foot' ? .3 : 0) + (held ? .15 : 0)) { blocked = true; b.blockT = .45; }

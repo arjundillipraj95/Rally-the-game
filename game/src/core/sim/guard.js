@@ -117,7 +117,7 @@ export function parry(b, a, heavy, byAI, perfect) {
 // comes hard on the heels of the last one doesn't, so it can't be mashed. For a joining player
 // whose press arrives just after a blow landed, the blow is parried after all.
 export function blockPress(p) {
-  if (!p || p.dead || p.mounted) return;
+  if (!p || p.dead || p.mounted || !p.duelId) return; // (FEEL3: parry only in a duel)
   const last = p.lastBlkPress ?? -9; p.lastBlkPress = G.T;
   if (G.T - last < PARRY.lock) return;
   p.parryT = G.T;

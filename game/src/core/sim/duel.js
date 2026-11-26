@@ -203,7 +203,7 @@ export function execMark() {
   for (const s of G.teams) {
     const v = s.leader; if (!v) continue;
     v.execReady = false;
-    if (v.dead || v.mounted || v.execT > 0 || v.carrying) continue;
+    if (v.dead || v.mounted || v.execT > 0 || v.carrying || !v.duelId) continue; // (FEEL3: the finisher only ends a duel)
     if (v.hp > v.max * (v.stun > 0 ? EXEC.hpStunned : EXEC.hp)) continue;
     let hunter = false, guarded = false;
     for (const o of G.units) {

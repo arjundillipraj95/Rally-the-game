@@ -109,7 +109,8 @@ const E = await page.evaluate(() => {
   p.hp = p.max = 1e6; p.weapon = 'sword'; p.duelId = L.duelId = 0; p.marchT = L.marchT = 0; p.iframeT = L.iframeT = 0;
   L.x = X + 2; L.z = Z; L.face = -Math.PI / 2; L.max = 180; L.hp = 40; L.stun = 0; L.guardT = 0; L.dead = false; L.vx = L.vz = 0;
   p.x = X - .7; p.z = Z; p.face = Math.PI / 2; p.cd = 0;
-  F.step(2, 1 / 30, true);
+  G.duelN = (G.duelN || 0) + 1; G.duels = [{ id: G.duelN, a: p, b: L, state: 'on', t: 99, graceT: 0, slotT: 0, t0: G.T, x: X, z: Z }]; p.duelId = L.duelId = G.duelN; // (FEEL3: the finisher only ends a duel)
+  F.step(1, 1 / 30, true); L.hp = L.max * .1; L.stun = 0; F.step(1, 1 / 30, true); // (a duel sets both to the base: beaten down after)
   if (!L.execReady) return { err: 'not marked' };
   F.attack();
   const out = { steps: [], dead: -1 }; let last = null, i0 = 0;

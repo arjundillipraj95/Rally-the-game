@@ -186,7 +186,7 @@ export function netHostReadInputs() {
     const last = NET.inp[ti] || (NET.inp[ti] = { atk: 0, chg: 0, ride: 0, vly: 0, par: 0, ahN: 0, hold: '', rec: RECRUITS.map(() => 0), ab: [0, 0, 0], up: UPGRADES.map(() => 0) }); // (one count per upgrade: a short list once lost the Horse)
     if (L && !L.dead && Array.isArray(pr.cap) && pr.cap[0] === L.id) {
       L.x = +pr.cap[1]; L.z = +pr.cap[2]; L.face = +pr.cap[3]; L.vx = +pr.cap[4]; L.vz = +pr.cap[5];
-      L.blocking = !!pr.blk; L.stickSide = (pr.gs | 0) || 0; L.jy = Math.max(0, +pr.cap[6] || 0); L.ahHeld = !!pr.ah; L.aimChamp = !!pr.ac; // (RANGE1: their Targeting setting) // (stickSide, in a duel: which way their stick points, for their guard and their blow) (C3d: jy and ahHeld were lost behind that comment)
+      L.blocking = !!pr.blk && !!L.duelId; L.stickSide = (pr.gs | 0) || 0; L.jy = Math.max(0, +pr.cap[6] || 0); L.ahHeld = !!pr.ah; L.aimChamp = !!pr.ac; // (RANGE1: their Targeting setting) // (stickSide, in a duel: which way their stick points, for their guard and their blow) (C3d: jy and ahHeld were lost behind that comment)
       const w = WEAPONS[pr.cap[7] | 0]; if (w && L.weapon !== w && champOf(ti).weapons.includes(w)) { L.weapon = w; s.weapon = w; }
     }
     if (typeof pr.par === 'number' && pr.par > last.par) { if (L && !L.dead) blockPress(L); last.par = pr.par; } // Block pressed: a parry window

@@ -61,7 +61,7 @@ export function driveCaptain(p, input, dt) {
   }
   const draw = p.pierce || p.pdraw; // (FIX9: drawing a Piercing shot she walks slowly, facing the way it aims)
   const air = (p.jy || 0) > .01;
-  p.blocking = !!input.block && !p.mounted && !air;
+  p.blocking = !!input.block && !p.mounted && !air && !!p.duelId; // (FEEL3: Block only in a duel)
   const dfoe = duelFoeOf(p);
   p.stickSide = sideToward(p, dfoe, input.wx, input.wz, input.mag); // (in a duel: which way his blow or guard goes)
   if (dfoe && p.blocking && !(p.dashT > 0)) { // holding Block in a duel: he stands his ground facing his man, the stick angles the guard
@@ -106,7 +106,7 @@ function breakWatch(u, dt) {
   if (u.brkW !== w || w.hp !== u.brkHp) { u.brkW = w; u.brkHp = w.hp; u.brkT = 0; return; }
   if ((u.brkT += dt) < 6) return;
   u.brkT = 0; const [cap] = nearestFoe(u, 120, o => o.leader); if (!cap || !G.teams[u.ti]) return;
-  u.guardT = G.T + 20; G.teams[u.ti].plan = { kind: 'hunt', target: cap }; u.pending = null;
+  u.huntT = G.T + 20; G.teams[u.ti].plan = { kind: 'hunt', target: cap }; u.pending = null;
 }
 export function update(dt, input) {
   buildGrid();

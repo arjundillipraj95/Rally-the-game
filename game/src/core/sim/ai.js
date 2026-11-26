@@ -21,7 +21,7 @@ import { aiPull } from './pulldown.js';
 // ---------- AI ----------
 function planLeader(u, s) {
   const t = TEAMS[colorOf(u.ti)], squadN = squadOf(u.ti).length;
-  if (u.guardT > G.T && s.plan && s.plan.kind === 'hunt' && s.plan.target && !s.plan.target.dead) return; // (AI1: on guard: keep hunting)
+  if (u.huntT > G.T && s.plan && s.plan.kind === 'hunt' && s.plan.target && !s.plan.target.dead) return; // (AI1: on guard: keep hunting)
   if (G.mode === 'conquest') {
     const threat = G.units.some(o => !o.dead && isEnemy(o, u) && Math.hypot(o.x - t.pos[0], o.z - t.pos[1]) < 22);
     // gather a real army at home before marching out (keeps the big clashes big)
@@ -119,6 +119,7 @@ function aiHorse(u, dist) {
 // A computer captain's guard: in spells, shield raised, pressing in without attacking. Decided every
 // GUARD.dur seconds while fighting another captain, so it takes up about GUARD.share of the fight.
 function aiGuard(u, foe, fd, dt) {
+  if (!u.duelId) { u.guardT = 0; return false; } // (FEEL3: computers guard only in a duel)
   if (!(u.guardT > 0) && !(u.guardCd > 0)) { u.guardCd = GUARD.dur; if (foe.leader && !foe.mounted && fd < 7 && Math.random() < GUARD.share[G.diff]) u.guardT = GUARD.dur * (.8 + Math.random() * .5); }
   if (!(u.guardT > 0)) return false;
   if (foe.stun > .2 || foe.dead || foe.mounted) { u.guardT = 0; return false; } // (an opening: take it)

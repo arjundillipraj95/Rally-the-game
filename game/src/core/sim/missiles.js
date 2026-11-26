@@ -81,7 +81,7 @@ export function arrowHit(a, b) {
   let blocked = false;
   if (frontal && !b.mounted && !b.carrying && loc !== 'head' && !a.bolt && !a.turret && !a.champ) { // (RANGE1: a plain shield doesn't turn a champion's arrow) // (CASTLE2: a ballista bolt goes through a shield)
     if (b.kind === 'foot' && !a.plunge && Math.random() < .7) blocked = true; // (a plain shield; arrows plunging from a tower come in over it)
-    if (b.leader && (b.human ? b.blocking : Math.random() < .35)) blocked = true;
+    if (b.leader && b.duelId && (b.human ? b.blocking : Math.random() < .35)) blocked = true; // (FEEL3: a champion turns arrows only in a duel)
   }
   if (blocked) { spark(b.x, b.y + 1.3, b.z, '#e8d9b0', 4); sound('thud', b.x, b.z); b.blockT = Math.max(b.blockT, .2); return; }
   if (b.leader && b.armour > 0) dmg = soak(b, dmg, false);
