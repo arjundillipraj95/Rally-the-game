@@ -15,7 +15,7 @@ export function drawPull() {
   if (!T || T.t < -PULL.good) { if (ring) { drop(ring); ring = null; } return; }
   const o = T.o, raider = champOf(o.ti).cls === 'raider', win = Math.abs(T.t) <= (raider ? PULL.perfect : PULL.good);
   const r = (o.r || .9) + .4 + Math.max(0, T.t) / PULL.show * 3.2;
-  if (!ring) ring = decal(ringTex, 2, 2, { add: true, from: .5 });
+  if (!ring) ring = decal(ringTex, 2, 2, { add: true, from: .5, color: 0xffd36e }); // (a cue, not a move: stays gold)
   ring.scale.set(r, 1, r); ring.material.color.setHex(win ? 0xffc53a : 0xffffff); ring.material.opacity = win ? 1 : .7;
   place(ring, o.x, o.z, 0, .16);
 }

@@ -5,13 +5,15 @@
 import { FOOT_TIERS, ARCH_TIERS, THROWER_TIERS, SWORD_TIERS, CAV_TIERS, CHAMP_BASE as B } from '../config.js';
 import { ARMIES } from '../core/state.js';
 import { champOf } from './index.js';
+import { armyGrow } from './stats.js';
 
 const own = ti => (ti >= 0 && ti < ARMIES ? champOf(ti) : null);
 // his shares off the base champion (1: the same)
 export function shares(ti) {
   const c = own(ti); if (!c) return null;
   const s = c.stats, r = (v, b) => (v == null ? 1 : v / b);
-  return { hp: r(s.hp, B.hp), dmg: r(s.dmg, B.dmg), gap: 1 / r(s.rate, B.rate), spd: r(s.spd, B.spd), reach: c.ranged ? 1 : r(s.reach, B.reach), range: c.ranged ? r(s.reach, B.rangedReach) : 1 };
+  const g = k => armyGrow(ti, k); // (BAL1: his army grows with his level, in his trait)
+  return { hp: r(s.hp, B.hp) * g('hp'), dmg: r(s.dmg, B.dmg) * g('dmg'), gap: 1 / r(s.rate, B.rate) / g('rate'), spd: r(s.spd, B.spd) * g('spd'), reach: c.ranged ? 1 : r(s.reach, B.reach), range: c.ranged ? r(s.reach, B.rangedReach) : 1 };
 }
 export function unitRow(ti, kind, tier = 0) {
   const rows = { foot: FOOT_TIERS, arch: ARCH_TIERS, thrower: THROWER_TIERS, sword: SWORD_TIERS, cav: CAV_TIERS }[kind]; if (!rows) return null; // (C2: and stone throwers) (C2b: swordsmen and cavalry)

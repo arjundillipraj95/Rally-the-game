@@ -131,6 +131,8 @@ function applyThrowerTier(ti) {
     u.dmg = t.dmg; u.spd = t.spd; u.range = t.range; u.shootBase = t.shoot; u.fire = !!t.fire; u.tier = tier; u.gap = t.cd;
   }
 }
+// (BAL1) on his level-up: his army's numbers again, from his new level (health keeps its share)
+export function refreshArmy(ti) { applyFootTier(ti); applyArchTier(ti); applyThrowerTier(ti); applySwordTier(ti); applyCavTier(ti); }
 export function buyUpgrade(ti, id) {
   if (id === 'aura' && isC2()) return false; // (C1e: no aura on the mountain)
   const s = G.teams[ti], cost = upgradeCost(ti, id);

@@ -32,7 +32,10 @@ export const BODY_SIZE = { champ: 1.3, soldier: 1.45 }; // (SIZE2 18 Nov, Arjun'
 export const LEVELS = {
   next: [100, 120, 200, 230, 280, 320, 360, 450, 520], max: 10, // (FIX10: 8→9 and 9→10 dearer: 10 stays exceptional)
   unlock: { sp1: 3, sp2: 5, ult: 7, armyUlt: 7 },
-  grow: { hp: .05, dmg: .05 },
+  grow: { hp: .05, dmg: .05 }, // (a page without its own `levels`)
+  // (BAL1, Arjun 26 Nov) a move's damage is his blow's (his level's): a special `special` x, an ult `ult` x, in all (a
+  // move of several hits shares it); a soldier takes `soldier` of it. The Hunt and the army ults keep their own rules.
+  mult: { special: 2, ult: 5, soldier: .5 },
 };
 // (C1b) XP: a soldier cut down, a champion (above, per level he is above yours), a camp's last man, a buff camp's
 // mini captain, a castle taken (shared between the side's champions within `shareR` m, at least the taker), the

@@ -7,7 +7,7 @@
 // (netgame) and every phone draws it from the fxeagle moment (render/eaglefx.js).
 import { G, isEnemy } from '../state.js';
 import { groundY } from '../world.js';
-import { levelOf } from '../../champions/stats.js';
+import { moveHit } from '../../champions/stats.js';
 import { hit } from './melee.js';
 import { fx, sound } from './util.js';
 import { dismount } from './army.js'; // (FEEL2c)
@@ -46,10 +46,10 @@ export function eagleStep(u, dt) {
   return !u.remote;
 }
 function land(u, E) {
-  const d = E.d, champ = d.champ * (1 + d.lvlUp * Math.max(0, levelOf(u.ti) - 7));
+  const d = E.d, champ = moveHit(u, 'ult', true); // (BAL1: 5x his blow)
   for (const o of G.units) {
     if (o.dead || o === u || Math.hypot(o.x - E.x, o.z - E.z) > d.r + (o.r || 0)) continue;
-    if (isEnemy(u, o)) hit(u, o, 1, { fixed: o.leader ? champ : d.soldier, ult: true, unblockable: true, unparryable: true, stun: o.leader ? .22 : d.down, kb: 1.3 });
+    if (isEnemy(u, o)) hit(u, o, 1, { fixed: o.leader ? champ : moveHit(u, 'ult', false), ult: true, unblockable: true, unparryable: true, stun: o.leader ? .22 : d.down, kb: 1.3 });
     else guard(o, d); // (his side's men and champions)
   }
   guard(u, d);

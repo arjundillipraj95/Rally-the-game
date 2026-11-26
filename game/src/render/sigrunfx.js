@@ -50,7 +50,7 @@ export function mark(t, w, l, x, z, face, { life = .6, color = ICE, from = .5, g
 }
 // something to do a moment from now (game time): the blow landing
 export const at = (dt, f) => later.push({ t: now() + dt, f });
-const teamIce = u => new THREE.Color(TEAMS[colorOf(u.ti)] ? TEAMS[colorOf(u.ti)].css : '#ffffff').lerp(new THREE.Color(ICE), .7).getHex();
+const teamIce = u => new THREE.Color(TEAMS[colorOf(u.ti)] ? TEAMS[colorOf(u.ti)].css : '#ffffff').lerp(new THREE.Color(ICE), .15).getHex(); // (BAL1: her army's colour)
 const ahead = (u, d) => [u.x + Math.sin(u.face) * d, u.z + Math.cos(u.face) * d];
 
 bus.on('fxmsg', e => {

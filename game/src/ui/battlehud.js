@@ -58,6 +58,7 @@ export function battleHud() {
       b.setAttribute('aria-disabled', cost == null || (me.gold || 0) < cost ? 'true' : 'false'); } }
   // the Upgrade popup: each soldier type's next tier, Armour (and the Crown's watchtower); the rest are bought elsewhere
   const up = me.up || {};
+  tierNames(champOf(G.myTi)); // (BAL1: his army's own names, Princeps and Triarius, not "Arms" and "Armor")
   document.querySelectorAll('#upTray button').forEach(b => {
     const id = b.dataset.up, pre = id.replace(/\d$/, ''), unit = { foot: 'foot', arch: 'arch', thr: 'thrower', sw: 'sword', cav: 'cav' }[pre]; // (C2b)
     const hide = id === 'aura' || id === 'horse' || id === 'fort' || (unit && !champOf(G.myTi).recruits.includes(unit)) // (ARCH2: his own soldiers' columns only)
@@ -65,4 +66,16 @@ export function battleHud() {
     b.classList.toggle('bsHide', !!hide);
   });
   document.querySelectorAll('#upTray .ucol').forEach(c => c.classList.toggle('bsHide', ![...c.querySelectorAll('button')].some(b => !b.hidden && !b.classList.contains('bsHide'))));
+}
+
+// (BAL1, Arjun 26 Nov) the Upgrade popup names each column's tiers by his champion's line (his card's army names)
+let namedFor = null;
+function tierNames(c) {
+  if (!c || namedFor === c.id) return; namedFor = c.id;
+  const KIND = { foot: 'foot', arch: 'arch', thr: 'thrower', sw: 'sword', cav: 'cav' };
+  for (const [pre, kind] of Object.entries(KIND)) {
+    const a = c.army && c.army[kind], t = (a && a.tiers) || (c.tiers && c.tiers[kind] && c.tiers[kind].map(x => x.name)); if (!t || t.length < 3) continue;
+    for (const k of [1, 2]) { const b = document.querySelector(`#upTray button[data-up="${pre}${k}"] b`); if (b) b.textContent = t[k]; }
+    const h = document.querySelector(`#upTray button[data-up="${pre}1"]`); const h4 = h && h.parentElement.querySelector('h4'); if (h4 && a && a.name) h4.textContent = a.name;
+  }
 }

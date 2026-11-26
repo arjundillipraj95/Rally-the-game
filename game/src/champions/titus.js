@@ -7,6 +7,7 @@ export default {
   lore: 'Eldest son of Lucius Cassius, a beloved consul-general who died mysteriously. The Senate banished his family; Titus swore to return to Rome only with the Crown. He still loves Rome.',
   difficulty: 2, ranged: false, title: 'The Exile of Rome',
   stats: { hp: 480, dmg: 30, rate: 1.2, reach: 1.4, spd: 5.9 },
+  levels: { hp: .08, dmg: .04, rate: [.9, 1.2] }, armyGrow: { hp: .04 }, // (BAL1: his trait is health; his men's too, at half)
   weapons: ['sword'], // gladius and scutum
   look: { shield: 'scutum_titus', sword: 'gladius_titus', model: 'titus', swings: { 1: 'slash3', 3: 'blockIdle' } } /* (FEEL2b: the stab keeps the shield up; the arm's thrust is drawn over it, swingflow.js) */, // (FEEL1: his second blow ends back on guard, not arms thrown up) // his own pieces (models/<name>.glb, <model>_anim.glb: body, helmet, cloak); team-colour areas stay shared
   combo: { bash: true, stun: .45 }, // slash, slash, shield bash: his boosted hit (1.5x, as every champion's third), a stagger of `stun` s

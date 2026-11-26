@@ -9,6 +9,7 @@ export default {
   difficulty: 3, ranged: false, title: 'The Uninvited',
   // budget (C1g): health -25%, damage a second +6%, foot +10%, mount +9% = -0.3%
   stats: { hp: 300, dmg: 27, rate: 1.65, reach: 1.3, spd: 6.8 },
+  levels: { hp: .05, dmg: .05, rate: [1.4, 1.65], spd: [6.4, 7.3] }, armyGrow: { spd: .015, dmg: .025 }, // (BAL1: her trait is run speed; her men's too)
   weapons: ['sword'], // (the bearded axe and round shield: the rules use the sword's)
   // her own pieces: body (models/sigrun_anim.glb), axe in her right hand, round shield, the wolf; her men's bodies, the
   // Úlfheðnar's at the top tier, their axes and shields, her riders' fjord horses

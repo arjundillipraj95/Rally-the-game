@@ -42,7 +42,7 @@ function statRows(d) {
   const s = d.stats, dps = s.dmg * s.rate, rg = !!d.ranged, horse = (d.mount && d.mount.spd) || B.horse, army = (ARMY[d.cls] || ARMY.vanguard).start;
   const row = (name, shown, pct, kind) => `<div class="csrow"><span>${name}</span><b>${shown}</b><u class="${kind}"><i style="width:${pct}%"></i></u></div>`;
   return row('Health', s.hp, bar(s.hp, LIM.hp), 'tough')
-    + row('Attack', `${s.dmg} × ${s.rate}/s`, bar(dps, LIM.dps), 'hit')
+    + row('Attack', `${s.dmg} × ${d.levels && d.levels.rate ? d.levels.rate.join('→') : s.rate}/s`, bar(dps, LIM.dps), 'hit')
     + row('Reach', `${s.reach} m`, rg ? bar(s.reach, LIM.rangedReach) : bar(s.reach, LIM.reach), 'move')
     + row('Speed', `${s.spd} · ${horse} m/s`, bar(s.spd, LIM.spd), 'move')
     + row('Army', `${army} to start`, bar(army, [2, 6]), 'move');

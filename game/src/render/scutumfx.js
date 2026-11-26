@@ -5,7 +5,7 @@ import { bus, G } from '../core/state.js';
 import { champOf } from '../champions/index.js';
 import { body } from '../core/body.js';
 import { spark } from './effects.js';
-import { zoneTex, decal, place, drop, barrier, dropBarrier } from './fxkit.js';
+import { zoneTex, decal, place, drop, barrier, dropBarrier, FC, setFc } from './fxkit.js';
 
 const live = new Map(); // unit id -> { u, d, until, wall, zone, flash }
 // (FX3) on horseback the barrier must cover horse and rider: wider and taller, and its sparks at the rider's height
@@ -17,7 +17,7 @@ function off(id, shatter) {
   if (shatter) for (let i = 0; i < 5; i++) { const a = (u.face || 0) + (i - 2) * .45; spark(u.x + Math.sin(a) * hitR(u), hitY(u), u.z + Math.cos(a) * hitR(u), '#ffe7a3', 4); }
   dropBarrier(L.wall); drop(L.zone); live.delete(id);
 }
-bus.on('fxmsg', e => {
+bus.on('fxmsg', e => { if (e && e.u) setFc(e.u); // (BAL1)
   if (!e.u) return;
   if (e.k === 'fxscutum') {
     const d = champOf(e.u.ti).sp2; if (!d) return; off(e.u.id, false);

@@ -2,6 +2,7 @@
 // streak: pale for an archer's, gold and longer for a champion's, orange with a flame at the head and a smoke trail
 // for fire arrows. Where one lands: on a man, a spark and a puff of dust; on a building, dust and splinters (and fire,
 // if a fire arrow); in the ground, a little dust. Every phone: the flags ride with the arrows (netgame field 11).
+import { fcOf } from './fxkit.js';
 import * as THREE from 'three';
 import { G, bus } from '../core/state.js';
 import { groundY } from '../core/world.js';
@@ -47,7 +48,7 @@ function land(a) {
     if (fire) { bus.emit('spark', { x, y: y + .7, z, c: '#ff7a1a', n: 8 }); bus.emit('spark', { x, y: y + 1.2, z, c: '#3b3631', n: 5 }); }
   } else if (man) {
     arrowStats.hits++; const my = (man.y || 0) + 1.2;
-    bus.emit('spark', { x: man.x, y: my, z: man.z, c: a.champ ? '#ffd76a' : '#f2e4c0', n: a.champ ? 9 : 5 }); bus.emit('spark', { x: man.x, y: my - .7, z: man.z, c: '#cdbb9a', n: 3 });
+    bus.emit('spark', { x: man.x, y: my, z: man.z, c: a.champ ? fcOf(a) : '#f2e4c0', n: a.champ ? 9 : 5 }); bus.emit('spark', { x: man.x, y: my - .7, z: man.z, c: '#cdbb9a', n: 3 });
     if (fire) { bus.emit('spark', { x: man.x, y: my, z: man.z, c: '#ff7a1a', n: man.kind === 'thrower' ? 14 : 7 }); bus.emit('spark', { x: man.x, y: my + .6, z: man.z, c: '#3b3631', n: man.kind === 'thrower' ? 8 : 3 }); }
   } else bus.emit('spark', { x, y: groundY(x, z) + .15, z, c: '#cdbb9a', n: 3 });
 }
@@ -65,9 +66,9 @@ export function drawArrows() {
     o3.position.set(a.x, a.y, a.z); o3.scale.setScalar(big);
     if (dx || dy || dz) { o3.lookAt(a.x + dx + 1e-4, a.y + dy, a.z + dz); a.q = (a.q || new THREE.Quaternion()).copy(o3.quaternion); } else if (a.q) o3.quaternion.copy(a.q);
     o3.updateMatrix(); shaft.setMatrixAt(n, o3.matrix); head.setMatrixAt(n, o3.matrix); fletch.setMatrixAt(n, o3.matrix);
-    shaft.setColorAt(n, col.setHex(SHAFT[kind])); fletch.setColorAt(n, col.setHex(FLETCH[kind]));
+    shaft.setColorAt(n, col.setHex(kind === 'champ' ? SHAFT.plain : SHAFT[kind])); if (kind === 'champ') col.set(fcOf(a)); else col.setHex(FLETCH[kind]); fletch.setColorAt(n, col);
     const [c, len] = LOOK[kind], k = a.stuck ? 0 : 1, w = (a.champ ? 1.3 : 1) * big;
-    o3.translateZ(-.42 * big); o3.scale.set(w * k, w * k, len * k); o3.updateMatrix(); streak.setMatrixAt(n, o3.matrix); streak.setColorAt(n, col.setHex(c)); o3.position.set(a.x, a.y, a.z);
+    o3.translateZ(-.42 * big); o3.scale.set(w * k, w * k, len * k); o3.updateMatrix(); streak.setMatrixAt(n, o3.matrix); if (kind === 'champ') col.set(fcOf(a)); else col.setHex(c); streak.setColorAt(n, col); // (BAL1: a champion's arrow in her army's colour) o3.position.set(a.x, a.y, a.z);
     const fl = a.fire && !a.stuck ? big : 0, flick = 1 + .3 * Math.sin(G.T * 37 + a.id * 3) + .15 * Math.sin(G.T * 61 + a.id);
     o3.scale.set(fl * (1.1 - .1 * flick), fl * (1.1 - .1 * flick), fl * flick); o3.updateMatrix(); flame.setMatrixAt(n, o3.matrix); core.setMatrixAt(n, o3.matrix); flame.setColorAt(n, col.setHex(Math.sin(G.T * 23 + a.id) > 0 ? 0xff8a1a : 0xffb02e));
     if (a.fire && !a.stuck && (a.smokeT == null || G.T - a.smokeT > .07)) { a.smokeT = G.T; bus.emit('spark', { x: a.x, y: a.y, z: a.z, c: '#4a443d', n: 1 }); } // (a smoke trail)

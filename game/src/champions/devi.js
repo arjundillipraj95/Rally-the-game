@@ -7,6 +7,7 @@ export default {
   lore: 'Daughter of a Chola sea captain lost at sea. The old Chola queen was the only bearer ever to give the Crown back; Devi wants it, to learn why.',
   difficulty: 2, title: 'The Captain\'s Daughter',
   stats: { hp: 300, dmg: 24, rate: 1.75, reach: 14, spd: 5.9 },
+  levels: { hp: .04, dmg: .04, rate: [1.1, 1.8] }, armyGrow: { rate: .05 }, // (BAL1: her trait is attack speed; her archers' too)
   ranged: { third: 18 }, // arrows (RANGE1): homing, sticky on a champion; the third shot two arrows of `third`
   weapons: ['sword'], // (duels: two arrows held like daggers, C4g; the rules use the sword's)
   // her own pieces: body (models/devi_anim.glb), bow in her left hand, an arrow in her right (a second in her left in a
@@ -46,7 +47,8 @@ export default {
   // `champ`/`soldier`, the slow `slow`; she walks at `walk` meanwhile; let go to loose (at least `draw` s in), full and
   // held `hold` s more looses by itself; back onto the button puts it away (recharge `cancelCd` s). Recharge `cd` s.
   sp1: { name: 'Piercing shot', short: 'Pierce', cd: 7, range: 22, len: [10, 22], w: .7, draw: .25, charge: 1.5, hold: 1, walk: .4, cancelCd: 2,
-    champ: [30, 70], soldier: [20, 45], slow: [.2, .4], slowT: 1.5, stop: .5, blockX: .3, lvlUp: .05, mounted: true,
+    share: [.75, 1.25], champ: [30, 70], soldier: [20, 45], // (BAL1: `share` of 2x her blow by the draw; champ/soldier no longer read)
+    slow: [.2, .4], slowT: 1.5, stop: .5, blockX: .3, lvlUp: .05, mounted: true,
     ai: (u, foe, fd, B) => { const L = B.line(u, 22, .7); return (foe.leader && fd < 20) || L.length >= 3 ? { x: foe.x, z: foe.z } : false; },
     run(u, at, B) { B.pierce(u, at, this); } },
   // Evade (level 5): a `dist` m dash in `dur` s the way you drag (tap: away from the nearest enemy), untouchable; on

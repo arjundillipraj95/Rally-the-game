@@ -6,6 +6,7 @@ import { LEVELS, XPGAIN } from '../../config.js';
 import { G } from '../state.js';
 import { applyChamp, levelOf } from '../../champions/stats.js';
 import { say } from './util.js';
+import { refreshArmy } from './army.js'; // (BAL1)
 
 // (FIX10) a champion behind the average level earns more
 function catchUp(s) {
@@ -23,6 +24,7 @@ export function gainXp(ti, n, src = 'other') {
   if (s.lvl >= LEVELS.max) s.xp = 0;
   if (!up) return;
   const L = s.leader; if (L && !L.dead) applyChamp(L); // (his health keeps its share)
+  refreshArmy(ti); // (BAL1: his army grows with him)
   say('levelUp', ti, s.lvl); // (every phone: the moment for his own player, ui/level.js)
 }
 // a unit cut down by army ti (his men or himself): a soldier, or a champion (more for one above you)

@@ -11,7 +11,7 @@
 // another champion hurts him too, `chainX` of it, a short stagger, no further chain.
 import { G, isEnemy } from '../state.js';
 import { groundY, angDiff } from '../world.js';
-import { levelOf } from '../../champions/stats.js';
+import { moveHit } from '../../champions/stats.js';
 import { hit } from './melee.js';
 import { integrate } from './move.js';
 import { dismount, gainRally, push } from './army.js';
@@ -69,7 +69,7 @@ const inAir = o => (o.eagle && !o.eagle.landed && o.eagle.t > o.eagle.d.crouch) 
 const recoil = (u, R, m = 1) => { R.after = () => push(u, -R.dx * R.d.recoil * m / .5, -R.dz * R.d.recoil * m / .5, R.d.recoilStun); };
 // who he meets this step: true when the rush ends here
 function contacts(u, R) {
-  const d = R.d, k = 1 + d.lvlUp * Math.max(0, levelOf(u.ti) - 3);
+  const d = R.d, k = 1; // (BAL1: his blow x LEVELS.mult, below)
   const ahead = (o, reach) => { const rx = o.x - R.x, rz = o.z - R.z, f = rx * R.dx + rz * R.dz, s = rx * R.dz - rz * R.dx; return f > -.3 && f < u.r + (o.r || 0) + reach && Math.abs(s) < d.w + (o.r || 0) ? s : null; };
   const faces = o => Math.abs(angDiff(o.face, Math.atan2(R.x - o.x, R.z - o.z))) < 1.1;
   for (const o of G.units) {
@@ -88,7 +88,7 @@ function contacts(u, R) {
     }
     // (FEEL2a, Arjun 26 Nov: a special isn't stopped by soldiers: a braced line is knocked aside like any men)
     R.hit.add(o.id); // a soldier: a knock, shoved off the path to his side, a stumble
-    hit(u, o, 1, { fixed: d.soldier * k, stun: d.stumble, kb: .05, unblockable: true, unparryable: true });
+    hit(u, o, 1, { fixed: moveHit(u, 'sp1', false), stun: d.stumble, kb: .05, unblockable: true, unparryable: true });
     const side = s >= 0 ? 1 : -1; push(o, R.dz * side * d.shove, -R.dx * side * d.shove, d.stumble);
     R.men++; // (FEEL2a: no longer slowed or stopped by men)
   }
@@ -104,7 +104,7 @@ function clash(u, o, R, k) {
   const d = R.d, win = u.mounted && !o.mounted ? u : o.mounted && !u.mounted ? o : null;
   for (const [a, b, sg] of [[u, o, -1], [o, u, 1]]) {
     if (win === a) continue;
-    hit(b, a, 1, { fixed: d.champ * k * (win ? 1 : .5), stun: d.clashStun, kb: .05, unblockable: true, unparryable: true });
+    hit(b, a, 1, { fixed: moveHit(b, 'sp1', true) * (win ? 1 : .5), stun: d.clashStun, kb: .05, unblockable: true, unparryable: true });
   }
   R.hit.add(o.id); finish(o, o.ram);
   if (win !== o) push(o, R.dx * d.clashKb / .25, R.dz * d.clashKb / .25, d.clashStun);
@@ -116,7 +116,7 @@ function champ(u, o, R, k) {
   const d = R.d;
   if (o.mounted) { // a rider: out of the saddle (horse unhurt), unless both ride or he's a Raider: then pushed
     if (u.mounted || champOf(o.ti).cls === 'raider') {
-      hit(u, o, 1, { fixed: d.champ * k, kb: .05, unblockable: true, unparryable: true });
+      hit(u, o, 1, { fixed: moveHit(u, 'sp1', true), kb: .05, unblockable: true, unparryable: true });
       push(o, R.dx * d.horsePush / .5, R.dz * d.horsePush / .5, 0); R.hit.add(o.id);
       fx('fxmsg', { k: 'fxramhit', u: o, a: u }); sound('heavy', o.x, o.z); return;
     }
@@ -129,7 +129,7 @@ function champ(u, o, R, k) {
     two = G.units.find(p => p !== o && p.leader && !p.dead && isEnemy(u, p) && !inAir(p) && !R.hit.has(p.id) && Math.hypot(p.x - c.x, p.z - c.z) < c.r + (p.r || .5));
   }
   const wall = !two && Math.hypot(c.x - o.x, c.z - o.z) < d.kb * .8;
-  hit(u, o, 1, { fixed: (wall ? d.wall : d.champ) * k, stun: wall ? d.wallStun : d.stun, kb: .05, unblockable: true, unparryable: true });
+  hit(u, o, 1, { fixed: moveHit(u, 'sp1', true) * (wall ? d.wall / d.champ : 1), stun: wall ? d.wallStun : d.stun, kb: .05, unblockable: true, unparryable: true });
   if (!o.dead) {
     if (o.remote) push(o, (c.x - o.x) / .25, (c.z - o.z) / .25, wall ? d.wallStun : d.stun);
     else { o.x = c.x; o.z = c.z; o.vx = o.vz = 0; }
@@ -137,7 +137,7 @@ function champ(u, o, R, k) {
   R.hit.add(o.id);
   if (two) { // knocked into another champion: he takes `chainX` of it and a short stagger, pushed on a little
     R.hit.add(two.id);
-    hit(u, two, 1, { fixed: d.champ * k * d.chainX, stun: d.chainStun, kb: .05, unblockable: true, unparryable: true });
+    hit(u, two, 1, { fixed: moveHit(u, 'sp1', true) * d.chainX, stun: d.chainStun, kb: .05, unblockable: true, unparryable: true });
     if (!two.mounted) push(two, R.dx * d.kb * .5 / .25, R.dz * d.kb * .5 / .25, d.chainStun);
     fx('fxmsg', { k: 'fxramchain', u: two, a: o });
   }

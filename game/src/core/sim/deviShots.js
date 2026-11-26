@@ -20,7 +20,7 @@ import { fx, sound } from './util.js';
 import { makeArrow, shoot } from './missiles.js';
 import { coverOf } from './scutum.js';
 import { hurt } from './thrower.js';
-import { levelOf } from '../../champions/stats.js';
+import { levelOf, moveHit } from '../../champions/stats.js';
 import { LEVELS } from '../../config.js';
 
 const grow = (u, d, slot) => 1 + (d.lvlUp || 0) * Math.max(0, levelOf(u.ti) - LEVELS.unlock[slot]);
@@ -80,10 +80,10 @@ function pierceTick(u) {
 }
 function loosePierce(u) {
   const P = u.pierce, d = P.d, c = pierceK(u); u.pierce = null;
-  const len = lerp(d.len, c), champ = lerp(d.champ, c), soldier = lerp(d.soldier, c), slow = lerp(d.slow, c);
+  const sh = lerp(d.share, c), len = lerp(d.len, c), champ = moveHit(u, 'sp1', true, sh), soldier = moveHit(u, 'sp1', false, sh), slow = lerp(d.slow, c); // (BAL1: 1.5x to 2.5x his blow by the draw)
   u.face = Math.atan2(P.ax, P.az); streak(u, P.ax, P.az, len); sound('bow', u.x, u.z);
   u.swing = .38; u.swingKind = 8; u.lastSwingT = G.T;
-  const k = grow(u, d, 'sp1');
+  const k = 1;
   const hit = []; let end = len;
   for (const [o, f] of along(u, P.ax, P.az, len, d.w)) {
     if (raisedFront(o, u.x, u.z)) { hurt(o, (o.leader ? champ : soldier) * k * d.blockX, u, u.ti, 'arrow', 1); sound('thud', o.x, o.z); end = f; hit.push(o.id); break; } // (a raised shield: a little through, and it stops there)
@@ -133,7 +133,7 @@ function volleyStep(u, dt) {
     if (!first) continue;
     const o = first[0];
     if (raisedFront(o, u.x, u.z) && Math.random() >= 1 / d.slip) { sound('thud', o.x, o.z); continue; } // (turned; now and then one finds its place)
-    hurt(o, d.dmg * grow(u, d, 'ult'), u, u.ti, 'arrow', 1);
+    hurt(o, moveHit(u, 'ult', o.leader, 1 / d.n), u, u.ti, 'arrow', 1); // (BAL1: 5x her blow over the volley)
     fx('fxmsg', { k: 'fxvhit', u: o, a: u }); // (FX1: each arrow's strike, felt)
   }
 }

@@ -4,6 +4,12 @@
 import * as THREE from 'three';
 import { scene } from './scene.js';
 import { groundY } from '../core/world.js';
+import { TEAMS } from '../config.js';
+import { colorOf } from '../core/state.js';
+// (BAL1, Arjun 26 Nov) a move shows in its army's faction colour, not gold: FC is the colour of the move being drawn
+export let FC = '#ffd36e';
+export const fcOf = u => (u && u.ti != null && TEAMS[colorOf(u.ti)] ? TEAMS[colorOf(u.ti)].css : '#ffd36e');
+export const setFc = u => (FC = fcOf(u));
 
 function tex(w, h, paint) {
   const c = document.createElement('canvas'); c.width = w; c.height = h; paint(c.getContext('2d'), w, h);
@@ -11,7 +17,7 @@ function tex(w, h, paint) {
 }
 // a path along +y of the texture (its far end at the top): bright edges, chevrons, fading away
 export const pathTex = tex(64, 256, (g, w, h) => {
-  const gr = g.createLinearGradient(0, h, 0, 0); gr.addColorStop(0, 'rgba(255,214,110,.55)'); gr.addColorStop(1, 'rgba(255,214,110,.12)');
+  const gr = g.createLinearGradient(0, h, 0, 0); gr.addColorStop(0, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,.12)'); // (BAL1: white, tinted)
   g.fillStyle = gr; g.fillRect(6, 0, w - 12, h);
   g.fillStyle = 'rgba(255,240,190,.95)'; g.fillRect(4, 0, 4, h); g.fillRect(w - 8, 0, 4, h);
   g.strokeStyle = 'rgba(255,250,225,.9)'; g.lineWidth = 6;
@@ -20,7 +26,7 @@ export const pathTex = tex(64, 256, (g, w, h) => {
 // a ring with a soft inner glow
 export const ringTex = tex(256, 256, (g, w) => {
   const r = w / 2, gr = g.createRadialGradient(r, r, r * .2, r, r, r);
-  gr.addColorStop(0, 'rgba(255,210,90,.05)'); gr.addColorStop(.8, 'rgba(255,210,90,.28)'); gr.addColorStop(.93, 'rgba(255,236,170,1)'); gr.addColorStop(1, 'rgba(255,236,170,0)');
+  gr.addColorStop(0, 'rgba(255,255,255,.05)'); gr.addColorStop(.8, 'rgba(255,255,255,.28)'); gr.addColorStop(.93, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); // (BAL1: white, tinted by the move's colour)
   g.fillStyle = gr; g.beginPath(); g.arc(r, r, r, 0, Math.PI * 2); g.fill();
 });
 // a soft round glow
@@ -49,7 +55,7 @@ export function decal(t, w, l, { color = 0xffffff, add = true, from = .5, opacit
 export function place(m, x, z, face = 0, lift = .12) { m.position.set(x, groundY(x, z) + lift, z); m.rotation.y = face; }
 export function drop(m) { if (!m) return; scene.remove(m); m.geometry.dispose(); m.material.dispose(); }
 // a curved barrier: an arc of `arc` rad round its holder at r m, h m tall, facing +z
-export function barrier(r, h, arc, color = 0xffd36e) {
+export function barrier(r, h, arc, color = FC) {
   const geo = new THREE.CylinderGeometry(r, r, h, 24, 1, true, -arc / 2, arc); geo.translate(0, h / 2, 0);
   const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .25, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
   const rim = new THREE.LineSegments(new THREE.EdgesGeometry(geo, 30), new THREE.LineBasicMaterial({ color: 0xfff1c2, transparent: true, opacity: .8, blending: THREE.AdditiveBlending, depthWrite: false }));

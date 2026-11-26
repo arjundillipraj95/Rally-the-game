@@ -8,7 +8,7 @@ import { integrate } from './move.js';
 import { braced, horseDamage, dismount } from './army.js';
 import { dropScutum } from './scutum.js';
 import { champOf } from '../../champions/index.js';
-import { paceOf, levelOf } from '../../champions/stats.js';
+import { paceOf, levelOf, moveHit } from '../../champions/stats.js';
 import { startSwing, hit } from './melee.js';
 import { softAim } from './captain.js';
 import { fx } from './util.js';
@@ -77,7 +77,7 @@ function pounceLand(u, P) {
   const lx = u.remote ? P.x : u.x, lz = u.remote ? P.z : u.z; // (a joined phone's champion: her phone flies her and the host sees her a beat late, so it lands where her leap was going)
   if (!tg || tg.dead || Math.hypot(tg.x - lx, tg.z - lz) > u.r + (tg.r || 0) + 1.2) { fx('fxmsg', { k: 'fxpounceland', u, q: 'miss' }); return; }
   const k = 1 + d.lvlUp * Math.max(0, levelOf(u.ti) - 3);
-  hit(u, tg, 1, { fixed: (tg.leader ? d.champ : d.soldier) * k, kb: .5, shown: true });
+  hit(u, tg, 1, { fixed: moveHit(u, 'sp1', tg.leader), kb: .5, shown: true }); // (BAL1)
   const kill = tg.dead || tg.hp <= 0;
   if (kill) { const c = G.teams[u.ti] && G.teams[u.ti].cds; if (c && c.sp1 > 0) c.sp1 *= d.killCd; }
   fx('fxmsg', { k: 'fxpounceland', u, a: tg, heavy: !!tg.leader, q: kill ? 'kill' : 'hit' });
@@ -113,7 +113,7 @@ export function spinStep(u, dt) {
   const S = u.spin, d = S.d; S.t += dt;
   if (!S.ride) { // the spin on foot: she moves as usual, blows round her on the beat
     const gap = d.dur / d.ticks;
-    while (!S.own && S.n < d.ticks && S.t >= (S.n + .5) * gap) { S.n++; for (const o of G.units) if (!o.dead && isEnemy(u, o) && Math.hypot(o.x - u.x, o.z - u.z) <= d.r + (o.r || 0)) hit(u, o, 1, { fixed: d.tick * k5(u, d), kb: .05 }); fx('fxmsg', { k: 'fxspintick', u }); }
+    while (!S.own && S.n < d.ticks && S.t >= (S.n + .5) * gap) { S.n++; for (const o of G.units) if (!o.dead && isEnemy(u, o) && Math.hypot(o.x - u.x, o.z - u.z) <= d.r + (o.r || 0)) hit(u, o, 1, { fixed: moveHit(u, 'sp2', o.leader, 1 / d.ticks), kb: .05 }); fx('fxmsg', { k: 'fxspintick', u }); }
     if (S.t >= d.dur) endSpin(u, S);
     return false;
   }
@@ -142,7 +142,7 @@ function cuts(u, S) {
       for (const f of G.units) if (!f.dead && isEnemy(u, f) && f.kind === 'foot' && braced(f) && faces(f) && ahead(f, 1.2)) { S.hit.add(f.id); if (u.mounted) horseDamage(u, f.dmg * d.horseX); }
       fx('fxmsg', { k: 'fxspinbrace', u, a: o }); return true;
     }
-    S.hit.add(o.id); hit(u, o, 1, { fixed: (o.leader ? d.champ : d.soldier) * k, kb: .001, unblockable: !o.leader }); // (cuts through: no shove)
+    S.hit.add(o.id); hit(u, o, 1, { fixed: moveHit(u, 'sp2', o.leader), kb: .001, unblockable: !o.leader }); // (cuts through: no shove)
     fx('fxmsg', { k: 'fxspincut', u, a: o });
   }
   return false;

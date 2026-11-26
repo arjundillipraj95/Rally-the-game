@@ -19,7 +19,7 @@ import { scene } from './scene.js';
 import { cam } from './camera.js';
 import { champOf } from '../champions/index.js';
 import { spark, dust, shockwave, puff } from './effects.js';
-import { decal, place, drop, starburst, ringTex, glowTex } from './fxkit.js';
+import { decal, place, drop, starburst, ringTex, glowTex, FC, setFc } from './fxkit.js';
 import { impact } from './feel.js';
 import { quality } from './quality.js';
 
@@ -36,7 +36,7 @@ const riderGhostGeo = (() => {
   return mergeGeometries(parts.map(g => g.toNonIndexed ? (g.index ? g.toNonIndexed() : g) : g));
 })();
 const glow = (c, o) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
-const teamCol = u => new THREE.Color(TEAMS[colorOf(u.ti)] ? TEAMS[colorOf(u.ti)].css : '#ffffff').lerp(new THREE.Color(GOLD), .55).getHex();
+const teamCol = u => new THREE.Color(TEAMS[colorOf(u.ti)] ? TEAMS[colorOf(u.ti)].css : '#ffffff').lerp(new THREE.Color(GOLD), .1).getHex(); // (BAL1: her army's colour, not gold)
 const near = (x, z, r) => G.player && Math.hypot(G.player.x - x, G.player.z - z) < r;
 function tex(w, h, paint) { const c = document.createElement('canvas'); c.width = w; c.height = h; paint(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
 // a glowing strip along the texture's length: a hot middle, soft edges
@@ -56,7 +56,7 @@ rain.frustumCulled = false; rain.renderOrder = 5; scene.add(rain);
 function drawRain(T) {
   let n = 0; const FALL = .35, H = 7;
   for (let i = drops.length - 1; i >= 0; i--) { const d = drops[i], k = (T - d.t0) / FALL;
-    if (k >= 1 || k < 0 || n >= RAIN) { if (k >= 1 && Math.random() < .3) spark(d.x, d.gy + .2, d.z, '#ffd76a', 2); drops.splice(i, 1); continue; }
+    if (k >= 1 || k < 0 || n >= RAIN) { if (k >= 1 && Math.random() < .3) spark(d.x, d.gy + .2, d.z, FC, 2); drops.splice(i, 1); continue; }
     const y = d.gy + H * (1 - k), o = n * 6; rainPos[o] = d.x + 1.2 * (1 - k); rainPos[o + 1] = y; rainPos[o + 2] = d.z; rainPos[o + 3] = d.x + 1.2 * (1 - k) + .35; rainPos[o + 4] = y + 2.2; rainPos[o + 5] = d.z; n++; }
   rainGeo.setDrawRange(0, n * 2); rainGeo.attributes.position.needsUpdate = true; rain.visible = n > 0;
 }
@@ -66,7 +66,7 @@ function sprite(c, o) { const m = new THREE.Sprite(new THREE.SpriteMaterial({ ma
 const bowAt = u => { const f = u.face || 0, y = (u.y || 0) + (u.mounted ? 2.4 : 1.45 * body.champ); return [u.x + Math.sin(f) * .7, y, u.z + Math.cos(f) * .7]; };
 function endDraw(id) { const D = draws.get(id); if (!D) return; drop(D.ring); scene.remove(D.orb); D.orb.material.dispose(); draws.delete(id); }
 
-bus.on('fxmsg', e => {
+bus.on('fxmsg', e => { if (e && e.u) setFc(e.u); // (BAL1)
   const u = e.u; if (!u) return;
   if (e.k === 'fxpdraw') { // the draw: an orb growing at her bow, a ring tightening at her feet
     endDraw(u.id); const c = teamCol(u), ring = decal(ringTex, 6, 6, { from: .5, color: c }); place(ring, u.x, u.z, 0, .1);
@@ -80,10 +80,10 @@ bus.on('fxmsg', e => {
     outer.position.set(u.x, y, u.z); outer.lookAt(u.x + x, y, u.z + z); outer.scale.set(.55 * w, .55 * w, len); core.scale.set(.32, .32, 1); outer.add(core); scene.add(outer);
     beams.push({ m: outer, t0: now(), life: .7, w, head: sprite(0xfff6dc, 1), x0: u.x, y, z0: u.z, x, z, len, hs: 2.4 + 1.6 * c });
     const wake = decal(wakeTex, 2.2 * w + .6, len, { from: 0, color: col }); place(wake, u.x, u.z, a, .12); flat(wake, 1.1, 1);
-    starburst(u.x + x * .9, y, u.z + z * .9, 3 + 1.6 * c); shockwave(u.x + x * .6, u.z + z * .6, 1.6 + c, '#ffd76a'); // (the loose, at her bow)
+    starburst(u.x + x * .9, y, u.z + z * .9, 3 + 1.6 * c); shockwave(u.x + x * .6, u.z + z * .6, 1.6 + c, FC); // (the loose, at her bow)
     for (const id of String(ids || '').split(':').filter(Boolean)) {
       const o = G.units.find(v => v.id === +id); if (!o) continue;
-      const oy = (o.y || 0) + 1.3; starburst(o.x, oy, o.z, 2.8 + 1.4 * c); spark(o.x, oy, o.z, '#ffd76a', low() ? 8 : 16);
+      const oy = (o.y || 0) + 1.3; starburst(o.x, oy, o.z, 2.8 + 1.4 * c); spark(o.x, oy, o.z, FC, low() ? 8 : 16);
       const r = decal(ringTex, 2.8, 2.8, { from: .5, color: col }); place(r, o.x, o.z, 0, .1);
       const p = new THREE.Mesh(pillarGeo, glow(col, .35)); scene.add(p);
       marks.push({ o, m: r, p, until: now() + (+slowT || 1.5) });
@@ -104,10 +104,10 @@ bus.on('fxmsg', e => {
     const fan = decal(fanTex, (d && d.len || 18) * .7, (d && d.len) || 18, { from: 0, color: col }); place(fan, u.x, u.z, f, .1);
     rings.push({ u, m: r, fan, until: now() + ((d && d.dur) || 2.5) });
     const claw = decal(clawTex, 7, 7, { from: 0, color: 0xffffff }); place(claw, u.x + Math.sin(f) * 2, u.z + Math.cos(f) * 2, f, .13); flat(claw, 1.1, 1, .25);
-    shockwave(u.x, u.z, 5, '#ffc23a'); shockwave(u.x, u.z, 8, '#fff1c2'); starburst(u.x, (u.y || 0) + 1.6, u.z, 4.5); spark(u.x, (u.y || 0) + 1.5, u.z, '#ffd76a', 18);
+    shockwave(u.x, u.z, 5, FC); shockwave(u.x, u.z, 8, '#fff1c2'); starburst(u.x, (u.y || 0) + 1.6, u.z, 4.5); spark(u.x, (u.y || 0) + 1.5, u.z, FC, 18);
     if (near(u.x, u.z, 18)) cam.shake = Math.max(cam.shake || 0, .3);
   } else if (e.k === 'fxvhit') { // a volley arrow strikes
-    const o = u, oy = (o.y || 0) + 1.3; spark(o.x, oy, o.z, '#ffd76a', low() ? 4 : 8); if (o.leader) starburst(o.x, oy, o.z, 1.8);
+    const o = u, oy = (o.y || 0) + 1.3; spark(o.x, oy, o.z, FC, low() ? 4 : 8); if (o.leader) starburst(o.x, oy, o.z, 1.8);
     impact(o, e.a, o.leader ? .45 : .25);
   }
 });
