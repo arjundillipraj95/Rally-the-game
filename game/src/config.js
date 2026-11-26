@@ -543,7 +543,7 @@ export const FEEL = {
   // your own blows, as before F6 (seconds of hold, shake) plus a short buzz when one lands
   // FEEL1b a champion's basic blow on a champion, for the one hit (render/champhit.js): power of FX1's impact (red edge,
   // shake, buzz, kick) for a slash and the bash; the bash also staggers him back (ANIM.impact.bashRate)
-  basic: { slash: .4, bash: 1.1, reel: [0, 2] }, // reel: extra body rock [slash, bash] on top of every blow's own (soldiers.js)
+  basic: { slash: .4, bash: 1.1, reel: [0, 2], rebound: 5 }, // rebound: FEEL2b the rock back off the Shield of Cassius // reel: extra body rock [slash, bash] on top of every blow's own (soldiers.js)
   own: { stop: { blocked: .03, heavy: .1, shove: .075, hit: .055 }, shake: { heavy: .22, shove: .16, hit: .1 }, buzz: { hit: 12, heavy: 28, blocked: 0 } },
   // any blow that lands on anybody: the struck man holds his pose this long, by how hard it was (light, heavy)
   light: { stop: [.025, .06], near: 22, flash: [.03, .3] }, // flash: FEEL1 (Arjun 26 Nov, was .55/.75: read as a white body) the white of a hit, [3D bodies' glow, far figures' tint]
@@ -587,7 +587,8 @@ export const ANIM = {
   // FEEL1 (Arjun 25 Nov): sword combo blows (swingKind in `kinds`) play out to his next blow: the clip after it lands at
   // (clip left)/(gap to the next blow - hitDelay), within [min, max]; let go `out` s before the clip's end. bashGap: a
   // bash outside the combo. bash: his body into it (rad): spine `lean` forward, chest `twist` (shield shoulder in), hips, held `hold` s
-  flow: { kinds: [0, 1, 6], min: .85, max: 1.5, out: .05, bashGap: .55, hold: { shieldBash: { clip: 'blockIdle', free: .25, min: .5, max: .9 } }, bash: { lean: .38, twist: -.45, hips: .12, hold: .14 } },
+  flow: { kinds: [0, 1, 6], min: .85, max: 1.5, out: .05, bashGap: .55, hold: { shieldBash: { clip: 'blockIdle', free: .25, min: .5, max: .9 } }, bash: { lean: .38, twist: -.45, hips: .12, hold: .14 },
+    stab: { hit: .15, dur: .45, reach: 1.6, up: .1, chest: .3 } }, // FEEL2b the stab over the shield (s; m ahead of / above his shoulder; chest turn rad)
   shield: { at: [.1, .09, 0] }, // (where the shield is strapped for the clips, from the left elbow: [toward the hand, off the back of the arm, across it], model units)
   swing: { slash1: { hit: .467, lead: .3, after: 1.5 }, slash2: { hit: .467, lead: .3, after: 1.5 }, slash3: { hit: .4, lead: .28, after: 1.5 },
     attack: { hit: .467, lead: .3, after: 1.5 }, attackBoost: { hit: .5, lead: .34, after: 1.5 },

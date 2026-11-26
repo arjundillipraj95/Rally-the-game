@@ -14,7 +14,7 @@ import { still, facing } from '../core/charge.js';
 import { abOn, abOld } from './batch.js';
 import { foldShow } from './rig/fold.js';
 import { strikeYaw, lookAlong } from './rig/strikeface.js';
-import { swingFlow, bashBody } from './rig/swingflow.js';
+import { swingFlow, bashBody, stabArm } from './rig/swingflow.js';
 import { aimShaft } from './rig/shaft.js';
 import { duelLook, champSwing } from './rig/champgear.js';
 import { skyShot } from './devifx.js';
@@ -263,6 +263,7 @@ export function drawHero(u, a, dt) {
   const B = h.legs && buckPose(h.legs, dt); // (FX2: hit, the horse tosses, steps aside, or rears)
   if (B) { const f = u.face; top.rotation.x += B.rp; top.rotation.y += B.yp; top.position.y += Math.sin(-B.rp) * FEEL.horse.lift * h.sc; top.position.x += Math.cos(f) * B.sp; top.position.z -= Math.sin(f) * B.sp; } // (the horse walks, trots or gallops for its speed, the rider going with it)
   if (R.clip) lookAlong(R, h, top, u.face + (a.yaw || 0)); // (F26: his head, then his chest, toward the target)
+  if (R.clip) stabArm(R, h, G.T, u, top); // (FEEL2b: the stab over the shield, aimed in the world once he's placed)
   if (R.shaft) aimShaft(u, h, R, dt);
   return true;
 }

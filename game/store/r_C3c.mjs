@@ -1,5 +1,5 @@
 // C3c Shield of Cassius on the host: locked until level 5; raised, it blocks blows and arrows from the front (for him and
-// an ally in the zone behind), not from the side or back; he can't attack, walks at 70% and backs away still facing
+// an ally in the zone behind), not from the side or back; his Attack is a stab over it (FEEL2b), walks at 70% and backs away still facing
 // front; an ult breaks it and lands at 30%; tap again drops it; up to 4 s, then 10 s recharge from the drop; his men on
 // Follow move into the zone; from the saddle he stays mounted; a bot raises it. The joined phone's is r_C3c-join.
 import { chromium } from 'playwright';
@@ -32,7 +32,7 @@ const o = await page.evaluate(async () => {
   const ar2 = foe(0, 9, 'arch'), h1 = p.hp; for (let k = 0; k < 4 && p.hp >= h1; k++) { p.scutum.until = G.T + 3; Mi.shoot(ar2, p); for (let i = 0; i < 40; i++) F.step(1); } r.arrowSide = +(h1 - p.hp).toFixed(1); // (an arrow can miss: a few)
   for (const u of [f1, f2, f3, f4, ar1, ar2, ally, out]) { u.dead = true; u.hp = 0; }
   // no attacking; 70% pace; backing away facing front
-  p.scutum.until = G.T + 3; p.cd = 0; F.attack(); r.attack = (p.swing || 0) > 0 || !!p.pending;
+  p.scutum.until = G.T + 3; p.cd = 0; F.attack(); r.attack = (p.swing || 0) > 0 || !!p.pending; r.stab = !!(p.pending && p.pending.stab) && p.swingKind === 3 && !!p.scutum; p.pending = null; p.swing = 0; p.cd = 0;
   const face0 = p.face, fx = Math.sin(p.face), fz = Math.cos(p.face), x0 = p.x, z0 = p.z;
   F.step(30, 1 / 30, { wx: -fx, wz: -fz, mag: 1 }); r.backOff = { d: +Math.hypot(p.x - x0, p.z - z0).toFixed(2), turned: +Math.abs(face0 - p.face).toFixed(2) };
   // an ult breaks it and lands at 30%
@@ -63,7 +63,7 @@ ok(o.lv1 === 'level' && o.lvl >= 5 && o.up.on && o.up.why === '', `locked at lev
 ok(o.front === 0 && o.side > 15 && o.back > 15, `blows: front ${o.front}, side ${o.side}, back ${o.back}`);
 ok(o.allyIn === 0 && o.allyOut > 15, `an ally behind him is covered (${o.allyIn}); one beside the zone isn't (${o.allyOut})`);
 ok(o.arrowFront === 0 && o.arrowSide > 0, `arrows: front ${o.arrowFront}, side ${o.arrowSide}`);
-ok(!o.attack, 'he can\'t attack');
+ok(o.stab, 'FEEL2b: his Attack is a gladius stab over the shield (the shield stays up)');
 ok(o.backOff.d > 1 && o.backOff.turned < .05, `backs away ${o.backOff.d} m still facing front`);
 ok(Math.abs(o.pace - .7) < .08, `at ${o.pace} of his pace`);
 ok(Math.abs(o.ult - 30) < 1 && !o.broke.on && o.broke.cd === 10, `an ult lands at ${o.ult} and breaks it (recharge ${o.broke.cd} s)`);

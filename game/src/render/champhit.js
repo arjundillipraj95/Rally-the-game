@@ -9,6 +9,7 @@ import { hurtEdge } from './feel.js';
 import { horseHit } from './heroes.js';
 import { cam, camKick } from './camera.js';
 import { buzz } from '../ui/audio.js';
+import { pow } from './effects.js';
 
 bus.on('fxmsg', d => {
   if (d.k !== 'fxchamp' || !d.u || d.u.dead) return;
@@ -20,4 +21,14 @@ bus.on('fxmsg', d => {
   if (u !== G.player) return;
   hurtEdge(ang, p); cam.shake = Math.max(cam.shake, F.shake[1] * p); buzz(Math.round(F.buzz[1] * p));
   camKick(-Math.sin(ang) * F.kick * p, -Math.cos(ang) * F.kick * p);
+});
+
+// FEEL2b a champion's blow bounced off the Shield of Cassius: he rocks back; on his own phone "CLANG!", a jolt and a buzz
+bus.on('fxmsg', d => {
+  if (d.k !== 'fxrebound' || !d.u || d.u.dead) return;
+  const u = d.u, a = d.a, ang = a ? Math.atan2(a.x - u.x, a.z - u.z) : (u.face || 0);
+  reel(u, ang, FEEL.basic.rebound);
+  if (u !== G.player) return;
+  pow(u.x, (u.y || 0) + 2.6, u.z, 'CLANG!', '#e8d8a8', 1); cam.shake = Math.max(cam.shake, .18); buzz(25);
+  camKick(-Math.sin(ang) * .2, -Math.cos(ang) * .2);
 });

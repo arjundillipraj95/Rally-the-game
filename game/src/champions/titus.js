@@ -8,7 +8,7 @@ export default {
   difficulty: 2, ranged: false, title: 'The Exile of Rome',
   stats: { hp: 480, dmg: 30, rate: 1.2, reach: 1.4, spd: 5.9 },
   weapons: ['sword'], // gladius and scutum
-  look: { shield: 'scutum_titus', sword: 'gladius_titus', model: 'titus', swings: { 1: 'slash3' } }, // (FEEL1: his second blow ends back on guard, not arms thrown up) // his own pieces (models/<name>.glb, <model>_anim.glb: body, helmet, cloak); team-colour areas stay shared
+  look: { shield: 'scutum_titus', sword: 'gladius_titus', model: 'titus', swings: { 1: 'slash3', 3: 'blockIdle' } } /* (FEEL2b: the stab keeps the shield up; the arm's thrust is drawn over it, swingflow.js) */, // (FEEL1: his second blow ends back on guard, not arms thrown up) // his own pieces (models/<name>.glb, <model>_anim.glb: body, helmet, cloak); team-colour areas stay shared
   combo: { bash: true, stun: .45 }, // slash, slash, shield bash: his boosted hit (1.5x, as every champion's third), a stagger of `stun` s
   mount: { kind: 'horse', hp: 200, spd: 11.2 }, // Roman battle horse: health, m/s riding
   army: { foot: { name: 'Spearmen', tiers: ['Hastatus', 'Princeps', 'Triarius'], role: 'Javelins and reach, then heavy armour' }, arch: { name: 'Archers', tiers: ['Tiro', 'Sagittarius', 'Cretan archer'], role: 'Volleys from the walls, then marksmen' } }, // (MENU5: shown on his card; design "Army upgrades")
@@ -45,9 +45,9 @@ export default {
     run(u, at, B) { B.testudo(u, at, this); } },
   // Shield of Cassius (C3c, agreed 17 Nov): tap raises the scutum for up to `up` s, tap again drops it. Blocks all from
   // a front arc of `arc` rad, for him and his side in a zone `zone` m behind (`rideZone` from the saddle), `zw` m to
-  // either side. He can't attack; moves at `pace`, turning `turn` rad/s toward where he walks (never round to walk
+  // either side. He can't swing (FEEL2b: his Attack is a gladius stab over it); moves at `pace`, turning `turn` rad/s toward where he walks (never round to walk
   // backward). An ult breaks it and lands at `ultX`. Recharge `cd` s from when it drops.
-  sp2: { name: 'Shield of Cassius', short: 'Shield', cd: 10, up: 4, toggle: true, mounted: true, arc: 2 * Math.PI / 3, zone: 6, rideZone: 4, zw: 2.5, pace: .7, turn: 2.5, ultX: .3,
+  sp2: { name: 'Shield of Cassius', short: 'Shield', cd: 10, up: 4, toggle: true, mounted: true, stab: { mult: .6, cd: .55, reach: 1.6, reachB: .25, arc: 1 }, rebound: { kb: 6, stun: .3, near: 4 }, /* FEEL2b: a champion's blow off it: pushed back `kb` m/s, off balance `stun` s */ /* FEEL2b: Attack behind it = a gladius stab, `mult` of a blow, every `cd` s at his pace, at what's within `arc` rad of his front */ arc: 2 * Math.PI / 3, zone: 6, rideZone: 4, zw: 2.5, pace: .7, turn: 2.5, ultX: .3,
     ai: (u, foe, fd, B) => (!!foe.leader && fd < 6 && u.hp < u.max * .75) || B.circle(u, u.x, u.z, 14).filter(o => o.kind === 'arch').length >= 4,
     run(u, at, B) { B.raise(u, this); } },
   // Ram of Cassius (C3b, agreed 17 Nov): tap rushes the way he faces; a `wind` s wind-up, then `dist` m in `dur` s

@@ -529,7 +529,7 @@ export function clientTick(dt) {
         t.predHitAt = performance.now();
       }
     }
-    if (C.atkBuf > 0 && C.localCd <= 0 && (!me.mounted || wolfRider(me)) && !me.eagle && !me.pounce && !me.ram && !me.scutum) actions.attack();
+    if (C.atkBuf > 0 && C.localCd <= 0 && (!me.mounted || wolfRider(me)) && !me.eagle && !me.pounce && !me.ram && (!me.scutum || (champOf(G.myTi).sp2 || {}).stab)) actions.attack(); // (FEEL2b: a stab over the shield)
   }
   const k = Math.min(1, dt * 15);
   // (P0.7) everyone else is drawn a moment in the past: two snapshot gaps plus however late snapshots are running
@@ -662,6 +662,7 @@ function predictRelease(p, t) {
 }
 function predictAttack(p) {
   const CC = CAPTAIN_COMBAT;
+  if (p.scutum) { const S = champOf(G.myTi).sp2.stab; C.localCd = S.cd * paceOf(G.myTi); p.swing = .38; p.swingKind = 3; p.stabT = G.T; return; } // (FEEL2b: the stab, as the host)
   if (p.mounted) {
     if (p.weapon === 'jav' && p.javAmmo >= 1) { p.javAmmo--; C.javLocalAt = performance.now(); C.localCd = CC.jav.cd; }
     else C.localCd = wolfRider(p) ? CC.sword.cd * paceOf(p.ti) : .8; // (C5b: her wolf strikes at her rate)
