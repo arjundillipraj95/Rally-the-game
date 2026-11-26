@@ -230,7 +230,8 @@ function captainAttack0(p) {
       Object.assign(p.pending, { mult: S.finisherMult * RHYTHM.mult, kb: 1.25 * RHYTHM.kb, stun: RHYTHM.stun });
       fx('fxmsg', { k: 'fxrhythm', u: p }); hl(p.ti, 'rhythm'); if (p.remote) fx('netFlush');
     }
-    if (!fin) { p.vx += Math.sin(p.face) * S.step; p.vz += Math.cos(p.face) * S.step; } // (a half-step into each blow)
+    const stp = fin ? (tb && tb.bash ? BASH.step : 0) : S.step; // (FEEL1: the bash steps him in behind the shield)
+    if (stp) { p.vx += Math.sin(p.face) * stp; p.vz += Math.cos(p.face) * stp; } // (a half-step into each blow)
     p.cd = (fin ? S.finisherCd : S.cd) * k; p.combo = combo; p.swingKind = fin ? (tb && tb.bash ? 6 : tb && tb.chop ? 5 : 4) : combo; // (4: the spin; 6: the shield bash; 5: the overhead chop)
   }
   if ((ev === 'side' || ev === 'back') && p.pending) {

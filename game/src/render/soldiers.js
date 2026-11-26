@@ -808,7 +808,7 @@ export function drawSoldiers(units, dt, extra = null) {
     // a brief streak off the blade/spear tip while mid-swing, so a fast hit reads as motion
     const real = hero && u.swing > 0 && !u.dead && heroBlade(u, baseV, tipV); // (F17b: drawn on the clip skeleton: the swoosh is traced by his real blade)
     const blow = real && heroBlow(u); // (F17c: a captain's spear sweep leaves a ribbon from its head (as his spear streak, captains only); a poke or lunge, a straight streak)
-    if (real && (!spearOut(u) && u.weapon !== 'jav' || blow === 'slashWide' && u.kind === 'captain') && nearCam(u, 22)) bladeTrail(u.id, baseV, tipV, u.leader ? '#fff6d8' : '#ffffff', u.leader ? 1 : .6);
+    if (real && blow !== 'shieldBash' && (!spearOut(u) && u.weapon !== 'jav' || blow === 'slashWide' && u.kind === 'captain') && nearCam(u, 22)) bladeTrail(u.id, baseV, tipV, u.leader ? '#fff6d8' : '#ffffff', u.leader ? 1 : .6);
     if (u.swing > 0 && !u.dead && (u.kind === 'foot' || u.kind === 'captain')) {
       if (!real) { if (spearOut(u)) tipV.set(0, 0, 2.1).applyMatrix4(M.spear); else tipV.set(0, -.4, 1.0).applyMatrix4(M.wArm); }
       trail(tipV.x, tipV.y, tipV.z, '#eef2f5');

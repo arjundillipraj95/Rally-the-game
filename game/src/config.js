@@ -302,7 +302,7 @@ export const STREAK = { gap: 3, n: 8, mult: 2.2, kb: 2.2, stun: .9, cleaveN: 5 }
 // The shield bash: Block tapped, then Attack within window s (not at once: one after the other). A shove
 // with the shield: little damage, but it knocks a raised shield or guard aside (open s stunned). Unless
 // that Block press parried something: then it's the riposte as ever.
-export const BASH = { window: .3, cd: 1.5, mult: .3, kb: 1.8, stun: .45, open: 1.1, reach: 2.6 };
+export const BASH = { step: 3.2, window: .3, cd: 1.5, mult: .3, kb: 1.8, stun: .45, open: 1.1, reach: 2.6 };
 export const PARRY = { perfect: .08, disarm: 2.5, window: .26, light: .14, remote: .28, lock: .6, slow: .25, slowT: .4, stun: .8, heavyStun: 1.3, riposteT: 1.8, riposteN: 2, riposteMult: 1.5 };
 // slow/slowT: a parry slows the two men in it (only them) to this speed for this long.
 // Enemy captains raise their guard in spells you can see (shield up, pressing in). While guarded they
@@ -581,6 +581,10 @@ export const ANIM = {
   loco: { idleBelow: .35, runAbove: 2.6, side: 1.2, rate: [.55, 1.8],
     stride: { walk: 1.19, walkBack: 1.02, run: 2.1, runBack: 1.69, strafeL: 1.02, strafeR: 1.01, strafeRunL: 1.68, strafeRunR: 1.72 } },
   hitDelay: .15, swingTail: .3,
+  // FEEL1 (Arjun 25 Nov): sword combo blows (swingKind in `kinds`) play out to his next blow: the clip after it lands at
+  // (clip left)/(gap to the next blow - hitDelay), within [min, max]; let go `out` s before the clip's end. bashGap: a
+  // bash outside the combo. bash: his body into it (rad): spine `lean` forward, chest `twist` (shield shoulder in), hips, held `hold` s
+  flow: { kinds: [0, 1, 6], min: .85, max: 1.5, out: .05, bashGap: .55, hold: { shieldBash: { clip: 'blockIdle', free: .25, min: .5, max: .9 } }, bash: { lean: .38, twist: -.45, hips: .12, hold: .14 } },
   shield: { at: [.1, .09, 0] }, // (where the shield is strapped for the clips, from the left elbow: [toward the hand, off the back of the arm, across it], model units)
   swing: { slash1: { hit: .467, lead: .3, after: 1.5 }, slash2: { hit: .467, lead: .3, after: 1.5 }, slash3: { hit: .4, lead: .28, after: 1.5 },
     attack: { hit: .467, lead: .3, after: 1.5 }, attackBoost: { hit: .5, lead: .34, after: 1.5 },
@@ -588,7 +592,7 @@ export const ANIM = {
     // blow's own landing time, from the rules (default hitDelay)
     spin: { hit: 1.33, lead: .6, after: 1.4 }, leapSmash: { hit: .97, lead: .5, after: 1.3 }, overhead: { hit: .7, lead: .45, after: 1.4 },
     slashWide: { hit: .33, lead: .25, after: 1.4, hd: CAPTAIN_COMBAT.spear.t }, slashBack: { hit: .3, lead: .25, after: 1.4 },
-    spearThrust: { hit: .47, lead: .3, after: 1.4, hd: CAPTAIN_COMBAT.spear.t }, spearLunge: { hit: .47, lead: .45, after: 1.1, hd: CAPTAIN_COMBAT.spear.skewer.t }, javThrow: { hit: 1.27, lead: .5, after: 1.4 }, shieldBash: { hit: .33, lead: .25, after: 1.3 } },
+    spearThrust: { hit: .47, lead: .3, after: 1.4, hd: CAPTAIN_COMBAT.spear.t }, spearLunge: { hit: .47, lead: .45, after: 1.1, hd: CAPTAIN_COMBAT.spear.skewer.t }, javThrow: { hit: 1.27, lead: .5, after: 1.4 }, shieldBash: { hit: .36, lead: .3, after: 1.3 } /* FEEL1: drawn on the block clip (clipOf): the shield comes up in front, the body drives it */ },
   // the clip for each swingKind, by weapon: 0-1 combo, 2 leap, 3 spear thrust, 4 sword spin finisher / javelin throw / streak, 5 held heavy blow or skewer, 6 shield bash
   swingKind: ['slash1', 'slash2', 'leapSmash', 'attack', 'spin', 'overhead', 'shieldBash'], boost: 'attackBoost', boostWithin: .7,
   // F17c spear combo (Arjun): 1 poke, 2 sweep, 3 a stronger thrust. The rules send a spear's presses as swingKind 3, 3, then 5
@@ -598,7 +602,7 @@ export const ANIM = {
     jav: [null, null, 'leapSmash', null, 'javThrow', null, 'shieldBash'] },
   spearSweep: 'slashWide',
   swingLegs: ['spin', 'leapSmash', 'spearLunge'],
-  clipOf: { spearLunge: 'spearThrust' }, // (a blow that plays another's clip, its own timing) // (these play head to toe, even on the run: the spin turns on its feet, the leap tucks its legs)
+  clipOf: { spearLunge: 'spearThrust', shieldBash: 'block' }, // (FEEL1: Mixamo's bash pushes the arm out straight, so the strapped shield turned edge-on) // (a blow that plays another's clip, its own timing) // (these play head to toe, even on the run: the spin turns on its feet, the leap tucks its legs)
   // F17c how a spear or javelin is held: upright at his side when he stands, walks or runs (tipped `lean` rad forward, butt
   // `ground` m off the ground); level along his facing in the leap and the javelin's throw (`dip` rad down) and when he braces
   // behind the shield; mounted, couched (dipped `rideDip`); eased at `ease`/s. F26: in the spear's strikes (strikeFace.yaw) it

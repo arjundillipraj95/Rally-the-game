@@ -8,7 +8,7 @@ export default {
   difficulty: 2, ranged: false, title: 'The Exile of Rome',
   stats: { hp: 480, dmg: 30, rate: 1.2, reach: 1.4, spd: 5.9 },
   weapons: ['sword'], // gladius and scutum
-  look: { shield: 'scutum_titus', sword: 'gladius_titus', model: 'titus' }, // his own pieces (models/<name>.glb, <model>_anim.glb: body, helmet, cloak); team-colour areas stay shared
+  look: { shield: 'scutum_titus', sword: 'gladius_titus', model: 'titus', swings: { 1: 'slash3' } }, // (FEEL1: his second blow ends back on guard, not arms thrown up) // his own pieces (models/<name>.glb, <model>_anim.glb: body, helmet, cloak); team-colour areas stay shared
   combo: { bash: true, stun: .45 }, // slash, slash, shield bash: his boosted hit (1.5x, as every champion's third), a stagger of `stun` s
   mount: { kind: 'horse', hp: 200, spd: 11.2 }, // Roman battle horse: health, m/s riding
   army: { foot: { name: 'Spearmen', tiers: ['Hastatus', 'Princeps', 'Triarius'], role: 'Javelins and reach, then heavy armour' }, arch: { name: 'Archers', tiers: ['Tiro', 'Sagittarius', 'Cretan archer'], role: 'Volleys from the walls, then marksmen' } }, // (MENU5: shown on his card; design "Army upgrades")

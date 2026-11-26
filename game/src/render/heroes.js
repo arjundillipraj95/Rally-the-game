@@ -14,6 +14,7 @@ import { still, facing } from '../core/charge.js';
 import { abOn, abOld } from './batch.js';
 import { foldShow } from './rig/fold.js';
 import { strikeYaw, lookAlong } from './rig/strikeface.js';
+import { swingFlow, bashBody } from './rig/swingflow.js';
 import { aimShaft } from './rig/shaft.js';
 import { duelLook, champSwing } from './rig/champgear.js';
 import { skyShot } from './devifx.js';
@@ -164,7 +165,7 @@ function clipHero(u, a, h, dt, sp, blocking, hurt, P, rate, tag) {
     h.swN = (h.swN || 0) + 1; h.swT = T - Math.max(0, .38 - u.swing); // (F25: from the moment the rules began it, so it lands on their frame)
     const boosted = (u.evade && T - u.evade.t < ANIM.boostWithin) || (u.pending && u.pending.leap);
     const set = h.weapon === 'sword' ? ANIM.swingKind : ANIM.weaponSwing[h.weapon]; // (F17: spear and javelins have clips too)
-    h.swClip = set && kind < set.length ? (boosted && h.weapon === 'sword' && kind < 2 ? ANIM.boost : h.weapon === 'spear' && kind === 3 && u.combo === 1 ? ANIM.spearSweep : set[kind]) : null; if (h.cl) h.swClip = champSwing(h.cl, kind, !!u.duelId, h.swClip); if (h.wolf) h.swClip = null; // (C5b: on the wolf the wolf strikes; she leans into it) if (h.bowman) h.swClip = 'bowRecoil'; // (ARCH2: a clip archer looses with the bow clips) // (F17c: the spear's second press, the sweep)
+    h.swClip = set && kind < set.length ? (boosted && h.weapon === 'sword' && kind < 2 ? ANIM.boost : h.weapon === 'spear' && kind === 3 && u.combo === 1 ? ANIM.spearSweep : set[kind]) : null; if (h.cl) h.swClip = champSwing(h.cl, kind, !!u.duelId, h.swClip); if (h.wolf) h.swClip = null; if (h.swClip) { const cn = ANIM.clipOf[h.swClip] || h.swClip; swingFlow(u, h, h.swClip, C[cn] && C[cn].dur); } // (FEEL1: played out to his next blow) (C5b: on the wolf the wolf strikes; she leans into it) if (h.bowman) h.swClip = 'bowRecoil'; // (ARCH2: a clip archer looses with the bow clips) // (F17c: the spear's second press, the sweep)
   }
   h.swPrev = u.swing || 0;
   if (blocking && !h.wasBlocking) h.blkN = (h.blkN || 0) + 1; h.wasBlocking = blocking;
@@ -181,7 +182,7 @@ function clipHero(u, a, h, dt, sp, blocking, hurt, P, rate, tag) {
   let W = null;
   if (code) W = null;
   else if (h.turn) W = { key: h.turn.key, steps: [ANIM.turn.clip], legs: true, rate: ANIM.turn.rate, fade: ANIM.fast, turn: true };
-  else if (h.swClip && h.swT != null && T - h.swT < .38 + ANIM.swingTail) W = { key: 'sw' + h.swN, steps: [ANIM.clipOf[h.swClip] || h.swClip], swing: ANIM.swing[h.swClip], fade: ANIM.fast, legs: ANIM.swingLegs.includes(h.swClip) };
+  else if (h.swClip && h.swT != null && T - h.swT < (h.swEnd || .38 + ANIM.swingTail)) W = { key: 'sw' + h.swN, steps: h.swHold ? [ANIM.clipOf[h.swClip] || h.swClip, h.swHold] : [ANIM.clipOf[h.swClip] || h.swClip], hold: !!h.swHold, swing: ANIM.swing[h.swClip], fade: ANIM.fast, legs: ANIM.swingLegs.includes(h.swClip) }; // (FEEL1: a bash then holds the shield up)
   else if (blocking && T - h.blockHitT >= 0 && T - h.blockHitT < C[bh.clip].dur / bh.rate) W = { key: 'bh' + h.blockHitT, steps: [bh.clip], rate: bh.rate, fade: ANIM.fast };
   else if (blocking) W = { key: 'blk' + h.blkN, steps: ANIM.block, hold: true };
   else if (h.impT != null && T - h.impT < C[imp.clips[h.impN % imp.clips.length]].dur / imp.rate) W = { key: 'imp' + h.impN, steps: [imp.clips[h.impN % imp.clips.length]], rate: imp.rate, fade: ANIM.fast };
@@ -203,7 +204,7 @@ function clipHero(u, a, h, dt, sp, blocking, hurt, P, rate, tag) {
   if (h.an) {
     const name = an.steps[an.i], loops = !!an.hold && an.i === an.steps.length - 1, full = an.legs || (loco === 'idle' && !h.sky), key = an.key + ':' + an.i;
     const S = an.swing, e = play(R, 'up', name, key, { fade: an.i ? ANIM.fast : an.fade || ANIM.fade, loop: loops, at: S ? Math.max(0, S.hit - S.lead) : 0 }); // (a blow is entered a little before it lands, so it lands when the rules say it does)
-    e.act.timeScale = S ? (e.act.time < S.hit ? S.lead / (S.hd || ANIM.hitDelay) : S.after) : an.rate || 1; // (F25 hd: this blow's own landing time)
+    e.act.timeScale = S ? (e.act.time < S.hit ? S.lead / (S.hd || ANIM.hitDelay) : h.swAfter || S.after) : an.rate || 1; // (F25 hd: this blow's own landing time)
     if (an.cut && e.act.time >= e.C.dur * an.cut) e.act.timeScale = 0; // (FALL1: held at the cut: lying there while the rules keep him down)
     if (full) { const l = play(R, 'lo', name, key, { fade: an.i ? ANIM.fast : an.fade || ANIM.fade, loop: loops, at: e.act.time }); l.act.timeScale = e.act.timeScale; l.act.time = e.act.time; }
     else { const lg = h.sky && loco === 'idle' ? ANIM.skyLegs : loco; play(R, 'lo', lg, 'L' + lg).act.timeScale = lg === loco ? lrate : 1; } // (ARCH4: low on his knees under the storm)
@@ -215,6 +216,7 @@ function clipHero(u, a, h, dt, sp, blocking, hurt, P, rate, tag) {
   if (code) { if (!h.coded) h.cur = null; h.cur = settle(h.cur, P, 1 - Math.exp(-rate * Math.min(dt, .1))); } // (a code pose is eased toward as before; the blend from the clips eases it in)
   h.coded = code;
   tick(R, dt, { P: code ? h.cur : h.U ? P : null, code, ride: !!h.U, reel: a });
+  if (!code) bashBody(R, h, T); // (FEEL1: the bash driven with his body)
   if (h.sky) { h.skyK = Math.min(1, (h.skyK || 0) + dt * 3); } else if (h.skyK) h.skyK = Math.max(0, h.skyK - dt * 3);
   if (h.skyK && R.mx) { R.mx.Spine.rotateX(ANIM.skyLean[0] * h.skyK); R.mx.Spine2.rotateX(ANIM.skyLean[1] * h.skyK); } // (eased in and out)
   return turn;
@@ -274,7 +276,7 @@ export function horseHit(u, from, power) {
 export const wolfOf = u => { const h = live.get(u); return (h && h.wolf) || null; }; // (C5: its strikes)
 // which blow his clips are playing (null between blows), for the swoosh
 export const heroScale = u => { const h = live.get(u); return h ? h.R.root.scale.x : 0; }; // (SIZE1: the size a unit is drawn at: tests read it)
-export const heroBlow = u => { const h = live.get(u); return h && h.swClip && h.swT != null && G.T - h.swT < .38 + ANIM.swingTail ? h.swClip : null; };
+export const heroBlow = u => { const h = live.get(u); return h && h.swClip && h.swT != null && G.T - h.swT < (h.swEnd || .38 + ANIM.swingTail) ? h.swClip : null; };
 // where his weapon's blade is in the world this frame (base, tip): false if he isn't drawn on the clip skeleton
 export function heroBlade(u, base, tip) {
   const h = live.get(u); if (!h || !h.R.clip || !h.R.blade || h.seen !== FRAME) return false;

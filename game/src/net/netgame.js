@@ -695,7 +695,8 @@ function predictAttack(p) {
   else {
     const combo = performance.now() / 1000 - p.lastSwingT < CC.sword.window * k ? (p.combo + 1) % 3 : 0;
     p.combo = combo; p.swingKind = combo === 2 ? (champOf(G.myTi).combo && champOf(G.myTi).combo.bash ? 6 : champOf(G.myTi).combo && champOf(G.myTi).combo.chop ? 5 : 4) : combo; // (C3a: the shield bash) C.localCd = (combo === 2 ? CC.sword.finisherCd : CC.sword.cd) * k;
-    if (combo !== 2) { p.vx += Math.sin(p.face) * CC.sword.step; p.vz += Math.cos(p.face) * CC.sword.step; } // (the half-step, as on the host)
+    const stp = combo !== 2 ? CC.sword.step : champOf(G.myTi).combo && champOf(G.myTi).combo.bash ? BASH.step : 0; // (FEEL1: the bash's step in, as on the host)
+    if (stp) { p.vx += Math.sin(p.face) * stp; p.vz += Math.cos(p.face) * stp; } // (the half-step, as on the host)
   }
   p.lastSwingT = now;
 }
