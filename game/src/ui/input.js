@@ -3,14 +3,14 @@
 import { G } from '../core/state.js';
 import { clamp } from '../core/world.js';
 import { view } from '../render/scene.js';
-import { cam } from '../render/camera.js';
+import { cam, camMode } from '../render/camera.js';
+import { lookDrag, installCamLook } from './camlook.js';
 import { initAudio } from './audio.js';
 import { floatText } from '../render/effects.js';
 import { aimStart, aimMove, aimEnd, aimCancel } from './volleyaim.js';
 import { holdStart, holdMove, holdEnd, holdCancel, hold as holdSt } from './holdaim.js';
 import * as AB from './abilaim.js';
 import { RALLY, PINGS } from '../config.js';
-import { miniToWorld } from './pings.js';
 import { installUpInfo } from './upinfo.js';
 
 const $ = id => document.getElementById(id);
@@ -50,7 +50,7 @@ export function readMove(dt) {
   const { joy, keys } = inp;
   let mx = joy.x, my = joy.y;
   if (keys.KeyA) mx -= 1; if (keys.KeyD) mx += 1; if (keys.KeyW) my -= 1; if (keys.KeyS) my += 1;
-  if (keys.ArrowLeft) cam.yaw += dt * 2.4; if (keys.ArrowRight) cam.yaw -= dt * 2.4;
+  if (!camMode.fixed) { if (keys.ArrowLeft) cam.yaw += dt * 2.4; if (keys.ArrowRight) cam.yaw -= dt * 2.4; } // (CAM1: the fixed camera never turns)
   if (keys.ArrowUp) my -= 1; if (keys.ArrowDown) my += 1;
   let mag = Math.hypot(mx, my); if (mag > 1) { mx /= mag; my /= mag; mag = 1; }
   const y = cam.yaw, fx = Math.sin(y), fz = Math.cos(y), rx = -Math.cos(y), rz = Math.sin(y);
@@ -83,7 +83,8 @@ export function bindInput(actions) {
       if (d > R) { joy.ox += dx * (1 - R / d) * .4; joy.oy += dy * (1 - R / d) * .4; }
       joy.x = clamp(dx / R, -1, 1); joy.y = clamp(dy / R, -1, 1); const m = Math.hypot(joy.x, joy.y); if (m > 1) { joy.x /= m; joy.y /= m; }
     } else if (e.pointerId === look.id) {
-      cam.yaw -= (e.clientX - look.lx) * .0075; cam.pitch = clamp(cam.pitch + (e.clientY - look.ly) * .004, .12, .75);
+      if (camMode.fixed) lookDrag(e.clientX - look.lx, e.clientY - look.ly); // (CAM1: no turning; dead, it moves the camera round the field)
+      else { cam.yaw -= (e.clientX - look.lx) * .0075; cam.pitch = clamp(cam.pitch + (e.clientY - look.ly) * .004, .12, .75); }
       look.lx = e.clientX; look.ly = e.clientY;
     }
   });
@@ -206,7 +207,7 @@ export function bindInput(actions) {
   const shoutOpen = on => { $('shoutTray').hidden = !on; $('shoutBtn').classList.toggle('open', on); };
   tapBtn($('shoutBtn'), () => shoutOpen($('shoutTray').hidden));
   document.querySelectorAll('#shoutTray button').forEach(b => tapBtn(b, () => { const n = +b.dataset.s, p = G.player; A.shout(n, n >= PINGS.from && p ? (n === PINGS.from ? { x: p.x + Math.sin(p.face) * 8, z: p.z + Math.cos(p.face) * 8 } : { x: p.x, z: p.z }) : null); shoutOpen(false); })); // (BS2: a ping marks a place: ahead of you for Attack, where you stand for the rest)
-  $('mini').addEventListener('pointerdown', e => { if (!document.body.classList.contains('bs')) return; e.preventDefault(); e.stopPropagation(); const pt = miniToWorld(e); if (pt) A.shout(PINGS.from, pt); }); // (BS2: tap the minimap: Attack here!)
+  installCamLook(A); // (CAM1: the minimap looks; with the shout tray open it's Attack here!)
   document.querySelectorAll('#tray button').forEach(b => tapBtn(b, () => A.recruit(b.dataset.kind)));
   tapBtn($('upBtn'), () => upOpen(!inp.upIsOpen));
   document.querySelectorAll('#upTray button').forEach(b => tapBtn(b, () => A.upgrade(b.dataset.up)));

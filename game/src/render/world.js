@@ -39,6 +39,7 @@ const woodMat = lam(0x7a5a3a, woodTex()), woodDark = lam(0x55402a, woodTex());
 function dispose(g) { g.traverse(o => { if (o.geometry) o.geometry.dispose(); }); scene.remove(g); }
 const shadowy = (o, cast = true) => { o.traverse(m => { if (m.isMesh) { m.castShadow = cast; m.receiveShadow = true; } }); return o; };
 
+export const worldGroup = () => world; // (CAM1: the see-through hole cuts only scenery)
 export function buildWorldView(L) {
   if (world) dispose(world);
   if (fort) scene.remove(fort.banner);
@@ -131,8 +132,8 @@ export function buildWorldView(L) {
     const n = pines.length;
     const trunk = new THREE.InstancedMesh(uvScale(new THREE.CylinderGeometry(.25, .35, 2.4, 7), 1, 2), lam(0x5a3e28, woodTex()), n);
     const snowy = M.id === 'frost';
-    const leaf1 = new THREE.InstancedMesh(new THREE.ConeGeometry(2.1, 4.2, 9), lam(snowy ? 0x2a4a3c : 0x2c5530), n);
-    const leaf2 = new THREE.InstancedMesh(new THREE.ConeGeometry(1.5, 3.2, 9), lam(snowy ? 0xeef4f8 : 0x376a3a), n); // (Frost Hill: a cap of snow on top)
+    const leaf1 = new THREE.InstancedMesh(new THREE.ConeGeometry(1.55, 4, 9), lam(snowy ? 0x2a4a3c : 0x2c5530), n);
+    const leaf2 = new THREE.InstancedMesh(new THREE.ConeGeometry(1.1, 2.9, 9), lam(snowy ? 0xeef4f8 : 0x376a3a), n); // (Frost Hill: a cap of snow on top)
     pines.forEach((t, i) => {
       const gy = terrainMeshY(t.x, t.z) - .1;
       mx.makeScale(t.s, t.s, t.s); mx.setPosition(t.x, gy + 1.2 * t.s, t.z); trunk.setMatrixAt(i, mx);
@@ -140,7 +141,7 @@ export function buildWorldView(L) {
       mx.makeScale(t.s, t.s, t.s); mx.setPosition(t.x, gy + 5.4 * t.s, t.z); leaf2.setMatrixAt(i, mx);
     });
     world.add(shadowy(trunk), shadowy(leaf1), shadowy(leaf2));
-    const anchors = pines.map(t => ({ x: t.x, z: t.z, r: 2 * t.s }));
+    const anchors = pines.map(t => ({ x: t.x, z: t.z, r: 1.6 * t.s })); // (CAM1: pines slimmer, cones 1.55 and 1.1 wide, were 2.1 and 1.5)
     for (const m of [trunk, leaf1, leaf2]) seeThrough(m, anchors);
   }
   const mossy = M.id === 'valley', rockMat = mossy ? lam(0xffffff, stoneTex(), { vertexColors: true }) : lam(M.rock, stoneTex());

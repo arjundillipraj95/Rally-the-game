@@ -3,6 +3,7 @@
 // visible. Works on instanced meshes: each instance gets its own fade value (1 solid, ~0.15 nearly
 // gone) and the fragment shader drops pixels in a fine noise pattern above that value.
 import * as THREE from 'three';
+import { TREEFADE } from '../config/cam.js';
 
 const groups = []; // { mesh, anchors: [{x, z, r}], fade: Float32Array, attr }
 const MIN = .15;
@@ -32,17 +33,18 @@ export function seeThrough(mesh, anchors) {
 export function clearSeeThrough() { groups.length = 0; }
 
 // Each frame: fade what blocks the line from the camera to the target.
-export function updateSeeThrough(dt, cam, target) {
+export function updateSeeThrough(dt, cam, target, high = false) { // (high: CAM1's fixed camera: a wider line, and trees right by him fade too)
   if (!groups.length || !target) return;
   const cx = cam.x, cz = cam.z, dx = target.x - cx, dz = target.z - cz, L2 = dx * dx + dz * dz || 1;
-  const k = Math.min(1, dt * 8);
+  const k = Math.min(1, dt * 8), pad = high ? TREEFADE.pad : .6, near2 = high ? TREEFADE.near * TREEFADE.near : -1;
   for (const g of groups) {
     let dirty = false;
     for (let i = 0; i < g.anchors.length; i++) {
       const a = g.anchors[i], ax = a.x - cx, az = a.z - cz;
       const t = (ax * dx + az * dz) / L2; // 0 at the camera, 1 at the captain
       let block = false;
-      if (t > -.05 && t < 1.02) { const ex = ax - dx * t, ez = az - dz * t; block = ex * ex + ez * ez < (a.r + .6) * (a.r + .6); }
+      if (t > -.05 && t < 1.02) { const ex = ax - dx * t, ez = az - dz * t; block = ex * ex + ez * ez < (a.r + pad) * (a.r + pad); }
+      if (!block && near2 > 0) { const nx = a.x - target.x, nz = a.z - target.z; block = nx * nx + nz * nz < near2 + a.r * a.r; }
       if (!block && ax * ax + az * az < (a.r + 1.5) * (a.r + 1.5)) block = true; // camera inside the branches
       const want = block ? MIN : 1, f = g.fade[i];
       if (Math.abs(want - f) > .002) { g.fade[i] = f + (want - f) * k; dirty = true; }

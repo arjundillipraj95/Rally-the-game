@@ -101,3 +101,11 @@ body.bs .pad .ab.locked .abI{display:none;}
 #upInfo h5{margin:0 0 4px;font:800 18px var(--head,var(--body));color:#ffcf3a;text-transform:uppercase;} #upInfo p{margin:0 0 8px;color:#d8d2c4;}
 #upInfo table{width:100%;border-collapse:collapse;} #upInfo th{font-size:11px;color:#bdb39c;text-align:right;} #upInfo td{padding:2px 0;} #upInfo td+td{text-align:right;}
 #upInfo tr.ch td:last-child{color:#8fd07a;font-weight:800;}
+
+/* CAM1 dead: the teammates' faces under the death card; tap one to follow him, "You" to go back to where you fell */
+#deadAllies{position:absolute;left:50%;transform:translateX(-50%);top:calc(max(6px,env(safe-area-inset-top)) + 150px);display:flex;gap:8px;z-index:41;pointer-events:auto;}
+#deadAllies[hidden]{display:none;}
+#deadAllies button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:3px;border:2px solid var(--c);border-radius:10px;background:rgba(14,13,12,.78);color:#fff;font:700 10px var(--body);letter-spacing:.04em;text-transform:uppercase;}
+#deadAllies button.on{background:rgba(255,207,58,.28);border-color:#ffcf3a;}
+#deadAllies img{width:40px;height:40px;border-radius:7px;object-fit:cover;background:#2a2622;}
+@media (max-height:430px){ #deadAllies{top:calc(max(4px,env(safe-area-inset-top)) + 128px);} #deadAllies img{width:34px;height:34px;} }

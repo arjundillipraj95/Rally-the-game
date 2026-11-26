@@ -5,12 +5,12 @@
 // round hoplon), barbarians (hair and beards, bare chests, round wooden shields, axes).
 import * as THREE from 'three';
 import { TEAMS, CRESTS, EXEC, NEUTRAL, FEEL, QUALITY } from '../config.js';
-import { G, isEnemyTi, isFfa, colorOf, bus } from '../core/state.js';
+import { G, isEnemyTi, isFfa, colorOf, bus, ARMIES } from '../core/state.js';
 import { braced } from '../core/sim.js';
 import { spearman } from '../champions/army.js';
 import { lookOf, slotOf, SLOT_IX } from '../core/look.js';
 import { scene, shadowsOn, camera } from './scene.js';
-import { camTarget } from './camera.js';
+import { camTarget, camMode } from './camera.js';
 import { trail, slash, pow, dust, spark, bladeTrail } from './effects.js';
 import { groundY } from '../core/world.js';
 import { quality, fight, markFight } from './quality.js';
@@ -136,10 +136,12 @@ export const MAT = {
   shadow: new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: .28, depthWrite: false }),
   ring: new THREE.MeshBasicMaterial({ color: 0xffcf3a, transparent: true, opacity: .8, side: THREE.DoubleSide, depthWrite: false }),
   ringAlly: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .45, side: THREE.DoubleSide, depthWrite: false }),
+  // (CAM1) every other champion stands on a thin ring in his faction's colour: from above, friend and foe at a glance
+  ...Object.fromEntries(TEAMS.map((t, c) => ['ringC' + c, new THREE.MeshBasicMaterial({ color: t.hex, transparent: true, opacity: .75, side: THREE.DoubleSide, depthWrite: false })])),
 };
 for (const k of EXPRS) MAT['face_' + k] = new THREE.MeshBasicMaterial({ map: FACES[k], transparent: true, depthWrite: false });
 const TINTED = new Set(['plain', 'plain2', 'metal']);
-const NO_SHADOW = new Set(['shadow', 'ring', 'ringAlly', ...EXPRS.map(k => 'face_' + k)]);
+const NO_SHADOW = new Set(['shadow', 'ring', 'ringAlly', 'ringC0', 'ringC1', 'ringC2', 'ringC3', ...EXPRS.map(k => 'face_' + k)]);
 
 const col = h => new THREE.Color(h);
 const C = {
@@ -184,6 +186,7 @@ const PARTS = [
   { bone: 'root', geo: 'shadow', mat: 'shadow', m: e(0, .03, 0, -Math.PI / 2), when: 'blob' },
   { bone: 'root', geo: 'ring', mat: 'ring', m: e(0, .05, 0, -Math.PI / 2), when: 'me' },
   { bone: 'root', geo: 'ring', mat: 'ringAlly', m: e(0, .05, 0, -Math.PI / 2), when: 'ally' },
+  ...[0, 1, 2, 3].map(c => ({ bone: 'root', geo: 'ring', mat: 'ringC' + c, m: e(0, .05, 0, -Math.PI / 2), when: 'c' + c })),
   // legs and feet
   { bone: 'legL', geo: 'leg', mat: 'plain', m: e(0, -.35, 0), col: dark },
   { bone: 'legR', geo: 'leg', mat: 'plain', m: e(0, -.35, 0), col: dark },
@@ -435,6 +438,7 @@ function stateOf(u) {
 export const ringFor = u => {
   if (u.kind !== 'captain') return null;
   if (u.ti === G.myTi) return 'me';
+  if (camMode.fixed && u.ti < ARMIES) return 'c' + colorOf(u.ti); // (CAM1: every champion, in his faction's colour)
   if (!isFfa() && !isEnemyTi(u.ti, G.myTi)) return 'ally';
   return null;
 };

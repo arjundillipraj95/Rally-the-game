@@ -1,4 +1,4 @@
-// BS2 pings and the quick-chat wheel: a tap on the minimap pings "Attack here!" at the place under the finger; the
+// BS2 pings and the quick-chat wheel: with the shout tray open (CAM1), a tap on the minimap pings "Attack here!" at the place under the finger; the
 // wheel's ping lines mark a place too; the ping pulses on the minimap; another phone on your side gets it with its place.
 import { chromium } from 'playwright';
 import { open, frames } from './stage.mjs';
@@ -8,7 +8,8 @@ await page.click('#segMode button[data-v="crown"]'); await page.click('#goBtn');
 const r = {};
 await page.evaluate(() => { const F = window.__fb, G = F.G; G.T = 40; F.step(1); window.__frame(10); window.__got = []; });
 await page.evaluate(async () => { const { bus } = await import('/src/core/state.js'); bus.on('shownMsg', m => { if (m.k === 'callout') window.__got.push(m.a); }); });
-// the minimap's centre is where the camera's... the map's middle: tap it
+// the minimap's centre is where the camera's... the map's middle: tap it (CAM1: with the shout tray open; a plain tap looks)
+await page.evaluate(() => { document.getElementById('shoutTray').hidden = false; });
 const b = await page.locator('#mini').boundingBox(); await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2); await frames(page, 2);
 r.mini = await page.evaluate(async () => { const P = await import('/src/ui/pings.js'); return { got: window.__got.slice(-1)[0], n: P.pings.length }; });
 await page.waitForTimeout(1100);

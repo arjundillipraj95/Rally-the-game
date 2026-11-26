@@ -3,7 +3,7 @@ import { TEAMS, MODES, MAPS, RANKS, AL_LETTER, TARGETS } from '../config.js';
 import { G, rules, matchTime, modeDesc, targetFor, SLOT_NAME } from '../core/state.js';
 import { quality, saveSetting } from '../render/quality.js';
 import { clearCritters } from '../render/critters.js';
-import { setShake, shakeEnabled } from '../render/camera.js';
+import { setShake, shakeEnabled, setCamAngle, camMode } from '../render/camera.js';
 import { target, setTarget } from '../champions/blocks.js';
 import { initAudio, sfx, setMusic, musicEnabled, setVibe, vibeEnabled } from '../ui/audio.js';
 import { portal, onPortal } from '../portal.js';
@@ -99,6 +99,7 @@ pressSeg('segVibe', vibeEnabled() ? 'on' : 'off');
 seg('segSpecAim', v => { setTarget(v); pressSeg('segSpecAim', v); }); pressSeg('segSpecAim', target.mode); // (BS5) (C4: its own id; it shared #segTarget with the mode's target picker)
 seg('segShake', v => { setShake(v === 'on'); pressSeg('segShake', v); });
 pressSeg('segShake', shakeEnabled() ? 'on' : 'off');
+seg('segCam', v => { setCamAngle(+v); pressSeg('segCam', v); }); pressSeg('segCam', String(camMode.angle)); // (CAM1: the same ground at each angle)
 seg('segQuality', v => {
   if (v === quality.setting) return;
   saveSetting(v);

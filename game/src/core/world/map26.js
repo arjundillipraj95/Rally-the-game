@@ -123,8 +123,8 @@ export function mount26Places(L, box, trees) {
     const inR = (topR + (riverR - rw - 7)) / 2;
     for (let c = 0; c < 4; c++) for (const s of [-1, 1]) { const [x, z] = P(mountHomeA(c) + s * Bc.inner.a, inR); L.bushes.push({ id: L.bushes.length, x, z, r: Bc.inner.r, side: c, inner: true }); }
     L.bushR = [Math.min(...L.bushes.map(b => Math.hypot(b.x, b.z) - b.r)), Math.max(...L.bushes.map(b => Math.hypot(b.x, b.z) + b.r))]; }
-  const j0 = riverR + rw + 4, j1 = ridgeR - 5, half = []; for (let i = 0; i < 40; i++) half.push([rr(.05, Math.PI / 4 - .05), rr(j0, j1), rr(.95, 1.4)]);
-  const busy = (x, z) => L.holds.some(h => Math.hypot(h.x - x, h.z - z) < 14) || L.camps.some(k => Math.hypot(k.x - x, k.z - z) < 7) || L.roads.some(p => distToLine(p, x, z) < 4)
+  const j0 = riverR + rw + 4, j1 = ridgeR - 5, half = []; for (let i = 0; i < 40; i++) half.push([rr(.05, Math.PI / 4 - .05), rr(j0, j1), rr(.85, 1.2)]); // (CAM1: a little smaller, was .95-1.4)
+  const busy = (x, z) => L.holds.some(h => Math.hypot(h.x - x, h.z - z) < 18) || L.camps.some(k => Math.hypot(k.x - x, k.z - z) < 10) || L.roads.some(p => distToLine(p, x, z) < 6.5) // (CAM1: fight spots and lanes kept clearer, were 14 / 7 / 4)
     || L.borders.some(b => distToLine(b.pts, x, z) < rw + 3) || distToLine(L.river.pts, x, z) < rw + 3.5 || L.river.pools.some(q => Math.hypot(q.x - x, q.z - z) < q.r + 3) || L.river.bridges.some(b => Math.hypot(b.x - x, b.z - z) < b.len + 4) || (L.bushes || []).some(b => Math.hypot(b.x - x, b.z - z) < b.r + 1.5);
   for (let c = 0; c < 4; c++) for (const s of [-1, 1]) for (const [da, d, sz] of half) { const [x, z] = P(mountHomeA(c) + s * da, d); if (!busy(x, z)) trees(x, z, sz); }
   L.jungle = { r0: riverR + rw + 2, r1: ridgeR - 2 };
