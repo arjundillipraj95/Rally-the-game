@@ -3,7 +3,7 @@
 Work on `launch26` (test site https://rally-preview.arjun-rally.workers.dev deploys on every push; `main` = live).
 Every builder updates this file as the last step of its ticket. Keep it under ~120 lines; finished detail goes to
 `docs/history/2026-11-log.md` (the full board as of 26 Nov is at its end).
-Last updated: 2026-11-26 (AI3, FEEL3, FEEL4 built on launch26, not shipped).
+Last updated: 2026-11-26 (CASTLE11, AI3, FEEL3, FEEL4 built on launch26, not shipped).
 
 ## Live on main (26 Nov)
 - The relaunch: new mountain (MAP), castles (CASTLE1-10, ORD1), champions Titus (C3), Devi (C4), Sigrun (C5), Stage 1
@@ -23,6 +23,9 @@ Last updated: 2026-11-26 (AI3, FEEL3, FEEL4 built on launch26, not shipped).
 - AI3 (card): computers take a lane (left / right / jungle, by what players left, then class) and its job; at the
   Sceptre and the Crown each side picks All in / Split / Hold / Third party and calls it to its players. `core/sim/lanes.js`.
   r_AI3, crown2sim/online roles off+on, r_CASTLE9, r_AI1, r_AI2, r_BOT1 pass.
+
+- CASTLE11 (card): a broken gate silences its ballista and the archers beside it; Repair at level III (120 gold, one
+  bar). r_CASTLE11, shot_CASTLE11, crown2sim/online off+on, r_CASTLE2/3/9/10 pass.
 
 ## Agreed, not built (fight feel)
 - Same per-move review for Devi, then Sigrun, then each champion's soldiers.
@@ -65,7 +68,7 @@ Last updated: 2026-11-26 (AI3, FEEL3, FEEL4 built on launch26, not shipped).
 - Branches never shipped and likely stale: t/CL2 (only the Crown in menus), t/F25, t/F26 (spear reach/facing).
 
 ## Known test issues
-- Flaky before FEEL: r_C3k, r_C4. Out of date: r_F17, r_F26, r_F7 (b-d, f fail before FEEL3). Also flaky: r_C5-join, r_F8 (e), r_F22, r_F24.
+- Flaky before FEEL: r_C3k, r_C4. Out of date: r_F17, r_F26, r_F7 (b-d, f fail before FEEL3). Also flaky: r_CASTLE2 (needs an enemy army with spearmen; random champions), r_C5-join, r_F8 (e), r_F22, r_F24.
 - After editing src, restart vite (`pkill -f "vite --port 8766"`; `store/t.sh` does it) or tests import a second copy
   of modules and read empty. servers.sh can hang: start vite directly.
 - Headless renders can't judge feel; Arjun checks on his phone (851x393 landscape touch for screenshots).

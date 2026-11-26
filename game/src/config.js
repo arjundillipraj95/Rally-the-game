@@ -128,6 +128,9 @@ export const CROWN26 = {
 export const CASTLE26 = {
   fortCost: [100, 170, 250], plate: { big: 450, small: 300 }, layerPlates: [3, 2, 2], plateGold: 30, // (CASTLE10: each level adds layerPlates plates; level 1, 2, 3 = 1x, 1.67x, 2.33x the gate)
   archers: [0, 2, 3, 4], every: [0, 1.8, 1.8, 1.8], shield: 45, neutralLv: 0,
+  // (CASTLE11, Arjun 26 Nov) a broken gate silences the ballista and the wall archers on the towers beside it (within
+  // nearR m of the gate); at level III, Repair puts one bar (plate) back on the most damaged gate for `cost` gold
+  repair: { cost: 120, nearR: 10 },
   // (CASTLE2) level 3: the keep's ballista (a bolt every `every` s, range m, damage; shields don't stop it), the
   // watchtower (lights every bush within `watch` m for the owner's side), the spike ditch (from the wall out to
   // `w` m: the castle's enemies in it move at `slow` and lose `dmg` health a second)

@@ -54,7 +54,7 @@ export function battleHud() {
   // Fortify: only in a castle you hold
   { const b = $('fortBtn'), cw = G.mode === 'crown' && p && !p.dead ? castleHere(G.myTi) : null; set(b, 'hidden', !cw);
     if (cw) { const st = G.cgates && G.cgates[cw.hid], lv = (st && st.lv) | 0, cost = upgradeCost(G.myTi, 'fort');
-      set($('fortT'), 'textContent', cost == null ? `Castle Lv ${lv} · Maxed` : `Fortify · Lv ${lv + 1} · ${cost}`);
+      set($('fortT'), 'textContent', cost == null ? `Castle Lv ${lv} · Maxed` : lv >= 3 ? `Repair gate · ${cost}` : `Fortify · Lv ${lv + 1} · ${cost}`); // (CASTLE11)
       b.setAttribute('aria-disabled', cost == null || (me.gold || 0) < cost ? 'true' : 'false'); } }
   // the Upgrade popup: each soldier type's next tier, Armour (and the Crown's watchtower); the rest are bought elsewhere
   const up = me.up || {};

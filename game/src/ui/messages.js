@@ -94,10 +94,11 @@ export function msgText(k, a) {
     case 'shardTaken': return a[0] === G.ALLY[colorOf(myTi)] ? ['A Crown shard is yours', 'It charges your armies\' horns', '#7fd8ff'] : null; // (CASTLE6)
     case 'castleAttacked': { const nmC = (G.holds && G.holds[a[1]] && G.holds[a[1]].name) || 'A castle'; return a[0] === G.ALLY[colorOf(myTi)] ? [`${nmC} is under attack!`, `${allyNames(a[2])} at the walls`, '#e0352b'] : null; } // (CASTLE5)
     case 'castleHeld': { const nmC = (G.holds && G.holds[a[1]] && G.holds[a[1]].name) || 'The castle'; return a[0] === G.ALLY[colorOf(myTi)] ? [`Held! ${nmC} stands`, `+${a[2]} gold for every army`, '#ffcf3a'] : null; }
+    case 'castleRepair': { const nmC = (G.holds && G.holds[a[1]] && G.holds[a[1]].name) || 'The castle'; return !isEnemyTi(a[0], myTi) ? [`${nmC}: a gate repaired`, 'One bar back on; its ballista and archers shoot again', '#ffcf3a'] : null; } // (CASTLE11)
     case 'castleGate': { // a[0]: the side holding it, a[1]: who broke it, a[2]: the castle
       const nmC = (G.holds && G.holds[a[2]] && G.holds[a[2]].name) || 'a castle';
       const which = a[3] ? 'side gate' : 'main gate';
-      if (a[0] === G.ALLY[colorOf(myTi)]) return [`${nmC}'s ${which} is broken!`, 'Get men into the yard before they take it. Fortify shuts it again', '#e0352b'];
+      if (a[0] === G.ALLY[colorOf(myTi)]) return [`${nmC}'s ${which} is broken!`, (G.cgates && G.cgates[a[2]] && (G.cgates[a[2]].lv | 0) >= 3) ? 'Its ballista and those archers are down. Repair shuts it again' : 'Get men into the yard before they take it. Fortify shuts it again', '#e0352b'];
       return a[1] === myTi || !isEnemyTi(a[1], myTi) ? [`${nmC}'s ${which} is down!`, a[3] ? 'Slip in one at a time and hold the yard' : 'Into the yard and hold it', '#ffcf3a'] : null;
     }
     case 'plazaGate': return [a[1] === myTi ? 'You broke a plaza gate!' : `${nm(a[1])} broke a plaza gate!`, 'The way to the Crown is open', css(a[1])];
@@ -125,7 +126,7 @@ export function msgText(k, a) {
 // down), merged and spaced. Everything between the other sides stays quiet. Highlights wait for the
 // results screen. Your own personal moments (gold, a new man, your horse) keep their small cues.
 const TIER1 = new Set(['start', 'c2chestSoon', 'c2chestUp', 'chestTaken', 'c2flood', 'c2nightSoon', 'c2night', 'c2crack', 'crownTaken']);
-const PERSONAL = new Set(['gold', 'holdMen', 'respawn', 'horseDown', 'horseBack', 'armourOn', 'villageFort', 'castleFort', 'gateRepaired', 'duelOn', 'duelWon', 'duelNo', 'duelDraw', 'duelBroken', 'execReady']);
+const PERSONAL = new Set(['gold', 'holdMen', 'respawn', 'horseDown', 'horseBack', 'armourOn', 'villageFort', 'castleFort', 'castleRepair', 'gateRepaired', 'duelOn', 'duelWon', 'duelNo', 'duelDraw', 'duelBroken', 'execReady']);
 const lastOwner = {};
 export function c2Tier(k, a) {
   const myTi = G.myTi, mine = G.ALLY[colorOf(myTi)];

@@ -6,6 +6,7 @@ import { groundY } from '../world.js';
 import { turretTarget, turretShot, volleyOn } from './turret.js';
 import { allianceOf } from './holds.js';
 import { die } from './score.js';
+import { gateBroken } from './forts.js';
 
 // the castles at level III now: [wall, hold]
 export function level3() {
@@ -29,6 +30,7 @@ export function castle3Tick(dt) {
   if (G.role === 'client') return;
   const B = CASTLE26.ballista;
   for (const [cw, h, st] of level3()) {
+    if (gateBroken(cw, st)) { st.balT = B.every * .5; continue; } // (CASTLE11: a gate broken: the ballista is down)
     st.balT = (st.balT ?? B.every * .5) - dt; if (st.balT > 0) continue;
     const ti = activeArmies().find(i => allianceOf(i) === h.owner); if (ti == null) { st.balT = 1; continue; }
     const e = turretTarget(cw, h, st); if (!e) { st.balT = .5; continue; } // (CASTLE3: the castle's one target)

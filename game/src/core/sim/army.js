@@ -5,7 +5,7 @@ import { G, isEnemy, isEnemyTi, colorOf, capOf, isC2 } from '../state.js';
 import { groundY, clamp, rnd, angDiff, W, groundSlow } from '../world.js';
 import { fx, say, sound, spark } from './util.js';
 import { homeAt, mkUnit, squadOf, armyPlaces, placeOf, startMarch } from './match.js';
-import { applyFort, castleHere, fortLvl, fortifyGates, lastStand, nearestFoe, villageHere, volleyCharge, ditchSlow } from './step.js'; // (later files: through the entry, so files still load in the old order)
+import { applyFort, castleHere, fortLvl, fortifyGates, needsRepair, repairGate, lastStand, nearestFoe, villageHere, volleyCharge, ditchSlow } from './step.js'; // (later files: through the entry, so files still load in the old order)
 import { swiftSpd } from './buffs.js';
 import { applyChamp, champSpd } from '../../champions/stats.js';
 import { champOf } from '../../champions/index.js';
@@ -90,7 +90,7 @@ export const upgradeCost = (ti, id) => {
   if (id === 'fort' && G.mode === 'crown') { // the castle your captain stands in: fortify it, or mend its gates
     if (isC2() && !castleHere(ti)) { const v = villageHere(ti); return v && !v.fort ? CROWN2.villageFort : null; } // (the mountain: a palisade round a village)
     const cw = castleHere(ti), st = cw && G.cgates[cw.hid]; if (!st) return null;
-    return (st.lv | 0) < CASTLE26.fortCost.length ? CASTLE26.fortCost[st.lv | 0] : null; // (CASTLE1: a level a tap; nothing to mend, damage stays)
+    return (st.lv | 0) < CASTLE26.fortCost.length ? CASTLE26.fortCost[st.lv | 0] : needsRepair(cw, st) ? CASTLE26.repair.cost : null; // (CASTLE1: a level a tap; CASTLE11: at III, Repair a bar)
   }
   if (id === 'arm') { const s = G.teams[ti], L = (ti === G.myTi && G.player) || (s && s.leader); // (a joiner's phone knows its own captain, not the team's)
     return !L || L.dead || (L.armour || 0) >= ARMOUR.hp - .5 ? null : Math.min(ARMOUR.maxCost, ARMOUR.cost + ARMOUR.step * (s.armBuys | 0)); } // (armour: whenever it's not whole, again and again)
@@ -149,6 +149,7 @@ export function buyUpgrade(ti, id) {
   if (id === 'fort' && G.mode === 'crown') {
     if (isC2() && !castleHere(ti)) { const v = villageHere(ti); v.fort = 1; sound('wall', v.x, v.z); say('villageFort', ti, v.id); fx('netFlush'); return true; }
     const cw = castleHere(ti), st = G.cgates[cw.hid];
+    if ((st.lv | 0) >= CASTLE26.fortCost.length) { const gi = repairGate(cw, st); say('castleRepair', ti, cw.hid, gi); sound('wall', cw.x, cw.z); fx('netFlush'); return true; } // (CASTLE11)
     fortifyGates(st); say('castleFort', ti, cw.hid, st.lv); // (CASTLE1: one more layer on every gate; what was knocked off stays off)
     sound('wall', cw.x, cw.z); fx('netFlush'); return true;
   }

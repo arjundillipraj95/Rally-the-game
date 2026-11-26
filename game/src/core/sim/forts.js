@@ -44,6 +44,23 @@ export function fortifyGates(st) {
   for (const gi of GATES) { const L = layerHp(gi, n); st.hp[gi] = Math.max(0, st.hp[gi] || 0) + L; st.max[gi] = (st.max[gi] || 0) + L; st.broken &= ~(1 << gi); }
   applyCastleGates();
 }
+// (CASTLE11) where each of a castle's gates stands, and which of them it has (a bit each)
+export function gatesOf(cw) {
+  if (!cw.gatePos) { const g = {}; for (const o of cw.obs) if (o.cgate != null) { const q = g[o.gi | 0] || (g[o.gi | 0] = { x: 0, z: 0, n: 0 }); q.x += o.x; q.z += o.z; q.n++; }
+    cw.gatePos = Object.entries(g).map(([gi, q]) => ({ gi: +gi, x: q.x / q.n, z: q.z / q.n })); cw.gateMask = cw.gatePos.reduce((m, q) => m | (1 << q.gi), 0); }
+  return cw.gatePos;
+}
+export const gateBroken = (cw, st) => { gatesOf(cw); return !!st && ((st.broken | 0) & cw.gateMask) !== 0; }; // (the ballista stops)
+// a wall archer on a corner tower at (x, z) is silent while a gate beside him is broken
+export const towerSilent = (cw, st, x, z) => !!st && gatesOf(cw).some(g => ((st.broken >> g.gi) & 1) && Math.hypot(g.x - x, g.z - z) < CASTLE26.repair.nearR);
+// Repair (level III): one bar back on the most damaged gate; a broken one shuts again. Its knocked-off bar pays again.
+export function needsRepair(cw, st) { return !!st && gatesOf(cw).some(g => (st.hp[g.gi] ?? 0) < (st.max[g.gi] || 0) - 1); }
+export function repairGate(cw, st) {
+  const g = gatesOf(cw).filter(q => (st.hp[q.gi] ?? 0) < (st.max[q.gi] || 0) - 1).sort((p, q) => gatePct(st, p.gi) - gatePct(st, q.gi))[0]; if (!g) return -1;
+  const gi = g.gi; st.hp[gi] = Math.min(st.max[gi], Math.max(0, st.hp[gi] || 0) + plateHp(gi)); st.broken &= ~(1 << gi);
+  st.paid = st.paid || [0, 0, 0, 0]; st.paid[gi] = Math.floor((st.max[gi] - st.hp[gi]) / plateHp(gi) + 1e-6);
+  applyCastleGates(); return gi;
+}
 // the mountain: the village of his side's a captain stands in (for its palisade)
 export function villageHere(ti) {
   const L = (ti === G.myTi && G.player) || (G.teams[ti] && G.teams[ti].leader); if (!L || L.dead) return null;
@@ -68,6 +85,7 @@ export function castleTowersTick(dt) {
     if (e.leader) attacked(h, allianceOf(e.ti)); // (CASTLE5: a champion at the walls)
     st.towerT = CASTLE26.every[lv]; const m = volleyOn(st, e), T = CASTLE26.turret, dmg = (e.leader ? T.champ * m : T.soldier);
     for (let k = 0; k < CASTLE26.archers[lv]; k++) { const b = h.towerA0 + k * Math.PI / 2, x = h.x + Math.cos(b) * 9.5, z = h.z + Math.sin(b) * 9.5;
+      if (towerSilent(cw, st, x, z)) continue; // (CASTLE11: his gate is broken)
       turretShot(x, groundY(x, z) + 5, z, ti, e, dmg, false, cw); }
   }
 }
