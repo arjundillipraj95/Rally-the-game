@@ -5,7 +5,8 @@ import { quality, saveSetting } from '../render/quality.js';
 import { clearCritters } from '../render/critters.js';
 import { setShake, shakeEnabled, setCamAngle, camMode } from '../render/camera.js';
 import { target, setTarget } from '../champions/blocks.js';
-import { initAudio, sfx, setMusic, musicEnabled, setVibe, vibeEnabled } from '../ui/audio.js';
+import { initAudio, sfx, setVibe, vibeEnabled } from '../ui/audio.js';
+import { mountSoundBars } from '../ui/soundbars.js';
 import { portal, onPortal } from '../portal.js';
 import { initOrient } from '../ui/orient.js';
 import { progress, crestUnlocked, setCrest } from '../ui/progress.js';
@@ -24,7 +25,6 @@ import { homeView, pressFmt, seedDemo, setHomeView, showFmtRank, soloStart } fro
 import { renderFriends, toast } from './friends.js';
 import { champDef, myChamp, myBackup, ownedIds, setMain, setBackup } from '../champions/index.js';
 import { aimChampPref, setAimChamp } from '../core/sim/ranged.js'; // (RANGE1)
-import { setSoundLevel, soundLevel } from '../ui/audio.js';
 
 // ---------- menus ----------
 function seg(id, cb) {
@@ -90,10 +90,7 @@ $('setBtn').addEventListener('click', renderChampSettings);
 seg('segAim', v => { setAimChamp(v === 'champ'); pressSeg('segAim', v); });
 pressSeg('segAim', aimChampPref() ? 'champ' : 'near');
 // (FIX2) how loud the game is
-seg('segVol', v => { setSoundLevel(v); pressSeg('segVol', v); });
-pressSeg('segVol', soundLevel());
-seg('segMusic', v => { setMusic(v === 'on'); pressSeg('segMusic', v); });
-pressSeg('segMusic', musicEnabled() ? 'on' : 'off');
+mountSoundBars(); // (AUD1: Music, Effects and Team voice bars, in Settings and the pause menu)
 seg('segVibe', v => { setVibe(v === 'on'); pressSeg('segVibe', v); });
 pressSeg('segVibe', vibeEnabled() ? 'on' : 'off');
 seg('segSpecAim', v => { setTarget(v); pressSeg('segSpecAim', v); }); pressSeg('segSpecAim', target.mode); // (BS5) (C4: its own id; it shared #segTarget with the mode's target picker)

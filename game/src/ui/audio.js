@@ -4,7 +4,8 @@
 // relative to the camera, dulled and sent further into a shared outdoor reverb with distance, and
 // the whole mix runs through a limiter so a big melee never clips.
 import { G, isEnemyTi } from '../core/state.js';
-import { AUDIO } from '../config.js';
+import { BARS, DUCK } from '../config/sound.js';
+import { LV, onLevels } from './levels.js';
 import { clamp } from '../core/world.js';
 import { cam, camTarget } from '../render/camera.js';
 
@@ -21,8 +22,10 @@ export function initAudio() {
     // limiter -> speakers; a short outdoor reverb shared by everything
     const lim = ac.createDynamicsCompressor();
     lim.threshold.value = -10; lim.knee.value = 6; lim.ratio.value = 12; lim.attack.value = .003; lim.release.value = .2;
-    out = ac.createGain(); out.gain.value = muted ? 0 : vol(); out.connect(lim).connect(ac.destination);
+    out = ac.createGain(); out.gain.value = muted ? 0 : 1; out.connect(lim).connect(ac.destination);
     verb = ac.createConvolver(); verb.buffer = impulse(1.7, 3.2); const vg = ac.createGain(); vg.gain.value = .55; verb.connect(vg).connect(out);
+    // (AUD1) effects have their own bus, dry and into the reverb, so the Effects bar and the dip while a teammate talks reach all of it
+    sfxBus = ac.createGain(); sfxBus.connect(out); sfxWet = ac.createGain(); sfxWet.connect(verb); sfxBus.gain.value = sfxWet.gain.value = levelNow().f;
     loadBank();
   } catch (e) { ac = null; }
 }
@@ -60,14 +63,20 @@ const PITCHED = {
 const musReady = () => !!(mb.horn_d && mb.cello_d && mb.bd1 && mb.pizz_d);
 // Silence everything (the games site's mute setting, or while an ad plays).
 let muted = false;
-// (FIX2) the Sound setting: low, mid (default) or high
-let volK = (() => { try { return localStorage.getItem('rally-vol') || 'mid'; } catch (e) { return 'mid'; } })();
-const vol = () => AUDIO.levels[volK] ?? AUDIO.master;
-export const soundLevel = () => volK;
-export function setSoundLevel(k) { if (!(k in AUDIO.levels)) return; volK = k; try { localStorage.setItem('rally-vol', k); } catch (e) { /* none */ } if (out && ac && !muted) out.gain.setTargetAtTime(vol(), ac.currentTime, .05); }
-export function setMuted(m) { muted = !!m; if (out && ac) out.gain.setTargetAtTime(muted ? 0 : vol(), ac.currentTime, .05); }
+// (AUD1) the Music and Effects bars (ui/levels.js), and the dip while a teammate talks (config/sound.js DUCK)
+let sfxBus = null, sfxWet = null;
+const levelNow = () => ({ m: LV.music * BARS.music.max * (LV.talking ? DUCK.music : 1), f: LV.fx * BARS.fx.max * (LV.talking ? DUCK.fx : 1) });
+function applyLevels(kind) {
+  if (!ac) return; const t = ac.currentTime, { m, f } = levelNow(), tc = kind === 'bar' ? .05 : LV.talking ? DUCK.attack : DUCK.release;
+  if (sfxBus) { sfxBus.gain.setTargetAtTime(f, t, tc); sfxWet.gain.setTargetAtTime(f, t, tc); }
+  if (mus) mus.gain.setTargetAtTime(m, t, tc);
+  if (M.droneOut) M.droneOut.gain.setTargetAtTime(m, t, tc);
+}
+onLevels(applyLevels);
+const musicLive = () => LV.music > 0;
+export function setMuted(m) { muted = !!m; if (out && ac) out.gain.setTargetAtTime(muted ? 0 : 1, ac.currentTime, .05); }
 // for automated checks: what loaded, how many sounds are playing right now, the battle's heat
-export const audioStats = () => ({ music: { on: musicOn, level: M.level, want: M.want, move: +M.move.toFixed(2), hurt: +M.hurt.toFixed(2), night: M.night, rec: musReady(), samples: Object.keys(mb).length, drone: !!M.drone, bar: M.bar, beat: M.beat, next: ac && +M.next.toFixed(2), now: ac && +ac.currentTime.toFixed(2) }, state: ac && ac.state, muted, banks: Object.fromEntries(Object.entries(bufs).map(([k, v]) => [k, v.length])), voices, heat: +(amb.heat || 0).toFixed(2), near: amb.near || 0, far: amb.far || 0 });
+export const audioStats = () => ({ music: { on: musicLive(), lv: levelNow(), ctx: ac ? ac.state : null, barMusic: LV.music, barFx: LV.fx, talking: LV.talking, gain: mus ? +mus.gain.value.toFixed(3) : null, sfx: sfxBus ? +sfxBus.gain.value.toFixed(3) : null, level: M.level, want: M.want, move: +M.move.toFixed(2), hurt: +M.hurt.toFixed(2), night: M.night, rec: musReady(), samples: Object.keys(mb).length, drone: !!M.drone, bar: M.bar, beat: M.beat, next: ac && +M.next.toFixed(2), now: ac && +ac.currentTime.toFixed(2) }, state: ac && ac.state, muted, banks: Object.fromEntries(Object.entries(bufs).map(([k, v]) => [k, v.length])), voices, heat: +(amb.heat || 0).toFixed(2), near: amb.near || 0, far: amb.far || 0 });
 export { play as playS, tone as toneS, noise as noiseS }; export const atS = (x, z) => place(x, z); // (C5: ui/wolfsfx.js builds on these)
 export function gateS(n, ms) { const t = performance.now(); if (lastS[n] && t - lastS[n] < ms) return false; lastS[n] = t; return true; }
 
@@ -86,8 +95,8 @@ function route(src, gain, pl, send = .22) {
   const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 16000 - 13500 * pl.far; lp.Q.value = .5;
   let node = src.connect(g).connect(lp);
   if (ac.createStereoPanner) { const p = ac.createStereoPanner(); p.pan.value = pl.pan; node = node.connect(p); }
-  node.connect(out);
-  const s = ac.createGain(); s.gain.value = send + .45 * pl.far; node.connect(s).connect(verb);
+  node.connect(sfxBus);
+  const s = ac.createGain(); s.gain.value = send + .45 * pl.far; node.connect(s).connect(sfxWet);
   return g;
 }
 let voices = 0;
@@ -150,20 +159,13 @@ function brass(f, dur, g = .12, delay = 0) {
 const N = { Bb1: 58.27, C2: 65.41, D2: 73.42, E2: 82.41, F2: 87.31, G2: 98, A2: 110, Bb2: 116.54, C3: 130.81, D3: 146.83, F3: 174.61, A3: 220, Bb3: 233.08, D4: 293.66, F4: 349.23, Fs4: 369.99, A4: 440, D5: 587.33 };
 const BASS = [['D2', 'D2', 'F2', 'D2', 'D2', 'D2', 'A2', 'G2'], ['Bb1', 'Bb1', 'D2', 'Bb1', 'C2', 'C2', 'G2', 'C2']];
 const BPM = [74, 92, 112];
-let mus = null, musicOn = true;
+let mus = null;
 const M = { level: 0, want: 0, next: 0, beat: 0, bar: 0, drone: null, calmT: 0, clashCueT: 0, move: 0, hurt: 0, night: false, heartT: 0 };
-try { musicOn = localStorage.getItem('rally-music') !== 'off'; } catch (e) {}
-export const musicEnabled = () => musicOn;
-export function setMusic(on) {
-  musicOn = !!on; try { localStorage.setItem('rally-music', on ? 'on' : 'off'); } catch (e) {}
-  if (mus && ac) mus.gain.setTargetAtTime(on ? .5 : 0, ac.currentTime, .3);
-  if (M.droneOut && ac) M.droneOut.gain.setTargetAtTime(on ? .5 : 0, ac.currentTime, .3);
-}
 // music bus: everything -> mix (fades) -> dark (a low-pass: night, and far away when you're hurt) -> on/off
 let mix = null, dark = null;
 function mOut() {
   if (!mus) {
-    mus = ac.createGain(); mus.gain.value = musicOn ? .5 : 0; mus.connect(out); const s = ac.createGain(); s.gain.value = .25; mus.connect(s).connect(verb);
+    mus = ac.createGain(); mus.gain.value = levelNow().m; mus.connect(out); const s = ac.createGain(); s.gain.value = .25; mus.connect(s).connect(verb);
     dark = ac.createBiquadFilter(); dark.type = 'lowpass'; dark.frequency.value = 12000; dark.Q.value = .5; dark.connect(mus);
     mix = ac.createGain(); mix.gain.value = 1; mix.connect(dark);
   }
@@ -220,7 +222,7 @@ function mdrum(t, g = .5, pitch = 1) {
 function droneStart() {
   const t = ac.currentTime, fl = ac.createBiquadFilter(), gn = ac.createGain(); fl.type = 'lowpass'; fl.frequency.value = 300; fl.Q.value = .7;
   gn.gain.setValueAtTime(.0001, t); gn.gain.exponentialRampToValueAtTime(.05, t + 3);
-  const dg = ac.createGain(); dg.gain.value = musicOn ? .5 : 0; M.droneOut = dg; fl.connect(gn).connect(dg).connect(out); // (straight out, not through the reverb: it never stops)
+  const dg = ac.createGain(); dg.gain.value = levelNow().m; M.droneOut = dg; fl.connect(gn).connect(dg).connect(out); // (straight out, not through the reverb: it never stops)
   const os = [[N.D2, -5, 'sawtooth'], [N.D2, 5, 'sawtooth'], [N.A2, 0, 'sawtooth'], [N.D2 / 2, 0, 'sine']].map(([f, det, type]) => { const o = ac.createOscillator(); o.type = type; o.frequency.value = f; o.detune.value = det; o.connect(fl); o.start(t); return o; });
   M.drone = { fl, gn, os };
 }
@@ -276,7 +278,7 @@ function heart(dt) {
   M.heartT -= dt; if (M.heartT > 0) return;
   const bpm = 72 + 58 * M.hurt; M.heartT = 60 / bpm;
   const t = ac.currentTime + .02, g = .35 + .45 * M.hurt;
-  const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 220; lp.connect(out);
+  const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 220; mOut(); lp.connect(mus); // (the heartbeat is music: the Music bar, not the effects)
   msamp('beat1', .8, t, .5, g, { dest: lp }); msamp('beat2', .85, t + .22, .5, g * .7, { dest: lp });
 }
 function musicTick(dt, heat, enemiesNear, move = 0, hp = 1) {
@@ -297,7 +299,7 @@ function musicTick(dt, heat, enemiesNear, move = 0, hp = 1) {
 }
 // the big moments
 export function musicCue(kind) {
-  if (!ac || !musicOn) return; const t = ac.currentTime + .03;
+  if (!ac || !musicLive()) return; const t = ac.currentTime + .03;
   switch (kind) {
     case 'drum': mdrum(t, .8, .85); break; // (C3e: the testudo's war drum, one beat)
     case 'clash': mdrum(t, .9, .9); mhorn(N.D4, t, .6, .06); mhorn(N.A4, t, .6, .05); break;
@@ -319,7 +321,7 @@ function loop(f, q, type, g) {
   const s = ac.createBufferSource(); s.buffer = nb; s.loop = true; s.loopStart = Math.random(); s.loopEnd = 2;
   const fl = ac.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q;
   const gn = ac.createGain(); gn.gain.value = 0;
-  s.connect(fl).connect(gn).connect(out); s.start();
+  s.connect(fl).connect(gn).connect(sfxBus); s.start();
   return { s, gn, fl, g };
 }
 export function startCrowd(mapId) {
@@ -366,7 +368,7 @@ export function audioTick(dt) {
   if (me && !me.dead && dt > 0) { if (amb.px != null) move = Math.hypot(me.x - amb.px, me.z - amb.pz) / dt / (me.spd || 6); amb.px = me.x; amb.pz = me.z; hp = me.max ? me.hp / me.max : 1; } else amb.px = null;
   try { musicTick(dt, Math.min(1, (amb.near || 0) / 8), amb.foes || 0, move > 3 ? 0 : move, hp); } catch (e) { console.error(e); } // (the music follows the fighting round you, not across the field; a music fault must never stop the picture)
   // war drums: a slow beat, quickening and louder as the fighting heats up (only with the music off: the score has its own)
-  if (amb.drumT <= 0 && !musicOn) {
+  if (amb.drumT <= 0 && !musicLive()) {
     const h = amb.heat, beat = 60 / (70 + 60 * h);
     const pl = { v: .5 + .5 * h, pan: (Math.random() - .5) * .3, far: .5 };
     drum(.55, 0, 1, pl); drum(.4, beat * .5, 1.12, pl);

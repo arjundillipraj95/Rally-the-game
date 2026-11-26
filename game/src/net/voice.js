@@ -8,6 +8,8 @@
 import { ON, online } from './online.js';
 import { newVoicePeer } from './p2p.js';
 import { G, bus } from '../core/state.js';
+import { LV, onLevels, setTalking } from '../ui/levels.js';
+import { DUCK } from '../config/sound.js';
 
 const KEY = 'rally.mic', JOIN = 'rally.pvoice', MUTED = 'rally.pvmute';
 const ls = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
@@ -17,6 +19,7 @@ const V = { on: ls.get(KEY) !== 'off', want: ls.get(JOIN) === 'on', stream: null
 // diagnostics: my mic's level; per friend whether sound leaves, arrives, and how the link goes
 const D = { ac: null, an: null, buf: null, lv: 0, out: new Map(), inn: new Map(), talk: new Map(), route: new Map(), turned: 0 };
 const now = () => performance.now();
+const AEC = new URLSearchParams(location.search).get('aec') !== 'off'; // (AUD1 test link: ?aec=off opens the mic without echo cancellation, to see if the phone's call mode is what changes the volume)
 const say = (k, t) => { if (V.said.has(k)) return; V.said.add(k); bus.emit('voiceMsg', t); }; // (each message once until voice stops)
 
 // my party friends: {id, nick, vp}; vp is '' until their phone has a voice link
@@ -47,11 +50,28 @@ async function stats() { // once a second: bytes sent to / sound from each frien
   }
 }
 
+// (AUD1) who is talking, four times a second while a battle runs: the game's music and effects dip for as long as a teammate
+// speaks (ui/levels.js setTalking), and the Team voice bar sets how loud they are
+onLevels(() => { for (const a of V.audio.values()) a.volume = LV.voice; });
+let talkAt = 0, talkBusy = false;
+async function fastTalk() {
+  if (talkBusy) return; talkBusy = true;
+  try {
+    if (!V.stream || !V.calls.size || G.state !== 'play') { talkAt = 0; setTalking(false); return; }
+    let loud = false;
+    for (const [id, c] of V.calls) { const pc = c.peerConnection; if (!pc || V.muted.has(id)) continue;
+      try { (await pc.getStats()).forEach(r => { if (r.type === 'inbound-rtp' && r.kind === 'audio' && (r.audioLevel || 0) > DUCK.level) loud = true; }); } catch (e) {} }
+    const t = now(); if (loud) talkAt = t;
+    setTalking(t - talkAt < DUCK.hold * 1000);
+  } finally { talkBusy = false; }
+}
+export const voiceTalking = () => LV.talking;
+
 // ---------- the calls ----------
 function play(id, s) {
   let a = V.audio.get(id);
   if (!a) { a = document.createElement('audio'); a.autoplay = true; a.setAttribute('playsinline', ''); a.style.display = 'none'; document.body.appendChild(a); V.audio.set(id, a); } // (in the page: iPhones play it more reliably)
-  a.srcObject = s; a.muted = V.muted.has(id);
+  a.srcObject = s; a.muted = V.muted.has(id); a.volume = LV.voice; // (AUD1: the Team voice bar)
   a.play().then(() => say('on', 'Voice on with your party')).catch(() => { // (the browser wants a tap before it plays sound)
     say('tap', 'Tap the screen to hear your party');
     const go = () => { a.play().then(() => say('on', 'Voice on with your party')).catch(() => {}); removeEventListener('pointerdown', go); };
@@ -135,7 +155,7 @@ export async function startVoice(fromTap) {
   if (V.stream || V.starting) return;
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { V.failed = 'no-mic'; paintAll(); say('nomic', 'Voice needs a microphone this browser can use'); return; }
   V.starting = true; paintAll();
-  try { V.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false }); }
+  try { V.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: AEC, noiseSuppression: true, autoGainControl: true }, video: false }); }
   catch (e) {
     V.failed = e && e.name === 'NotAllowedError' ? 'denied' : 'no-mic'; V.starting = false; paintAll();
     bus.emit('voiceMsg', V.failed === 'denied' ? (fromTap ? "Microphone blocked: allow it in the browser's site settings, then tap Join voice" : 'Tap Join voice to talk to your party') : 'No microphone found');
@@ -157,7 +177,7 @@ export function stopVoice(keepWant) {
   V.stream = null; V.starting = false;
   if (V.peer) { const p = V.peer; V.peer = null; try { p.destroy(); } catch (e) {} } V.vp = null;
   if (ON.vp) online.voice('');
-  for (const m of [V.state, V.since, V.sinceVp, V.fail, V.err, D.out, D.inn, D.talk, D.route]) m.clear(); D.turned = 0; V.said.clear();
+  for (const m of [V.state, V.since, V.sinceVp, V.fail, V.err, D.out, D.inn, D.talk, D.route]) m.clear(); D.turned = 0; talkAt = 0; setTalking(false); V.said.clear();
   if (keepWant === true) V.failed = 'ended';
   paintAll();
 }
@@ -236,6 +256,7 @@ export function bindVoice() {
   });
   bus.on('online', ({ k }) => { if (k === 'party' || k === 'me') tick(); });
   clearInterval(V.timer); V.timer = setInterval(tick, 1000);
+  clearInterval(V.fastT); V.fastT = setInterval(fastTalk, DUCK.poll);
   paintAll();
 }
 

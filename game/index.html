@@ -273,13 +273,7 @@
           <div class="seg" id="segAim"><button type="button" data-v="near" aria-pressed="true">Nearest</button><button type="button" data-v="champ" aria-pressed="false">Champions first</button></div>
           </div>
           <div class="grp"><label>Sound</label>
-          <div class="seg" id="segVol"><button type="button" data-v="low" aria-pressed="false">Low</button><button type="button" data-v="mid" aria-pressed="false">Medium</button><button type="button" data-v="high" aria-pressed="false">High</button></div>
-          </div>
-          <div class="grp"><label>Music</label>
-          <div class="seg" id="segMusic">
-            <button type="button" data-v="on" aria-pressed="true">On</button>
-            <button type="button" data-v="off" aria-pressed="false">Off</button>
-          </div>
+          <div class="soundBars" data-sound-bars></div>
           </div>
           <div class="grp"><label>Vibration</label>
           <div class="seg" id="segVibe">
@@ -403,6 +397,7 @@
     <div class="menu pausecard">
       <h2>Battle paused</h2>
       <p id="pauseNote"></p>
+      <div class="grp pauseSound"><label>Sound</label><div class="soundBars" data-sound-bars></div></div>
       <div class="pausebtns">
         <button class="go" id="resumeBtn" type="button">Back to the battle</button>
         <button class="go ghost" id="quitBtn" type="button">Leave battle</button>
