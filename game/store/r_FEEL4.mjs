@@ -30,15 +30,17 @@ await sleep(2000);
 const ti = await B.evaluate(() => window.__fb.G.myTi);
 // an enemy soldier that can't die stands in front of the joined phone's captain on the host
 await A.evaluate(async ti => { const G = window.__fb.G, sim = await import('/src/core/sim.js'), p = G.teams[ti].leader, e = (ti + 1) % 4;
-  const f = sim.mkUnit(e, p.x + Math.sin(p.face) * 1.6, p.z + Math.cos(p.face) * 1.6, 'foot'); f.max = f.hp = 150; window.__dummy = f; }, ti);
+  const f = sim.mkUnit(e, p.x + Math.sin(p.face) * 1.6, p.z + Math.cos(p.face) * 1.6, 'foot'); f.max = f.hp = 400; window.__dummy = f; }, ti);
 const res = [];
 for (let k = 0; k < 4; k++) {
-  await A.evaluate(async ti => { const sim = await import('/src/core/sim.js'), p = window.__fb.G.teams[ti].leader, f = window.__dummy; if (p.mounted) sim.dismount(p, false);
+  await A.evaluate(async ti => { const sim = await import('/src/core/sim.js'), p = window.__fb.G.teams[ti].leader; if (window.__dummy.dead) { const st8 = await import('/src/core/state.js'), d = sim.mkUnit([1, 2, 3].map(k => (ti + k) % 4).find(t => st8.isEnemyTi(ti, t)), p.x, p.z, 'foot'); d.max = d.hp = 400; window.__dummy = d; } const f = window.__dummy; // (a fresh one if the battle killed it)
+  for (const u of window.__fb.G.units) if (u !== p && u !== f && !u.dead && Math.hypot(u.x - p.x, u.z - p.z) < 14) { u.x += 300; u.z += 300; } // (nobody else near: only his blow hurts it)
+  if (p.mounted) sim.dismount(p, false);
     f.x = p.x + Math.sin(p.face) * 1.6; f.z = p.z + Math.cos(p.face) * 1.6; f.vx = f.vz = 0; f.face = p.face + Math.PI; f.stun = 5; f.hp = f.max; f.dead = false; f.blockT = 0; f.guardUp = false; f.block = 0; }, ti);
   await sleep(1500); // (the dummy's place reaches the joined phone)
-  const r = await B.evaluate(async () => { const NG = await import('/src/net/netgame.js'), SO = await import('/src/render/soldiers.js'); return await new Promise(done => {
+  const r = await B.evaluate(async () => { const NG = await import('/src/net/netgame.js'), SO = await import('/src/render/soldiers.js'), ST = await import('/src/core/state.js'); return await new Promise(done => {
     const G = window.__fb.G, me = G.player;
-    const near = G.units.filter(u => !u.dead && u !== me && u.ti !== me.ti && Math.hypot(u.x - me.x, u.z - me.z) < 3.5).sort((a, b) => Math.hypot(a.x - me.x, a.z - me.z) - Math.hypot(b.x - me.x, b.z - me.z))[0];
+    const near = G.units.filter(u => !u.dead && u !== me && ST.isEnemy(u, me) && Math.hypot(u.x - me.x, u.z - me.z) < 3.5).sort((a, b) => Math.hypot(a.x - me.x, a.z - me.z) - Math.hypot(b.x - me.x, b.z - me.z))[0];
     if (!near) return done({ err: 'no target near on the joined phone' });
     const t0 = performance.now(), hp0 = near.hp; let pred = null, host = null, fr = 0, f0 = G.frameN;
     const ft = []; let lt = performance.now(); const raf = () => { const n = performance.now(); ft.push(n - lt); lt = n; if (ft.length < 40) requestAnimationFrame(raf); }; requestAnimationFrame(raf);
