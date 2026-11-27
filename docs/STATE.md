@@ -34,8 +34,13 @@ Last updated: 2026-11-26 (FEEL3, FEEL4, AI3, CASTLE11, BAL1, FEEL5 shipped to ma
   r_FEEL1/2/4, r_DUEL4, r_C1g pass (r_FEEL2 runs out of browser memory in one go: run PART=b,c,d / e / f / g).
 
 ## Agreed, not built (fight feel)
-- Sigrun's review proposed 26 Nov (basic chop stagger, Pounce mark, Spin ring, Hunt's red mark / 5x, Snout wedge):
-  waiting for Arjun. Then each champion's soldiers (Devi's archers first).
+- FEEL6 Sigrun (agreed 26 Nov, not built; damage from BAL1): basic 3rd hit a two-handed chop that staggers him a step;
+  Pounce a sure hit like Unite: once a target is picked (same pick as today) it always lands on him (mark under him
+  in the crouch, leaps over soldiers, impact ring; a kill resets after 0.5 s); Spin: faction ring, each tick pushes
+  out a little, she moves through soldiers; Hunt: a red mark over a champion under 20% for everyone, above 20% when
+  she reaches him it hits 5x instead; Snout: a wedge arrow in the 1 s warning, enemies in the path hit and knocked
+  aside, through soldiers like Ram. Open: does Devi's Evade (invulnerable) dodge a Pounce? Then each champion's
+  soldiers (Devi's archers first).
 
 ## Open decisions
 - Eagle's fall: knock champions down? (today a .22 s stun)
