@@ -336,7 +336,7 @@ export function update(dt, input) {
     const a = live[i], ci = Math.floor(a.x / SC) + 128, cj = Math.floor(a.z / SC) + 128;
     for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) { const cell = sg.get((ci + di) * 512 + cj + dj); if (!cell) continue;
     for (let q = 0; q < cell.length; q++) {
-      const b = cell[q]; if (b.sepI <= i || a.flood || b.flood || (a.spin && a.spin.ride) || (b.spin && b.spin.ride)) continue; // (the flood carries men through each other; C5d: so does her spinning charge)
+      const b = cell[q]; if (b.sepI <= i || a.flood || b.flood || (a.spin && (a.spin.ride || !b.leader)) || (b.spin && (b.spin.ride || !a.leader))) continue; // (the flood carries men through each other; C5d: so does her spinning charge)
       const dx = b.x - a.x, dz = b.z - a.z, min = a.r + b.r;
       if (dx > min || dx < -min || dz > min || dz < -min) continue;
       const d = Math.hypot(dx, dz) || .01; if (d >= min) continue;

@@ -3,7 +3,7 @@
 Work on `launch26` (test site https://rally-preview.arjun-rally.workers.dev deploys on every push; `main` = live).
 Every builder updates this file as the last step of its ticket. Keep it under ~120 lines; finished detail goes to
 `docs/history/2026-11-log.md` (the full board as of 26 Nov is at its end).
-Last updated: 2026-11-26 (FEEL3, FEEL4, AI3, CASTLE11, BAL1, FEEL5 shipped to main 26 Nov evening).
+Last updated: 2026-11-26 (FEEL6 Sigrun shipped; FEEL3-5, AI3, CASTLE11, BAL1 shipped earlier the same evening).
 
 ## Live on main (26 Nov)
 - The relaunch: new mountain (MAP), castles (CASTLE1-10, ORD1), champions Titus (C3), Devi (C4), Sigrun (C5), Stage 1
@@ -34,14 +34,7 @@ Last updated: 2026-11-26 (FEEL3, FEEL4, AI3, CASTLE11, BAL1, FEEL5 shipped to ma
   r_FEEL1/2/4, r_DUEL4, r_C1g pass (r_FEEL2 runs out of browser memory in one go: run PART=b,c,d / e / f / g).
 
 ## Agreed, not built (fight feel)
-- FEEL6 Sigrun (agreed 26 Nov, not built; damage from BAL1): basic 3rd hit a two-handed chop that staggers him a step;
-  Pounce a sure hit like Unite: once a target is picked (same pick as today) it always lands on him, Devi's Evade
-  doesn't dodge it; the pick shows as a line from Sigrun to him plus a ring on him (like Glaceon's), while aiming
-  and in the crouch; leaps over soldiers, impact ring; a kill resets after 0.5 s; Spin: faction ring, each tick pushes
-  out a little, she moves through soldiers; Hunt: a red mark over a champion under 20% for everyone, above 20% when
-  she reaches him it hits 5x instead; Snout: a wedge arrow in the 1 s warning, enemies in the path hit and knocked
-  aside, through soldiers like Ram. Then each champion's
-  soldiers (Devi's archers first).
+- FEEL6 Sigrun shipped (card). Next fight-feel step: each champion's soldiers (Devi's archers first).
 
 ## Open decisions
 - Eagle's fall: knock champions down? (today a .22 s stun)

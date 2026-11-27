@@ -33,16 +33,16 @@ let r = await run({ mount: false, lv: 3, champAt: [4.5, 0], manAt: [3.2, 1] });
 ok(r.fired && r.tg === 'man' && Math.abs(r.man - 30) < .6 && r.air > 3 && r.air < 14, `on foot, tap: the nearest enemy (${r.tg}), ${r.man} to the soldier, ${r.air} steps in the air`);
 // drag: the spot by the champion (the soldier is nearer her)
 r = await page.evaluate(`(async () => { await (${SET})({ mount: false, lv: 3, champAt: [4.5, 0], manAt: [3.2, 1.5] }); const { foe } = window.__T; return (${GO})({ aim: { x: foe.x + .5, z: foe.z } }); })()`);
-ok(r.tg === 'champ' && Math.abs(r.champ - 45) < .6 && r.d < 3, `drag onto the champion past a nearer soldier: ${r.champ} to him, landed ${r.d} m from him`);
+ok(r.tg === 'champ' && Math.abs(r.champ - 59.4) < .6 && r.d < 3, `(BAL1: 2x her blow at level 3) drag onto the champion past a nearer soldier: ${r.champ} to him, landed ${r.d} m from him`);
 ok(Math.abs(r.cd - (7 - 25 / 30)) < .1, `recharge 7 s (${r.cd} s left after the leap)`);
 r = await run({ mount: false, lv: 3, champAt: [6.5, 0] });
 ok(r.tg === null && r.champ === 0, `on foot, nobody within 5 m: no target (a champion 6.5 m off untouched: ${r.champ})`);
 r = await run({ mount: true, lv: 3, champAt: [7.5, 0] });
-ok(r.tg === 'champ' && Math.abs(r.champ - 45) < .6, `on the wolf, tap: a champion 7.5 m off, ${r.champ} to him`);
+ok(r.tg === 'champ' && Math.abs(r.champ - 59.4) < .6, `on the wolf, tap: a champion 7.5 m off, ${r.champ} to him`);
 r = await run({ mount: true, lv: 5, champAt: [6, 0] });
-ok(Math.abs(r.champ - 49.5) < .6, `+5% a level: ${r.champ} at level 5 (49.5)`);
+ok(Math.abs(r.champ - 64.8) < .6, `(BAL1) it grows with her blow: ${r.champ} at level 5 (64.8)`);
 r = await run({ mount: false, lv: 3, manAt: [3, 0], manHp: 20 });
-ok(r.manDead && Math.abs(r.cd - ((7 - .45) / 2 - (25 / 30 - .45))) < .1, `a kill halves the recharge: ${r.cd} s left (what was left at the landing, halved)`);
+ok(r.manDead && r.cd <= .5, `(FEEL6) a kill: ready again in 0.5 s (${r.cd} s left)`);
 // a rider: his horse first
 r = await page.evaluate(`(async () => { await (${SET})({ mount: false, lv: 3, champAt: [4, 0] }); const { G } = window.__fb, army = await import('/src/core/sim/army.js'), { foe } = window.__T;
   const hh = { id: ++G.horseN, x: foe.x, z: foe.z, face: 0, state: 'coming', rider: foe, t: 0, spd: 0, ti: foe.ti, fall: 1 }; G.horses.push(hh); army.mountUp(foe, hh); foe.horseHp = army.horseMax(foe.ti); const h0 = foe.horseHp;

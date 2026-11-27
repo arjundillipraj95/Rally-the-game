@@ -9,6 +9,7 @@ import { groundY } from '../world.js';
 import { integrate } from './move.js';
 import { hit } from './melee.js';
 import { fx } from './util.js';
+import { push } from './army.js'; // (FEEL6)
 
 const live = []; // { u, ti, t, d, men, fx, fz (the snout), dx, dz, face, gone }
 export const svinRiders = (u, d) => G.units.filter(o => !o.dead && o.ti === u.ti && o.kind === 'cav' && o.mounted && !o.svin && Math.hypot(o.x - u.x, o.z - u.z) < d.reach);
@@ -40,15 +41,16 @@ export function svinTick(dt) {
     }
     const k = W.t < d.warn ? Math.min(1, dt * 5) : 1;
     for (const o of W.men) { const [x, z] = slotAt(W, o); o.x += (x - o.x) * k; o.z += (z - o.z) * k; o.y = groundY(o.x, o.z); o.vx = W.t < d.warn ? 0 : W.dx * d.spd; o.vz = W.t < d.warn ? 0 : W.dz * d.spd; o.face = W.face; o.stun = 0; o.swing = 0; }
-    if (W.t >= d.warn) for (const o of W.men) strikes(W, o);
+    if (W.t >= d.warn) { for (const o of W.men) strikes(W, o); const lead = W.men.find(o => !o.dead); if (lead) strikes(W, lead, { x: W.fx, z: W.fz, r: 1 }); } // (FEEL6: and its point, between the front riders)
   }
 }
 // a rider meets whoever is in front of him: struck once each, a soldier out of formation (braces don't stop it)
-function strikes(W, r) {
-  const d = W.d, seen = W.hitBy.get(r.id) || W.hitBy.set(r.id, new Set()).get(r.id);
+function strikes(W, r, at = r) {
+  const d = W.d, key = at === r ? r.id : 'tip', seen = W.hitBy.get(key) || W.hitBy.set(key, new Set()).get(key);
   for (const o of G.units) {
-    if (o.dead || seen.has(o.id) || !isEnemy(r, o) || Math.hypot(o.x - r.x, o.z - r.z) > r.r + (o.r || 0) + .5) continue;
+    if (o.dead || seen.has(o.id) || !isEnemy(r, o) || Math.hypot(o.x - at.x, o.z - at.z) > at.r + (o.r || 0) + .5) continue;
     seen.add(o.id); hit(r, o, 1, { fixed: d.hit, kb: .6, unblockable: true });
+    { const sd = ((o.x - W.fx) * W.dz - (o.z - W.fz) * W.dx) >= 0 ? 1 : -1, k = o.leader ? 7 : 12; if (!o.dead) push(o, W.dz * sd * k, -W.dx * sd * k, .4); } // (FEEL6: knocked aside, out of the wedge's path)
     if (!o.leader) { o.unbraceT = G.T + d.disarray; o.disarrayT = G.T + d.disarray; o.shieldwall = false; o.guardUp = false; o.guardT = 0; }
     fx('fxmsg', { k: 'fxsvinhit', u: o, a: r });
   }
@@ -60,3 +62,5 @@ function end(W, i) {
   if (W.u) fx('fxmsg', { k: 'fxsvinend', u: W.u });
 }
 export const svinClear = () => { live.length = 0; };
+export const svinLive = () => live; // (tests)
+export { strikes as svinStrikes }; // (tests)

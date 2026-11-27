@@ -40,6 +40,7 @@ import { drawTestudo } from './testudofx.js';
 import { drawCaptureCircles } from './captring.js';
 import { drawCastleAlerts, drawNexus } from './castlefx.js';
 import { drawSilenced } from './siegefx.js'; // (CASTLE11)
+import { drawHuntMarks } from './huntmark.js'; // (FEEL6)
 import { drawLevel, xpShare } from './levelbadge.js';
 import { paceOf } from '../champions/stats.js';
 
@@ -165,7 +166,7 @@ export function drawOverlay(opts) {
     drawWindups(); drawDuelSide(); drawDuels(); drawBeat(); drawStars(); drawFinish(); drawStreak();
     drawBubbles();
     if (G.flag) drawFlagPointer();
-    if (G.mode === 'ctrl') drawControlLabels(); drawHoldLabels(); drawGateBars(); drawSilenced(ctx, proj); drawTurretRange(ctx, proj); drawEagle(ctx, proj); drawRam(ctx, proj); drawDevi(); drawSigrun(); drawScutum(ctx, proj); drawTestudo(ctx, proj); drawCaptureCircles(ctx, proj); drawCastleAlerts(ctx, proj); drawNexus(ctx, proj); // (CASTLE3, CASTLE4, CASTLE5, CASTLE8)
+    if (G.mode === 'ctrl') drawControlLabels(); drawHoldLabels(); drawGateBars(); drawSilenced(ctx, proj); drawHuntMarks(ctx, proj); drawTurretRange(ctx, proj); drawEagle(ctx, proj); drawRam(ctx, proj); drawDevi(); drawSigrun(); drawScutum(ctx, proj); drawTestudo(ctx, proj); drawCaptureCircles(ctx, proj); drawCastleAlerts(ctx, proj); drawNexus(ctx, proj); // (CASTLE3, CASTLE4, CASTLE5, CASTLE8)
     if (G.mode === 'dm' && G.bounty === G.myTi && player && !player.dead && (performance.now() / 500 % 1) < .7) {
       ctx.font = 'italic 18px Bangers, Impact, sans-serif'; ctx.fillStyle = '#ffcf3a'; ctx.fillText('BOUNTY ON YOU', W / 2, 118);
     }

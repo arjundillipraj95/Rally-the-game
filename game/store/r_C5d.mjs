@@ -32,7 +32,7 @@ const run = async (set, go) => { await page.evaluate(`(${SET})(${JSON.stringify(
 // on the wolf: a champion at 8.5 m and three soldiers at 2.5, 4.5, 6.5 m in the path
 let r = await run({ mount: true, at: [[8.5, .3], [2.5, -.3], [4.5, .5], [6.5, 0]] }, { steps: 30 });
 const lv = 1.1; // (level 5: +5% a level from 5 = x1)
-ok(r.fired && r.dmg[0] === 35 && r.dmg.slice(1).every(d => d === 25), `on the wolf: through them all, ${r.dmg[0]} to the champion, ${r.dmg.slice(1)} to the soldiers`);
+ok(r.fired && Math.abs(r.dmg[0] - 64.8) < .2 && r.dmg.slice(1).every(d => Math.abs(d - 32.4) < .2), `(BAL1: 2x her blow, soldiers half) on the wolf: through them all, ${r.dmg[0]} to the champion, ${r.dmg.slice(1)} to the soldiers`);
 ok(r.gone > 9 && r.gone < 10.6 && +r.shoved < .5, `the whole 10 m (${r.gone} m), nobody shoved (${r.shoved} m)`);
 // a braced spear line at 4 m: it stops there, the wolf takes the spears
 r = await run({ mount: true, brace: true, at: [[30, 0], [4, -.6], [4, .6]] }, { steps: 30, brace: true });
@@ -40,7 +40,7 @@ ok(r.gone < 4 && r.horse > 0 && r.dmg[1] === 0 && r.dmg[2] === 0, `a braced spea
 // on foot: 4 blows of 12 to the champion and a soldier beside her, +20% pace, her slows gone, no basic hits
 r = await page.evaluate(`(async () => { await (${SET})({ mount: false, at: [[1.2, 0], [0, 1.4]] }); const { me } = window.__T, army = await import('/src/core/sim/army.js'), cap = await import('/src/core/sim/captain.js');
   me.slowUntil = window.__fb.G.T + 5; me.slowK = .5; const s0 = army.speedOf(me) / .5; const r = await (${GO})({ steps: 80, hold: true }); r.s0 = s0; return r; })()`);
-ok(r.dmg[0] === 48 && r.dmg[1] === 48, `on foot: 4 blows of 12 (${r.dmg})`);
+ok(Math.abs(r.dmg[0] - 64.8) < .3 && Math.abs(r.dmg[1] - 32.4) < .3, `(BAL1) on foot: 4 blows sharing 2x her blow, a soldier half (${r.dmg})`);
 ok(Math.abs(r.spd / r.s0 - 1.2) < .02, `+20% speed, the slow gone (${(r.spd / r.s0).toFixed(2)}x)`);
 const nb = await page.evaluate(`(async () => { await (${SET})({ mount: false, at: [[1.2, 0]] }); const { G } = window.__fb, A = await import('/src/core/sim/abilities.js'), cap = await import('/src/core/sim/captain.js'), { me } = window.__T;
   A.useAbility(G.myTi, 'sp2'); window.__fb.step(3); me.cd = 0; const t0 = me.lastSwingT; cap.captainAttack(me); const r = { during: me.lastSwingT !== t0, spin: !!me.spin }; window.__fb.step(80); return Object.assign(r, { after: !me.spin }); })()`);

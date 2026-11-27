@@ -206,7 +206,7 @@ export function hit(a, b, mult = 1, extra) {
   if (!isEnemy(a, b) || b.execT > 0 || a.execT > 0) return;
   if (G.crown && G.T < CROWN.breakout) return; // (the break-out: nobody gets hurt before the trumpet) // (an execution plays out untouched)
   if ((a.duelId || b.duelId) && a.duelId !== b.duelId) return; // (a duel: the two of them, and nobody else)
-  if (b.iframeT > 0) { // (evaded: the blow passes through where he was)
+  if (b.iframeT > 0 && !(extra && extra.sure)) { // (evaded: the blow passes through where he was; FEEL6: not a sure hit)
     if (b.leader && a.leader && !b.evadedAt) { b.evadedAt = G.T; gainRally(b, EVADE.rally); fx('fxmsg', { k: 'fxevade', u: b, a }); }
     return;
   }

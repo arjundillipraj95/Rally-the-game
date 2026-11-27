@@ -5,7 +5,7 @@ import { CAPTAIN_COMBAT as CC } from '../../config.js';
 import { G, isEnemy } from '../state.js';
 import { groundY, angDiff } from '../world.js';
 import { integrate } from './move.js';
-import { braced, horseDamage, dismount } from './army.js';
+import { braced, horseDamage, dismount, push } from './army.js';
 import { dropScutum } from './scutum.js';
 import { champOf } from '../../champions/index.js';
 import { paceOf, levelOf, moveHit } from '../../champions/stats.js';
@@ -22,7 +22,7 @@ export function wolfStrike(p) {
   const W = champOf(p.ti).wolfHits, S = CC.sword, k = paceOf(p.ti);
   const combo = G.T - p.lastSwingT < S.window * k ? (p.combo + 1) % 3 : 0, fin = combo === 2, best = softAim(p, W.aim);
   if (!startSwing(p, best)) return false;
-  Object.assign(p.pending, { t: W.t, mult: fin ? S.finisherMult : S.mult, kb: fin ? .6 : .2, slow: fin ? [W.slow, W.slowT] : null });
+  Object.assign(p.pending, { t: W.t, mult: fin ? S.finisherMult : S.mult, kb: fin ? 1.1 : .2, slow: fin ? [W.slow, W.slowT] : null }, fin ? { stun: .35, heavy: !p.duelId } : {}); // (FEEL6: the third, a two-handed chop: he staggers back a step)
   if (best) p.face = Math.atan2(best.x - p.x, best.z - p.z);
   p.cd = (fin ? S.finisherCd : S.cd) * k; p.combo = combo; p.swingKind = combo === 2 ? 4 : combo; p.lastSwingT = G.T;
   p.wolfPaceT = G.T + W.paceT; // (army.js speedOf: ridden on at her strike pace)
@@ -64,7 +64,7 @@ export function pounceStep(u, dt) {
   u.stun = 0; u.vx = u.vz = 0; u.pending = null;
   if (tg && !tg.dead && P.t < d.crouch + d.air * .85) { // (it follows him: lands at his side, never beyond its reach)
     const a = Math.atan2(tg.x - P.x0, tg.z - P.z0), gap = Math.max(0, Math.hypot(tg.x - P.x0, tg.z - P.z0) - (u.r + (tg.r || 0)) * .8), g = Math.min(gap, P.R + 1);
-    P.x = P.x0 + Math.sin(a) * g; P.z = P.z0 + Math.cos(a) * g; u.face = a;
+    P.x = P.x0 + Math.sin(a) * gap; P.z = P.z0 + Math.cos(a) * gap; u.face = a; // (FEEL6: a sure hit: she follows him wherever he runs)
   }
   const s = Math.min(1, Math.max(0, (P.t - d.crouch) / d.air)), h = P.ride ? d.rideH : d.h;
   if (!u.remote) { u.x = P.x0 + (P.x - P.x0) * s; u.z = P.z0 + (P.z - P.z0) * s; u.jy = 4 * h * s * (1 - s); u.y = groundY(u.x, u.z) + u.jy; }
@@ -75,11 +75,11 @@ export function pounceStep(u, dt) {
 function pounceLand(u, P) {
   const tg = P.tg, d = P.d;
   const lx = u.remote ? P.x : u.x, lz = u.remote ? P.z : u.z; // (a joined phone's champion: her phone flies her and the host sees her a beat late, so it lands where her leap was going)
-  if (!tg || tg.dead || Math.hypot(tg.x - lx, tg.z - lz) > u.r + (tg.r || 0) + 1.2) { fx('fxmsg', { k: 'fxpounceland', u, q: 'miss' }); return; }
-  const k = 1 + d.lvlUp * Math.max(0, levelOf(u.ti) - 3);
-  hit(u, tg, 1, { fixed: moveHit(u, 'sp1', tg.leader), kb: .5, shown: true }); // (BAL1)
+  if (!tg || tg.dead) { fx('fxmsg', { k: 'fxpounceland', u, q: 'miss' }); return; } // (FEEL6: a sure hit: only his death before she lands spares him)
+  if (!u.remote && Math.hypot(tg.x - lx, tg.z - lz) > u.r + (tg.r || 0) + .2) { const a = Math.atan2(tg.x - u.x, tg.z - u.z), g = u.r + (tg.r || 0); u.x = tg.x - Math.sin(a) * g; u.z = tg.z - Math.cos(a) * g; u.y = groundY(u.x, u.z); }
+  hit(u, tg, 1, { fixed: moveHit(u, 'sp1', tg.leader), kb: .5, shown: true, sure: true }); // (BAL1; FEEL6: an Evade doesn't dodge it)
   const kill = tg.dead || tg.hp <= 0;
-  if (kill) { const c = G.teams[u.ti] && G.teams[u.ti].cds; if (c && c.sp1 > 0) c.sp1 *= d.killCd; }
+  if (kill) { const c = G.teams[u.ti] && G.teams[u.ti].cds; if (c && c.sp1 > 0) c.sp1 = Math.min(c.sp1, d.killCd); } // (FEEL6: a kill: ready again in `killCd` s)
   fx('fxmsg', { k: 'fxpounceland', u, a: tg, heavy: !!tg.leader, q: kill ? 'kill' : 'hit' });
 }
 
@@ -113,7 +113,7 @@ export function spinStep(u, dt) {
   const S = u.spin, d = S.d; S.t += dt;
   if (!S.ride) { // the spin on foot: she moves as usual, blows round her on the beat
     const gap = d.dur / d.ticks;
-    while (!S.own && S.n < d.ticks && S.t >= (S.n + .5) * gap) { S.n++; for (const o of G.units) if (!o.dead && isEnemy(u, o) && Math.hypot(o.x - u.x, o.z - u.z) <= d.r + (o.r || 0)) hit(u, o, 1, { fixed: moveHit(u, 'sp2', o.leader, 1 / d.ticks), kb: .05 }); fx('fxmsg', { k: 'fxspintick', u }); }
+    while (!S.own && S.n < d.ticks && S.t >= (S.n + .5) * gap) { S.n++; for (const o of G.units) if (!o.dead && isEnemy(u, o) && Math.hypot(o.x - u.x, o.z - u.z) <= d.r + (o.r || 0)) { hit(u, o, 1, { fixed: moveHit(u, 'sp2', o.leader, 1 / d.ticks), kb: .05 }); const dd = Math.hypot(o.x - u.x, o.z - u.z) || 1, k = o.leader ? .5 : .8; if (!o.dead) push(o, (o.x - u.x) / dd * k, (o.z - u.z) / dd * k, 0); } /* (FEEL6: each tick pushes them out a little) */ fx('fxmsg', { k: 'fxspintick', u }); }
     if (S.t >= d.dur) endSpin(u, S);
     return false;
   }
@@ -186,7 +186,8 @@ function huntStrike(u, H) {
   if (tg.mounted) dismount(tg, true); // (no horse between them)
   if (tg.scutum) dropScutum(tg, 'ult'); tg.testudo = null; // (shields don't hold it)
   tg.howBy = 'hunt'; u.slowT = Math.max(u.slowT || 0, H.d.slow); tg.slowT = Math.max(tg.slowT || 0, H.d.slow);
-  hit(u, tg, 1, { fixed: tg.max * 10, ult: true, unblockable: true, unparryable: true, kb: .3 });
-  if (!tg.dead && tg.hp > 0) { tg.hp = 0; } // (whatever else it went through: he falls)
-  fx('fxmsg', { k: 'fxhuntend', u, a: tg, q: 'kill', heavy: true });
+  const finish = tg.hp < tg.max * H.d.below; // (FEEL6: healed above it before she reached him: 5x her blow, not the finish)
+  hit(u, tg, 1, { fixed: finish ? tg.max * 10 : moveHit(u, 'ult', true), ult: true, unblockable: true, unparryable: true, kb: .3 });
+  if (finish && !tg.dead && tg.hp > 0) { tg.hp = 0; } // (whatever else it went through: he falls)
+  fx('fxmsg', { k: 'fxhuntend', u, a: tg, q: finish ? 'kill' : 'hit', heavy: true });
 }

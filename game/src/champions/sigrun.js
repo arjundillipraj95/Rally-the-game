@@ -13,7 +13,7 @@ export default {
   weapons: ['sword'], // (the bearded axe and round shield: the rules use the sword's)
   // her own pieces: body (models/sigrun_anim.glb), axe in her right hand, round shield, the wolf; her men's bodies, the
   // Úlfheðnar's at the top tier, their axes and shields, her riders' fjord horses
-  look: { model: 'sigrun', shield: 'roundshield_sigrun', sword: 'axe_sigrun', horse: 'wolf_sigrun',
+  look: { model: 'sigrun', shield: 'roundshield_sigrun', sword: 'axe_sigrun', horse: 'wolf_sigrun', swings: { 4: 'overhead' }, /* FEEL6: the third, a two-handed overhead chop */
     swordsman: 'swordsman_viking', swordTop: 'ulfhednar', cavHorse: 'horse_fjord', soldierShield: 'roundshield_sigrun', soldierWeapon: 'axe_sigrun' },
   // the great grey wolf: health, m/s, reach from its back (claws and teeth), the horse rules otherwise (FEEL.wolf)
   mount: { kind: 'wolf', hp: 170, spd: 12.2, reach: 1.6 },

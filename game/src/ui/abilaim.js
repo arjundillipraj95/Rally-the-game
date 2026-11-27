@@ -3,6 +3,7 @@
 // button to cancel (it turns red), a tap fires it as before (the way you face, or the nearest foe). A dash (the Ram)
 // shows a see-through slab from your feet to where it will stop: shorter for a wall, a champion or the soldiers that
 // would stop it; a leap (Eagle's fall) a ring where you'll land, as far out as you drag; the shield an arc the way it faces.
+import { pounceTarget } from '../core/sim/sigrun.js'; // (FEEL6)
 import * as THREE from 'three';
 import { G, isEnemy } from '../core/state.js';
 import { cam } from '../render/camera.js';
@@ -111,6 +112,12 @@ export function drawAbilAim() {
     if (!slab || Math.abs(slab.userData.len - len) > .05) { const t0 = slab ? slab.userData.t0 : performance.now(); drop(slab); slab = decal(slabTex, wd, len, { add: false, from: 0, opacity: op }); slab.userData.len = len; slab.userData.t0 = t0; }
     if (slab.material) slab.material.opacity = op * Math.min(1, (performance.now() - slab.userData.t0) / 150); // (RAM2: fades in over 0.15 s)
     place(slab, p.x, p.z, a, .14);
+  } else if (slot === 'sp1' && d.pick) { // (FEEL6: Pounce, as Glaceon's pick: a line from her to the one it will land on, a ring on him)
+    const at = point(); if (!at) return; const tg = pounceTarget(p, at, d, false), x = tg ? tg.x : at.x, z = tg ? tg.z : at.z, len = Math.max(.6, Math.hypot(x - p.x, z - p.z));
+    if (!slab || Math.abs(slab.userData.len - len) > .05) { drop(slab); slab = decal(lineTex, 1.1, len, { add: false, from: 0, opacity: tg ? op : .45, color: 0xff7a5a }); slab.userData.len = len; slab.userData.t0 = performance.now(); }
+    place(slab, p.x, p.z, Math.atan2(x - p.x, z - p.z), .14);
+    if (!ring) ring = decal(ringTex, 2.4, 2.4, { add: false, from: .5, opacity: op, color: 0xff5a4a });
+    ring.material.opacity = tg ? op : .35; place(ring, x, z, 0, .15);
   } else if (d.len && !d.r) { // (ARCH2: a shot down a line: Piercing shot, Tiger's volley)
     const len = d.len, wd = (d.w || .6) * 2 + .5;
     if (!slab || Math.abs(slab.userData.len - len) > .05) { drop(slab); slab = decal(lineTex, wd, len, { add: false, from: 0, opacity: op }); slab.userData.len = len; slab.userData.t0 = performance.now(); }
