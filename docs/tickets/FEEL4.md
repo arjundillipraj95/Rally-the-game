@@ -1,7 +1,7 @@
 # FEEL4 Your own hit shows at once on a joined phone
 
 Model: O · Written 26 Nov from the fight-feel talk (Arjun agreed: "your own phone shows the hit on the target straight away, and the host only checks it")
-Status: built (not shipped), 26 Nov
+Status: shipped 26 Nov
 
 ## What to build
 - A joined phone already showed its own blow's spark, sound and hit-stop at the landing moment (~120 ms into the

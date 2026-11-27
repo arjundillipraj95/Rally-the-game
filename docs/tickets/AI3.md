@@ -1,7 +1,7 @@
 # AI3 Computers take a lane and a job
 
 Model: O · Written 26 Nov from Arjun's design ("agree with all, build it", 26 Nov)
-Status: built (not shipped), 26 Nov
+Status: shipped 26 Nov
 
 ## What to build
 - Lanes, as seen from your base looking at the summit: left, right, jungle. A side's computers take the lanes its

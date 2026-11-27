@@ -1,7 +1,7 @@
 # CASTLE11 A broken gate silences its ballista and archers; Repair at level III
 
 Model: O · Written 26 Nov from Arjun's design (his "go", 26 Nov)
-Status: built (not shipped), 26 Nov
+Status: shipped 26 Nov
 
 ## What to build
 - Any gate of a castle broken: its ballista stops, and the wall archers on the two towers beside that gate (within

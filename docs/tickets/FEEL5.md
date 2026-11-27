@@ -1,7 +1,7 @@
 # FEEL5 Devi's feel
 
 Model: O · Written 26 Nov from the fight-feel talk (Arjun agreed 26 Nov, "start all")
-Status: built (not shipped), 26 Nov
+Status: shipped 26 Nov
 
 ## What to build
 - Joined phone: her own arrows drawn at once at her pace (the double third shot too); where they land the target

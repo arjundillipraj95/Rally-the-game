@@ -1,7 +1,7 @@
 # FEEL3 Block, parry, clash, computers' guard and the finisher only in duels
 
 Model: O · Written 26 Nov from the fight-feel talk (Arjun agreed 25-26 Nov: "block and evade are only for duel; bots don't do it outside the duel"; finisher only as a duel's end)
-Status: built (not shipped), 26 Nov
+Status: shipped 26 Nov
 
 ## What to build
 - Outside a duel: no player block or parry window, no blade clash, no computer captain's guard (nor his parry), no

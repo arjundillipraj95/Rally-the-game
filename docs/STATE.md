@@ -3,7 +3,7 @@
 Work on `launch26` (test site https://rally-preview.arjun-rally.workers.dev deploys on every push; `main` = live).
 Every builder updates this file as the last step of its ticket. Keep it under ~120 lines; finished detail goes to
 `docs/history/2026-11-log.md` (the full board as of 26 Nov is at its end).
-Last updated: 2026-11-26 (BAL1, FEEL5, CASTLE11, AI3, FEEL3, FEEL4 built on launch26, not shipped).
+Last updated: 2026-11-26 (FEEL3, FEEL4, AI3, CASTLE11, BAL1, FEEL5 shipped to main 26 Nov evening).
 
 ## Live on main (26 Nov)
 - The relaunch: new mountain (MAP), castles (CASTLE1-10, ORD1), champions Titus (C3), Devi (C4), Sigrun (C5), Stage 1
@@ -14,7 +14,7 @@ Last updated: 2026-11-26 (BAL1, FEEL5, CASTLE11, AI3, FEEL3, FEEL4 built on laun
   camera back as default (Settings > Camera). FIX13 picture after rotate, Fortify tappable. AUD1 sound bars.
 - Arjun hasn't played the FEEL build on his Android yet.
 
-## Built on launch26, waiting for Arjun's "ship"
+## Shipped 26 Nov evening (main = launch26)
 - FEEL3 (card): block, parry, clash, computers' guard, champions turning arrows and the finisher only in a duel.
   AI1's hunt had left a computer's guard up for minutes (now `huntT`). r_FEEL3 11/11.
 - FEEL4 (card): a joined phone shows its own blow's hit on the target at once (~130 ms after the press at 250 ms

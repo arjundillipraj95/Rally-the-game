@@ -1,7 +1,7 @@
 # BAL1 Champions grow in their trait; specials 2x, ults 5x; armies grow too; faction colours
 
 Model: O · Written 26 Nov from Arjun's design (agreed 26 Nov, "start all")
-Status: built (not shipped), 26 Nov
+Status: shipped 26 Nov
 
 ## What to build
 - Each champion's page `levels` (level 1 to 10): Titus health +8% a level, blow +4%, attack 0.9 -> 1.2; Devi health
