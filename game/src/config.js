@@ -602,7 +602,7 @@ export const ANIM = {
   // FEEL1 (Arjun 25 Nov): sword combo blows (swingKind in `kinds`) play out to his next blow: the clip after it lands at
   // (clip left)/(gap to the next blow - hitDelay), within [min, max]; let go `out` s before the clip's end. bashGap: a
   // bash outside the combo. bash: his body into it (rad): spine `lean` forward, chest `twist` (shield shoulder in), hips, held `hold` s
-  flow: { kinds: [0, 1, 6], min: .85, max: 1.5, out: .05, bashGap: .55, hold: { shieldBash: { clip: 'blockIdle', free: .25, min: .5, max: .9 } }, bash: { lean: .38, twist: -.45, hips: .12, hold: .14 },
+  flow: { kinds: [0, 1, 6], min: .6, /* BAL1: Titus at 0.9 a second (level 1): the follow-through slows to meet his next blow */ max: 1.5, out: .05, bashGap: .55, hold: { shieldBash: { clip: 'blockIdle', free: .25, min: .5, max: .9 } }, bash: { lean: .38, twist: -.45, hips: .12, hold: .14 },
     stab: { hit: .15, dur: .45, reach: 1.6, up: .1, chest: .3 } }, // FEEL2b the stab over the shield (s; m ahead of / above his shoulder; chest turn rad)
   shield: { at: [.1, .09, 0] }, // (where the shield is strapped for the clips, from the left elbow: [toward the hand, off the back of the arm, across it], model units)
   swing: { slash1: { hit: .467, lead: .3, after: 1.5 }, slash2: { hit: .467, lead: .3, after: 1.5 }, slash3: { hit: .4, lead: .28, after: 1.5 },
