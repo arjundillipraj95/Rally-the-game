@@ -10,7 +10,7 @@ import { RANGED } from '../../config.js';
 import { mountedDraw } from './mountdraw.js'; // (FEEL2g)
 import { G, isEnemy } from '../state.js';
 import { groundY } from '../world.js';
-import { sound } from './util.js';
+import { sound, fx } from './util.js';
 import { makeArrow } from './missiles.js';
 import { duelFoe } from './duel.js';
 import { hiddenFrom } from './bush.js';
@@ -59,10 +59,11 @@ export function structureInRange(u, R) {
   return w ? { bld: w, x: w.x, z: w.z, r: w.r || 1 } : null;
 }
 // one arrow at the mark, `mult` of her blow
-export function loose(u, tg, mult) {
+export function loose(u, tg, mult, tag) {
   const tx = tg.x, tz = tg.z, d = Math.hypot(tx - u.x, tz - u.z), y0 = (u.y || 0) + (u.mounted ? 2.4 : 1.6);
   const a = makeArrow({ id: ++G.arrowN, x0: u.x, y0, z0: u.z, x1: tx, z1: tz, y1: groundY(tx, tz) + (tg.bld ? 1.4 : 1.1), dur: Math.max(.06, d / RANGED.speed),
     peak: Math.min(1.2, d * .04), ti: u.ti, t: 0, shooter: u, champ: true, jd: u.dmg * mult });
+  if (tag) Object.assign(a, tag); // (FEEL5: third, boost)
   if (tg.bld) a.bld = tg.bld; else a.tg = tg;
   G.arrows.push(a); u.atkT = G.T; sound('bow', u.x, u.z);
 }
@@ -73,7 +74,9 @@ export function rangedShot(u) {
   const tg = rangedTarget(u); if (!tg) return false;
   u.face = Math.atan2(tg.x - u.x, tg.z - u.z);
   u.rN = ((u.rN | 0) + 1) % 3; const third = u.rN === 0;
-  loose(u, tg, third ? P.third / champBlow(u) : 1); // (the third: two arrows of `third` each, grown with her level as her blow is)
+  const boost = !!u.boostShot; u.boostShot = false; // (FEEL5: her first arrow after an Evade: double, a streak in her colour)
+  loose(u, tg, (third ? P.third / champBlow(u) : 1) * (boost ? 2 : 1), { third, boost });
+  if (boost) fx('fxmsg', { k: 'fxboost', u, a: tg.leader || !tg.bld ? tg : null });
   if (third) u.rSecond = { T: G.T + RANGED.thirdGap, tg };
   u.cd = blowGap(u.ti); u.swing = .38; u.swingKind = third ? 7 : 8; u.lastSwingT = G.T; // (7: the double shot, 8: a shot; the clip rig picks the bow clips)
   u.firingT = G.T + u.cd + RANGED.hold;
@@ -84,7 +87,7 @@ export function rangedTick(u) {
   const s = u.rSecond; if (!s || G.T < s.T) return;
   u.rSecond = null; if (u.dead || u.stun > 0) return;
   const P = rangedOf(u), tg = s.tg && (s.tg.bld || canShoot(u, s.tg)) ? s.tg : rangedTarget(u);
-  if (P && tg) loose(u, tg, P.third / champBlow(u));
+  if (P && tg) loose(u, tg, P.third / champBlow(u), { third: true });
 }
 // Attack held (a human, on any phone's input): keep shooting; riding fast, only the press shoots
 export function rangedHold(p, held, dt) {
@@ -96,9 +99,24 @@ export function rangedHold(p, held, dt) {
   rangedShot(p);
 }
 // (her own phone, joined to a host) the pace while she shoots: Attack held with something in range
+// (FEEL5, Arjun 26 Nov) and her own arrows at once, at her own pace, for the eye: the host's arrows of hers that follow
+// aren't drawn again (net/netgame.js), and where hers land the target takes it now (render/arrowfx.js -> predhit)
 export function rangedPaceLocal(p, held) {
-  if (!rangedOf(p) || !held || p.mounted) return;
-  if (rangedTarget(p)) p.firingT = G.T + RANGED.hold;
+  if (!rangedOf(p) || p.mounted) return;
+  if (p.lSecond && G.T >= p.lSecond.T) { const s = p.lSecond; p.lSecond = null; if (s.tg && !s.tg.dead) localArrow(p, s.tg, true); }
+  if (!held) return;
+  const tg = rangedTarget(p); if (!tg) return;
+  p.firingT = G.T + RANGED.hold;
+  if (p.stun > 0 || G.T - (p.lShotT ?? -9) < blowGap(p.ti)) return;
+  p.lShotT = G.T; p.lrN = ((p.lrN | 0) + 1) % 3; const third = p.lrN === 0;
+  p.face = Math.atan2(tg.x - p.x, tg.z - p.z); p.swing = .38; p.swingKind = third ? 7 : 8; p.lastSwingT = G.T;
+  localArrow(p, tg, third); if (third) p.lSecond = { T: G.T + RANGED.thirdGap, tg };
+}
+function localArrow(u, tg, third) {
+  const d = Math.hypot(tg.x - u.x, tg.z - u.z), y0 = (u.y || 0) + 1.6;
+  const a = makeArrow({ id: -(++G.arrowN), x0: u.x, y0, z0: u.z, x1: tg.x, z1: tg.z, y1: groundY(tg.x, tg.z) + (tg.bld ? 1.4 : 1.1), dur: Math.max(.06, d / RANGED.speed),
+    peak: Math.min(1.2, d * .04), ti: u.ti, t: 0, shooter: u, champ: true, local: true, third, tg: tg.bld ? null : tg });
+  G.arrows.push(a); sound('bow', u.x, u.z); (G.predArrows || (G.predArrows = [])).push(G.T);
 }
 // the player's Targeting setting (Settings: Nearest, the default, or Champions first), on this phone
 let aimC = null;

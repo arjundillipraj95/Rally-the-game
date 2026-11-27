@@ -47,6 +47,7 @@ export function throwJavelin(u, tg, dmg) {
 }
 export function makeArrow(a) { a.x = a.x0; a.y = a.y0; a.z = a.z0; a.px = a.x0; a.py = a.y0; a.pz = a.z0; return a; }
 export function arrowHit(a, b) {
+  if (a.show || a.local) return; // (FEEL5: an Arrow storm's arrows are for the eye; the storm hits everyone inside itself)
   if (b.execT > 0 || b.iframeT > 0) return;
   const shooter = a.shooter;
   let dmg, loc = 'body';
@@ -89,6 +90,7 @@ export function arrowHit(a, b) {
   dmg *= takenX(b); // (C3d)
   b.hp -= dmg; spark(b.x, b.y + 1.3, b.z, b.neutral ? NEUTRAL.css : TEAMS[colorOf(b.ti)].css, 4); sound('hit', b.x, b.z);
   push(b, 0, 0, .12);
+  if (a.champ && (a.third || a.boost) && !b.mounted) { const d = Math.hypot(b.x - a.x0, b.z - a.z0) || 1, k = a.boost ? 3.5 : 2.5; push(b, (b.x - a.x0) / d * k, (b.z - a.z0) / d * k, .15); sound('thud', b.x, b.z); } // (FEEL5: her double shot and her boosted arrow thwack him back a step)
   if (b.isMe) { fx('shake', FEEL.hurt.arrowShake); fx('buzz', FEEL.hurt.arrowBuzz); }
   if (a.storm && b.leader) fx('fxmsg', { k: 'fxvhit', u: b, a: a.shooter }); // (FX3: a storm arrow on a champion is felt, as a volley's)
   const sh = a.shooter;

@@ -47,7 +47,7 @@ function land(a) {
     bus.emit('spark', { x, y: y + .6, z, c: '#cdbb9a', n: a.champ ? 10 : 6 }); bus.emit('spark', { x, y: y + .6, z, c: '#6b4a2a', n: 4 });
     if (fire) { bus.emit('spark', { x, y: y + .7, z, c: '#ff7a1a', n: 8 }); bus.emit('spark', { x, y: y + 1.2, z, c: '#3b3631', n: 5 }); }
   } else if (man) {
-    arrowStats.hits++; const my = (man.y || 0) + 1.2;
+    arrowStats.hits++; if (a.local && a.shooter && man.ti !== a.ti) bus.emit('predhit', { u: man, a: a.shooter, heavy: !!a.third }); /* (FEEL5: her own arrow, felt at once) */ const my = (man.y || 0) + 1.2;
     bus.emit('spark', { x: man.x, y: my, z: man.z, c: a.champ ? fcOf(a) : '#f2e4c0', n: a.champ ? 9 : 5 }); bus.emit('spark', { x: man.x, y: my - .7, z: man.z, c: '#cdbb9a', n: 3 });
     if (fire) { bus.emit('spark', { x: man.x, y: my, z: man.z, c: '#ff7a1a', n: man.kind === 'thrower' ? 14 : 7 }); bus.emit('spark', { x: man.x, y: my + .6, z: man.z, c: '#3b3631', n: man.kind === 'thrower' ? 8 : 3 }); }
   } else bus.emit('spark', { x, y: groundY(x, z) + .15, z, c: '#cdbb9a', n: 3 });

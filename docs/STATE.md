@@ -3,7 +3,7 @@
 Work on `launch26` (test site https://rally-preview.arjun-rally.workers.dev deploys on every push; `main` = live).
 Every builder updates this file as the last step of its ticket. Keep it under ~120 lines; finished detail goes to
 `docs/history/2026-11-log.md` (the full board as of 26 Nov is at its end).
-Last updated: 2026-11-26 (CASTLE11, AI3, FEEL3, FEEL4 built on launch26, not shipped).
+Last updated: 2026-11-26 (BAL1, FEEL5, CASTLE11, AI3, FEEL3, FEEL4 built on launch26, not shipped).
 
 ## Live on main (26 Nov)
 - The relaunch: new mountain (MAP), castles (CASTLE1-10, ORD1), champions Titus (C3), Devi (C4), Sigrun (C5), Stage 1
@@ -27,8 +27,15 @@ Last updated: 2026-11-26 (CASTLE11, AI3, FEEL3, FEEL4 built on launch26, not shi
 - CASTLE11 (card): a broken gate silences its ballista and the archers beside it; Repair at level III (120 gold, one
   bar). r_CASTLE11, shot_CASTLE11, crown2sim/online off+on, r_CASTLE2/3/9/10 pass.
 
+- BAL1 (card): champions grow in their trait (Titus health, Devi attack speed, Sigrun run speed), specials 2x his
+  blow and ults 5x, armies grow with him, moves in the faction colour, Upgrade names his tiers. r_BAL1.
+- FEEL5 (card): Devi's own arrows at once on a joined phone, boosted arrow after Evade, thwack, SA1 black tail, 4 s
+  Volley, Arrow storm hits everyone inside. r_FEEL5, r_FEEL5-join. Regression: crown2sim/online off+on, lagtest,
+  r_FEEL1/2/4, r_DUEL4, r_C1g pass (r_FEEL2 runs out of browser memory in one go: run PART=b,c,d / e / f / g).
+
 ## Agreed, not built (fight feel)
-- Same per-move review for Devi, then Sigrun, then each champion's soldiers.
+- Sigrun's review proposed 26 Nov (basic chop stagger, Pounce mark, Spin ring, Hunt's red mark / 5x, Snout wedge):
+  waiting for Arjun. Then each champion's soldiers (Devi's archers first).
 
 ## Open decisions
 - Eagle's fall: knock champions down? (today a .22 s stun)

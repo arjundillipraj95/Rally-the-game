@@ -76,11 +76,11 @@ bus.on('fxmsg', e => { if (e && e.u) setFc(e.u); // (BAL1)
     endDraw(u.id);
     const [ax, az, end, slowT, ids, cs] = String(e.q || '').split(','); const x = +ax, z = +az, len = +end || 18, c = Number.isFinite(+cs) ? +cs : 1; if (!Number.isFinite(x)) return;
     const y = (u.y || 0) + (u.mounted ? 2.4 : 1.5), col = teamCol(u), a = Math.atan2(x, z), w = .5 + .5 * c;
-    const outer = new THREE.Mesh(beamGeo, glow(col, .55)), core = new THREE.Mesh(beamGeo, glow(0xfff6dc, 1));
+    const outer = new THREE.Mesh(beamGeo, new THREE.MeshBasicMaterial({ color: 0x0b0b0d, transparent: true, opacity: .75, depthWrite: false, side: THREE.DoubleSide })), core = new THREE.Mesh(beamGeo, glow(col, .9)); // (FEEL5: a black tail like Decidueye's, her army's colour at its heart)
     outer.position.set(u.x, y, u.z); outer.lookAt(u.x + x, y, u.z + z); outer.scale.set(.55 * w, .55 * w, len); core.scale.set(.32, .32, 1); outer.add(core); scene.add(outer);
     beams.push({ m: outer, t0: now(), life: .7, w, head: sprite(0xfff6dc, 1), x0: u.x, y, z0: u.z, x, z, len, hs: 2.4 + 1.6 * c });
-    const wake = decal(wakeTex, 2.2 * w + .6, len, { from: 0, color: col }); place(wake, u.x, u.z, a, .12); flat(wake, 1.1, 1);
-    starburst(u.x + x * .9, y, u.z + z * .9, 3 + 1.6 * c); shockwave(u.x + x * .6, u.z + z * .6, 1.6 + c, FC); // (the loose, at her bow)
+    const wake = decal(wakeTex, 1.4 * w + .4, len, { from: 0, color: 0x000000, add: false }); place(wake, u.x, u.z, a, .12); flat(wake, 1.1, .6); // (FEEL5: a dark smear on the ground, not a gold one)
+    shockwave(u.x + x * .6, u.z + z * .6, 1.2 + c * .6, FC); for (let k = 0; k < (low() ? 4 : 9); k++) { const f = k / 9; puff({ x: u.x + x * len * f, y, z: u.z + z * len * f, vx: 0, vy: .5, vz: 0, life: .9, c: '#1a1a1c', s: 1.1 }); } // (FEEL5: smoke along the tail, not a gold burst)
     for (const id of String(ids || '').split(':').filter(Boolean)) {
       const o = G.units.find(v => v.id === +id); if (!o) continue;
       const oy = (o.y || 0) + 1.3; starburst(o.x, oy, o.z, 2.8 + 1.4 * c); spark(o.x, oy, o.z, FC, low() ? 8 : 16);
@@ -106,6 +106,8 @@ bus.on('fxmsg', e => { if (e && e.u) setFc(e.u); // (BAL1)
     const claw = decal(clawTex, 7, 7, { from: 0, color: 0xffffff }); place(claw, u.x + Math.sin(f) * 2, u.z + Math.cos(f) * 2, f, .13); flat(claw, 1.1, 1, .25);
     shockwave(u.x, u.z, 5, FC); shockwave(u.x, u.z, 8, '#fff1c2'); starburst(u.x, (u.y || 0) + 1.6, u.z, 4.5); spark(u.x, (u.y || 0) + 1.5, u.z, FC, 18);
     if (near(u.x, u.z, 18)) cam.shake = Math.max(cam.shake || 0, .3);
+  } else if (e.k === 'fxboost') { // (FEEL5) her boosted arrow after an Evade: a flare at her bow in her army's colour
+    const y = (u.y || 0) + 1.5; spark(u.x, y, u.z, FC, low() ? 8 : 16); shockwave(u.x, u.z, 1.8, FC);
   } else if (e.k === 'fxvhit') { // a volley arrow strikes
     const o = u, oy = (o.y || 0) + 1.3; spark(o.x, oy, o.z, FC, low() ? 4 : 8); if (o.leader) starburst(o.x, oy, o.z, 1.8);
     impact(o, e.a, o.leader ? .45 : .25);

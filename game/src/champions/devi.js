@@ -58,7 +58,7 @@ export default {
     run(u, at, B) { B.evade(u, at, this); } },
   // Tiger's volley (level 7): `n` arrows over `dur` s down a `len` m line, `dmg` each into the first enemy; she turns
   // `turn` rad/s to follow; a raised shield lets 1 in `slip` through. Recharge `cd` s.
-  ult: { name: 'Tiger\'s volley', short: 'Volley', cd: 60, range: 18, len: 18, w: .6, n: 20, dur: 2.5, dmg: 8, turn: Math.PI / 2, slip: 4, lvlUp: .05, mounted: true,
+  ult: { name: 'Tiger\'s volley', short: 'Volley', cd: 60, range: 18, len: 18, w: .6, n: 32, dur: 4, /* FEEL5: 20 over 2.5 s -> 32 over 4 s (as Decidueye holds) */ dmg: 8, turn: Math.PI / 2, slip: 4, lvlUp: .05, mounted: true,
     ai: (u, foe, fd) => !!foe.leader && fd < 14 && foe.hp < foe.max * .7,
     run(u, at, B) { B.tigerVolley(u, at, this); } },
   // Arrow storm (army ult, level 7, from the full horn): a `warn` s mark, then for `dur` s her archers within `reach` m

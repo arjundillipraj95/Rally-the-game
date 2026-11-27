@@ -100,7 +100,7 @@ export function startEvade(u, at, d) {
   const a = Math.atan2(at.x - u.x, at.z - u.z), v = d.dist / d.dur;
   u.vx = Math.sin(a) * v; u.vz = Math.cos(a) * v; u.dashT = d.dur; u.iframeT = d.dur;
   if (!u.mounted) u.face = a; // (on foot she turns with it; the horse simply goes)
-  u.evade = { kind: 'dash', t: G.T, a }; u.lastEvadeT = G.T; u.dashStop = G.T + d.dur; // (stopped when the dash ends: 5 m, not a slide)
+  u.evade = { kind: 'dash', t: G.T, a }; u.lastEvadeT = G.T; u.boostShot = true; // (FEEL5: her next arrow is boosted) u.dashStop = G.T + d.dur; // (stopped when the dash ends: 5 m, not a slide)
   sound('swing', u.x, u.z);
   fx('fxmsg', { k: 'fxevade', u, q: [u.x.toFixed(2), u.z.toFixed(2), a.toFixed(3)].join(',') }); // (ARCH2: her afterimage)
 }
@@ -152,8 +152,13 @@ function stormStep(S) {
     if (a.dead || a.ti !== S.ti || a.kind !== 'arch' || a.stun > 0 || Math.hypot(a.x - S.x, a.z - S.z) > d.reach) continue;
     const ang = rnd(0, Math.PI * 2), r = Math.sqrt(Math.random()) * S.r, mark = { x: S.x + Math.sin(ang) * r, z: S.z + Math.cos(ang) * r, vx: 0, vz: 0 };
     a.face = Math.atan2(S.x - a.x, S.z - a.z); const j = a.jitter; a.jitter = .2; shoot(a, mark); a.jitter = j;
-    const last = G.arrows[G.arrows.length - 1]; if (last && last.shooter === a) { last.plunge = true; last.peak = 14; last.dur += .5; last.storm = true; } // (down from the sky: over a plain shield, as a tower's; ARCH2: high, as loosed to the sky)
+    const last = G.arrows[G.arrows.length - 1]; if (last && last.shooter === a) { last.plunge = true; last.peak = 14; last.dur += .5; last.storm = true; last.show = true; } // (down from the sky: over a plain shield, as a tower's; ARCH2: high, as loosed to the sky; FEEL5: for the eye)
   }
+  { // (FEEL5, Arjun 26 Nov) everyone inside is hit each beat, one of her archers' arrows, landing with the rain
+    const ar = G.units.filter(a => !a.dead && a.ti === S.ti && a.kind === 'arch' && Math.hypot(a.x - S.x, a.z - S.z) <= d.reach);
+    if (ar.length) { const per = ar.reduce((s, a) => s + (a.arrow || 0), 0) / ar.length, sh = G.teams[S.ti] && G.teams[S.ti].leader;
+      for (const o of G.units) if (!o.dead && isEnemy({ ti: S.ti }, o) && Math.hypot(o.x - S.x, o.z - S.z) <= S.r + (o.r || 0)) (S.due || (S.due = [])).push({ o, T: G.T + .55, dmg: per, sh }); } }
+  if (S.due) S.due = S.due.filter(h => { if (G.T < h.T) return true; if (!h.o.dead && Math.hypot(h.o.x - S.x, h.o.z - S.z) <= S.r + 1.5) { hurt(h.o, h.dmg, h.sh && !h.sh.dead ? h.sh : null, S.ti, 'arrow', 1); if (h.o.leader) fx('fxmsg', { k: 'fxvhit', u: h.o, a: h.sh }); } return false; });
   return t > S.warn + S.dur;
 }
 function stormEnd(S) {
